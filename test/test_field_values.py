@@ -1,9 +1,11 @@
 # TEST OF CONSISTENCY in the field values generated
+
 import numpy as np
-from spat_corr_field import SpatialCorrelatedField
-#import matplotlib.pyplot as plt
-from Points_select import Points_select
-from tabulate import tabulate
+
+from correlated_field import SpatialCorrelatedField
+from .points_select import Points_select
+
+#from tabulate import tabulate
 
 # ===========  A structure grid of points: =====================================
 size    = [32,32,32]
@@ -70,7 +72,7 @@ for l in range(5):
         mylist[2*l,:]   = [1,corr,k,N,len(ev),round(fp_var.mean(),3),sigma,round(fp_ave.mean(),3),mu]
         mylist[2*l+1,:] = [2,corr,k,N,len(evr),round(fr_var.mean(),3),sigma,round(fr_ave.mean(),3),mu]
 
-print 'f ' 'corr ',' K   ', 'N  ', 'N_red  ', 'sig_est', 'sig','mean_est','mean'
+print('f ' 'corr ',' K   ', 'N  ', 'N_red  ', 'sig_est', 'sig','mean_est','mean')
 print tabulate(mylist)      
       
 # ============================ Comparison ====================================== 
