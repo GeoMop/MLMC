@@ -1,12 +1,12 @@
 import numpy as np
 import scipy as sc
 import matplotlib.pyplot as plt
-from  BasisFunctions import BasisFunctions
+from BasisFunctions import BasisFunctions
 import time as t
 import math
 
 
-class Distribution:
+class DistributionFixedQuad:
     def __init__(self, basis_fce, moments_number, moments, toleration=0.05):
         '''
         Getting basis function 
@@ -39,6 +39,8 @@ class Distribution:
                 # Calculate G matrix
                 G = self.calculate_G(lam[steps])
                 #print("G", G, self.moments)
+
+                #print("lambda", lam[steps])
 
                 # Calculate H matrix
                 H = self.calculate_H(lam[steps])
@@ -90,8 +92,8 @@ class Distribution:
             return self.bf.get_moments(x, s) * np.exp(-sum)
 
         for s in range(self.moments_number):
-            integral = sc.integrate.quad(integrand, self.integral_lower_limit, self.integral_upper_limit, args=(lam, s),
-                                         limit=100)
+            integral = sc.integrate.fixed_quad(integrand, self.integral_lower_limit, self.integral_upper_limit, args=(lam, s),
+                                         n=self.bf.fixed_quad_n)
             G.append(integral[0])
 
         return G
@@ -111,8 +113,8 @@ class Distribution:
         H = np.zeros(shape=(self.moments_number, self.moments_number))
         for r in range(self.moments_number):
             for s in range(self.moments_number):
-                integral = sc.integrate.quad(integrand, self.integral_lower_limit, self.integral_upper_limit,
-                                             args=(lam, r, s), limit=100)
+                integral = sc.integrate.fixed_quad(integrand, self.integral_lower_limit, self.integral_upper_limit,
+                                             args=(lam, r, s), n=self.bf.fixed_quad_n)
                 H[r, s] = -integral[0]
                 H[s, r] = -integral[0]
 

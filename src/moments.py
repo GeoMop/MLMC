@@ -7,17 +7,15 @@ class Moments():
         self.data = []
         self.execution_number = execution_number
 
-    def set_data(self,data):
+    def set_data(self, data):
         ''' 
         :param data: array of result of simulation on each level, there are coarse and fine results
         :return: 
         '''
         self.data = data
-        self.prepare_data()
-
+       # self.prepare_data()
 
     def prepare_data(self):
-
         levels =[]
         for d in self.data:
             for j in d:
@@ -28,6 +26,8 @@ class Moments():
 
         self.data = levels
 
+    def get_data(self):
+        return self.data
 
     def counting_moment(self, degrees):
         '''

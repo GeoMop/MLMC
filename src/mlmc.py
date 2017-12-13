@@ -4,7 +4,6 @@ import Level as Level
 
 class MLMC:
 
-
     def __init__(self, L, n_fine, n_coarse, sim):
         '''
         :param L:           Number of levels
@@ -29,9 +28,6 @@ class MLMC:
         self.Y = []
 
 
-
-
-
     def monte_carlo(self, type, value):
         '''
         Implements complete multilevel Monte Carlo Method
@@ -42,23 +38,22 @@ class MLMC:
 
         self.i = 0
 
-        if (type == 1):
+        if type == 1:
             self.target_variance = value
         else:
             self.target_time = value
 
-        if (1 < self.number_of_levels):
+        if 1 < self.number_of_levels:
             for k in range(self.number_of_levels):
                 self.create_level()
-
         else:
             l = Level.Level([0, self.n_fine], self.simulation)
             self.levels.append(l)
 
         # Count new number of simulations according to variance of time
-        if(self.target_variance != None):
+        if self.target_variance is not None:
             N = self.count_N_variance()
-        elif(self.target_time != None):
+        elif self.target_time is not None:
             N = self.count_N_time()
 
         self.count_new_N(N)
@@ -89,6 +84,13 @@ class MLMC:
 
         return arrays
 
+    def get_data(self):
+        data = []
+        for k in range(self.number_of_levels):
+            Level = self.levels[k]
+            data.append(Level.get_data())
+
+        return data
 
     def count_new_N(self, N):
         '''
@@ -99,7 +101,7 @@ class MLMC:
         for k in range(self.number_of_levels):
             Level = self.levels[k]
 
-            if(Level.get_number_of_sim() < N[k]):
+            if Level.get_number_of_sim() < N[k]:
                 Level.set_number_of_sim(N[k] - Level.get_number_of_sim())
 
                 # Launch further simulations
@@ -133,7 +135,7 @@ class MLMC:
 
 
         # Coarse number of simulation steps from previouse level
-        if(0< len(self.levels)):
+        if 0 < len(self.levels):
             Level = self.levels[self.i - 1]
             n1 = Level.n_ops_estimate()
 
@@ -157,9 +159,9 @@ class MLMC:
         # Count new number of simulations for each level
         for i in range(self.number_of_levels):
             Level = self.levels[i]
-           # print(self.target_time)
-           # print(Level.get_variance_Y())
-           # print(Level.n_ops_estimate())
+            # print(self.target_time)
+            # print(Level.get_variance_Y())
+            # print(Level.n_ops_estimate())
 
             vysledek = np.round((self.target_time * np.sqrt(Level.get_variance_Y() / Level.n_ops_estimate())) / sum).astype(int)
 

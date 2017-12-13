@@ -126,7 +126,7 @@ class Level:
             fine_step_result = self.fine_simulation.cycle(self.n_fine)
             self.coarse_simulation.set_random_array(self.fine_simulation.get_random_array())
 
-            if(self.n_coarse != 0):
+            if self.n_coarse != 0:
 
                 coarse_step_result = self.coarse_simulation.cycle(self.n_fine)
 
