@@ -154,7 +154,7 @@ class TestSpatialCorrelatedField:
         corr_length = 10
         mu = 3.14
         sigma = 0.5
-        field = SpatialCorrelatedField('exp', dim=2, corr_length = 10)
+        field = SpatialCorrelatedField('exp', dim=2, corr_length = corr_length)
         field.set_points(points, mu, sigma)
         field.svd_dcmp(precision=0.01, n_terms_range=n_terms_range)
 
@@ -178,7 +178,7 @@ class TestSpatialCorrelatedField:
             cum_mean += sample
             centered = sample - mu
             cum_sigma += centered * centered
-            corr_error.add_samples(points, centered)
+            #corr_error.add_samples(points, centered)
 
         #### Mean plots and tests
         mu_err = np.abs(cum_mean.avg_array() - mu)
@@ -193,24 +193,25 @@ class TestSpatialCorrelatedField:
 
 
         ### Sigma plot and test
+        #self.plot_grid_field_2d(ncells, np.sqrt(cum_sigma.avg_array()[0,:]), "sigma conv")
+        #self.plot_grid_field_2d(ncells, np.sqrt(cum_sigma.avg_array()[-1, :]), "sigma conv")
         sigma_err = np.abs( np.sqrt(cum_sigma.avg_array()) - sigma )
-        self.plot_mc(cum_sigma.n_array(), sigma_err)   # convergence plot
-        self.plot_grid_field_2d(ncells, sigma_err[-1, :], "Error in 'sigma' estimate, N={}.".format(n_samples))  # error distribution
+        #self.plot_mc(cum_sigma.n_array(), sigma_err)   # convergence plot
+        #self.plot_grid_field_2d(ncells, sigma_err[-1, :], "Error in 'sigma' estimate, N={}.".format(n_samples))  # error distribution
 
-        # means = np.mean(sigma_err, axis=1)
-        # m1, m0 = np.polyfit(np.log(cum_sigma.n_array()), np.log(means), 1)
-        #
-        # assert -m1 > 0.3    # convergence rate close to 0.5 (optimal for MC)
-        # assert m0 < 0.1     # small absolute error
+        means = np.mean(sigma_err, axis=1)
+        s1, s0 = np.polyfit(np.log(cum_sigma.n_array()), np.log(means), 1)
+        assert -s1 > 0.4    # convergence rate close to 0.5 (optimal for MC)
+        assert s0 < 0.05     # small absolute error
 
 
         #### Correlation plots and tests
         #means = [ cumm.avg_array()[-1] for cumm in corr_error.cum_array]
         #plt.plot(means)
         #plt.show()
-        corr_samples = np.array(corr_error.samples)
-        sorted_idx = corr_samples[:, 0].argsort()
-        corr_sorted = corr_samples[ sorted_idx, :]
+        #corr_samples = np.array(corr_error.samples)
+        #sorted_idx = corr_samples[:, 0].argsort()
+        #corr_sorted = corr_samples[ sorted_idx, :]
 
         # group same 'l' values
         # l_last=-1
@@ -229,37 +230,37 @@ class TestSpatialCorrelatedField:
         #         l_last = l
         #     corr_group.append(corr)
 
-        corr_fn_samples = [corr_fn(l) for l in corr_sorted[:, 0]]
+        #corr_fn_samples = [corr_fn(l) for l in corr_sorted[:, 0]]
 
         # plot samples and theoretical fn
-        plt.scatter(corr_sorted[:,0], corr_sorted[:, 1], c='b', s=2.0 )
-        plt.plot(corr_sorted[:, 0], corr_fn_samples, c='r')
-
-        ## plot errors
-        plt.scatter(corr_sorted[:, 0], np.sqrt( (corr_sorted[:, 1] - corr_fn_samples)**2 ) , c='b', s=2.0)
-
-        knots=[0,0, 0, 1, 10, 30, 45,45,45]
-        x = corr_sorted[:, 0].copy()
-        x[1:] += 1e-14 * np.cumsum(x[1:] == x[:-1])
-
-
-        f = sc_inter.make_lsq_spline(x, corr_sorted[:, 1], knots, k=2 )
-        # z = np.polyfit(corr_sorted[:,0], corr_sorted[:, 1], 5)
-        # f = np.poly1d(z)
-        x_new = np.linspace(corr_sorted[0, 0], corr_sorted[-1, 0], 100)
-
-        plt.plot(x_new, f(x_new), c='g')
-
-
-
-        #plt.errorbar(l_values, means, yerr=devs, fmt='-o', capsize=3, ecolor="lightblue")
-        plt.ylim([0, 2])
-        plt.show()
-
-        ## Chi square test
-        chi_sq = np.sum( (corr_sorted[:, 1] - corr_fn_samples) ** 2 )
-        p_val = 1 - sc_stat.chi2.cdf(chi_sq, df = len(corr_sorted[:,1])  )
-        print("H0: match of covarianvce function, p-val: ", p_val)
+        # plt.scatter(corr_sorted[:,0], corr_sorted[:, 1], c='b', s=2.0 )
+        # plt.plot(corr_sorted[:, 0], corr_fn_samples, c='r')
+        #
+        # ## plot errors
+        # plt.scatter(corr_sorted[:, 0], np.sqrt( (corr_sorted[:, 1] - corr_fn_samples)**2 ) , c='b', s=2.0)
+        #
+        # knots=[0,0, 0, 1, 10, 30, 45,45,45]
+        # x = corr_sorted[:, 0].copy()
+        # x[1:] += 1e-14 * np.cumsum(x[1:] == x[:-1])
+        #
+        #
+        # f = sc_inter.make_lsq_spline(x, corr_sorted[:, 1], knots, k=2 )
+        # # z = np.polyfit(corr_sorted[:,0], corr_sorted[:, 1], 5)
+        # # f = np.poly1d(z)
+        # x_new = np.linspace(corr_sorted[0, 0], corr_sorted[-1, 0], 100)
+        #
+        # plt.plot(x_new, f(x_new), c='g')
+        #
+        #
+        #
+        # #plt.errorbar(l_values, means, yerr=devs, fmt='-o', capsize=3, ecolor="lightblue")
+        # plt.ylim([0, 2])
+        # plt.show()
+        #
+        # ## Chi square test
+        # chi_sq = np.sum( (corr_sorted[:, 1] - corr_fn_samples) ** 2 )
+        # p_val = 1 - sc_stat.chi2.cdf(chi_sq, df = len(corr_sorted[:,1])  )
+        # print("H0: match of covarianvce function, p-val: ", p_val)
 
 
 
