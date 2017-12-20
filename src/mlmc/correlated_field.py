@@ -1,3 +1,4 @@
+# -*- coding: cp1252 -*-
 import numpy as np
 import numpy.linalg as la
 import scipy as sp
@@ -75,7 +76,7 @@ class SpatialCorrelatedField(object):
         self.cov_mat = None
         # Covariance matrix (dense).
         self._n_approx_terms = None
-        # Length of the sample vector, number of KL (Karhunen-Loève) expansion terms.
+        # Length of the sample vector, number of KL (Karhunen-Loeve) expansion terms.
         self._cov_l_factor = None
         # (Reduced) L factor of the SVD decomposition of the covariance matrix.
         self._sqrt_ev = None
