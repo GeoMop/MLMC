@@ -1,34 +1,31 @@
 import numpy as np
 import scipy as sc
-import matplotlib.pyplot as plt
-from  BasisFunctions import BasisFunctions
-import time as t
-import math
-
 
 class Distribution:
-    def __init__(self, basis_fce, moments_number, moments, toleration=0.05):
-        '''
-        Getting basis function 
-        '''
-        self.bf = basis_fce
-        self.integral_lower_limit = self.bf.bounds[0]
-        self.integral_upper_limit = self.bf.bounds[1]
+    """
+    Calculation of the distribution
+    """
+    def __init__(self, moments_fce, moments_number, moments, toleration=0.05):
+        """
+        Getting basis function
+        """
+        self.moments_function = moments_fce
+        self.integral_lower_limit = self.moments_function.bounds[0]
+        self.integral_upper_limit = self.moments_function.bounds[1]
         self.moments_number = moments_number
         self.moments = moments
-        self.lagrangien_parameters = []
+        self.lagrangian_parameters = []
         self.toleration = toleration
 
 
     def newton_method(self):
-        '''
+        """
         Newton method
         :return: None
-        '''
-
-        lam = []
-        l_0 = np.ones(self.moments_number) * 0
-        lam.append(l_0)
+        """
+        lagrangians = []
+        first_lambda = np.ones(self.moments_number) * 0
+        lagrangians.append(first_lambda)
         damping = 0.1
         steps = 0
         max_steps = 1000
@@ -36,84 +33,90 @@ class Distribution:
         try:
             while steps < max_steps:
                 error = 0
-                # Calculate G matrix
-                G = self.calculate_G(lam[steps])
-                #print("G", G, self.moments)
+                # Calculate moments approximation
+                moments_approximation = self.calculate_moments_approximation(lagrangians[steps])
 
-                # Calculate H matrix
-                H = self.calculate_H(lam[steps])
-                #print("H", H)
-                H = np.linalg.inv(H)
+                # Calculate jacobian matrix
+                jacobian_matrix = self.calculate_jacobian_matrix(lagrangians[steps])
+                jacobian_matrix = np.linalg.inv(jacobian_matrix)
 
-                # Result - add new lamba
-                lam.append(lam[steps] + np.dot(H, np.subtract(self.moments, G)) * damping)
+                # Result - add new lagrangians
+                lagrangians.append(lagrangians[steps] +
+                                   np.dot(jacobian_matrix, np.subtract(self.moments, moments_approximation)) * damping)
 
-                for i in range(self.moments_number):
+                for degree in range(self.moments_number):
                     try:
-                        error += pow((self.moments[i] - G[i]) / (self.moments[i] + 1), 2)
+                        error += pow((self.moments[degree] - moments_approximation[degree]) / (self.moments[degree] + 1), 2)
                     except ZeroDivisionError:
                         print("Division by zero")
 
                 if error < self.toleration ** 2:
                     break
                 steps += 1
+            self.lagrangian_parameters = lagrangians[steps - 1]
+        except TypeError:
+            return self.lagrangian_parameters, steps
 
-            self.lagrangien_parameters = lam[steps - 1]
-        except:
-            return self.lagrangien_parameters, steps
+        return self.lagrangian_parameters, steps
 
-        return self.lagrangien_parameters, steps
-
-    def density(self, x):
-        """       
-        :param x: 
-        :return: density for passed x
+    def density(self, value):
         """
-        s = 0
-        for r in range(self.moments_number):
-            s += self.lagrangien_parameters[r] * self.bf.get_moments(x, r)
-
-        return np.exp(-s)
-
-
-    def calculate_G(self, lam):
+        :param value: float
+        :return: density for passed value
         """
-        :param l: lambda
-        :return: array G
+        result = 0
+        for degree in range(self.moments_number):
+            result += self.lagrangian_parameters[degree] * self.moments_function.get_moments(value, degree)
+
+        return np.exp(-result)
+
+    def calculate_moments_approximation(self, lagrangians):
         """
-        G = []
+        :param lagrangians: array, lagrangians parameters
+        :return: array, moments approximation
+        """
+        moments_approximation = []
 
-        def integrand(x, lam, s):
-            sum = 0
-            for r in range(self.moments_number):
-                sum += lam[r] * self.bf.get_moments(x, r)
-            return self.bf.get_moments(x, s) * np.exp(-sum)
+        def integrand(value, lagrangians, moment_degree):
+            """
+            Integral function
+            """
+            total = 0
+            for degree in range(self.moments_number):
+                total += lagrangians[degree] * self.moments_function.get_moments(value, degree)
+            return self.moments_function.get_moments(value, moment_degree) * np.exp(-total)
 
-        for s in range(self.moments_number):
-            integral = sc.integrate.quad(integrand, self.integral_lower_limit, self.integral_upper_limit, args=(lam, s),
-                                         limit=100)
-            G.append(integral[0])
+        for moment_degree in range(self.moments_number):
+            integral = sc.integrate.fixed_quad(integrand, self.integral_lower_limit, self.integral_upper_limit,
+                                               args=(lagrangians, moment_degree), n=self.moments_function.fixed_quad_n)
+            moments_approximation.append(integral[0])
 
-        return G
+        return moments_approximation
 
-    def calculate_H(self, lam):
-        '''
-        :param l: lambda
-        :return: matrix H
-        '''
+    def calculate_jacobian_matrix(self, lagrangians):
+        """
+        :param lagrangians: lambda
+        :return: matrix, jacobian matrix
+        """
 
-        def integrand(x, lam, r, s):
-            sum = 0
-            for p in range(self.moments_number):
-                sum += lam[p] * self.bf.get_moments(x, p)
-            return self.bf.get_moments(x, s) * self.bf.get_moments(x, r) * np.exp(-sum)
+        def integrand(value, lagrangians, moment_degree_r, moment_degree_s):
+            """
+            Integral function
+            """
+            total = 0
+            for degree in range(self.moments_number):
+                total += lagrangians[degree] * self.moments_function.get_moments(value, degree)
+            return self.moments_function.get_moments(value, moment_degree_s) * \
+                   self.moments_function.get_moments(value, moment_degree_r) * np.exp(-total)
 
-        H = np.zeros(shape=(self.moments_number, self.moments_number))
-        for r in range(self.moments_number):
-            for s in range(self.moments_number):
-                integral = sc.integrate.quad(integrand, self.integral_lower_limit, self.integral_upper_limit,
-                                             args=(lam, r, s), limit=100)
-                H[r, s] = -integral[0]
-                H[s, r] = -integral[0]
+        # Initialization of matrix
+        jacobian_matrix = np.zeros(shape=(self.moments_number, self.moments_number))
 
-        return H
+        for moment_degree_r in range(self.moments_number):
+            for moment_degree_s in range(self.moments_number):
+                integral = sc.integrate.fixed_quad(integrand, self.integral_lower_limit, self.integral_upper_limit,
+                           args=(lagrangians, moment_degree_r, moment_degree_s), n=self.moments_function.fixed_quad_n)
+                jacobian_matrix[moment_degree_r, moment_degree_s] = -integral[0]
+                jacobian_matrix[moment_degree_s, moment_degree_r] = -integral[0]
+
+        return jacobian_matrix

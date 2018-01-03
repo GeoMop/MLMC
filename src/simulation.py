@@ -2,79 +2,95 @@ import numpy as np
 import random as rn
 
 
-class Simulation():
-    '''
+class Simulation:
+    """
     Parent class for simulations
-    '''
+    """
 
     def __init__(self, r):
         self.type_of_random_array = r
-        pass
+        self._simulation_result = 0
+        self._simulation_step = 0
 
     def cycle(self):
         pass
 
-    def set_data(self, data):
-        pass
+    @property
+    def simulation_result(self):
+        """
+        Simulation result
+        """
+        return self._simulation_result
 
-    def get_data(self):
-        pass
+    @simulation_result.setter
+    def simulation_result(self, result):
+        self._simulation_result = result
 
+    @property
+    def simulation_step(self):
+        """
+        Simulation step
+        """
+        return self._simulation_step
+
+    @simulation_step.setter
+    def simulation_step(self, step):
+        self._simulation_step = step
 
     def averaging(self, n_coarse, n_fine, F):
-        '''
-         Array interpolation 
+        """
+        Array interpolation
         :param n_coarse:    Steps on previous level
         :param n_fine:      Steps on current level
         :param F:           Random array
-        :return: array      G array 
-        '''
-
+        :return: array      G array
+        """
         G = []
         for i in range(n_coarse):
             jbegin = np.floor((i / n_coarse) * n_fine).astype(int)
             jend = np.floor(((i + 1) / n_coarse) * n_fine).astype(int)
-
             v = 0
             v = v - ((i / n_coarse) - (jbegin / n_fine)) * F[jbegin]
 
-            if (jend < n_fine):
-
+            if jend < n_fine:
                 for k in range(jbegin, jend + 1):
                     v = v + (1 / n_fine) * F[k]
-
             else:
                 for k in range(jbegin, jend):
                     v = v + (1 / n_fine) * F[k]
 
-            if (jend < n_fine):
+            if jend < n_fine:
                 v = v - (((jend + 1) / n_fine) - ((i + 1) / n_coarse)) * F[jend]
             v = v / (1 / n_coarse)
 
             G.append(v)
-        #print('averaging')
         return G
 
-    def get_rnd_array(self, n):
+    def get_rnd_array(self, length):
+        """
+        :param length: length of array
+        :return: array
+        """
+        if self.type_of_random_array == 1:
+            return self.Z_array(length)
+        if self.type_of_random_array == 2:
+            return self.F_array(length)
 
-        if(1 == self.type_of_random_array):
-            return self.Z_array(n)
-        if(2 == self.type_of_random_array):
-            return self.F_array(n)
-
-
-    def Z_array(self, n):
-
+    def Z_array(self, length):
+        """
+        :param length: int, length of array
+        :return: array
+        """
         Z = []
-        for i in range(n):
+        for i in range(length):
             Z.append(0.2 * (2 * rn.random() - 1))
-
-
         return Z
 
-
-    def F_array(self, n):
-
+    def F_array(self, length):
+        """
+        :param length: int length of array
+        :return: array
+        """
         # -1 for shooting simulation
         # 0 for water simulation
         F_average = -1
@@ -85,8 +101,8 @@ class Simulation():
         scale = F_deviation
         fraction = 0.2  # 0-1; 0 means perfect correlation
         new_F = []
-        if (n > 2):
-            while len(F) < n:
+        if length > 2:
+            while len(F) < length:
                 new_F = []
                 scale *= fraction
                 for i in range(len(F) - 1):
@@ -96,9 +112,7 @@ class Simulation():
                 new_F.append(F[-1])
                 F = new_F
 
-            del new_F[n:]  # drop remaining items
+            del new_F[length:]  # drop remaining items
         else:
             new_F = F
-
-        #print("F", np.mean(new_F))
         return new_F

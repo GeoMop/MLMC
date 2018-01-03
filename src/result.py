@@ -1,120 +1,126 @@
 import numpy as np
-from moments import Moments
 
 
-class Result():
-    '''
+class Result:
+    """
     Multilevel Monte Carlo result
-    '''
+    """
     def __init__(self, moments_number):
-        self.n = []
         self.variance = []
-        self.N = []
-        self.time = []
-        self.average = []
-        self.arrays = []
+        self._time = 0
+        self.average = 0
         self.data = []
-        self.data_for_distribution = []
         self.moments = []
+        self.simulation_results = []
+        self.simulation_on_level = []
         self.moments_number = moments_number
+        self.levels = None
 
+        self._mc_data = []
+        self._mc_levels = []
+        self.levels = []
+        # Variance of values on each level
+        self.levels_dispersion = []
+        self._levels_number = None
+        # Each level values (fine_step - coarse_step)
+        self.levels_data = []
 
-    def add_average(self, average):
-        self.average.append(average)
-
-
-    def add_arrays(self, arrays):
-        self.arrays = arrays
-
-
-    def set_variance(self, variance):
-        self.variance = variance
-
-
-    def set_levels(self, levels):
-        self.levels = levels
-
-
-    def set_levels_number(self, number):
-        self.levels_number = number
-
-
-    def set_execution_number(self, number):
-        self.execution_number = number
-
-    def append_result(self, result):
-        self.n.append(result[0])
-        self.variance.append(result[1])
-        self.N.append(result[2])
-        self.data.append(result[3])
-
-    def add_time(self, time):
-        self.time.append(time)
-
-    def prepare_data(self):
+    @property
+    def mc_levels(self):
         """
-        Count result each item in each level, it means fine step result - coarse step result
-        :return: 
+        Monte Carlo method levels
         """
-        levels =[]
-        for d in self.data:
-            for j in d:
-                level = []
-                for i in j:
-                    level.append(i[0] - i[1])
-                levels.append(level)
-        self.data = levels
+        return self._mc_levels
 
+    @mc_levels.setter
+    def mc_levels(self, mc_levels):
+        if not mc_levels:
+            raise ValueError("mc_levels must be list of levels from monte carlo method")
 
-        # Sum of each mlmc level result
-        all_data = self.data
-        self.data_for_distribution = all_data[0]
-        for level_data in all_data[1:]:
-            for index, d in enumerate(level_data):
-                self.data_for_distribution[index] = self.data_for_distribution[index] + d
+        self._mc_levels = mc_levels
 
+    @property
+    def levels_number(self):
+        """
+        Number of Monte Carlo method levels
+        """
+        return self._levels_number
 
-    def result(self):
-        N_final = []
-        V_final = []
+    @levels_number.setter
+    def levels_number(self, levels_number):
+        if levels_number < 1:
+            raise ValueError("Levels number must be integer greater than 0")
+        self._levels_number = int(levels_number)
 
-        mo = Moments(self.execution_number)
-        self.prepare_data()
-        mo.set_data(self.data)
-        self.moments = mo.counting_moment(self.moments_number)
+    @property
+    def time(self):
+        """
+        Monte Carlo method processing time
+        """
+        return self._time
 
-        for j in range(self.levels_number):
-            n_final = self.n[0]
+    @time.setter
+    def time(self, value):
+        if value < 0:
+            ValueError("Time must be positive value")
+        self._time = value
 
-            sum_N = 0
-            sum_V = 0
-            for k in range(self.execution_number):
-                sum_N = sum_N + self.N[k][j]
-                sum_V = sum_V + self.variance[k][j]
+    def process_data(self):
+        """
+        Prepare mlmc levels data for further use
+        :return: None
+        """
+        if bool(self.mc_levels) is False:
+            raise ValueError("mc_levels must be array")
 
-            N_final.append(np.round(sum_N / self.execution_number).astype(int))
-            V_final.append((sum_V / self.execution_number))
+        self.levels_data = [[] for _ in range(len(self.mc_levels))]
+        self.levels = [[] for _ in range(len(self.mc_levels))]
+        self.simulation_on_level = []
 
-        cas_L = 0
-        for i in range(self.execution_number):
-            cas_L = cas_L + self.time[i]
+        # Each level in one execution of mlmc
+        for index, level in enumerate(self.mc_levels):
 
-        cas_final = (cas_L / self.execution_number)
+            # Add fine - coarse
+            for fine_and_coarse in level.data:
+                # Array of fine - coarse
+                self.levels_data[index].append(fine_and_coarse[0] - fine_and_coarse[1])
 
-        print("n = ", n_final)
-        print("N = ", N_final)
-        print("V = ", V_final)
-        print("vektor Y", self.average)
-        print("Y prumer = ", np.average(self.average))
-        print("Rozptyl hodnot Y = ", np.var(self.average))
-        print("Celkovy cas = ", cas_final)
-        #print("Centrální momenty", self.moments)
+            self.simulation_on_level.append(len(level.data))
 
-        return self.moments, self.data_for_distribution
+        self.result_of_levels()
 
+    def result_of_levels(self):
+        """
+        Basic result from Monte Carlo method
+        """
+        self.levels_dispersion = []
+        self.average = 0
+        self.simulation_results = [0 for _ in self.levels_data[0]]
 
+        for level_data in self.levels_data:
+            self.levels_dispersion.append(np.var(level_data))
+            for index, data in enumerate(level_data):
+                self.simulation_results[index] += data
 
+            self.average += np.mean(level_data)
 
+    def format_result(self):
+        """
+        Print results
+        """
+        print("Střední hodnota = ", self.average)
+        print("Rozptyl hodnota = ", np.var(self.simulation_results))
+        print("Rozptyly na úrovních", self.levels_dispersion)
+        print("Počet simulací na jednotlivých úrovních", self.simulation_on_level)
 
-
+    def level_moments(self):
+        """
+        Create sum of
+        :return: moments
+        """
+        moments_pom = []
+        for level in self.mc_levels:
+            level.get_moments()
+            moments_pom.append(level.moments)
+        return [sum(m) for m in zip(*moments_pom)]
 
