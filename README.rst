@@ -82,8 +82,9 @@ https://python-nameless.readthedocs.io/
 Development
 ===========
 
-To run the all tests run::
-
-    tox
-
-
+Rules:
+    
+- indent by 4 spaces
+- use docstrings to document function parameters
+- initialize and document class attributes in the constructor
+- 
