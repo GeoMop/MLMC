@@ -11,6 +11,7 @@ import scipy.stats as sc_stat
 
 def make_points_grid(bound, size):
     """
+    Creates a regular grid within bounds and set number of cells
     bound: array of size 3 with spatial max dimensions of the grid, initial point at [0,0,0] by default
     size   : array of size 3 with number of cells in each dimensions
     """
@@ -28,6 +29,7 @@ def make_points_grid(bound, size):
 
 def make_points_random(bound, size):
     """
+    Creates a grid with random placing of points within bounds
     bound : max coordinate in each direction
     size  : number of random points
     """
