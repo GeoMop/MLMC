@@ -122,7 +122,7 @@ class SpatialCorrelatedField(object):
         length_srq_mat = np.sum(np.inner(diff_mat, self.correlation_tensor) * diff_mat, axis =-1)
 
         corr_exp = self.correlation_exponent / 2.0   # ??
-        exp_scale = - 1.0 / (self._max_corr_length**self.correlation_exponent)   # Corrected
+        exp_scale = - 1.0 / (self._max_corr_length)   # 
         self.cov_mat = np.exp( exp_scale*length_srq_mat**self.correlation_exponent  )
         return self.cov_mat
 
