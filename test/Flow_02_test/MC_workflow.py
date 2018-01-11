@@ -1,7 +1,7 @@
 import os
 import sys
 libdir = os.path.join(os.path.split(
-         os.path.dirname(os.path.realpath(__file__)))[0],"C:\\Users\\Clara\\Documents\\Intec\\MLMC_Python\\src\\mlmc")
+         os.path.dirname(os.path.realpath(__file__)))[0],"C:\\Users\\Klara\\Documents\\Intec\\MLMC\\src\\mlmc")
 sys.path.insert(1,libdir)
 
 from gmsh_io import GmshIO
@@ -10,10 +10,12 @@ import numpy as np
 from  correlated_field import SpatialCorrelatedField
 import matplotlib.pyplot as plt
 import re
+from scipy.stats.mstats import mquantiles
+import seaborn as sns
 
 # Read the mesh network of the model:
 gio = GmshIO()
-with open('C:\\Users\\Clara\\Documents\\Intec\\MLMC_Python\\test\\Flow_02_test\\square_mesh.msh') as f:
+with open('C:\\Users\\Klara\\Documents\\Intec\\MLMC\\test\\Flow_02_test\\square_mesh.msh') as f:
     gio.read(f)
    
 # Getting the centers for each element:
@@ -37,6 +39,7 @@ pole.set_points(coord, mu = 0.8, sigma = 0.25)
 n    = 100  # Number of realizations
 f    = np.zeros(n,)
 
+# Running the MC simulations:
 for j in range(n): 
     # Generating the "field" (conductivity) 
     conductivity = pole.sample() 
@@ -44,16 +47,16 @@ for j in range(n):
     # Plotting the conductivity field (optional)
     # plt.scatter(coord[:,0],coord[:,1],c = conductivity)
     # plt.colorbar()          
-    CFL = conductivity.max()*0.025/0.035
-    print("Max CFl:",CFL)
-    gio.write_fields('C:\\Users\\Clara\\Documents\\Intec\\MLMC_Python\\test\\Flow_02_test\\vodivost_square.msh',conductivity,"vodivost") 
+    CFL = conductivity.max()*0.025/0.035  # based on the grid for 02_mysquare.yaml
+    print("Max CFl:",CFL,"run:",j)
+    gio.write_fields('C:\\Users\\Klara\\Documents\\Intec\\MLMC\\test\\Flow_02_test\\vodivost_square.msh',conductivity,"vodivost") 
     
     # Running Flow123d:
-    os.chdir("C:\\Users\\Clara\\Documents\\Intec\\MLMC_Python\\test\\Flow_02_test")
+    os.chdir("C:\\Users\\Klara\\Documents\\Intec\\MLMC\\test\\Flow_02_test")
     os.system("call fterm.bat //opt/flow123d/bin/flow123d -s 02_mysquare.yaml'")
     
     # Extracting out the result
-    soubor = open('C:\\Users\\Clara\\Documents\\Intec\\MLMC_Python\\test\\Flow_02_test\\output\\mass_balance.txt','r')
+    soubor = open('C:\\Users\\Klara\\Documents\\Intec\\MLMC\\test\\Flow_02_test\\output\\mass_balance.txt','r')
     output = []
     for line in soubor:
         line = line.rstrip()
@@ -65,4 +68,7 @@ for j in range(n):
     f[j] = -float(z[3])  # The solute flux [kg?] out of the east BC at the end of simulation
                 
 # Postprocessing f:
+sns.distplot(f)
+mquantiles(f,[0.01,0.05,0.5,0.95,0.99])
+plt.show()
                 
