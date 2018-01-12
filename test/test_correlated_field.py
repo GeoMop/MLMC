@@ -154,7 +154,7 @@ class TestSpatialCorrelatedField:
         corr_length = 10
         mu = 3.14
         sigma = 0.5
-        field = SpatialCorrelatedField('exp', dim=2, corr_length = corr_length)
+        field = SpatialCorrelatedField('gauss', dim=2, corr_length = corr_length)
         field.set_points(points, mu, sigma)
         field.svd_dcmp(precision=0.01, n_terms_range=n_terms_range)
 
@@ -196,8 +196,8 @@ class TestSpatialCorrelatedField:
         #self.plot_grid_field_2d(ncells, np.sqrt(cum_sigma.avg_array()[0,:]), "sigma conv")
         #self.plot_grid_field_2d(ncells, np.sqrt(cum_sigma.avg_array()[-1, :]), "sigma conv")
         sigma_err = np.abs( np.sqrt(cum_sigma.avg_array()) - sigma )
-        #self.plot_mc(cum_sigma.n_array(), sigma_err)   # convergence plot
-        #self.plot_grid_field_2d(ncells, sigma_err[-1, :], "Error in 'sigma' estimate, N={}.".format(n_samples))  # error distribution
+        self.plot_mc(cum_sigma.n_array(), sigma_err)   # convergence plot
+        self.plot_grid_field_2d(ncells, sigma_err[-1, :], "Error in 'sigma' estimate, N={}.".format(n_samples))  # error distribution
 
         means = np.mean(sigma_err, axis=1)
         s1, s0 = np.polyfit(np.log(cum_sigma.n_array()), np.log(means), 1)

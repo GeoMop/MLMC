@@ -49,6 +49,14 @@ class SpatialCorrelatedField(object):
         TODO: use kwargs and move set_points into constructor
         """
         self.dim = dim
+
+        if corr_exp == 'gauss':
+            self.correlation_exponent = 2.0
+        elif corr_exp == 'exp':
+            self.correlation_exponent = 1.0
+        else:
+            self.correlation_exponent = float(corr_exp)
+
         if aniso_correlation is None:
             assert corr_length > np.finfo(float).eps
             self.correlation_tensor = np.eye(dim, dim) * ( 1 / (corr_length**2) )
@@ -57,12 +65,6 @@ class SpatialCorrelatedField(object):
             self.correlation_tensor = aniso_correlation
             self._max_corr_length = la.norm(aniso_correlation, ord=2)   # largest eigen value
 
-        if corr_exp == 'gauss':
-            self.correlation_exponent = 2.0
-        elif corr_exp == 'exp':
-            self.correlation_exponent = 1.0
-        else:
-            self.correlation_exponent = float(corr_exp)
 
         #### Attributes set through `set_points`.
         self.points = None
@@ -122,8 +124,8 @@ class SpatialCorrelatedField(object):
         length_srq_mat = np.sum(np.inner(diff_mat, self.correlation_tensor) * diff_mat, axis =-1)
 
         corr_exp = self.correlation_exponent / 2.0
-        exp_scale = - 1.0 /(self._max_corr_length)  # was missing corr length
-        self.cov_mat = np.exp( exp_scale*length_srq_mat**self.correlation_exponent  )
+        exp_scale = - 1.0 / self.correlation_exponent
+        self.cov_mat = np.exp( exp_scale*length_srq_mat**corr_exp  )
         return self.cov_mat
 
     def _eigen_value_estimate(self, m):
