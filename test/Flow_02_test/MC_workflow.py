@@ -4,7 +4,7 @@ libdir = os.path.join(os.path.split(
          os.path.dirname(os.path.realpath(__file__)))[0],"C:\\Users\\Klara\\Documents\\Intec\\MLMC\\src\\mlmc")
 sys.path.insert(1,libdir)
 
-from gmsh_io import GmshIO
+from gmsh_io import GmshIO, ElementType
 from operator import add
 import numpy as np
 from  correlated_field import SpatialCorrelatedField
@@ -17,24 +17,26 @@ import seaborn as sns
 gio = GmshIO()
 with open('C:\\Users\\Klara\\Documents\\Intec\\MLMC\\test\\Flow_02_test\\square_mesh.msh') as f:
     gio.read(f)
-   
+
+
 # Getting the centers for each element:
 coord = np.zeros((len(gio.elements),3))
-for i in range(len(gio.elements)):
-    one_el = gio.elements[i+1]
-    index = one_el[2]
-    if len(index) == 3: 
-        coord[i] = map(add,gio.nodes[index[0]],map(add,gio.nodes[index[1]],gio.nodes[index[2]]))
-        coord[i] = coord[i]/3
-    if len(index) == 2:
-        coord[i] = map(add,gio.nodes[index[0]],gio.nodes[index[1]])    
-        coord[i] = coord[i]/2
-    if len(index) == 1:
-        coord[i] = map(add,gio.nodes[index[0]],gio.nodes[index[1]])    
-        coord[i] = coord[i]        
+for i, one_el in enumerate(gio.elements.values()):
+    i_nodes = one_el[2]
+    coord[i] = np.average(np.array([ gio.nodes[i_node] for i_node in i_nodes]), axis=0)
+    # size = element_sizes[index]
+    # if len(index) == ElementType.simplex_3d:
+    #     coord[i] = map(add,gio.nodes[index[0]],map(add,gio.nodes[index[1]],gio.nodes[index[2]]))
+    #     coord[i] = coord[i]/3
+    # if len(index) == ElementType.simplex_2d:
+    #     coord[i] = map(add,gio.nodes[index[0]],gio.nodes[index[1]])
+    #     coord[i] = coord[i]/2
+    # if len(index) == ElementType.simplex_1d:
+    #     coord[i] = map(add,gio.nodes[index[0]],gio.nodes[index[1]])
+    #     coord[i] = coord[i]
 
 # Seeting the "field" (conductivity)
-pole = SpatialCorrelatedField(corr_exp = 'gauss', dim = 3, corr_length = 0.3,aniso_correlation = None,  )
+pole = SpatialCorrelatedField(corr_exp = 'gauss', dim = 3, corr_length = 0.3  )
 pole.set_points(coord, mu = 0.8, sigma = 0.25)
 n    = 100  # Number of realizations
 f    = np.zeros(n,)
