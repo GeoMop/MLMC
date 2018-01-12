@@ -51,7 +51,7 @@ class Cumul:
         self.log_cum=[]
         self.log_limit = 16
 
-    def __iadd__(self, other):
+    def __iadd__(self, other):      # Overridding the += method
         self.cumul += other
         self.n_iter += 1
         if self.n_iter > self.log_limit:
@@ -63,7 +63,7 @@ class Cumul:
         self.log_cum.append((self.n_iter, self.cumul))
 
     def avg_array(self):
-        return np.array([cumul/n for n, cumul in self.log_cum])
+        return np.array([cumul/n for n, cumul in self.log_cum])    # Vysvetlit, why long arrays   
 
     def n_array(self):
         return np.array([n for n,cumul in self.log_cum])
@@ -108,7 +108,7 @@ class CorrError():
 
 class TestSpatialCorrelatedField:
 
-    def plot_grid_field_2d(self, ncels, sample, title):
+    def plot_grid_field_2d(self, ncels, sample, title):          # Not clear
         # imgshow plot X axis verticaly, need to swap
         grid = sample.reshape( (ncels[1], ncels[0]) )
         imgplot = plt.imshow(grid)
@@ -183,9 +183,9 @@ class TestSpatialCorrelatedField:
             #corr_error.add_samples(points, centered)
 
         #### Mean plots and tests
-        mu_err = np.abs(cum_mean.avg_array() - mu)
+        mu_err = np.abs(cum_mean.avg_array() - mu)  # cum_mean.avg%array has size [log 2 N * n] but its one value along n axis
         #self.plot_mc(cum_mean.n_array(), mu_err)   # convergence plot
-        #self.plot_grid_field_2d(ncells, mu_err[-1, :], "Error in 'mu' estimate, N={}.".format(n_samples))  # error distribution
+        #self.plot_grid_field_2d(ncells, mu_err[-1, :], "Error in 'mu' estimate, N={}.".format(n_samples))  # error distribution  , the last averaged error?
 
         # check convergence
         means = np.mean(mu_err, axis=1)
