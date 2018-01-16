@@ -22,23 +22,23 @@ def read(*names, **kwargs):
     ).read()
 
 
+
+long_description='%s\n%s' % (
+    re.compile('^.. start-badges.*^.. end-badges', re.M | re.S).sub('', read('README.rst')),
+    re.sub(':[a-z]+:`~?(.*?)`', r'``\1``', read('CHANGES.rst'))
+)
+
+
 setup(
+    # Project (package) name
     name='mlmc',
     version='0.1.0',
     license='GPL 3.0',
     description='Multilevel Monte Carlo method.',
-    long_description='%s\n%s' % (
-        re.compile('^.. start-badges.*^.. end-badges', re.M | re.S).sub('', read('README.rst')),
-        re.sub(':[a-z]+:`~?(.*?)`', r'``\1``', read('CHANGELOG.rst'))
-    ),
+    long_description=long_description,
     author='Jan Brezina, Martin Spetlik, Klara Steklova',
     author_email='jan.brezina@tul.cz',
     url='https://github.com/GeoMop/MLMC',
-    packages=find_packages('src'),
-    package_dir={'': 'src'},
-    py_modules=[splitext(basename(path))[0] for path in glob.glob('src/*.py')],
-    include_package_data=True,
-    zip_safe=False,
     classifiers=[
         # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
         'Development Status :: 2 - Pre-Alpha',
@@ -59,6 +59,20 @@ setup(
     keywords=[
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
+
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
+    py_modules=[splitext(basename(path))[0] for path in glob.glob('src/*.py')],
+    package_data={
+        # If any package contains *.txt or *.rst files, include them:
+        '': ['*.txt', '*.rst'],
+        # And include any *.msg files found in the 'hello' package, too:
+        'hello': ['*.msg'],
+    },
+
+    # include automatically all files in the template MANIFEST.in
+    include_package_data=True,
+    zip_safe=False,
     install_requires=[
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
@@ -66,7 +80,7 @@ setup(
         # eg:
         #   'rst': ['docutils>=0.11'],
         #   ':python_version=="2.6"': ['argparse'],
-    },
+    }
     # entry_points={
     #     'console_scripts': [
     #         'nameless = nameless.cli:main',
