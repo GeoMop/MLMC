@@ -82,6 +82,12 @@ https://python-nameless.readthedocs.io/
 Development
 ===========
 
+.. _description: https://docs.google.com/document/d/1u3KTiCAEduGTqbpd9hojn-cw0BiB7mKblrMj1A911FE/edit#
+
+Follow `description`_ of continuous integration practices.
+
+
+
 Rules:
     
 - indent by 4 spaces

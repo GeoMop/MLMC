@@ -32,7 +32,7 @@ setup(
         re.sub(':[a-z]+:`~?(.*?)`', r'``\1``', read('CHANGELOG.rst'))
     ),
     author='Jan Brezina, Martin Spetlik, Klara Steklova',
-    author_email='contact@ionelmc.ro',
+    author_email='jan.brezina@tul.cz',
     url='https://github.com/GeoMop/MLMC',
     packages=find_packages('src'),
     package_dir={'': 'src'},
