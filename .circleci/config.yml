@@ -32,7 +32,7 @@ jobs:
       - run:
           name: update tox env
           command: |
-            pip install tox
+            sudo pip install tox
 
       #- save_cache:
       #    paths:
