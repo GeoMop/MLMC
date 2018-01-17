@@ -7,13 +7,19 @@ Overview
 
 .. start-badges
 
-.. list-table::
+    list-table::
     :stub-columns: 1
 
+    * - tests
+      - | |circleci|
+
+..  Original table
+    list-table::
+    :stub-columns: 1
     * - docs
       - |docs|
     * - tests
-      - | |travis| |appveyor| |requires|
+      - | |circleci| |appveyor| |requires|
         | |codecov|
     * - package
       - | |version| |wheel| |supported-versions| |supported-implementations|
@@ -23,9 +29,9 @@ Overview
     :target: https://readthedocs.org/projects/python-nameless
     :alt: Documentation Status
 
-.. |travis| image:: https://travis-ci.org/ionelmc/python-nameless.svg?branch=master
-    :alt: Travis-CI Build Status
-    :target: https://travis-ci.org/ionelmc/python-nameless
+.. |circleci| image:: https://circleci.com/gh/GeoMop/MLMC/tree/master.svg?style=svg
+    :alt: CircleCI Build Status
+    :target: https://circleci.com/gh/GeoMop/MLMC/tree/master
 
 .. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/ionelmc/python-nameless?branch=master&svg=true
     :alt: AppVeyor Build Status
