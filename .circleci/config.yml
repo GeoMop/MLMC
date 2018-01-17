@@ -15,7 +15,7 @@ jobs:
       # documented at https://circleci.com/docs/2.0/circleci-images/
       # - image: circleci/postgres:9.4
 
-    # use dafault
+    # use default
     #working_directory: ~/project 
 
     steps:
@@ -28,12 +28,11 @@ jobs:
       #    # fallback to using the latest cache if no exact match is found
       #    - v1-dependencies-
 
-      #- run:
-      #    name: update tox env
-      #    command: |
-      #      python3 -m venv venv
-      #      . venv/bin/activate
-      #      pip install -r requirements.txt
+      # Install tox
+      - run:
+          name: update tox env
+          command: |
+            pip install tox
 
       #- save_cache:
       #    paths:
