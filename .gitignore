@@ -1,8 +1,15 @@
-# build dir
+# build dnd test dirs
 build/*
+.tox/*
+.cache/*
+doc/.doctrees
+src/mlmc.egg-info/*
 
 # PyCharm IDE
 .idea/*
+
+# various swap files
+*.swp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
