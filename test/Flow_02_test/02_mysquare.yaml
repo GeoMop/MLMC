@@ -14,7 +14,7 @@ problem: !Coupling_Sequential
       - region: plane
         anisotropy: 1
         conductivity: !FieldElementwise
-           gmsh_file: vodivost_square.msh
+           gmsh_file: vodivost_values.msh
            field_name: vodivost        
       - region: .bc_south
         bc_type: total_flux

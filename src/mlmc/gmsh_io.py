@@ -2,8 +2,21 @@
 from __future__ import print_function
 
 import struct
+import enum
 
 
+
+# class ElementType(enum.IntEnum):
+#     simplex_1d = 1
+#     simplex_2d = 2
+#     simplex_3d = 4
+#
+# element_sizes = {
+#     1: 1,
+#     2: 2,
+#     4: 3
+# }
+#
 
 class GmshIO:
     """This is a class for storing nodes and elements. Based on Gmsh.py

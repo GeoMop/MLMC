@@ -155,16 +155,16 @@ class TestSpatialCorrelatedField:
         n = len(points)
         corr_length = 10
         mu = 3.14
-        sigma = 0.5
-        field = SpatialCorrelatedField('exp', dim=2, corr_length = corr_length)
+        sigma = 1.5
+        field = SpatialCorrelatedField('gauss', dim=points.shape[1], corr_length = corr_length)
         field.set_points(points, mu, sigma)
         field.svd_dcmp(precision=0.01, n_terms_range=n_terms_range)
 
-        # plot single sample
-        #self.plot_grid_field_2d(ncells, field.sample())
+        # # plot single sample
+        # self.plot_grid_field_2d(ncells, field.sample())
 
         # Estimate statistcs by Monte Carlo
-        n_samples = 1000
+        n_samples = 2300
 
         cum_mean = Cumul(n)
         cum_sigma = Cumul(n)
@@ -198,7 +198,7 @@ class TestSpatialCorrelatedField:
         #self.plot_grid_field_2d(ncells, np.sqrt(cum_sigma.avg_array()[0,:]), "sigma conv")
         #self.plot_grid_field_2d(ncells, np.sqrt(cum_sigma.avg_array()[-1, :]), "sigma conv")
         sigma_err = np.abs( np.sqrt(cum_sigma.avg_array()) - sigma )
-        #self.plot_mc(cum_sigma.n_array(), sigma_err)   # convergence plot
+        self.plot_mc(cum_sigma.n_array(), sigma_err)   # convergence plot
         #self.plot_grid_field_2d(ncells, sigma_err[-1, :], "Error in 'sigma' estimate, N={}.".format(n_samples))  # error distribution
 
         means = np.mean(sigma_err, axis=1)

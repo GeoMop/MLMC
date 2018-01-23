@@ -15,11 +15,11 @@ mesh_path = 'square_mesh.msh'
 
 run2      = FlowMC(yaml_path, mesh_path)
 
-n_realzs  = 4*10**2 
+n_realzs  = 400 
 f         = np.zeros(n_realzs,)
 
 for i in range(n_realzs):
-    run2.add_field('vodivost',0.8,0.25,0.3)
+    run2.add_field('vodivost',0.7,0.15,0.3)
     run2.Flow_run(yaml_path)
     f[i] = run2.extract_value()
     
