@@ -11,11 +11,11 @@ from scipy.stats.mstats import mquantiles
 fileDir = os.path.dirname(os.path.realpath('__file__'))
 
 yaml_path = '02_mysquare.yaml'  #Documents\Intec\PythonScripts\\MonteCarlo\\Flow_02_test\\
-mesh_path = 'square_mesh.msh'
+mesh_path = 'Flow_02_test/square_mesh.msh'
 
 run2      = FlowMC(yaml_path, mesh_path)
 
-n_realzs  = 400 
+n_realzs  = 4 
 f         = np.zeros(n_realzs,)
 
 for i in range(n_realzs):
