@@ -1,82 +1,111 @@
 import time as t
-import SimulationSetting as Sim
-import sys
-
-sys.path.insert(0, '/home/martin/Documents/MLMC/src')
-from result import Result
-from mlmc import MLMC
-from monomials import Monomials
-from fourier_functions import FourierFunctions
-from distribution import Distribution
+from test.simulation_setting import SimulationSetting as Sim
+import math
+from src.result import Result
+from src.mlmc import MLMC
+from src.monomials import Monomials
+from src.fourier_functions import FourierFunctions
 import scipy as sc
 import numpy as np
+from src.moments import Moments
 import matplotlib.pyplot as plt
 from statsmodels.distributions.empirical_distribution import ECDF
-from distribution_fixed_quad import DistributionFixedQuad
+from src.distribution import Distribution
 
 
 class Main:
-    '''
+    """
     Class launchs MLMC
-    '''
+    """
     def main(*args):
 
-        start = t.time()
-        Y, n, v, N, cas = ([] for i in range(5))
-
-        pocet_urovni = 3
+        pocet_urovni = 2
         pocet_vykonani = 1
-        moments_number = 10
+        moments_number = 5
         bounds = [0, 2]
-        toleration = 0.05
+        toleration = 1e-10
         eps = 1e-8
 
         # param type -> type of simulation
-        sim = Sim.SimulationSetting(1)
+        sim = Sim(2)
 
         result = Result(moments_number)
-        result.set_levels_number(pocet_urovni)
-        result.set_execution_number(pocet_vykonani)
+        result.levels_number = pocet_urovni
+        result.execution_number = pocet_vykonani
+
+        function = Monomials()
 
         for i in range(pocet_vykonani):
+            mo = Monomials()
+            mo.moments_number = moments_number
+            mo.eps = eps
+
+            result = Result(moments_number)
+            result.levels_number = pocet_urovni
+            result.execution_number = pocet_vykonani
             start_MC = t.time()
+            moments_object = mo
             # number of levels, n_fine, n_coarse, simulation
-            m = MLMC(pocet_urovni, 100, 10, sim)
+            m = MLMC(pocet_urovni, (100, 10), sim, moments_object)
+
+
+            # Exact number of simulation on each level
+            #m.number_of_simulations = [10000, 500, 100]
 
             # type, time or variance
             m.monte_carlo(1, 0.01)
             end_MC = t.time()
+            result.mc_levels = m.levels
+            result.process_data()
+            mean = result.average
+            mo.mean = mean
+            moments = result.level_moments()
+            result.format_result()
+            result.time = end_MC - start_MC
 
-            result.add_average(m.get_Y())
-            result.add_arrays(m.get_arrays())
-            result.append_result(m.formatting_result())
-            result.add_time(end_MC - start_MC)
+        mc_data = result.levels_data[0]
 
-        mc_moments, mc_data = result.result()
+        average = 0
+        average_min = 0
+        for index, level_data in enumerate(result.levels_data):
+            if index > 0:
+                average += np.mean(level_data)
+                average_min += np.min(level_data)
 
+        puvodni_maximum = np.amax(mc_data)
+        mc_data = [data + average for data in result.levels_data[0]]
         bounds = sc.stats.mstats.mquantiles(mc_data, prob=[eps, 1 - eps])
-        mean = np.mean(mc_data)
+        bounds[0] = bounds[0]
+        bounds[1] = puvodni_maximum
+        function.bounds = bounds
+        function.fixed_quad_n = moments_number * 10
 
-        print(bounds)
+        function.mean = mean
 
 
-        basis_function = FourierFunctions(mean)
-        #basis_function = Monomials(mean)
-        basis_function.set_bounds(bounds)
-        basis_function.fixed_quad_n = moments_number * 10
-
-        moments = []
-
+        """
         for k in range(moments_number):
             val = []
             for value in mc_data:
-                val.append(basis_function.get_moments(value, k))
-            moments.append(np.mean(val))
+                val.append(function.get_moments(value, k))
+            new_moments.append(np.mean(val))
 
-        print("momenty", moments)
+
+        print("momenty z distribuce ", new_moments)
+        #print("momenty z hodnot ", real_moments)
+        """
+
+        """
+        sigma = 0
+        for index, moment in enumerate(moments):
+            sigma += math.sqrt(np.var([moment, new_moments[index]]))
+        print("sigma", sigma)
+        """
+
+        function.mean = mean
 
         # Run distribution
-        distribution = DistributionFixedQuad(basis_function, moments_number, moments, toleration)
+        distribution = Distribution(function, moments_number, moments, toleration)
         distribution.newton_method()
 
         # Empirical distribution function
@@ -96,7 +125,9 @@ class Main:
             distribution_function.append(integral[0])
             difference += abs(ecdf.y[step] - integral[0])**2
 
-        print(distribution_function)
+
+        print("Aproximované momenty", distribution.approximation_moments)
+        print("Původní momenty", moments)
 
         plt.figure(1)
         plt.plot(ecdf.x, ecdf.y)
@@ -107,7 +138,7 @@ class Main:
         plt.plot(samples, approximate_density, 'r')
         plt.show()
 
-        print(difference)
+        #print(difference)
 
         '''
         sum = 0

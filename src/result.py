@@ -95,11 +95,16 @@ class Result:
         """
         self.levels_dispersion = []
         self.average = 0
-        self.simulation_results = [0 for _ in self.levels_data[0]]
+        self.simulation_results = [0 for _ in range(len(max(self.levels_data,key=len)))]
 
         for level_data in self.levels_data:
+            print("delka dat levelu", len(level_data))
             self.levels_dispersion.append(np.var(level_data))
             for index, data in enumerate(level_data):
+                #print("level data len", len(level_data))
+                #print(self.simulation_results)
+                #print(len(self.simulation_results))
+                #print(index)
                 self.simulation_results[index] += data
 
             self.average += np.mean(level_data)
@@ -120,7 +125,6 @@ class Result:
         """
         moments_pom = []
         for level in self.mc_levels:
-            level.get_moments()
             moments_pom.append(level.moments)
         return [sum(m) for m in zip(*moments_pom)]
 

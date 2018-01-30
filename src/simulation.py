@@ -8,8 +8,11 @@ class Simulation:
     """
 
     def __init__(self, r):
+        # Type of random array
         self.type_of_random_array = r
+        # Simulation result
         self._simulation_result = 0
+        # Fine simulation step
         self._simulation_step = 0
 
     def cycle(self):
@@ -75,6 +78,12 @@ class Simulation:
             return self.Z_array(length)
         if self.type_of_random_array == 2:
             return self.F_array(length)
+        if self.type_of_random_array == 3:
+            return self.normal(length)
+
+    def normal(self, length):
+        array = np.random.normal(2, 1, length)
+        return array
 
     def Z_array(self, length):
         """

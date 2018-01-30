@@ -7,16 +7,25 @@ class Distribution:
     """
     def __init__(self, moments_fce, moments_number, moments, toleration=0.05):
         """
-        Getting basis function
+        :param moments_fce: Function for calculating moments
+        :param moments_number: Number of moments
+        :param moments: Moments 
+        :param toleration: Accuracy tolerance solution
         """
+        # Function for calculation moments
         self.moments_function = moments_fce
+        # Lower bound of the integral
         self.integral_lower_limit = self.moments_function.bounds[0]
+        # Upper bound of the integral
         self.integral_upper_limit = self.moments_function.bounds[1]
+        # Number of moments
         self.moments_number = moments_number
+        # Counting moments
         self.moments = moments
+        # Lagrangian parameters
         self.lagrangian_parameters = []
+        # Result toleration
         self.toleration = toleration
-
 
     def newton_method(self):
         """
@@ -53,9 +62,12 @@ class Distribution:
                 if error < self.toleration ** 2:
                     break
                 steps += 1
+
             self.lagrangian_parameters = lagrangians[steps - 1]
         except TypeError:
             return self.lagrangian_parameters, steps
+
+        self.approximation_moments = moments_approximation
 
         return self.lagrangian_parameters, steps
 

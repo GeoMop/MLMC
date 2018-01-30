@@ -1,24 +1,7 @@
-class Monomials:
-    """
-    Monomials for distribution approximation
-    """
-    def __init__(self, mean=0):
-        self.mean = mean
-        self._bounds = None
-        self.fixed_quad_n = None
+from src.moments import Moments
 
-    @property
-    def bounds(self):
-        """
-        Bounds of random variable
-        """
-        return self._bounds
 
-    @bounds.setter
-    def bounds(self, bounds):
-        if len(bounds) != 2:
-            raise TypeError("Bounds should be array of two items")
-        self._bounds = bounds
+class Monomials(Moments):
 
     def get_moments(self, value, exponent):
         """

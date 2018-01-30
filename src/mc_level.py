@@ -1,4 +1,5 @@
 import numpy as np
+import scipy as sc
 
 
 class Level:
@@ -121,7 +122,7 @@ class Level:
         Get moments from results of simulations on this level
         :return: array, moments
         """
-        self.moments = self.moments_object.level_moments(self)
+        self.moments = self.level_moments()
 
     def n_ops_estimate(self):
         """
@@ -134,9 +135,8 @@ class Level:
         Implements level of MLMC
         Call Simulation methods
         Set simulation data
-        :return: array      self.Y
+        :return: array   
         """
-
         for _ in range(self.number_of_simulations):
             self.fine_simulation.random_array()
             fine_step_result = self.fine_simulation.cycle(self.n_fine)
@@ -153,3 +153,53 @@ class Level:
             self.data = (self.fine_simulation.simulation_result, self.coarse_simulation.simulation_result)
 
         return self.result
+
+    def level_moments(self):
+        """
+        Count moments from level data
+        :return: array, moments
+        """
+        self.moments_object.bounds = sc.stats.mstats.mquantiles(self.result, prob=[self.moments_object.eps, 1 - self.moments_object.eps])
+        return self.count_moments(self.data)
+
+    def count_moments(self, level_data):
+        """
+        Count moments
+        :param level_data: array of tuples (fine step result, coarse step result)
+        :return: array, moments
+        """
+        level_results = {}
+        level_results["fine"] = []
+        level_results["coarse"] = []
+        # Initialize array of moments
+        moments = []
+
+        # Separate fine step result and coarse step result
+        for data in level_data:
+            level_results["fine"].append(data[0])
+            level_results["coarse"].append(data[1])
+
+        coarse_var = np.var(level_results["coarse"])
+
+        # Count moment for each degree
+        for degree in range(self.moments_object.moments_number):
+            fine_coarse_diff = []
+
+            for lr_fine, lr_coarse in zip(level_results["fine"], level_results["coarse"]):
+                # Moment for fine step result
+                fine = self.moments_object.get_moments(lr_fine, degree)
+
+                # For first level use only fine step result
+                if coarse_var != 0:
+                    # Moment from coarse step result
+                    coarse = self.moments_object.get_moments(lr_coarse, degree)
+                    fine_coarse_diff.append(fine - coarse)
+                else:
+                    # Add subtract moment from coarse step result from moment from fine step result
+                    fine_coarse_diff.append(fine)
+
+            # Append moment to other moments
+            moments.append(np.mean(np.array(fine_coarse_diff)))
+
+        return moments
+
