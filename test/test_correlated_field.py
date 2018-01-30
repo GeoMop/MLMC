@@ -4,9 +4,9 @@ import numpy as np
 import numpy.linalg as la
 import matplotlib.pyplot as plt
 
-from correlated_field import SpatialCorrelatedField
-import scipy.interpolate as sc_inter
-import scipy.stats as sc_stat
+from mlmc.correlated_field import SpatialCorrelatedField
+#import scipy.interpolate as sc_inter
+#import scipy.stats as sc_stat
 
 
 def make_points_grid(bound, size):
@@ -154,7 +154,7 @@ class TestSpatialCorrelatedField:
         corr_length = 10
         mu = 3.14
         sigma = 0.5
-        field = SpatialCorrelatedField('exp', dim=2, corr_length = corr_length)
+        field = SpatialCorrelatedField('gauss', dim=2, corr_length = corr_length)
         field.set_points(points, mu, sigma)
         field.svd_dcmp(precision=0.01, n_terms_range=n_terms_range)
 
