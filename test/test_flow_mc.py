@@ -1,14 +1,15 @@
-import MCwork
-from MCwork import FlowMC
+import flow_mc as fsim
 #import importlib
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
+#import seaborn as sns
 from scipy.stats.mstats import mquantiles
 
+
+flow123d =
 #importlib.import_module('MCwork')
-fileDir = os.path.dirname(os.path.realpath('__file__'))
+fileDir = os.path.dirname(os.path.realpath(__file__))
 
 yaml_path = '02_mysquare.yaml'  #Documents\Intec\PythonScripts\\MonteCarlo\\Flow_02_test\\
 mesh_path = 'Flow_02_test/square_mesh.msh'
