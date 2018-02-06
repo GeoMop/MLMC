@@ -49,13 +49,6 @@ class SpatialCorrelatedField(object):
         TODO: use kwargs and move set_points into constructor
         """
         self.dim = dim
-        if aniso_correlation is None:
-            assert corr_length > np.finfo(float).eps   # Checks correlation length is positive
-            self.correlation_tensor = np.eye(dim, dim) * ( 1 / (corr_length**2) )
-            self._max_corr_length = corr_length
-        else:
-            self.correlation_tensor = aniso_correlation
-            self._max_corr_length = la.norm(aniso_correlation, ord=2)   # largest eigen value
 
         if corr_exp == 'gauss':
             self.correlation_exponent = 2.0
@@ -63,6 +56,15 @@ class SpatialCorrelatedField(object):
             self.correlation_exponent = 1.0
         else:
             self.correlation_exponent = float(corr_exp)
+
+        if aniso_correlation is None:
+            assert corr_length > np.finfo(float).eps
+            self.correlation_tensor = np.eye(dim, dim) * ( 1 / (corr_length**2) )
+            self._max_corr_length = corr_length
+        else:
+            self.correlation_tensor = aniso_correlation
+            self._max_corr_length = la.norm(aniso_correlation, ord=2)   # largest eigen value
+
 
         #### Attributes set through `set_points`.
         self.points = None
@@ -114,7 +116,7 @@ class SpatialCorrelatedField(object):
         assert self.points is not None, "Points not set, call set_points."
         self._points_bbox = box =( np.min(self.points, axis=0), np.max(self.points, axis=0) )
         diameter = np.max(np.abs(box[1] - box[0]))
-        self._relative_corr_length = self._max_corr_length / diameter    # Why?
+        self._relative_corr_length = self._max_corr_length / diameter
 
         #sigma_sqr_mat = np.outer(self.sigma, self.sigma.T)
         self._sigma_sqr_max = np.max(self.sigma)**2
@@ -122,8 +124,8 @@ class SpatialCorrelatedField(object):
         length_srq_mat = np.sum(np.inner(diff_mat, self.correlation_tensor) * diff_mat, axis =-1)
 
         corr_exp = self.correlation_exponent / 2.0
-        exp_scale = - 1.0 /(self.correlation_exponent)  # was missing corr length
-        self.cov_mat = np.exp( exp_scale*length_srq_mat**corr_exp)
+        exp_scale = - 1.0 / self.correlation_exponent
+        self.cov_mat = np.exp( exp_scale*length_srq_mat**corr_exp  )
         return self.cov_mat
 
     def _eigen_value_estimate(self, m):
@@ -186,7 +188,7 @@ class SpatialCorrelatedField(object):
             m = max(m, range[0])
             threshold = 2*precision
             # TODO: Test if we should cut eigen values by relative (like now) or absolute value
-            while threshold > precision and m < range[1]+1:
+            while threshold > precision and m < range[1]:
                 print("t: ", threshold, "m: ", m, precision, range[1])
                 U, ev, VT = randomized_svd(self.cov_mat, n_components=m, n_iter=3,random_state=None)
                 threshold = ev[-1]/ev[0]

@@ -4,9 +4,9 @@ import numpy as np
 import numpy.linalg as la
 import matplotlib.pyplot as plt
 
-from correlated_field import SpatialCorrelatedField
-import scipy.interpolate as sc_inter
-import scipy.stats as sc_stat
+from mlmc.correlated_field import SpatialCorrelatedField
+#import scipy.interpolate as sc_inter
+#import scipy.stats as sc_stat
 
 
 def make_points_grid(bound, size):
