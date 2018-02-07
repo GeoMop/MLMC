@@ -67,24 +67,25 @@ class MLMC:
 
         self._number_of_samples = num_of_sim
 
-    def monte_carlo(self, optimization_type, value):
+    def monte_carlo(self, optimization_type, values):
         """
         Implements complete multilevel Monte Carlo Method
         Calls other necessary methods
         :param optimization_type: int        1 for fix variance and other for fix time
-        :param value: float     value of variance or time according to type
+        :param values: array     value of variance or time according to type
         """
         self.index = 0
 
         if optimization_type == 1:
-            self.target_variance = value
+            if len(values) < self.moments_object.moments_number:
+                raise ValueError("Target variance values length cannot be bigger than moments number")
+            self.target_variance = values
         else:
-            self.target_time = value
+            self.target_time = values
 
 
         self.estimate_n_samples()
         self._refill_samples()
-
 
     def estimate_n_samples(self):
         # Count new number of simulations according to variance of time
@@ -92,8 +93,6 @@ class MLMC:
             self._num_of_samples = self.estimate_n_samples_from_variance()
         elif self.target_time is not None:
             self._num_of_samples = self.estimate_n_samples_from_time()
-
-
 
     def _refill_samples(self):
         """
@@ -129,10 +128,10 @@ class MLMC:
         fine_steps = np.power(np.power((self.sim_steps_fine/self.sim_steps_coarse),
                                        (1/(self.number_of_levels-1))), self.index)* self.sim_steps_coarse
 
-        # Coarse number of simulation steps from previouse level
+        # Coarse number of simulation steps from previous level
         if len(self._levels) > 0:
             level = self._levels[self.index - 1]
-            coarse_steps = level.n_ops_estimate()
+            coarse_steps = level.n_fine
 
         else:
             coarse_steps = 0
@@ -145,7 +144,7 @@ class MLMC:
         :return: array
         """
         num_of_simulations_time = []
-        amount = self.count_sum()
+        amount = self._count_sum()
 
         # Loop through levels
         # Count new number of simulations for each level
@@ -162,29 +161,27 @@ class MLMC:
         :return: array
         """
         num_of_simulations_var = []
-        amount = self.count_sum()
+        amount = self._count_sum()
 
         # Loop through levels
         # Count new number of simulations for each level
         for level in self._levels:
             new_num_of_sim_pom = []
-
             level.moments_object.mean = np.mean(level.result)
 
-            """
-            for moment in level.moments:
-                new_num_of_sim_pom.append(np.round((amount * np.sqrt(np.abs(moment) / level.n_ops_estimate()))
-                / self.target_variance).astype(int))
+            for index, moment in enumerate(level.moments_estimate):
+                new_num_of_sim_pom.append(np.round((amount * np.sqrt(np.abs(moment[1]) / level.n_ops_estimate()))
+                / self.target_variance[index]).astype(int))
 
-            new_num_of_sim = np.max(new_num_of_sim_pom)G
-            """
+            new_num_of_sim = np.max(new_num_of_sim_pom)
 
-            new_num_of_sim = np.round((amount * np.sqrt(level.variance / level.n_ops_estimate())) / self.target_variance).astype(int)
+
+            #new_num_of_sim = np.round((amount * np.sqrt(level.variance / level.n_ops_estimate())) / self.target_variance[0]).astype(int)
             num_of_simulations_var.append(new_num_of_sim)
 
         return num_of_simulations_var
 
-    def count_sum(self):
+    def _count_sum(self):
         """
         Loop through levels and count sum of varinace * simulation step
         :return: float sum

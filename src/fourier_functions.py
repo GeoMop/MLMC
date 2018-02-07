@@ -15,6 +15,7 @@ class FourierFunctions(Moments):
         :return: moment
         """
         value = self.change_interval(value - self.mean)
+
         if r == 0:
             return 1
         if r % 2 != 0:
@@ -30,4 +31,6 @@ class FourierFunctions(Moments):
         :param value: float
         :return: value remapped to interval from bounds
         """
+        if self.bounds[1] - self.bounds[0] == 0:
+            return 2 * np.pi * (value - self.bounds[0])
         return (2 * np.pi * (value - self.bounds[0])) / (self.bounds[1] - self.bounds[0])

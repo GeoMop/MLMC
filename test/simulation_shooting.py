@@ -38,8 +38,8 @@ class SimulationShooting(Simulation):
         if self.F is None:
             self.random_array()
 
-        if self.simulation_step != n_fine:
-            self.F = self.averaging(self.simulation_step, n_fine, self.F)
+        if self.n_sim_steps != n_fine:
+            self.F = self.averaging(self.n_sim_steps, n_fine, self.F)
 
         # Time step
         self.dt = 10 / len(self.F)
@@ -80,7 +80,7 @@ class SimulationShooting(Simulation):
         return y
 
     def random_array(self):
-        self.F = self.get_rnd_array(self.simulation_step)
+        self.F = self.get_rnd_array(self.n_sim_steps)
 
     def get_random_array(self):
         return self.F

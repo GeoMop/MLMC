@@ -19,12 +19,12 @@ class Main:
     """
     def main(*args):
 
-        pocet_urovni = 2
+        pocet_urovni = 1
         pocet_vykonani = 1
-        moments_number = 5
+        moments_number = 10
         bounds = [0, 2]
-        toleration = 1e-10
-        eps = 1e-8
+        toleration = 1e-15
+        eps = 1e-10
 
         # param type -> type of simulation
         sim = Sim(2)
@@ -33,10 +33,10 @@ class Main:
         result.levels_number = pocet_urovni
         result.execution_number = pocet_vykonani
 
-        function = Monomials()
+        function = FourierFunctions()
 
         for i in range(pocet_vykonani):
-            mo = Monomials()
+            mo = function
             mo.moments_number = moments_number
             mo.eps = eps
 
@@ -46,41 +46,42 @@ class Main:
             start_MC = t.time()
             moments_object = mo
             # number of levels, n_fine, n_coarse, simulation
-            m = MLMC(pocet_urovni, (100, 10), sim, moments_object)
-
+            m = MLMC(pocet_urovni, (100, 9), sim, moments_object)
 
             # Exact number of simulation on each level
             #m.number_of_simulations = [10000, 500, 100]
 
             # type, time or variance
-            m.monte_carlo(1, 0.01)
+            variance = [1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3,  1e-3, 1e-3, 1e-3, 1e-3, 1e-3]
+            #variance = [0.01, 1e-3, 1e-3, 1e-3, 1e-3]
+            m.monte_carlo(1, variance)
             end_MC = t.time()
             result.mc_levels = m.levels
             result.process_data()
             mean = result.average
-            mo.mean = mean
+            #print("MEAN", mean)
+            #mo.mean = mean
             moments = result.level_moments()
             result.format_result()
             result.time = end_MC - start_MC
 
         mc_data = result.levels_data[0]
+        #print("MOMENTY", moments)
+        #print("MC DATA", mc_data)
 
         average = 0
-        average_min = 0
+        maximum = 0
         for index, level_data in enumerate(result.levels_data):
             if index > 0:
+                abs_hod = [abs(data) for data in level_data]
                 average += np.mean(level_data)
-                average_min += np.min(level_data)
+                maximum += np.amax(abs_hod)
 
-        puvodni_maximum = np.amax(mc_data)
         mc_data = [data + average for data in result.levels_data[0]]
         bounds = sc.stats.mstats.mquantiles(mc_data, prob=[eps, 1 - eps])
-        bounds[0] = bounds[0]
-        bounds[1] = puvodni_maximum
         function.bounds = bounds
-        function.fixed_quad_n = moments_number * 10
-
-        function.mean = mean
+        function.fixed_quad_n = moments_number ** 2
+        #function.mean = mean
 
 
         """
@@ -102,7 +103,7 @@ class Main:
         print("sigma", sigma)
         """
 
-        function.mean = mean
+        #function.mean = mean
 
         # Run distribution
         distribution = Distribution(function, moments_number, moments, toleration)
@@ -136,6 +137,7 @@ class Main:
         ## Show approximate and exact density
         plt.figure(2)
         plt.plot(samples, approximate_density, 'r')
+        plt.plot(samples, [sc.stats.norm.pdf(sample, 2, 1) for sample in samples])
         plt.show()
 
         #print(difference)

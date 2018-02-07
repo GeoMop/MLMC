@@ -28,7 +28,7 @@ class SimulationWater(Simulation):
 
 
     def count_h(self, n):
-        self.simulation_step = n
+        self.n_sim_steps = n
         self.h = self.length_of_area / n
         self.time_step = self.h
 
@@ -42,14 +42,14 @@ class SimulationWater(Simulation):
         '''
 
         if (None == self.F):
-            self.random_array(self.simulation_step)
+            self.random_array(self.n_sim_steps)
 
-        if (self.simulation_step != n_fine):
-            self.F = self.averaging(self.simulation_step, n_fine, self.F)
+        if (self.n_sim_steps != n_fine):
+            self.F = self.averaging(self.n_sim_steps, n_fine, self.F)
 
         prumer = np.average(self.F)
 
-        self.count_h(self.simulation_step)
+        self.count_h(self.n_sim_steps)
 
         for j in range(len(self.F)):
             self.F[j] = self.F[j] - prumer
@@ -69,13 +69,13 @@ class SimulationWater(Simulation):
 
         matrix = self.getMatrix(v)
         # Loop through time
-        for t in range(self.simulation_step):
+        for t in range(self.n_sim_steps):
             # count concentration in next time
             ct = (la.solve_banded((1, 0), matrix, ct))
         return ct[-1]
 
     def random_array(self):
-        self.F = self.get_rnd_array(self.simulation_step)
+        self.F = self.get_rnd_array(self.n_sim_steps)
 
     def get_random_array(self):
         return self.F

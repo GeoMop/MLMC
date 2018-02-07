@@ -30,14 +30,14 @@ class Simulation:
         self._simulation_result = result
 
     @property
-    def simulation_step(self):
+    def n_sim_steps(self):
         """
         Simulation step
         """
         return self._simulation_step
 
-    @simulation_step.setter
-    def simulation_step(self, step):
+    @n_sim_steps.setter
+    def n_sim_steps(self, step):
         self._simulation_step = step
 
     def averaging(self, n_coarse, n_fine, F):
@@ -82,7 +82,7 @@ class Simulation:
             return self.normal(length)
 
     def normal(self, length):
-        array = np.random.normal(2, 1, length)
+        array = np.random.normal(2, 1)
         return array
 
     def Z_array(self, length):
@@ -125,3 +125,6 @@ class Simulation:
         else:
             new_F = F
         return new_F
+
+    def n_ops_estimate(self):
+        return self.n_sim_steps

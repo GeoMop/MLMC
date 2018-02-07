@@ -24,9 +24,9 @@ class Level:
 
         # Instance of object Simulation
         self.fine_simulation = sim.make_simulation()
-        self.fine_simulation.simulation_step = self.n_fine
+        self.fine_simulation.n_sim_steps = self.n_fine
         self.coarse_simulation = sim.make_simulation()
-        self.coarse_simulation.simulation_step = self.n_coarse
+        self.coarse_simulation.n_sim_steps = self.n_coarse
 
         # Initialization of variables
         self.variance = 0
@@ -36,11 +36,13 @@ class Level:
         self._variance = 0
         self._moments = []
         self._moments_object = moments_object
+        self.moments_estimate = []
 
         # Default number of simulations is 10
         # that is enough for estimate variance
         self._number_of_simulations = 10
-        self.result = self.level()
+        self._estimate_moments()
+
         self.variance = np.var(self.result)
 
     @property
@@ -96,8 +98,7 @@ class Level:
         """
         Result moments
         """
-        if not self._moments:
-            self.get_moments()
+        self.get_moments()
         return self._moments
 
     @moments.setter
@@ -128,7 +129,7 @@ class Level:
         """
         :return: fine simulation n
         """
-        return self.fine_simulation.simulation_step
+        return self.fine_simulation.n_ops_estimate()
 
     def level(self):
         """
@@ -153,6 +154,22 @@ class Level:
             self.data = (self.fine_simulation.simulation_result, self.coarse_simulation.simulation_result)
 
         return self.result
+
+    def _estimate_moments(self):
+        """
+        Moments estimation
+        :return: None
+        """
+        moments = []
+        for k in range(0, 10):
+            self._data = []
+            self.level()
+            if k == 0:
+                self.moments_object.mean = np.mean(self.result)
+            self.level_moments()
+            moments.append(self.moments)
+
+        self.moments_estimate = [(np.mean(m), np.var(m)) for m in zip(*moments)]
 
     def level_moments(self):
         """
@@ -202,4 +219,3 @@ class Level:
             moments.append(np.mean(np.array(fine_coarse_diff)))
 
         return moments
-
