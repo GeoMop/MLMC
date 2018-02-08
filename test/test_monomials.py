@@ -1,7 +1,7 @@
 """
 Test class monomials
 """
-from src.monomials import Monomials
+from mlmc.monomials import Monomials
 
 MONOMIALS = Monomials()
 

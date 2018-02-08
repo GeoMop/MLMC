@@ -1,5 +1,5 @@
 import numpy as np
-from src.mc_level import Level
+from mc_level import Level
 
 
 class MLMC:

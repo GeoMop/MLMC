@@ -2,7 +2,9 @@
 Test fourier functions class
 """
 import math
-from src.fourier_functions import FourierFunctions
+
+
+from mlmc.fourier_functions import FourierFunctions
 
 FOURIER = FourierFunctions()
 
