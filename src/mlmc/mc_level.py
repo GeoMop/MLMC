@@ -22,6 +22,8 @@ class Level:
 
         self._data = []
 
+        self.simulation = sim
+
         # Instance of object Simulation
         self.fine_simulation = sim.make_simulation()
         self.fine_simulation.n_sim_steps = self.n_fine
@@ -40,7 +42,7 @@ class Level:
 
         # Default number of simulations is 10
         # that is enough for estimate variance
-        self._number_of_simulations = 10
+        self._number_of_simulations = 100
         self._estimate_moments()
 
         self.variance = np.var(self.result)
@@ -131,6 +133,28 @@ class Level:
         """
         return self.fine_simulation.n_ops_estimate()
 
+    def _create_simulations(self):
+        """
+        Create fine and coarse simulations and run their simulation
+        :return: fine and coarse simulation object
+        """
+        fine_simulation = self.simulation.make_simulation()
+        # Generate random array
+        fine_simulation.random_array()
+        coarse_simulation = self.simulation.make_simulation()
+        # Set random array to coarse step simulation
+        coarse_simulation.set_random_array(fine_simulation.get_random_array())
+        # Set simulation's number of steps
+        fine_simulation.n_sim_steps = self.n_fine
+
+        # Set simulation's number of steps
+        coarse_simulation.n_sim_steps = self.n_coarse
+        # If self.n_fine is different to simulations object n_sim_step then random array interpolation is required
+        fine_simulation.cycle(self.n_fine)
+        coarse_simulation.cycle(self.n_fine)
+
+        return fine_simulation, coarse_simulation
+
     def level(self):
         """
         Implements level of MLMC
@@ -138,21 +162,36 @@ class Level:
         Set simulation data
         :return: array   
         """
-        for _ in range(self.number_of_simulations):
-            self.fine_simulation.random_array()
-            fine_step_result = self.fine_simulation.cycle(self.n_fine)
-            self.coarse_simulation.set_random_array(self.fine_simulation.get_random_array())
 
-            if self.n_coarse != 0:
+        running_simulations = []
+        # Run at the same time maximum of 2000 simulations
+        if self.number_of_simulations > 2000:
+            num_of_simulations = 2000
+        else:
+            num_of_simulations = self.number_of_simulations
 
-                coarse_step_result = self.coarse_simulation.cycle(self.n_fine)
-                self.result.append(fine_step_result - coarse_step_result)
-            else:
-                self.result.append(fine_step_result)
+        # Create pair of fine and coarse simulations and add them to list of all running simulations
+        [running_simulations.append(self._create_simulations()) for _ in range(num_of_simulations)]
 
-            # Save simulation data
-            self.data = (self.fine_simulation.simulation_result, self.coarse_simulation.simulation_result)
+        while len(running_simulations) > 0:
+            for index, (fine_sim, coarse_sim) in enumerate(running_simulations):
+                try:
+                    if fine_sim.simulation_result is not None and coarse_sim.simulation_result is not None:
+                        if isinstance(fine_sim.simulation_result, (int, float)) and isinstance(coarse_sim.simulation_result, (int, float)):
+                            self.data = (fine_sim.simulation_result, coarse_sim.simulation_result)
+                        else:
+                            raise ExpWrongResult()
 
+                        if num_of_simulations < self.number_of_simulations:
+                            running_simulations[index] = self._create_simulations()
+                            num_of_simulations += 1
+                        else:
+                            # Remove simulations pair from running simulations
+                            running_simulations.pop(index)
+                except ExpWrongResult as e:
+                    print(e.message)
+
+        self.result = [data[0] - data[1]for data in self.data]
         return self.result
 
     def _estimate_moments(self):
@@ -219,3 +258,9 @@ class Level:
             moments.append(np.mean(np.array(fine_coarse_diff)))
 
         return moments
+
+class ExpWrongResult(Exception):
+    def __init__(self, *args, **kwargs):
+        print(*args)
+        Exception.__init__(self, *args, **kwargs)
+        self.message = "Wrong simulation result"
