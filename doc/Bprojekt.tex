@@ -1,0 +1,367 @@
+\documentclass[FM, RP]{tulthesis}
+
+\usepackage[czech]{babel}
+\usepackage[utf8]{inputenc}
+
+\usepackage{titlesec}
+
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd{\ttlh@hang}{\parindent\z@}{\parindent\z@\leavevmode}{}{}
+\patchcmd{\ttlh@hang}{\noindent}{}{}{}
+\makeatother
+
+
+\usepackage{bm}
+\usepackage{chngcntr}
+
+\counterwithout{figure}{section}
+\counterwithout{table}{section}
+\counterwithout{equation}{section}
+
+
+
+
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{float}
+
+\usepackage{booktabs,caption}
+\usepackage[flushleft]{threeparttable}
+
+\usepackage[font=small,skip=5pt]{caption}
+\usepackage{multirow}
+\usepackage[section]{placeins}
+
+\graphicspath{ {/home/martin/Documents/Bproject_text/} }
+
+
+%\newcommand{\overbar}[1]{\mkern 1.5mu\overline{\mkern-1.5mu#1\mkern-1.5mu}\mkern 1.5mu}
+%\captionsetup[figure]{font=small,skip=-5pt}
+
+
+\TULtitle{Víceúrovňová metoda Monte-Carlo}{Multilevel Monte-Carlo method}
+\TULprogramme{B2646}{Informační technologie}{Information technology}
+\TULbranch{1802R007}{Informační technologie}{Information technology}
+\TULauthor{Martin Špetlík}
+\TULsupervisor{Mgr. Jan Březina, Ph.D.}
+\TULyear{2017}
+\TULid{}
+
+\begin{document}
+%\ThesisStart{male}
+\ThesisTitle{CZ}
+
+\tableofcontents
+\clearpage
+\begin{abbrList}
+\textbf{MC} & Monte Carlo \\
+\textbf{MLMC} & Víceúrovňová metoda Monte Carlo \\
+\end{abbrList}
+
+% sum je moc placatá
+\chapter{Metoda Monte-Carlo}
+
+Jedná se o~statistickou metodu, která spočívá v~opakovaní náhodného pokusu a interpretaci získaných výsledků.
+
+Simulace metodou Monte Carlo nahrazuje skutečný systém jeho simulačním modelem se stejnými pravděpodobnostními charakteristikami. Samotnou simulaci spouštíme několikrát, tak abychom byli schopni odhadnout chování reálného systému.
+\newline
+
+Tato metoda se původně používala pro simulování fyzikálních problému, které byly mnohdy jinak neřešitelné. Postupně ovšem získala uplatněni i v~řadě dalších oborů, jakými jsou například ekonomie, biologie nebo fyzikální chemie.
+
+První příklad použití metody Monte Carlo se datuje již do 19.století. Jedná se o~tzv. Buffonovu úlohu - zjišťování hodnoty $\pi$ házením jehly na rovinu pokrytou rovnoběžkami.
+
+Metoda Monte Carlo byla klíčová pro simulaci štěpné reakce při vývoji prvních atomových bomb v~americké Národní laboratoři Los Alamos. Touto simulací se mimo jiných zabývali Stanislaw Marcin Ulam, John von Neumann nebo Nicholas Metropolis. Údajně právě S.M.Ulam přišel s~nápadem pojmenovat metodu po Monackém městě proslulém kasíny.
+\newline
+
+
+% tohle zredukovat nerozlišovat geometrické a simulace
+%Pomocí metody MC můžeme počítat děje deterministické i stochastické.
+
+%\noindent Existují dva možné přístupy při řešení úloh
+%metodou Monte Carlo:
+%\begin{enumerate}
+%\item Geometrická metoda založená na geometrické
+%pravděpodobnosti.
+
+%\begin{itemize}
+%\item Buffonova úloha
+%\item výpočet integrálu
+%\end{itemize}
+
+%\item  Výpočet založený na odhadu střední hodnoty
+%náhodné veličiny.
+%\begin{itemize}
+%\item fyzikální simulace atd.
+%\end{itemize}
+
+%\end{enumerate}
+%\noindent
+
+
+%tady popsat metodu monte carlo
+
+Základem je analýza procesu, který chceme zkoumat. Poté co vytvoříme předpisy popisující chování zkoumaného systému, tak můžeme sestavit počítačovou simulaci. Takováto simulace by měla dávat výsledky podobné těm, které bychom dostali v~reálném světě.
+
+K~tomu abychom získali co nejlepší odraz reality, je nutné počítat s~prvkem náhody. To zajišťují pseudonáhodná čísla.
+%až za to, až bude jasné k čeu se používají. v textu se dostat k tomu, že k realizaci simulací monte carlo potřebujeme náhodná čísla a ty pak zapsat
+
+Náhodné číslo je absolutně spojitá náhodná veličina s~rovnoměrným rozdělením na intervalu $<0,1>$. Střední hodnota náhodné veličiny náhodné číslo je $1/2$, a její rozptyl je roven $1/12$. \cite{klvana}
+
+Pro získání náhodných čísel je zapotřebí hardwarový generátor, který generuje čísla jako výsledky náhodných fyzikálních procesů. 
+
+V~našem případě používáme pseudonáhodná čísla. To jsou čísla, která vytvářejí zdánlivě náhodnou posloupnost, ovšem jsou generována deterministickým algoritmem.
+
+Základní princip metod Monte-Carlo tkví v~opakování simulace. Tím získáváme vzájemně nezávislé náhodné veličiny, ze kterých můžeme nakonec obdržet odhad střední hodnoty. Tento systém popisuje zákon velkých čísel:
+
+
+$X_{1},X_{2}, ... ,X_{n}$ jsou nezávislé stejně rozdělené náhodné veličiny, kde $E(X_{1}) = E(X_{2}) = ... = E(X_{n}) = \mu$
+
+$$\overline{X}_{n} = \frac{1}{n}{\sum_{i=1}^{n}X_{i}}; \quad n \in N$$
+
+$$\overline{X}_{n} \rightarrow \mu \quad pro \quad n \rightarrow \infty$$
+
+% centrální limitní větu zakomponovat do textu nedělat z toho kapitoly
+
+\section{Jednoúrovňová metoda Monte-Carlo}
+Pokud provedeme simulaci vícekrát hovoří se o~tzv. jednoúrovňové metodě Monte-Carlo.
+
+%zaměnit malé n za N
+Nevýhodou jednoúrovňové metody MC je, že pokud chceme o~řád zmenšit rozptyl, pak musíme o~dva řády zvětšit počet vykonání simulace. Rozdělení průměrné hodnoty odpovídá normálnímu rozdělení: $$\overline{Y} \sim  N \bigg( \mu , \frac{\sigma^{2}}{n} \bigg)$$
+\noindent kde $\sigma^{2}$ je rozptyl a $n$ je počet realizací simulace, z~toho chyba 
+$$ e = \frac{\sigma}{\sqrt{n}} $$
+
+
+%ne uvádět rovnice pro výpočet času a rozptylu
+\section{Víceúrovňová metoda Monte-Carlo}
+Víceúrovňová metod Monte Carlo přináší oproti jednoúrovňové metodě lepší možnost snižování rozptylu. 
+
+Princip MLMC je takový, že na každé úrovni provedeme nejprve simulaci s~jemnějším počtem kroků $n_{i}$ tím získáváme přesnější odhad střední hodnoty náhodné veličiny, označíme si ho $v$.
+
+Poté se provede simulace s~hrubším počtem kroků $n_{i-1}$ tj. s~jemným počtem kroků na předchozí úrovni. V~případě, že se jedná o~první úroveň, pak počet kroků $n_{i-1} = 0$. Touto simulací získáváme horší odhad střední hodnoty, označme si ho $w$. Odečtením obdržených hodnot získáváme  $X_{i} = v - w$.  
+
+Tento postup se aplikuje na všechny úrovně. Pro získání výsledku se nakonec provede součet všech rozdílů $X_{i}$, to jsou náhodné veličiny získané simulací na dané úrovni $i$.
+
+$$ {X}_{n} = {X}_{0} + ({X}_{1} - {X}_{0}) + ... + ({X}_{n} - {X}_{n-1})$$
+
+Veličina ${X}_{0}$ má velký rozptyl, další sčítance mají vždy menší rozptyl, až nakonec nejmenší rozptyl má ${X}_{n} - {X}_{n-1}$.
+
+Z~toho odhad střední hodnoty je následující:
+$$ {EX}_{n} = E({X}_{0}) + E({X}_{1} - {X}_{0}) + ... + E({X}_{n} - {X}_{n-1})$$
+
+Střední hodnoty jsou získány s~rozdílu dvou vzájemně závislých náhodných veličin. 
+Tyto střední hodnoty jsou však navzájem nezávislé. K~tomu abychom získali co nejrychleji přesný odhad výsledné střední hodnoty náhodné veličiny $X$ je vhodné především využívat ty dílčí náhodné veličiny, které mají malé rozptyly. Ovšem k~jejich výpočtu je stejně nutné získat hodnoty na předcházejících úrovních. Se zvyšující se úrovní stoupá počet kroků simulace a tím také dostáváme přesnější odhady středních hodnot. Na první úrovni je krok simulace velice hrubý a kvůli tomu je potřeba tuto simulaci provést mnohokrát abychom získali dobrý odhad střední hodnoty s~malým rozptylem. 
+Princip víceúrovňové metody je tedy ten, že nepotřebujeme přesný výsledek už na první úrovni a tedy můžeme ušetřit relativně velké množství času pro další, přesnější úrovně. Nakonec se ukazuje, že čas ušetřený na první nepřesné úrovni, je o~mnoho větší než čas spotřebovaný výpočty na dalších úrovních. 
+\newline
+
+Celkový rozptyl $V$ odpovídá rovnici~\ref{eq:var}. Kde $V_{i}$ a $N_{i}$ jsou rozptyl a počet vykonání simulace na dané úrovni. Z~toho plyne, že pokud chceme na dané úrovni například snížit rozptyl o~jeden řád, tak stačí o~jeden řád zvýšit počet vykonání simulace.  
+\begin{equation}\label{eq:var}
+V~= \sum_{i=0}^{L} \frac{V_{i}}{N_{i}}
+\end{equation}
+
+\noindent Celkový čas je \begin{equation}\label{eq:time}
+T = \sum_{i=0}^{L} N_{i}n_{i}
+\end{equation} kde $N_{i}$ je počet vykonání simulace na dané úrovni a $n_{i}$ je počet kroků simulace.
+\newline
+
+Počet vykonání simulace na určité úrovni je vhodné optimalizovat a to buď vzhledem k~času, který si stanovíme jako maximální. Nebo vzhledem k~rozptylu, kterého chceme dosáhnout. Důležité je rovněž stanovit vhodné poměry mezi kroky simulací na jednotlivých úrovních.
+\subsection{Počet vykonání simulace - pevný rozptyl}\label{variance}
+
+Zvolíme si rozptyl $V$. To je hodnota rozptylu, které chceme dosáhnout. Jedná se o~rozptyl odhadů střední hodnoty $X$. 
+
+%$$V = \sum_{i=0}^{L} V_{i}/N_{i}$$
+
+Vyjdeme k~rovnice \ref{eq:var} a optimalizujeme odhad rozptylu vzhledem k~${N}_{i}$. Výpočet jednotlivých ${N}_{i}$, tedy počtu provedení simulace na dané úrovni, se pak řídí následující rovnicí:
+
+
+%$$\tilde{V} = \sum_{i=0}^{L}V_{i}/N_{i} + \lambda T{\lbrace N_{i} \rbrace}$$
+
+
+$$N_{i} = \sqrt{\frac{V_{i}}{n_{i}}} \frac{\sum_{i=1}^{L} \sqrt{V_{i}} \sqrt{n_{i}}}{V}$$
+
+\subsection{Počet vykonání simulace - pevný čas} \label{time}
+
+Stanovíme si maximální čas $T$, během kterého chceme provést celou MLMC. 
+
+V~tomto případě optimalizujeme odhad celkového času vzhledem k~${N}_{i}$, vycházíme z~rovnice \ref{eq:time}. Výpočet jednotlivých ${N}_{i}$, je pak dán touto rovnicí:
+%$$V = \sum_{i=0}^{L} V_{i}/N_{i}$$
+
+%$$V = \sum_{i=0}^{L} V_{i}/N_{i}$$
+
+%$$n_{i} = \lambda V_{i}/$$
+
+$$N_{i} = \frac{T \sqrt{\frac{V_{i}}{n_{i}}}}{ \sum_{i=1}^{L} \sqrt{V_{i}} \sqrt{n_{i}}}$$
+
+
+\chapter{Model střelby}
+První aplikací metody Monte-Carlo je 1D model střelby. Náhodnou veličinou je v~tomto případě vítr, který působí během letu střely na terč. Střední hodnota větru je -1.
+
+Simulace začíná se startovními souřadnicemi $x_{0} = 0, y_{0} = 0$ a výchozí rychlostí $v_{x0} = 10, v_{y0} = 0$. K~výpočtu je také nutné zvolit časový krok $dt$.
+
+V~každém kroku simulace dochází k~novému výpočtu rychlosti (viz \ref{eq:v}) z~vektoru sil větru, který je na alokován na začátku simulace.
+\begin{equation}\label{eq:v} 
+V_{n+1} = V_{n} + dtF_{n}
+\end{equation}
+
+
+\noindent  Z~této rovnice se poté dopočítává další dílčí souřadnice (viz ~\ref{eq:x}).
+\begin{equation}\label{eq:x}
+X_{n+1} = X_{n} + dtV_{n}
+\end{equation}
+
+Simulace skončí pokud je přesažen zadaný cílový čas $t$, kde $t =n*dt$. A~nebo je výsledná hodnota $X$  mimo vytyčenou oblast.
+
+
+\section{Jednoúrovňová metoda Monte-Carlo}
+V~další fázi jsme se rozhodli ověřit teoretické poznatky na vytvořeném programu.
+Nejprve jsem provedl jednoúrovňovou metodu MC. Z~přiloženého histogramu (obrázek~\ref{histogram}) vyplývá, že rozdělení náhodné veličiny $Y$, to je souřadnice ve směru $y$ z~vypočítaného $X$ (viz rovnice  \ref{eq:x}), odpovídá normálnímu rozdělení. Z~obrázku \ref{graf} je patrné, že již po 10 opakováních se hodnota ustálí přibližně na střední hodnotě náhodné veličiny $Y$.
+
+%histogram pro 1LMC N = 1000, n = 100
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width=1\textwidth, inner]{N1000_n100.png}
+  \caption{Rozložení náhodné veličiny Y}
+  \label{histogram}
+
+%vývoj Y pro n = 200, N = 11
+  \centering
+  \includegraphics[width=1\textwidth, inner]{A_n0,05.png}
+  \caption{Vývoj Y se zvyšujícím se počtem pokusů, n = 200, N = 11}
+  \label{graf}
+\end{figure}
+
+
+
+
+
+%\begin{tabular}[vert_umístění]{sloupce}
+% ...
+%\end{tabular}
+
+\section{Víceúrovňová metoda Monte-Carlo}
+Dále jsme zkoumali víceúrovňovou metodu Monte-Carlo. Cílem bylo zjistit odlišnosti v~hodnotách na různých úrovních této metody. Získaná data jsou výsledky 10 opakování MLMC.
+
+Pro výpočet kroků simulace na daných úrovních MLMC se vycházelo ze vzorce \ref{eq:n}, se zadaným nejmenším počtem kroků ${n}_{0} = 0$ a nejvyšším počtem kroků ${n}_{L} = 1000$.
+\begin{equation}\label{eq:n}
+{n}_{i} = \bigg({{\bigg(\frac{{n}_{L}}{{n}_{0}}\bigg)}^{\frac{1}{L-1}}}\bigg)^{i} * {n}_{0}
+\end{equation}
+V~tomto případě je nutné dopočítávat počty simulací na každé z~úrovní.
+\subsection{Pevný rozptyl}
+% napsat jak to funguje  logaritmická křivka pro určení maleho n
+% napsat vzorec potřebujeme mít zadaný počet úrovní 
+Stanovili jsme si cílový rozptyl $V = 0,01$. Podle tohoto rozptylu byly vypočítány hodnoty $N$, to jsou počty vykonání simulace na dané úrovni (viz \ref{variance}). 
+
+V~tabulce \ref{pevny_rozptyl} jsou údaje pro 4 Monte-Carlo metody od jednoúrovňové až po čtyřúrovňovou. Každá tato část obsahuje řádky, které představují jednotlivé dílčí úrovně.
+
+Sloupce \bm{$n_{i-1}$} a \bm{$n_{i}$} obsahují počet hrubých a jemných kroků simulace na dané úrovni.
+
+Sloupec \textbf{Rozptyl} umožňuje pozorovat snižování rozptylu se zvyšující se úrovní. Od druhé úrovně se s~každou další úrovní snižuje rozptyl zhruba o~jeden až dva řády. 
+
+\textbf{N} ukazuje, že pokud máme více úrovní, tak se snižuje celkový počet vykonání simulace. Nejcennější je tento pokles na první úrovni, tam znamená velké zrychlení celé MLMC.
+
+Sloupec \textbf{Čas} obsahuje časy vykonání jednotlivých Monte-Carlo metod. Čas potřebný pro MLMC se s~každou úrovní zhruba desetkrát snižuje. V~tabulce jsou uvedeny pouze 4 úrovně. Při dalších úrovních již nedochází ke znatelnému zrychlení metody. Další úrovně proto nejsou z~důvodu přehlednosti uvedeny.
+
+\textbf{Celkový rozptyl} je velmi blízko stanovené hodnotě $0.01$. Výpočet pro optimalizaci rozptylu vhledem k~${N}_{i}$ funguje správně.
+
+\textbf{Průměrná hodnota} je přibližně stejná. Je tedy patrné, že na všech úrovních jsme obdrželi správné výsledky. Odhad střední hodnoty je přibližně $-50$.
+
+
+
+
+
+% do tabuky místo písmen názvy a popsat jak se k tomu přišlo a odstranit pospisky z tabulky, vše bude v textu předtím s odkazem na tabulku.
+\begin{table}[!htb]
+\centering
+\begin{threeparttable}
+\catcode`\-=12
+\caption{Porovnání úrovní při pevném rozptylu}
+\label{pevny_rozptyl}
+\begin{tabular}{|l|l|l|l|l|l|l|}
+\hline
+\multicolumn{1}{|c|}{\bm{$n_{i-1}$}} & \multicolumn{1}{c|}{\bm{$n_{i}$}} & \multicolumn{1}{c|}{\textbf{Rozptyl}} & \multicolumn{1}{c|}{\textbf{N}} & \multicolumn{1}{c|}{\textbf{Čas}(s)} & \multicolumn{1}{c|}{\textbf{Celkový rozptyl}} & \multicolumn{1}{c|}{\textbf{Průměrná hodnota}} \\ \hline
+
+\multicolumn{7}{|c|}{\textbf{Počet úrovní: 1}} \\ \hline
+0 & 1000 & 123.99469 & 12399 & \multicolumn{1}{c|}{52.41} & \multicolumn{1}{c|}{0.01263} & \multicolumn{1}{c|}{-49.93} \\ \hline
+
+\multicolumn{7}{|c|}{\textbf{Počet úrovní: 2}} \\ \hline
+0 & 2 & 44.60929 & 80425 & \multicolumn{1}{c|}{\multirow{2}{*}{13.17}} & \multicolumn{1}{c|}{\multirow{2}{*}{0.01007}} & \multicolumn{1}{c|}{\multirow{2}{*}{-49.96}} \\ \cline{1-4}
+2 & 1000 & 26.97139 & 2849 &  &  & \multicolumn{1}{r|}{} \\ \hline
+
+\multicolumn{7}{|c|}{\textbf{Počet úrovní: 3}} \\ \hline
+0 & 2 & 36.90378 & 21224 & \multicolumn{1}{c|}{\multirow{3}{*}{1.22}} & \multicolumn{1}{c|}{\multirow{3}{*}{0.01027}} & \multicolumn{1}{c|}{\multirow{3}{*}{-49.94}} \\ \cline{1-4}
+2 & 45 & 26.93084 & 3860 & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{} \\ \cline{1-4}
+45 & 1000 & 0.050911 & 34 & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{} \\ \hline
+
+\multicolumn{7}{|c|}{\textbf{Počet úrovní: 4}} \\ \hline
+0 & 2 & 43.5009 & 16388 & \multicolumn{1}{c|}{\multirow{4}{*}{0.73}} & \multicolumn{1}{c|}{\multirow{4}{*}{0.00908}} & \multicolumn{1}{c|}{\multirow{4}{*}{-49.94}} \\ \cline{1-4}
+2 & 16 & 22.0575 & 4130 &  &  &  \\ \cline{1-4}
+16 & 126 & 0.24294 & 150 &  &  &  \\ \cline{1-4}
+126 & 1000 & 0.00468 & 10 &  &  &  \\ \hline
+\end{tabular}
+%\begin{tablenotes}
+% \item n1 - hrubší krok simulace
+ %\item n2 - jemnější krok simulace
+ %\item V - rozptyl hodnot na dané úrovni
+% \item N - počet vykonání simulace
+% \item T - celkový čas
+ %\item Rozptyl - udává rozptyl Y po 10 vykonáních MLMC
+ %\item Y - odhad střední hodnoty
+% \item L - počet úrovní
+%\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+
+\newpage
+\subsection{Pevný čas}
+Zvolili jsme maximální čas trvání celé metody $T = 10000$. To odpovídá počtu vykonaných operací. Tabulka \ref{pevny_cas} ukazuje, že reálný čas vykonání je zde kolem $0.1$~$s$. Důsledkem tohoto časového limitu, je vykonáno celkově méně simulací. Tím dochází k~většímu rozptylu. Největší rozptyl je patrný u~jednoúrovňové metody MC, kde je rovněž nejméně přesný odhad průměrné hodnoty. 
+
+Již u~čtyřúrovňové metody je celkový rozptyl podobný celkovému rozptylu na stejné úrovni v~předchozí tabulce \ref{pevny_rozptyl}, rovněž čas je řádově stejný. Při výpočtu s~pevným rozptylem dostáváme pouze nepatrně přesnější výsledek.
+Od čtvrté úrovně dostáváme přibližně stejné výsledky bez ohledu na to zda optimalizujeme ${N}_{i}$ vzhledem k~rozptylu nebo času.
+\begin{table}[t]
+\centering
+\begin{threeparttable}
+\catcode`\-=12
+\caption{Porovnání úrovní při pevném čase}
+\label{pevny_cas}
+\begin{tabular}{|l|l|l|l|l|l|l|}
+\hline
+\multicolumn{1}{|c|}{\bm{$n_{i-1}$}} & \multicolumn{1}{c|}{\bm{$n_{i-1}$}} & \multicolumn{1}{c|}{\textbf{Rozptyl}} & \multicolumn{1}{c|}{\textbf{N}} & \multicolumn{1}{c|}{\textbf{Čas}(s)} & \multicolumn{1}{c|}{\textbf{Celkový rozptyl}} & \multicolumn{1}{c|}{\textbf{Průměrná hodnota}} \\ \hline
+
+\multicolumn{7}{|c|}{\textbf{Počet úrovní: 1}} \\ \hline
+0 & 1000 & 106.59977 & 10 & 0.03694 & \multicolumn{1}{c|}{3.90316} & \multicolumn{1}{c|}{-48.77} \\ \hline 
+
+\multicolumn{7}{|c|}{\textbf{Počet úrovní: 2}} \\ \hline
+0 & 2 & 44.27919 & 267 & \multirow{2}{*}{0.04324} & \multicolumn{1}{c|}{\multirow{2}{*}{1.32054}} & \multicolumn{1}{c|}{\multirow{2}{*}{-50.02}} \\ \cline{1-4}
+2 & 1000 & 30.52846 & 10 &  &  & \multicolumn{1}{r|}{} \\ \hline 
+
+\multicolumn{7}{|c|}{\textbf{Počet úrovní: 3}} \\ \hline
+0 & 2 & 41.92017 & 954 & \multicolumn{1}{c|}{\multirow{3}{*}{0.08675}} & \multicolumn{1}{c|}{\multirow{3}{*}{0.11538}} & \multicolumn{1}{c|}{\multirow{3}{*}{-49.94}} \\ \cline{1-4}
+2 & 45 & 24.40433 & 148 & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{} \\ \cline{1-4}
+45 & 1000 & 0.054139 & 10 & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{} & \multicolumn{1}{c|}{} \\ \hline
+
+\multicolumn{7}{|c|}{\textbf{Počet úrovní: 4}} \\ \hline
+0 & 2 & 45.32806 & 1414 & \multirow{4}{*}{0.11541} & \multicolumn{1}{c|}{\multirow{4}{*}{0.07776}} & \multicolumn{1}{c|}{\multirow{4}{*}{-49.85}} \\ \cline{1-4}
+2 & 16 & 16.88647 & 298 &  &  &  \\ \cline{1-4}
+16 & 126 & 0.28095 & 14 &  &  &  \\ \cline{1-4}
+126 & 1000 & 0.00518 & 10 &  &  &  \\ \hline
+\end{tabular}
+\end{threeparttable}
+\end{table}
+
+
+
+
+\listoffigures
+
+\listoftables
+
+
+
+\begin{thebibliography}{1}
+
+\bibitem{klvana} KLVAŇA, Jaroslav. {\em Principy a aplikace metody Monte Carlo: Principles and applications of Monte Carlo method.} V~Praze: České vysoké učení technické, 2006. ISBN 80-01-03587-5.
+
+\end{thebibliography}
+
+\end{document}
