@@ -5,9 +5,9 @@
 Overview
 ========
 
-.. start-badges
+start-badges
 
-    list-table::
+  list-table::
     :stub-columns: 1
 
     * - tests
@@ -25,7 +25,7 @@ Overview
       - | |version| |wheel| |supported-versions| |supported-implementations|
         | |commits-since|
 
-.. |docs| image:: https://readthedocs.org/projects/python-nameless/badge/?style=flat
+..  |docs| image:: https://readthedocs.org/projects/python-nameless/badge/?style=flat
     :target: https://readthedocs.org/projects/python-nameless
     :alt: Documentation Status
 
@@ -33,19 +33,19 @@ Overview
     :alt: CircleCI Build Status
     :target: https://circleci.com/gh/GeoMop/MLMC/tree/master
 
-.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/ionelmc/python-nameless?branch=master&svg=true
+..  |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/ionelmc/python-nameless?branch=master&svg=true
     :alt: AppVeyor Build Status
     :target: https://ci.appveyor.com/project/ionelmc/python-nameless
 
-.. |requires| image:: https://requires.io/github/ionelmc/python-nameless/requirements.svg?branch=master
+..  |requires| image:: https://requires.io/github/ionelmc/python-nameless/requirements.svg?branch=master
     :alt: Requirements Status
     :target: https://requires.io/github/ionelmc/python-nameless/requirements/?branch=master
 
-.. |codecov| image:: https://codecov.io/github/ionelmc/python-nameless/coverage.svg?branch=master
+..  |codecov| image:: https://codecov.io/github/ionelmc/python-nameless/coverage.svg?branch=master
     :alt: Coverage Status
     :target: https://codecov.io/github/ionelmc/python-nameless
 
-.. |version| image:: https://img.shields.io/pypi/v/nameless.svg
+..  |version| image:: https://img.shields.io/pypi/v/nameless.svg
     :alt: PyPI Package latest release
     :target: https://pypi.python.org/pypi/nameless
 
@@ -53,7 +53,7 @@ Overview
     :alt: Commits since latest release
     :target: https://github.com/ionelmc/python-nameless/compare/v0.1.0...master
 
-.. |wheel| image:: https://img.shields.io/pypi/wheel/nameless.svg
+..  |wheel| image:: https://img.shields.io/pypi/wheel/nameless.svg
     :alt: PyPI Wheel
     :target: https://pypi.python.org/pypi/nameless
 
