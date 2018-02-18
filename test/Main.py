@@ -1,8 +1,8 @@
 import time as t
 from test.simulation_setting import SimulationSetting as Sim
 import math
-from src.result import Result
-from src.mlmc import MLMC
+from mlmc.result import Result
+from mlmc.mlmc import MLMC
 from src.monomials import Monomials
 from src.fourier_functions import FourierFunctions
 import scipy as sc

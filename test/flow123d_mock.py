@@ -4,7 +4,6 @@ Mockup for the Flow123d simulator.
 
 import argparse
 import yaml
-import gmsh_io
 
 parser = argparse.ArgumentParser(description='Flow123d mockup.')
 parser.add_argument('yaml_file', metavar='<main YAML>', type=string, nargs=1,

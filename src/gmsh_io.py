@@ -200,21 +200,28 @@ class GmshIO:
         mshfile.write("\n$EndElements\n")
                       
         mshfile.close()
-        
-    def write_fields(self,mshfile,fieldvalues,name='vodivost'):
+
+    def write_element_data(self, f, ele_ids, name, values):
+        f.write('$ElementData\n')
+        f.write('1\n"' + str(name) + '"')
+        f.write('\n0\n3\n0\n1\n')
+        f.write('%d\n' % len(self.elements))
+        for ele_id, value in zip(ele_ids, values):
+            f.write(str(ele_id) + ' ' + str(value) + '\n')
+        f.write('$EndElementData\n')
+
+    def write_fields(self, msh_file, ele_ids, fields):
         """
-        Creates msh file for Flow model
+        Creates input data msh file for Flow model.
+        :param msh_file: Target file (or None for current mesh file)
+        :param ele_ids: Element IDs in computational mesh corrsponding to order of
+        field values in element's barycenter.
+        :param fields: {'field_name' : values_array, ..}
         """
-        if not mshfile:
-            mshfile = open(self.filename, 'w')
-        with open(mshfile,"wb") as fout:
-         fout.write('$MeshFormat\n2.2 0 8\n$EndMeshFormat\n')
-         fout.write('$ElementData\n')
-         fout.write('1\n"'+str(name)+'"')
-         fout.write('\n0\n3\n0\n1\n')
-         fout.write('%d\n'%len(self.elements))
-         for i in range(len(self.elements)):
-             fout.write(str(i+1) +'\t'+ str(fieldvalues[i]) + '\n') 
-         fout.write('$EndElementData\n')
-        fout.close()       
-        
+        if not msh_file:
+            msh_file = open(self.filename, 'w')
+        with open(msh_file,"w") as fout:
+            fout.write('$MeshFormat\n2.2 0 8\n$EndMeshFormat\n')
+            for name, values in fields.items():
+                self.write_element_data(fout, ele_ids, name, values)
+

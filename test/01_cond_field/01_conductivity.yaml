@@ -2,7 +2,7 @@ flow123d_version: 2.0.0
 problem: !Coupling_Sequential
   description: Steady flow + transport with source
   mesh:
-    mesh_file: square_mesh.msh
+    mesh_file: <mesh>
   flow_equation: !Flow_Darcy_MH
     output_specific:
     nonlinear_solver:
@@ -13,9 +13,7 @@ problem: !Coupling_Sequential
     input_fields:
       - region: plane
         anisotropy: 1
-        conductivity: !FieldElementwise
-           gmsh_file: vodivost_values.msh
-           field_name: vodivost        
+        conductivity: <conductivity>   
       - region: .bc_south
         bc_type: total_flux
         bc_flux: !FieldFormula

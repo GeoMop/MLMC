@@ -4,8 +4,39 @@ import numpy.linalg as la
 import scipy as sp
 from sklearn.utils.extmath import randomized_svd
 
+class FieldSet:
+    """
+    A set of cross correlated named correlated fields.
+    Currently just a wrapper of a single named field.
+    TODO, questions:
+    - mu, and sigma for individual fields can not be set via set_points method
+      as we need the field set to be shared for different meshes. We have to introduce a kind of continuous
+      field that can be evaluated at any point.
+    - we can not make hard wired model for any field set so this should be a base class that
+      defines an interface and common methods but evaluation of the feild set is case dependent
 
-class SpatialCorrelatedField(object):
+    """
+    def __init__(self, name, field):
+        self._back_fields = [field]
+        # List of backend fields that are independent. We always have to
+        # decompose resulting fields as functions of the independent fields.
+
+        self.field_names = [name]
+
+        def set_points(self, points):
+            for field in self._back_fields:
+                field.set_points(points)
+
+        def sample(self):
+            """
+            Return dictionary of sampled fields.
+            :return: { 'field_name': sample, ...}
+            """
+            result = dict()
+            result[self.field_names[0]] = self._back_fields[0].sample()
+            return result
+
+class SpatialCorrelatedField:
     """
     Generating realizations of a spatially correlated random field F for a fixed set of points at X.
     E[F(x)]       = mu(x) 
@@ -40,11 +71,14 @@ class SpatialCorrelatedField(object):
     """
 
     def  __init__(self, corr_exp = 'gauss', dim = 2, corr_length = 1.0,
-                  aniso_correlation = None,  ):
+                  aniso_correlation = None, mu=0.0, sigma=1.0):
         """
         :param corr_exp: 'gauss', 'exp' or a float (should be >= 1)
+        :param dim: dimension of the domain (size of point coords)
         :param corr_length: scalar, correlation length L > machine epsilon; tensor K = (1/L)^2
         :param aniso_correlation: 3x3 array; K tensor, overrides correlation length
+        :param mu - mu field (currently just a constant)
+        :param sigma - sigma field (currently just a constant)
 
         TODO: use kwargs and move set_points into constructor
         """
@@ -69,9 +103,9 @@ class SpatialCorrelatedField(object):
         #### Attributes set through `set_points`.
         self.points = None
         # Evaluation points of the field.
-        self.mu = None
+        self.mu = mu
         # Mean in points. Or scalar.
-        self.sigma = None
+        self.sigma = sigma
         # Standard deviance in points. Or scalar.
 
         ### Attributes computed in precalculation.
@@ -85,7 +119,7 @@ class SpatialCorrelatedField(object):
         # (Reduced) square roots of singular values.
 
 
-    def set_points(self, points, mu = 0.0, sigma = 1.0):
+    def set_points(self, points, mu = None, sigma = None):
         """
         :param points: N x d array. Points X_i where the field will be evaluated. d is the dimension.
         :param mu: Scalar or N array. Mean value of uncorrelated field: E( F(X_i)).
@@ -98,12 +132,13 @@ class SpatialCorrelatedField(object):
         self.n_points, self.dimension = points.shape
         self.points = points
 
-        self.mu = np.array(mu, dtype=float)
+        if mu is not None:
+            self.mu = np.array(mu, dtype=float)
         assert self.mu.shape == () or self.mu.shape == (len(points), )
 
-
-        assert type(sigma) == float or sigma.shape == (len(points),)
-        self.sigma = np.array(sigma)
+        if sigma is not None:
+                self.sigma = np.array(sigma, dtype=float)
+        assert self.mu.shape == () or sigma.shape == (len(points),)
 
         self.cov_mat = None
         self._cov_l_factor = None

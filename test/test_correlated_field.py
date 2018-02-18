@@ -2,7 +2,10 @@
 
 import numpy as np
 import numpy.linalg as la
+#import matplotlib
+#matplotlib.use('agg')
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 
 from mlmc.correlated_field import SpatialCorrelatedField
 #import scipy.interpolate as sc_inter
