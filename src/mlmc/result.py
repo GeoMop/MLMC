@@ -4,6 +4,8 @@ import numpy as np
 class Result:
     """
     Multilevel Monte Carlo result
+    JS TODO: Posprocessing i.e. calculation of averages should be part of MLMC
+    printing etc. should be part of tests.
     """
     def __init__(self, moments_number):
         self.variance = []

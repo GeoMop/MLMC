@@ -12,6 +12,18 @@ class MLMC:
         :param sim_steps_range:     Simulations step fine and coarse
         :param sim:                 Instance of object Simulation
         :param moments_object:      Instance of moments object
+
+        JS TODO:
+
+        - Make 'sim_steps_range' part of simulation, an attribute: 'sim_param_range'
+          and allow it to be any pair of real positive parameters
+          Using logaritmic interpolatin we then compute parameters for individual levels and pass them to the simulation object.
+          So the meaning of the simulation parameter is simulation dependent.
+        - !! Code is wrong, sim is not instance of Simulation but SimulationSetting.
+          Original idea was that sim would be the simulation class however that makes setup of cofigurable simulations
+          problematic. Better would be to introduce a method Simulation.interpolate_by_precision(precision)
+          with t_level be a number between 0 and 1 given as (l/L) so this will interpolate simulation parameter and return copy
+          of the simulation with particular value of the parameter set.
         """
         # Object of simulation
         self.simulation = sim
@@ -73,6 +85,9 @@ class MLMC:
         Calls other necessary methods
         :param optimization_type: int        1 for fix variance and other for fix time
         :param values: array     value of variance or time according to type
+
+        JS TODO: Rather let user to call 'set_target_time' or 'set_target_variance'.
+        and call refill_samples explicitly.
         """
         self.index = 0
 
@@ -142,6 +157,7 @@ class MLMC:
         """
         For each level counts new N according to target_time
         :return: array
+        JS TODO: Rename: 'set_target_time'
         """
         num_of_simulations_time = []
         amount = self._count_sum()
@@ -159,6 +175,7 @@ class MLMC:
         """
         For each level counts new N according to target_variance
         :return: array
+        JS TODO: rename  'set_target_variance'.
         """
         num_of_simulations_var = []
         amount = self._count_sum()

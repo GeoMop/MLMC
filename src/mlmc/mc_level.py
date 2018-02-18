@@ -6,6 +6,10 @@ class Level:
     """
     Call Simulation methods
     There are information about random variable - average, dispersion, number of simulation, ...
+
+    JS TODO:
+    Property and setter methods just boilerplate here, but if done you MUST provide
+    documentation of returned data structures otherwise related code is very hard to read.
     """
 
     def __init__(self, simulation_size, sim, moments_object):
@@ -52,6 +56,8 @@ class Level:
         """
         return self._data
 
+    # JS TODO: Very bed, this setter does not have semantics of setter but is rather an append.
+    # Extremaly confusing. Expose the level data attribute or make clear MCLevel.append_sample() method.
     @data.setter
     def data(self, values):
         if tuple is not type(values):
@@ -71,6 +77,7 @@ class Level:
             raise TypeError("Simulation results must be list")
         self._result = result
 
+    # JS TODO: No usage of variance in this class. Remove.
     @property
     def variance(self):
         """

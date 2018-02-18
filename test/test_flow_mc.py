@@ -1,30 +1,56 @@
 import flow_mc as fsim
 #import importlib
+import pytest
 import os
+import flow_mc
+import mlmc
 import numpy as np
 import matplotlib.pyplot as plt
-#import seaborn as sns
-from scipy.stats.mstats import mquantiles
+#from scipy.stats.mstats import mquantiles
 
+"""
+JS TODO:
+This is a proposed test of the flow_mc using a flow123d_mock.py instead of Flow123d.
+"""
+@pytest.mark.skip(reason="no way of currently testing this")
+def test_flow_mc():
+    # Get directory of this test script.
+    file_dir = os.path.dirname(os.path.realpath(__file__))
 
-flow123d =
-#importlib.import_module('MCwork')
-fileDir = os.path.dirname(os.path.realpath(__file__))
+    # Make flow123 wrapper script.
+    flow123d = os.path.join(file_dir, "flow123d_mock.sh")
+    flow_mock = os.path.join(file_dir, "flow123d_mock.py")
+    with open(flow123d, 'w') as f:
+        f.write("#!/bin/bash\n")
+        f.write("python3 %s"%(flow_mock))
+    os.chmod(flow123d, 0o770)
 
-yaml_path = '02_mysquare.yaml'  #Documents\Intec\PythonScripts\\MonteCarlo\\Flow_02_test\\
-mesh_path = 'Flow_02_test/square_mesh.msh'
+    # GMSH (make empty mesh)
+    gmsh = None
 
-run2      = FlowMC(yaml_path, mesh_path)
+    # pbs (run localy)
+    pbs = None
 
-n_realzs  = 4 
-f         = np.zeros(n_realzs,)
+    # Charon setting:
+    # pbs = dict(
+    #         n_cpu =1,
+    #         n_nodes =1,
+    #         mem= '4gb',
+    #         queue='charon')
 
-for i in range(n_realzs):
-    run2.add_field('vodivost',0.7,0.15,0.3)
-    run2.Flow_run(yaml_path)
-    f[i] = run2.extract_value()
-    
-# Postprocessing f:
-sns.distplot(f)
-mquantiles(f,[0.01,0.05,0.5,0.95,0.99])
-plt.show()    
+    env = flow_mc.Environment(flow123d, gmsh, pbs)
+    cond_field = mlmc.correlated_field.SpatialCorrelatedField(corr_exp='gauss', dim=2, corr_length=0.5, )
+    fields = mlmc.correlated_field.FieldSet("conductivity", cond_field)
+    yaml_path = os.path.join(file_dir, '01_cond_field', '01_cond.yaml')
+    geo_path = 'square.geo'
+
+    sim = flow_mc.FlowMC(env, fields, yaml_path, geo_path)
+    sim.set_range((0.2, 0.01))
+
+    n_levels = 3
+    moments = mlmc.Monomials()  # JS TODO: This should set a single moment function corresponding to the mean value.
+    mc = mlmc.mlmc.MLMC(n_levels, sim, moments)
+    mc.set_target_variance(0.01)
+    mc.refill_samples()
+
+    # process samples, whch should be moved from Result into MLMC
