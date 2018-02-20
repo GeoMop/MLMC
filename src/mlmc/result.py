@@ -13,6 +13,7 @@ class Result:
         self.moments = []
         self.simulation_results = []
         self.simulation_on_level = []
+        self.levels_num_of_steps = []
         self.moments_number = moments_number
         self.levels = None
 
@@ -80,6 +81,7 @@ class Result:
         # Each level in one execution of mlmc
         for index, level in enumerate(self.mc_levels):
 
+            self.levels_num_of_steps.append(level.n_ops_estimate())
             # Add fine - coarse
             for fine_and_coarse in level.data:
                 # Array of fine - coarse
@@ -98,13 +100,8 @@ class Result:
         self.simulation_results = [0 for _ in range(len(max(self.levels_data,key=len)))]
 
         for level_data in self.levels_data:
-            print("delka dat levelu", len(level_data))
             self.levels_dispersion.append(np.var(level_data))
             for index, data in enumerate(level_data):
-                #print("level data len", len(level_data))
-                #print(self.simulation_results)
-                #print(len(self.simulation_results))
-                #print(index)
                 self.simulation_results[index] += data
 
             self.average += np.mean(level_data)

@@ -31,9 +31,6 @@ class Level:
         self.coarse_simulation.n_sim_steps = self.n_coarse
 
         # Initialization of variables
-        self.variance = 0
-
-        # Random variable (fine, coarse)
         self._result = []
         self._variance = 0
         self._moments = []
@@ -51,14 +48,9 @@ class Level:
     def data(self):
         """
         Simulations data on this level
+        :return: array of tuples (coarse_sim result, fine_sim result)
         """
         return self._data
-
-    @data.setter
-    def data(self, values):
-        if tuple is not type(values):
-            raise TypeError("Item of level data must be tuple")
-        self._data.append(values)
 
     @property
     def result(self):
@@ -178,16 +170,16 @@ class Level:
                 try:
                     if fine_sim.simulation_result is not None and coarse_sim.simulation_result is not None:
                         if isinstance(fine_sim.simulation_result, (int, float)) and isinstance(coarse_sim.simulation_result, (int, float)):
-                            self.data = (fine_sim.simulation_result, coarse_sim.simulation_result)
+                            self.data.append((fine_sim.simulation_result, coarse_sim.simulation_result))
                         else:
                             raise ExpWrongResult()
 
                         if num_of_simulations < self.number_of_simulations:
                             running_simulations[index] = self._create_simulations()
                             num_of_simulations += 1
-                        else:
-                            # Remove simulations pair from running simulations
-                            running_simulations.pop(index)
+
+                        # Remove simulations pair from running simulations
+                        running_simulations.pop(index)
                 except ExpWrongResult as e:
                     print(e.message)
 

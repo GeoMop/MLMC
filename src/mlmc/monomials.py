@@ -1,4 +1,4 @@
-from mlmc.moments import Moments
+from src.mlmc.moments import Moments
 
 
 class Monomials(Moments):

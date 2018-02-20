@@ -1,16 +1,16 @@
 import time as t
 from test.simulation_setting import SimulationSetting as Sim
 import math
-from src.result import Result
-from src.mlmc import MLMC
-from src.monomials import Monomials
-from src.fourier_functions import FourierFunctions
+from src.mlmc.result import Result
+from src.mlmc.mlmc import MLMC
+from src.mlmc.monomials import Monomials
+from src.mlmc.fourier_functions import FourierFunctions
 import scipy as sc
 import numpy as np
-from src.moments import Moments
+from src.mlmc.moments import Moments
 import matplotlib.pyplot as plt
 from statsmodels.distributions.empirical_distribution import ECDF
-from src.distribution import Distribution
+from src.mlmc.distribution import Distribution
 
 
 class Main:
@@ -18,10 +18,9 @@ class Main:
     Class launchs MLMC
     """
     def main(*args):
-
-        pocet_urovni = 1
+        pocet_urovni = 3
         pocet_vykonani = 1
-        moments_number = 10
+        moments_number = 5
         bounds = [0, 2]
         toleration = 1e-15
         eps = 1e-10
@@ -33,7 +32,7 @@ class Main:
         result.levels_number = pocet_urovni
         result.execution_number = pocet_vykonani
 
-        function = FourierFunctions()
+        function = Monomials()
 
         for i in range(pocet_vykonani):
             mo = function
@@ -52,8 +51,7 @@ class Main:
             #m.number_of_simulations = [10000, 500, 100]
 
             # type, time or variance
-            variance = [1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3,  1e-3, 1e-3, 1e-3, 1e-3, 1e-3]
-            #variance = [0.01, 1e-3, 1e-3, 1e-3, 1e-3]
+            variance = [1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-5, 1e-5, 1e-5]
             m.monte_carlo(1, variance)
             end_MC = t.time()
             result.mc_levels = m.levels

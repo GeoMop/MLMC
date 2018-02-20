@@ -1,5 +1,5 @@
 import numpy as np
-from mc_level import Level
+from src.mlmc.mc_level import Level
 
 
 class MLMC:
@@ -167,17 +167,18 @@ class MLMC:
         # Count new number of simulations for each level
         for level in self._levels:
             new_num_of_sim_pom = []
-            level.moments_object.mean = np.mean(level.result)
 
-            for index, moment in enumerate(level.moments_estimate):
+            for index, moment in enumerate(level.moments_estimate[1:]):
+                amount = sum([np.sqrt(level.moments_estimate[index+1][1] * level.n_ops_estimate()) for level in self._levels])
                 new_num_of_sim_pom.append(np.round((amount * np.sqrt(np.abs(moment[1]) / level.n_ops_estimate()))
                 / self.target_variance[index]).astype(int))
 
             new_num_of_sim = np.max(new_num_of_sim_pom)
 
-
             #new_num_of_sim = np.round((amount * np.sqrt(level.variance / level.n_ops_estimate())) / self.target_variance[0]).astype(int)
             num_of_simulations_var.append(new_num_of_sim)
+            #print(self.target_variance)
+
 
         return num_of_simulations_var
 

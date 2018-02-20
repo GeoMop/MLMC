@@ -1,5 +1,5 @@
 import numpy as np
-from mlmc.moments import Moments
+from src.mlmc.moments import Moments
 
 
 class FourierFunctions(Moments):

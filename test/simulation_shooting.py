@@ -1,4 +1,4 @@
-from src.simulation import Simulation
+from src.mlmc.simulation import Simulation
 
 
 class SimulationShooting(Simulation):

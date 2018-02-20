@@ -11,7 +11,7 @@ class Simulation:
         # Type of random array
         self.type_of_random_array = r
         # Simulation result
-        self._simulation_result = 0
+        self._simulation_result = None
         # Fine simulation step
         self._simulation_step = 0
 
