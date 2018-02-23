@@ -1,0 +1,97 @@
+flow123d_version: 2.0.0
+problem: !Coupling_Sequential
+  description: Steady flow + transport with source
+  mesh:
+    mesh_file: basic.msh
+    regions:
+      - !Union
+        name: fracs
+        regions:
+  flow_equation: !Flow_Darcy_MH
+    output_specific:
+    nonlinear_solver:
+      linear_solver: !Petsc
+        a_tol: 1.0e-12
+        r_tol: 1.0e-12
+    n_schurs: 2
+    input_fields:
+      - region: matrix
+        conductivity: 1e-1
+        anisotropy: 1        
+      - region: fracs
+        conductivity: 1e-02
+        cross_section: 0.02
+        sigma: 0.5         
+      - region: .bc_south
+        bc_type: total_flux
+        bc_flux: !FieldFormula
+          value: 0
+      - region: .bc_west
+        bc_type: dirichlet     
+        bc_pressure: !FieldFormula               
+          value: 1
+      - region: .bc_north
+        bc_type: total_flux
+        bc_flux: !FieldFormula
+          value: 0
+      - region: .bc_east
+        bc_type: dirichlet
+        bc_pressure: !FieldFormula
+          value: 0
+        
+    output:
+      fields:
+        - piezo_head_p0
+        - pressure_p0
+        - velocity_p0
+    balance: {}
+    output_stream: 
+      file: ./flow_test_101.msh
+      format: !gmsh
+        variant: ascii
+      name: flow_output_stream
+      
+  solute_equation: !Coupling_OperatorSplitting
+    transport: !Solute_Advection_FV
+      input_fields:
+        - region: .bc_west
+          bc_conc: 1
+        - region: .bc_east
+          bc_conc: 0
+        - region: .bc_south
+          bc_conc: 0
+        - region: .bc_north
+          bc_conc: 0          
+        - region: matrix
+          init_conc: 0       
+          porosity: 0.05
+          sources_density: !FieldFormula
+            value: 0
+          sources_sigma: !FieldFormula
+            value: 0
+          sources_conc: !FieldFormula
+            value: 0
+        - region: fracs
+          init_conc: 0       
+          porosity: 0.8
+          sources_density: !FieldFormula
+            value: 0
+          sources_sigma: !FieldFormula
+            value: 0
+          sources_conc: !FieldFormula
+            value: 0
+                 
+    output_stream: 
+      file: ./transport_test_101.msh
+      format: !gmsh
+        variant: ascii
+      name: transport_output_stream
+      times:
+        - step: 0.05
+    sources_file: ./input/test16.tso
+    substances:
+      - conc
+    time:
+      end_time: 1
+    balance:
+      cumulative: true     

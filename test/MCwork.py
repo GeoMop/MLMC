@@ -57,7 +57,7 @@ class FlowMC(object):
         Creates a random spatially variable field based on given mu, sig and corr length
         Stored in name_values.msh.
         '''       
-        field = SpatialCorrelatedField(corr_exp = 'gauss', dim = self.points.shape[1], corr_length = corr,aniso_correlation = None,  )
+        field = SpatialCorrelatedField(corr_exp = 'exp', dim = self.points.shape[1], corr_length = corr,aniso_correlation = None,  )
         field.set_points(self.points, mu = mu, sigma = sig2)
         hodnoty  = field.sample() 
         p        = Path(self.mesh_dir)

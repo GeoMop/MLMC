@@ -1,20 +1,33 @@
-import os,path
-import sys
 import fractures
+import numpy as np
 from fractures import Fractures
-from scipy.stats import vonmises_line
-import MCwork
 from MCwork import FlowMC, confidence_interval, mc_stats
 import imp
+from create_msh import create_msh, adjust_yaml
+import matplotlib.pyplot as plt
 
 imp.reload(fractures)
-yaml_path = 'Flow_02_test/02_mysquare.yaml' 
-mesh_path = 'Flow_02_test/square_mesh.msh'
+n_realzs  = 100
+f         = np.zeros(n_realzs,)
+iter_n    = 0
 
-run1      = FlowMC(yaml_path, mesh_path)
+for i in range(n_realzs):
+    frac      = Fractures(np.array((0,1)),np.array((0,1)),'uniform')
+    # Assigns fracture sets of given angle, mean_length and density per unit square:
+    set_1     = frac.add_fracset(0.35,0.5,2) 
+    set_2     = frac.add_fracset(1.75,0.3,4)
+    
+    # frac.fracs_plot(set_1)
+    # frac.fracs_plot(set_2)
+    
+    # Create geo + msh file, with physical lines for fractures
+    msh_path, fraclist = create_msh(frac.coords)
+    yaml_path          = adjust_yaml(fraclist) # Adding region "frac" with all the fractures in
+    
+    run1      = FlowMC(yaml_path, msh_path) # MC simulator   
+    run1.Flow_run(yaml_path)
+    f[i] = run1.extract_value()
+    iter_n += 1
 
-frac      = Fractures(run1.points,'uniform')
-CC        = frac.get_centers(4) # rate refers to  more or less number of fractures in 1 x 1 size square
-endings   = frac.get_coords(CC)
-
-frac.fracs_plot()
+plt.plot(f,'*')
+mc_stats(f)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  

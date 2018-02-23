@@ -6,7 +6,7 @@ import importlib
 import os
 import sys
 libdir = os.path.join(os.path.split(
-         os.path.dirname(os.path.realpath(__file__)))[0],"C:\\Users\\Clara\\Documents\\Intec\\MLMC_Python\\src\\mlmc")
+         os.path.dirname(os.path.realpath(__file__)))[0],"C:\\Users\\Klara\\Documents\\Intec\\MLMC_Python\\src\\mlmc")
 sys.path.insert(1,libdir)
 import correlated_field
 from correlated_field import SpatialCorrelatedField
