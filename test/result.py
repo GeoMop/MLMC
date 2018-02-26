@@ -30,6 +30,7 @@ class Result:
     def mc_levels(self):
         """
         Monte Carlo method levels
+        :return: array of levels
         """
         return self._mc_levels
 
@@ -44,6 +45,7 @@ class Result:
     def levels_number(self):
         """
         Number of Monte Carlo method levels
+        :return: array, number of levels
         """
         return self._levels_number
 
@@ -86,8 +88,7 @@ class Result:
             for fine_and_coarse in level.data:
                 # Array of fine - coarse
                 self.levels_data[index].append(fine_and_coarse[0] - fine_and_coarse[1])
-
-            self.simulation_on_level.append(len(level.data))
+            self.simulation_on_level.append(level.number_of_simulations)
 
         self.result_of_levels()
 
