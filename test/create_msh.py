@@ -3,6 +3,8 @@ Pat a Mat routine to create the geo file for the fractured grid, some
 limitations regarding fractures crossing the edges to not to let gmsh fail
 """
 import os
+import random
+import numpy
 
 def create_msh(frac_set):
     n_f       = len(frac_set)
@@ -34,7 +36,7 @@ def create_msh(frac_set):
         file.write("\n")
         for i in range(n_f):
             phylines = retez4  + str(i+1) + '") = {' + str(20 + i) + '};'
-            fraclist[i] = '          - frac_' + str(i+1)
+            fraclist[i] = 'frac_' + str(i+1)
             file.write(phylines + "\n")
             
         surf = 'Line{20:' + str(20 + n_f-1) + '} In Surface{32};'
@@ -45,7 +47,7 @@ def create_msh(frac_set):
     
     return msh_file, fraclist 
     
-def adjust_yaml(fraclist): # Adds the particular number of fracture into yaml source file,
+def adjust_yaml(fraclist, separate): # Adds the particular number of fracture into yaml source file,
     # which are part of region: fracs
     os.system('del frac_new.yaml')
     n_f = len(fraclist)
@@ -59,6 +61,30 @@ def adjust_yaml(fraclist): # Adds the particular number of fracture into yaml so
             count += 1
             if count == 9 :
                for i in range(n_f):
-                  out_file.write(str(fraclist[i]) + "\n") 
+                  out_file.write('          - ' + str(fraclist[i]) + "\n") 
+    
+    with open('frac_new.yaml', "r") as in_file:
+        content = in_file.readlines()                            
+    if separate:
+        frac_cs = numpy.zeros(shape=(n_f,))
+        frac_cond = numpy.zeros(shape=(n_f,))
+        frac_sig = numpy.zeros(shape=(n_f,))
+        for i in range(n_f):            
+            frac_cs[i] = round(random.gauss(0.05,0.005),2)
+            frac_cond[i] = 0.1 + 3*frac_cs[i]
+            frac_sig[i] = 0.5
+        count = 0    
+        with open('frac_new.yaml', "w") as out_file:
+            for line in content:
+                out_file.write(line)
+                count += 1
+                if count == 20 + n_f:
+                    for i in range(n_f):
+                        out_file.write('      - region: ' + str(fraclist[i]) + "\n") 
+                        out_file.write('        conductivity: ' + str(frac_cond[i].tolist()) + "\n") 
+                        out_file.write('        cross_section: ' + str(frac_cs[i].tolist()) + "\n")
+                        out_file.write('        sigma: ' + str(frac_sig[i].tolist()) + "\n")
+
+    
     yaml_file = 'frac_new.yaml'              
     return yaml_file                   
