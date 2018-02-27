@@ -16,8 +16,13 @@ problem: !Coupling_Sequential
     n_schurs: 2
     input_fields:
       - region: matrix
+<<<<<<< HEAD
         conductivity: 2e-1
         anisotropy: 1                
+=======
+        conductivity: 1e-1
+        anisotropy: 1              
+>>>>>>> a43d30a0a3b9f1a3173098083878e99aa76c5094
       - region: .bc_south
         bc_type: total_flux
         bc_flux: !FieldFormula
