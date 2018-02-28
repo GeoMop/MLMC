@@ -38,7 +38,7 @@ class FlowMC(object):
     '''
 
     def  __init__(self, yaml_file_dir, mesh_file_dir):
-        fileDir = os.path.dirname(os.path.realpath('__file__'))
+        fileDir  = os.path.dirname(os.path.realpath('__file__'))
         filename = os.path.join(fileDir, mesh_file_dir)
         gio      = GmshIO()
         with open(filename) as f:

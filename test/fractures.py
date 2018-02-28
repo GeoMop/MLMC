@@ -1,11 +1,9 @@
 import os
 from gmsh_io import GmshIO
 import numpy as np
-from  correlated_field import SpatialCorrelatedField
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
-from scipy.stats import vonmises_line
 from scipy.stats import powerlaw
 import math
 import random
@@ -98,7 +96,17 @@ class Fractures(object):
         self.coords = np.concatenate((self.coords,coords_set),axis = 0)
         self.coords = np.asarray(self.coords) # Adding the set into the self.coords
         return coords_set            
-        
+    
+    def set_conds(self, coords, log_mean_cs = -2.5, var_cs = 0.2, sigma = 0.5):
+        nf = len(coords)
+        frac_cs = np.random.lognormal(log_mean_cs,var_cs,nf)
+        frac_cond = (frac_cs**2)/12
+        frac_sig = sigma *np.ones(shape=(nf,))
+        frac_char = np.zeros(shape = (nf,3))
+        for i in range(nf):            
+            frac_char[i,:] = [frac_cond[i],frac_cs[i],frac_sig[i]]
+        frac_char = np.hstack((coords,frac_char))
+        return frac_char      
                
     def fracs_plot(self,coords):
         nf = len(coords)

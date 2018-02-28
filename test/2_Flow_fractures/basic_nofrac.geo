@@ -19,4 +19,3 @@ Physical Line(".bc_west") = {14};
 
 Physical Surface("matrix") = {32};
 
-	

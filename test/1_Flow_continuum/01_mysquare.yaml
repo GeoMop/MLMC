@@ -3,10 +3,6 @@ problem: !Coupling_Sequential
   description: Steady flow + transport with source
   mesh:
     mesh_file: basic.msh
-    regions:
-      - !Union
-        name: fracs
-        regions:
   flow_equation: !Flow_Darcy_MH
     output_specific:
     nonlinear_solver:
@@ -16,13 +12,10 @@ problem: !Coupling_Sequential
     n_schurs: 2
     input_fields:
       - region: matrix
-<<<<<<< HEAD
-        conductivity: 2e-1
-        anisotropy: 1                
-=======
-        conductivity: 1e-1
-        anisotropy: 1              
->>>>>>> a43d30a0a3b9f1a3173098083878e99aa76c5094
+        anisotropy: 1
+        conductivity: !FieldElementwise
+           gmsh_file: vodivost_values.msh
+           field_name: vodivost        
       - region: .bc_south
         bc_type: total_flux
         bc_flux: !FieldFormula
@@ -39,7 +32,6 @@ problem: !Coupling_Sequential
         bc_type: dirichlet
         bc_pressure: !FieldFormula
           value: 0
-        
     output:
       fields:
         - piezo_head_p0
@@ -47,11 +39,10 @@ problem: !Coupling_Sequential
         - velocity_p0
     balance: {}
     output_stream: 
-      file: ./flow_test_101.msh
+      file: ./flow_test15.msh
       format: !gmsh
         variant: ascii
       name: flow_output_stream
-      
   solute_equation: !Coupling_OperatorSplitting
     transport: !Solute_Advection_FV
       input_fields:
@@ -65,30 +56,20 @@ problem: !Coupling_Sequential
           bc_conc: 0          
         - region: matrix
           init_conc: 0       
-          porosity: 0.05
+          porosity: 0.4
           sources_density: !FieldFormula
             value: 0
           sources_sigma: !FieldFormula
             value: 0
           sources_conc: !FieldFormula
             value: 0
-        - region: fracs
-          init_conc: 0       
-          porosity: 0.8
-          sources_density: !FieldFormula
-            value: 0
-          sources_sigma: !FieldFormula
-            value: 0
-          sources_conc: !FieldFormula
-            value: 0
-                 
     output_stream: 
-      file: ./transport_test_101.msh
+      file: ./transport_test15.msh
       format: !gmsh
         variant: ascii
       name: transport_output_stream
       times:
-        - step: 0.05
+        - step: 0.025
     sources_file: ./input/test16.tso
     substances:
       - conc
