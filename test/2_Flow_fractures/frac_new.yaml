@@ -1,0 +1,123 @@
+flow123d_version: 2.0.0
+problem: !Coupling_Sequential
+  description: Steady flow + transport with source
+  mesh:
+    mesh_file: basic.msh
+    regions:
+      - !Union
+        name: fracs
+        regions:
+          - frac_1
+          - frac_2
+          - frac_3
+          - frac_4
+          - frac_5
+          - frac_6
+  flow_equation: !Flow_Darcy_MH
+    output_specific:
+    nonlinear_solver:
+      linear_solver: !Petsc
+        a_tol: 1.0e-12
+        r_tol: 1.0e-12
+    n_schurs: 2
+    input_fields:               
+      - region: matrix
+        conductivity: 0.2
+        anisotropy: 1 
+      - region: frac_1
+        conductivity: 0.0009232926603567614
+        cross_section: 0.10525926051555339
+        sigma: 0.9
+      - region: frac_2
+        conductivity: 0.0008808232490995941
+        cross_section: 0.10280991678430214
+        sigma: 0.9
+      - region: frac_3
+        conductivity: 0.00046970058201805065
+        cross_section: 0.07507600804662304
+        sigma: 0.9
+      - region: frac_4
+        conductivity: 0.0006618377030330479
+        cross_section: 0.08911819363293096
+        sigma: 0.9
+      - region: frac_5
+        conductivity: 0.00047372466245761477
+        cross_section: 0.07539692267918749
+        sigma: 0.9
+      - region: frac_6
+        conductivity: 0.0004078160217411251
+        cross_section: 0.06995564495373838
+        sigma: 0.9
+      - region: .bc_south
+        bc_type: total_flux
+        bc_flux: !FieldFormula
+          value: 0
+      - region: .bc_west
+        bc_type: dirichlet     
+        bc_pressure: !FieldFormula               
+          value: 1
+      - region: .bc_north
+        bc_type: total_flux
+        bc_flux: !FieldFormula
+          value: 0
+      - region: .bc_east
+        bc_type: dirichlet
+        bc_pressure: !FieldFormula
+          value: 0
+        
+    output:
+      fields:
+        - piezo_head_p0
+        - pressure_p0
+        - velocity_p0
+    balance: {}
+    output_stream: 
+      file: ./flow_test_101.msh
+      format: !gmsh
+        variant: ascii
+      name: flow_output_stream
+      
+  solute_equation: !Coupling_OperatorSplitting
+    transport: !Solute_Advection_FV
+      input_fields:
+        - region: .bc_west
+          bc_conc: 1
+        - region: .bc_east
+          bc_conc: 0
+        - region: .bc_south
+          bc_conc: 0
+        - region: .bc_north
+          bc_conc: 0          
+        - region: matrix
+          init_conc: 0       
+          porosity: 0.05
+          sources_density: !FieldFormula
+            value: 0
+          sources_sigma: !FieldFormula
+            value: 0
+          sources_conc: !FieldFormula
+            value: 0
+        - region: fracs
+          init_conc: 0       
+          porosity: 0.8
+          sources_density: !FieldFormula
+            value: 0
+          sources_sigma: !FieldFormula
+            value: 0
+          sources_conc: !FieldFormula
+            value: 0
+                 
+    output_stream: 
+      file: ./transport_test_101.msh
+      format: !gmsh
+        variant: ascii
+      name: transport_output_stream
+      times:
+        - step: 0.1
+    sources_file: ./input/test16.tso
+    substances:
+      - conc
+    time:
+      end_time: 1
+    balance:
+      cumulative: true     
