@@ -17,10 +17,10 @@ iter_n    = 0
 fig, axes = plt.subplots(nrows = 4, ncols = 4)
 
 for i in range(n_realzs):
-    frac      = Fractures(np.array((0,1)),np.array((0,1)),'uniform')
+    frac       = Fractures(np.array((0,1)),np.array((0,1)),'uniform')
     # Assigns fracture sets of given angle, mean_length and density per unit square:
-    set_1      = frac.add_fracset(0.35,0.4,2) 
-    set_2      = frac.add_fracset(1.75,0.2,4)
+    set_1      = frac.add_fracset(0.35,0.6,3) 
+    set_2      = frac.add_fracset(1.75,0.4,5)
     frac_chars = frac.set_conds(frac.coords,log_mean_cs = -2.5,var_cs = 0.2, sigma = 0.9)
     print(frac.coords)
     
