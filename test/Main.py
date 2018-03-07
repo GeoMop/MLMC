@@ -112,21 +112,34 @@ class Main:
         samples = np.linspace(bounds[0], bounds[1], len(mc_data))
         distribution_function = []
         difference = 0
+        KL_divergence = 0
         ## Set approximate density values
         approximate_density = []
 
         def integrand(x):
             return distribution.density(x)
 
+        def kullback_leibler_distance(x, exact_value):
+            print(x)
+            print("distribution density", distribution.density(x))
+            print("exact value", exact_value)
+
+            distribution.density(x) * math.log(distribution.density(x) / exact_value)
+
         for step, value in enumerate(samples):
             integral = sc.integrate.quad(integrand, bounds[0], value)
             approximate_density.append(distribution.density(value))
             distribution_function.append(integral[0])
             difference += abs(ecdf.y[step] - integral[0])**2
+            integ = sc.integrate.quad(kullback_leibler_distance, bounds[0], value, args=(ecdf.y[step]))
+            KL_divergence += integ
+
+
 
 
         print("Aproximované momenty", distribution.approximation_moments)
         print("Původní momenty", moments)
+        print("Kullback-Leibler distance", KL_divergence)
 
         plt.figure(1)
         plt.plot(ecdf.x, ecdf.y)
