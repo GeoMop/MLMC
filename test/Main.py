@@ -1,5 +1,4 @@
 import time as t
-#from test.simulation_setting import SimulationSetting as Sim
 from src.mlmc.flow_sim_generic import FlowSimGeneric as Sim
 #from src.mlmc.simulation import Simulation as Sim
 import math

@@ -2,11 +2,12 @@ import os
 import os.path
 import yaml
 import subprocess
+
 import src.mlmc.gmsh_io as gmsh_io
 import numpy as np
-
 #from operator import add
 import src.mlmc.simulation
+import numpy as np
 
 
 #from unipath import Path
@@ -45,6 +46,7 @@ def sub_file_params(file_in, file_out, params):
 
 
 class FlowSim(src.mlmc.simulation.Simulation):
+
     """
     Gather data for single flow call (coarse/fine)
     """
@@ -70,8 +72,8 @@ class FlowSim(src.mlmc.simulation.Simulation):
         using common fields_step.msh file for generated fields.
         :return:
         """
-        print(self.geo_file)
         subprocess.call(self.env.gmsh, -2, '-clscale', self.mesh_step, self.geo_file)
+
         self.mesh_file = os.path.splitext(self.geo_file)[0] + '.msh'
         mesh = gmsh_io.GmshIO(self.mesh_file)
         n_ele = len(mesh.elements)
@@ -162,12 +164,11 @@ class FlowSim(src.mlmc.simulation.Simulation):
         - check that simulation is done
         - extract  boundary flux
         """
-        if self.result is not None:
+        if run_is_done:
             # extract the flux
             balance_file = os.path.join(run_token['work_dir'], "water_balance.yaml")
             with open(balance_file, "r") as f:
                 balance = yaml.load(f)
-
 
 
 class FlowSimGeneric:
@@ -176,7 +177,6 @@ class FlowSimGeneric:
     Setup:
     - set environment, main YAML, geometry (__init__), field set (must be a single object since we have to deal
     with cross correlations)
-
 
     Initialization:
     1. construction:
@@ -188,7 +188,6 @@ class FlowSimGeneric:
     3. set the coarse mesh (from upper level)
     4. create the yaml file (substitute mesh files, fields)
     5. extract element centers
-
 
     Run simulation:
     4. Create realization directory, cd to relaization directory
@@ -207,7 +206,9 @@ class FlowSimGeneric:
         :param yaml_file: Path to the main YAML input.  (absolute or relative to CWD)
         :param geo_file: Path to the geometry file (default is <yaml file base>.geo
         """
+
         yaml_file = os.path.abspath(yaml_file)
+
         if geo_file is None:
             geo_file = os.path.splitext(yaml_file)[0] + '.geo'
 
@@ -218,6 +219,7 @@ class FlowSimGeneric:
             'sim_param_range': step_range,  # Range of MLMC simulation parametr. Here the mesh step.
             'geo_file': geo_file        # The file with simulation geometry (independent of the step)
         }
+
 
 
     def interpolate_precision(self, t=None):

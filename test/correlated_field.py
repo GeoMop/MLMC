@@ -5,41 +5,7 @@ import scipy as sp
 from sklearn.utils.extmath import randomized_svd
 
 
-class FieldSet:
-    """
-    A set of cross correlated named correlated fields.
-    Currently just a wrapper of a single named field.
-    TODO, questions:
-    - mu, and sigma for individual fields can not be set via set_points method
-      as we need the field set to be shared for different meshes. We have to introduce a kind of continuous
-      field that can be evaluated at any point.
-    - we can not make hard wired model for any field set so this should be a base class that
-      defines an interface and common methods but evaluation of the feild set is case dependent
-
-    """
-
-    def __init__(self, name, field):
-        self._back_fields = [field]
-        # List of backend fields that are independent. We always have to
-        # decompose resulting fields as functions of the independent fields.
-
-        self.field_names = [name]
-
-        def set_points(self, points):
-            for field in self._back_fields:
-                field.set_points(points)
-
-        def sample(self):
-            """
-            Return dictionary of sampled fields.
-            :return: { 'field_name': sample, ...}
-            """
-            result = dict()
-            result[self.field_names[0]] = self._back_fields[0].sample()
-            return result
-
-
-class SpatialCorrelatedField:
+class SpatialCorrelatedField(object):
     """
     Generating realizations of a spatially correlated random field F for a fixed set of points at X.
     E[F(x)]       = mu(x) 
@@ -51,14 +17,18 @@ class SpatialCorrelatedField:
           c(X) = sigma^2 exp( -|X^t K X|^(alpha/2) )
     for spatially heterogeneous sigma(X) we consider particular non-stationary generalization:\
           Cov_i,i = sigma(x_i)*sigma(x_j) exp( -|X^t K X|^(alpha/2) ); X = x_i - x_j
-
+          
+    Gaussian model:
+    C_i,j = sigma * exp[-1/2 *(x_i - x_j)^2 /corr]
+    Exponential model:
+    C_i,j = sigma * exp[-abs(x_i - x_j)/n]      
     where:
         - sigma(X) is the standard deviance of the single uncorrelated value
         - K is a positive definite tensor with eigen vectors corresponding to
           main directions and eigen values equal to (1/l_i)^2, where l_i is correlation
           length in singel main direction.
         - alpha is =1 for "exponential" and =2 for "Gauss" correlation
-
+          
     SVD decomposition:
         Considering first m vectors, such that lam(m)/lam(0) <0.1
 
@@ -73,19 +43,23 @@ class SpatialCorrelatedField:
     ```
     """
 
-    def __init__(self, corr_exp='gauss', dim=2, corr_length=1.0,
-                 aniso_correlation=None, mu=0.0, sigma=1.0):
+    def  __init__(self, corr_exp = 'gauss', dim = 3, corr_length = 1.0,
+                  aniso_correlation = None,  ):
         """
         :param corr_exp: 'gauss', 'exp' or a float (should be >= 1)
-        :param dim: dimension of the domain (size of point coords)
         :param corr_length: scalar, correlation length L > machine epsilon; tensor K = (1/L)^2
         :param aniso_correlation: 3x3 array; K tensor, overrides correlation length
-        :param mu - mu field (currently just a constant)
-        :param sigma - sigma field (currently just a constant)
 
         TODO: use kwargs and move set_points into constructor
         """
         self.dim = dim
+        if aniso_correlation is None:
+            assert corr_length > np.finfo(float).eps   # Checks correlation length is positive
+            self.correlation_tensor = np.eye(self.dim, self.dim) 
+            self._max_corr_length = corr_length
+        else:
+            self.correlation_tensor = aniso_correlation
+            self._max_corr_length = la.norm(aniso_correlation, ord=2)   # largest eigen value
 
         if corr_exp == 'gauss':
             self.correlation_exponent = 2.0
@@ -94,33 +68,26 @@ class SpatialCorrelatedField:
         else:
             self.correlation_exponent = float(corr_exp)
 
-        if aniso_correlation is None:
-            assert corr_length > np.finfo(float).eps
-            self.correlation_tensor = np.eye(dim, dim) * (1 / (corr_length ** 2))
-            self._max_corr_length = corr_length
-        else:
-            self.correlation_tensor = aniso_correlation
-            self._max_corr_length = la.norm(aniso_correlation, ord=2)  # largest eigen value
-
         #### Attributes set through `set_points`.
         self.points = None
         # Evaluation points of the field.
-        self.mu = mu
+        self.mu = None
         # Mean in points. Or scalar.
-        self.sigma = sigma
+        self.sigma = None
         # Standard deviance in points. Or scalar.
 
         ### Attributes computed in precalculation.
         self.cov_mat = None
         # Covariance matrix (dense).
         self._n_approx_terms = None
-        # Length of the sample vector, number of KL (Karhunen-Loe?ve) expansion terms.
+        # Length of the sample vector, number of KL (Karhunen-Loève) expansion terms.
         self._cov_l_factor = None
         # (Reduced) L factor of the SVD decomposition of the covariance matrix.
         self._sqrt_ev = None
         # (Reduced) square roots of singular values.
 
-    def set_points(self, points, mu=None, sigma=None):
+
+    def set_points(self, points, mu = 0.0, sigma = 1.0):
         """
         :param points: N x d array. Points X_i where the field will be evaluated. d is the dimension.
         :param mu: Scalar or N array. Mean value of uncorrelated field: E( F(X_i)).
@@ -133,13 +100,12 @@ class SpatialCorrelatedField:
         self.n_points, self.dimension = points.shape
         self.points = points
 
-        if mu is not None:
-            self.mu = np.array(mu, dtype=float)
-        assert self.mu.shape == () or self.mu.shape == (len(points),)
+        self.mu = np.array(mu, dtype=float)
+        assert self.mu.shape == () or self.mu.shape == (len(points), )
 
-        if sigma is not None:
-            self.sigma = np.array(sigma, dtype=float)
-        assert self.mu.shape == () or sigma.shape == (len(points),)
+
+        assert type(sigma) == float or sigma.shape == (len(points),)
+        self.sigma = np.array(sigma)
 
         self.cov_mat = None
         self._cov_l_factor = None
@@ -150,18 +116,20 @@ class SpatialCorrelatedField:
         :return: None.
         """
         assert self.points is not None, "Points not set, call set_points."
-        self._points_bbox = box = (np.min(self.points, axis=0), np.max(self.points, axis=0))
+        self._points_bbox = box =( np.min(self.points, axis=0), np.max(self.points, axis=0) )
         diameter = np.max(np.abs(box[1] - box[0]))
-        self._relative_corr_length = self._max_corr_length / diameter
+        self._relative_corr_length = self._max_corr_length / diameter    # Why?
 
-        # sigma_sqr_mat = np.outer(self.sigma, self.sigma.T)
-        self._sigma_sqr_max = np.max(self.sigma) ** 2
-        diff_mat = self.points[None, :, :] - self.points[:, None, :]  # shape NxNx3
-        length_srq_mat = np.sum(np.inner(diff_mat, self.correlation_tensor) * diff_mat, axis=-1)
+        #sigma_sqr_mat = np.outer(self.sigma, self.sigma.T)
+        self._sigma_sqr_max = np.max(self.sigma)**2  # for the vd_dcmp estimate
+        diff_mat = self.points[None,:, :] - self.points[:, None, :] # shape NxNx3
+        length_srq_mat = np.sum(np.inner(diff_mat, self.correlation_tensor) * diff_mat, axis =-1)
 
-        corr_exp = self.correlation_exponent / 2.0
-        exp_scale = - 1.0 / self.correlation_exponent
-        self.cov_mat = np.exp(exp_scale * length_srq_mat ** corr_exp)
+        if self.correlation_exponent == 2.0:
+            self.cov_mat = (self.sigma)*np.exp( (-0.5/(self._max_corr_length**2))*length_srq_mat)
+        elif self.correlation_exponent == 1.0:
+            self.cov_mat = (self.sigma)*np.exp( (-1./self._max_corr_length)*length_srq_mat**(0.5))
+                
         return self.cov_mat
 
     def _eigen_value_estimate(self, m):
@@ -178,7 +146,7 @@ class SpatialCorrelatedField:
         d = self.dimension
         alpha = self.correlation_exponent
         gamma = self._relative_corr_length
-        return self._sigma_sqr_max * (1.0 / gamma) ** (m ** (1.0 / d) + alpha) / sp.special.gamma(0.5 * m ** (1 / d))
+        return self._sigma_sqr_max * (1.0 / gamma) ** (m ** (1.0/d) + alpha) / sp.special.gamma(0.5 * m ** (1 / d))
 
     def svd_dcmp(self, precision=0.01, n_terms_range=(1, np.inf)):
         """
@@ -205,7 +173,7 @@ class SpatialCorrelatedField:
             self.cov_matrix()
 
         if n_terms_range[0] >= self.n_points:
-            U, ev, VT = np.linalg.svd(self.cov_mat)
+            U, ev, VT    = np.linalg.svd(self.cov_mat)
             m = self.n_points
         else:
             range = list(n_terms_range)
@@ -222,21 +190,24 @@ class SpatialCorrelatedField:
                 m = sp.optmize.bisect(f, range[0], range[1], xtol=0.5, )
 
             m = max(m, range[0])
-            threshold = 2 * precision
+            threshold = 2*precision
             # TODO: Test if we should cut eigen values by relative (like now) or absolute value
-            while threshold > precision and m < range[1]:
+            while threshold > precision and m < range[1]+1:
                 print("t: ", threshold, "m: ", m, precision, range[1])
-                U, ev, VT = randomized_svd(self.cov_mat, n_components=m, n_iter=3, random_state=None)
-                threshold = ev[-1] / ev[0]
-                m = int(np.ceil(1.5 * m))
+                U, ev, VT = randomized_svd(self.cov_mat, n_components=m, n_iter=3,random_state=None)
+                threshold = ev[-1]/ev[0]
+                m = int(np.ceil(1.5*m))
 
             m = len(ev)
             m = min(m, range[1])
+
+
 
         self.n_approx_terms = m
         self._sqrt_ev = np.sqrt(ev[0:m])
         self._cov_l_factor = U[:, 0:m].dot(sp.diag(self._sqrt_ev))
         return self._cov_l_factor, ev[0:m]
+
 
     def sample(self, uncorelated=None):
         """
@@ -245,17 +216,19 @@ class SpatialCorrelatedField:
         """
 
         if self._cov_l_factor is None:
-            self.svd_dcmp()
+             self.svd_dcmp()
         if uncorelated is None:
-            uncorelated = np.random.normal(0, 1, self.n_approx_terms)
+            uncorelated  = np.random.normal(0, 1, self.n_approx_terms)
         else:
             assert uncorelated.shape == (self.n_approx_terms,)
-        return (self.sigma * self._cov_l_factor.dot(uncorelated)) + self.mu
+        return (self._cov_l_factor.dot(uncorelated)) + self.mu
 
 
-# =====================================================================
+          
+#=====================================================================
 # Example:
 """
 """
-
-
+                      
+                 
+        

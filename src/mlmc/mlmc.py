@@ -61,6 +61,13 @@ class MLMC:
 
         self._number_of_samples = num_of_sim
 
+    def estimate_n_samples(self):
+        # Count new number of simulations according to variance of time
+        if self.target_variance is not None:
+            self._num_of_samples = self.estimate_n_samples_from_variance()
+        elif self.target_time is not None:
+            self._num_of_samples = self.estimate_n_samples_from_time()
+
     def refill_samples(self):
         """
         For each level counts further number of simulations by appropriate N

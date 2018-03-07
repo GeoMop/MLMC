@@ -1,6 +1,12 @@
 class Simulation:
     """
     Parent class for simulations
+
+    JS TODO:
+    - this can not be the base class since the averaging methods are simulation dependent
+    - Make SimulationBase class containing only methods necessary from MLMC, and clearly document
+       methods that should be implemented by derived classes, arguments, return values and effect on the object's data.
+    - Move averaging into tests
     """
 
     def __init__(self, sim_param=0):

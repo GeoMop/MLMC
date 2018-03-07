@@ -2,7 +2,10 @@
 
 import numpy as np
 import numpy.linalg as la
+#import matplotlib
+#matplotlib.use('agg')
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 
 from mlmc.correlated_field import SpatialCorrelatedField
 #import scipy.interpolate as sc_inter
@@ -11,6 +14,7 @@ from mlmc.correlated_field import SpatialCorrelatedField
 
 def make_points_grid(bound, size):
     """
+    Creates a regular grid within bounds and set number of cells
     bound: array of size 3 with spatial max dimensions of the grid, initial point at [0,0,0] by default
     size   : array of size 3 with number of cells in each dimensions
     """
@@ -28,6 +32,7 @@ def make_points_grid(bound, size):
 
 def make_points_random(bound, size):
     """
+    Creates a grid with random placing of points within bounds
     bound : max coordinate in each direction
     size  : number of random points
     """
@@ -49,7 +54,7 @@ class Cumul:
         self.log_cum=[]
         self.log_limit = 16
 
-    def __iadd__(self, other):
+    def __iadd__(self, other):      # Overridding the += method
         self.cumul += other
         self.n_iter += 1
         if self.n_iter > self.log_limit:
@@ -61,7 +66,7 @@ class Cumul:
         self.log_cum.append((self.n_iter, self.cumul))
 
     def avg_array(self):
-        return np.array([cumul/n for n, cumul in self.log_cum])
+        return np.array([cumul/n for n, cumul in self.log_cum])    # Vysvetlit, why long arrays   
 
     def n_array(self):
         return np.array([n for n,cumul in self.log_cum])
@@ -106,7 +111,7 @@ class CorrError():
 
 class TestSpatialCorrelatedField:
 
-    def plot_grid_field_2d(self, ncels, sample, title):
+    def plot_grid_field_2d(self, ncels, sample, title):          # Not clear
         # imgshow plot X axis verticaly, need to swap
         grid = sample.reshape( (ncels[1], ncels[0]) )
         imgplot = plt.imshow(grid)
@@ -153,16 +158,16 @@ class TestSpatialCorrelatedField:
         n = len(points)
         corr_length = 10
         mu = 3.14
-        sigma = 0.5
-        field = SpatialCorrelatedField('gauss', dim=2, corr_length = corr_length)
+        sigma = 1.5
+        field = SpatialCorrelatedField('gauss', dim=points.shape[1], corr_length = corr_length)
         field.set_points(points, mu, sigma)
         field.svd_dcmp(precision=0.01, n_terms_range=n_terms_range)
 
-        # plot single sample
-        #self.plot_grid_field_2d(ncells, field.sample())
+        # # plot single sample
+        # self.plot_grid_field_2d(ncells, field.sample())
 
         # Estimate statistcs by Monte Carlo
-        n_samples = 1000
+        n_samples = 2300
 
         cum_mean = Cumul(n)
         cum_sigma = Cumul(n)
@@ -181,9 +186,9 @@ class TestSpatialCorrelatedField:
             #corr_error.add_samples(points, centered)
 
         #### Mean plots and tests
-        mu_err = np.abs(cum_mean.avg_array() - mu)
+        mu_err = np.abs(cum_mean.avg_array() - mu)  # cum_mean.avg%array has size [log 2 N * n] but its one value along n axis
         #self.plot_mc(cum_mean.n_array(), mu_err)   # convergence plot
-        #self.plot_grid_field_2d(ncells, mu_err[-1, :], "Error in 'mu' estimate, N={}.".format(n_samples))  # error distribution
+        #self.plot_grid_field_2d(ncells, mu_err[-1, :], "Error in 'mu' estimate, N={}.".format(n_samples))  # error distribution  , the last averaged error?
 
         # check convergence
         means = np.mean(mu_err, axis=1)
@@ -196,7 +201,7 @@ class TestSpatialCorrelatedField:
         #self.plot_grid_field_2d(ncells, np.sqrt(cum_sigma.avg_array()[0,:]), "sigma conv")
         #self.plot_grid_field_2d(ncells, np.sqrt(cum_sigma.avg_array()[-1, :]), "sigma conv")
         sigma_err = np.abs( np.sqrt(cum_sigma.avg_array()) - sigma )
-        #self.plot_mc(cum_sigma.n_array(), sigma_err)   # convergence plot
+        self.plot_mc(cum_sigma.n_array(), sigma_err)   # convergence plot
         #self.plot_grid_field_2d(ncells, sigma_err[-1, :], "Error in 'sigma' estimate, N={}.".format(n_samples))  # error distribution
 
         means = np.mean(sigma_err, axis=1)

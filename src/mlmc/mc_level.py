@@ -14,6 +14,7 @@ class Level:
         """
         :param simulation_size: number of simulation steps
         :param sim: instance of object Simulation
+        :param previous_level_sim: fine simulation on previous level
         """
         self.data = []
         self.simulation = sim
