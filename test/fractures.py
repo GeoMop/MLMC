@@ -26,7 +26,7 @@ def PoissonPP(rt,Dx, Dy):
         
 def Lengths(mean_length,amount):
         # Length of the fracture 
-        r          = powerlaw.rvs(mean_length,size = amount)                              
+        r = powerlaw.rvs(a = 1, scale = mean_length,size = amount)                              
         return r
         
 class Fractures(object):
@@ -66,8 +66,8 @@ class Fractures(object):
         for i in range(len(centers)):
             l_i    = max(0.05,L[i]) # Minimal length of the fracture
             theta  = Angle(mean_angle)
-            a      = math.sin(theta)*l_i
-            b      = math.cos(theta)*l_i 
+            a      = 0.5*math.sin(theta)*l_i
+            b      = 0.5*math.cos(theta)*l_i 
             x1,y1  = centers[i,0] - b, centers[i,1] - a
             x2,y2  = centers[i,0] + b, centers[i,1] + a
         
@@ -99,9 +99,9 @@ class Fractures(object):
     
     def set_conds(self, coords, log_mean_cs = -2.5, var_cs = 0.2, sigma = 0.5):
         nf = len(coords)
-        frac_cs = np.random.lognormal(log_mean_cs,var_cs,nf)
+        frac_cs   = np.random.lognormal(log_mean_cs,var_cs,nf) # Lognormal distribution for aperture
         frac_cond = (frac_cs**2)/12
-        frac_sig = sigma *np.ones(shape=(nf,))
+        frac_sig  = sigma * np.ones(shape=(nf,))
         frac_char = np.zeros(shape = (nf,3))
         for i in range(nf):            
             frac_char[i,:] = [frac_cond[i],frac_cs[i],frac_sig[i]]
