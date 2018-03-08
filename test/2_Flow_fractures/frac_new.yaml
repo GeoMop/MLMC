@@ -25,28 +25,28 @@ problem: !Coupling_Sequential
         conductivity: 0.2
         anisotropy: 1 
       - region: frac_1
-        conductivity: 0.0009232926603567614
-        cross_section: 0.10525926051555339
+        conductivity: 0.0003061121826685926
+        cross_section: 0.06060813635167403
         sigma: 0.9
       - region: frac_2
-        conductivity: 0.0008808232490995941
-        cross_section: 0.10280991678430214
+        conductivity: 0.0005343995918507792
+        cross_section: 0.08007992945931802
         sigma: 0.9
       - region: frac_3
-        conductivity: 0.00046970058201805065
-        cross_section: 0.07507600804662304
+        conductivity: 0.0005309016688240044
+        cross_section: 0.07981741680791263
         sigma: 0.9
       - region: frac_4
-        conductivity: 0.0006618377030330479
-        cross_section: 0.08911819363293096
+        conductivity: 0.0005193104549121083
+        cross_section: 0.07894127854896511
         sigma: 0.9
       - region: frac_5
-        conductivity: 0.00047372466245761477
-        cross_section: 0.07539692267918749
+        conductivity: 0.0005723829908621059
+        cross_section: 0.08287699252714996
         sigma: 0.9
       - region: frac_6
-        conductivity: 0.0004078160217411251
-        cross_section: 0.06995564495373838
+        conductivity: 0.00035996632999489944
+        cross_section: 0.0657236331918648
         sigma: 0.9
       - region: .bc_south
         bc_type: total_flux
