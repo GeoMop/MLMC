@@ -10,20 +10,19 @@ class Level:
     There are information about random variable - average, dispersion, number of simulation, ...
     """
 
-    def __init__(self, sim, previous_level_sim, moments_object, precision):
+    def __init__(self, sim_factory, previous_level_sim, moments_object, precision):
         """
-        :param simulation_size: number of simulation steps
-        :param sim: instance of object Simulation
+        :param sim_factory: method that create instance of particular simulation class
         :param previous_level_sim: fine simulation on previous level
+        :param moments_object: object for calculating statistical moments
+        :param precision: current level number / total number of all levels
         """
         self.data = []
-        self.simulation = sim
 
         # Instance of object Simulation
-        self.fine_simulation = sim.interpolate_precision(precision)
-        self.fine_simulation.n_sim_steps = self.fine_simulation.sim_param
+        self.fine_simulation = sim_factory(precision)
         self.coarse_simulation = previous_level_sim
-        self.coarse_simulation.n_sim_steps = self.coarse_simulation.sim_param
+        self.fine_simulation.set_previous_fine_sim(self.coarse_simulation)
 
         # Initialization of variables
         self._result = []
@@ -34,7 +33,8 @@ class Level:
         # Default number of simulations is 10
         # that is enough for estimate variance
         self.number_of_simulations = 10
-        self._estimate_moments()
+        # Run simulations
+        self.level()
 
         self.variance = np.var(self.result)
 
@@ -73,6 +73,8 @@ class Level:
         :return: array, moments
         """
         self.moments = self.level_moments()
+        if len(self.moments_estimate) == 0:
+            self.moments_estimate = self._moments
 
     def n_ops_estimate(self):
         """
@@ -82,21 +84,16 @@ class Level:
 
     def _create_simulations(self):
         """
-        Create fine and coarse simulations and run their simulation
-        :return: fine and coarse simulation object
+        Generate new random samples for fine and coarse simulation objects
+        :return: fine and coarse running simulations
         """
-        fine_simulation = cp.deepcopy(self.fine_simulation)
         # Generate random array
-        fine_simulation.random_array()
-        coarse_simulation = cp.deepcopy(self.coarse_simulation)
-        fine_simulation.set_coarse_sim(coarse_simulation)
-        # Set random array to coarse step simulation
-        coarse_simulation._input_sample = fine_simulation.get_random_array()
+        self.fine_simulation.generate_random_sample()
 
+        # Set random array to coarse step simulation
+        self.coarse_simulation._input_sample = self.fine_simulation.get_coarse_sample()
         # Run simulations
-        fine_simulation.cycle(uuid.uuid1())
-        coarse_simulation.cycle(uuid.uuid1())
-        return fine_simulation, coarse_simulation
+        return self.fine_simulation.cycle(uuid.uuid1()), self.coarse_simulation.cycle(uuid.uuid1())
 
     def level(self):
         """
@@ -118,12 +115,12 @@ class Level:
         while len(running_simulations) > 0:
             for index, (fine_sim, coarse_sim) in enumerate(running_simulations):
                 try:
-                    if fine_sim.simulation_result is not None and coarse_sim.simulation_result is not None:
-                        if isinstance(fine_sim.simulation_result, (int, float)) and isinstance(coarse_sim.simulation_result, (int, float)):
-                            self.data.append((fine_sim.simulation_result, coarse_sim.simulation_result))
-                        else:
-                            raise ExpWrongResult()
+                    # Checks if simulation is already finished
+                    if self.fine_simulation.get_result(fine_sim) is not None and self.coarse_simulation.get_result(coarse_sim) is not None:
+                        # Save simulations results
+                        self.data.append((self.fine_simulation.get_result(fine_sim), self.coarse_simulation.get_result(coarse_sim)))
 
+                        # Create new simulation
                         if num_of_simulations < self.number_of_simulations:
                             running_simulations[index] = self._create_simulations()
                             num_of_simulations += 1
@@ -133,25 +130,9 @@ class Level:
                 except ExpWrongResult as e:
                     print(e.message)
 
+        # Level results, fine_sim result - coarse_sim result
         self.result = [data[0] - data[1] for data in self.data]
         return self.result
-
-    def _estimate_moments(self):
-        """
-        Moments estimation
-        :return: None
-        """
-        moments = []
-        for k in range(0, 10):
-            self._data = []
-            self.level()
-            if k == 0:
-                self.moments_object.mean = np.mean(self.result)
-
-            self.level_moments()
-            moments.append(self.moments)
-
-        self.moments_estimate = [(np.mean(m), np.var(m)) for m in zip(*moments)]
 
     def level_moments(self):
         """
@@ -198,7 +179,7 @@ class Level:
                     fine_coarse_diff.append(fine)
 
             # Append moment to other moments
-            moments.append(np.mean(np.array(fine_coarse_diff)))
+            moments.append((np.mean(np.array(fine_coarse_diff)), np.var(np.array(fine_coarse_diff))))
 
         return moments
 

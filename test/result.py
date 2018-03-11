@@ -4,8 +4,6 @@ import numpy as np
 class Result:
     """
     Multilevel Monte Carlo result
-    JS TODO: Posprocessing i.e. calculation of averages should be part of MLMC
-    printing etc. should be part of tests.
     """
     def __init__(self, moments_number):
         self.variance = []
@@ -120,11 +118,16 @@ class Result:
 
     def level_moments(self):
         """
-        Create sum of
+        Create sum of moments values from all levels
         :return: moments
         """
         moments_pom = []
+        moments = [[0, 0] for _ in range(len(self.mc_levels[0].moments))]
         for level in self.mc_levels:
             moments_pom.append(level.moments)
-        return [sum(m) for m in zip(*moments_pom)]
+            for index, moment in enumerate(level.moments):
+                moments[index][0] += moment[0]
+                moments[index][1] += moment[1]
+
+        return [mean for mean, var in moments]
 

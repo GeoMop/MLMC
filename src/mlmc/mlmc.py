@@ -6,14 +6,14 @@ class MLMC:
     """
     Multi level monte carlo method
     """
-    def __init__(self, number_of_levels, sim, moments_object):
+    def __init__(self, number_of_levels, sim_factory, moments_object):
         """
         :param number_of_levels:    Number of levels
         :param sim:                 Instance of object Simulation
         :param moments_object:      Instance of moments object
         """
         # Object of simulation
-        self.simulation = sim
+        self.simulation_factory = sim_factory
         # Array of level objects
         self._levels = []
         # Time of all mlmc
@@ -85,16 +85,18 @@ class MLMC:
     def _create_level(self):
         """
         Create new level add its to the array of levels
-        Call method for counting number of simulation steps
-        Pass instance of Simulation to Level
         """
+
         if self.current_level > 0:
             previous_level_simulation = self._levels[self.current_level-1].fine_simulation
         else:
-            previous_level_simulation = self.simulation.interpolate_precision()
+            # For first level the previous level fine simulation doesn't exist
+            previous_level_simulation = self.simulation_factory()
 
-        level = Level(self.simulation, previous_level_simulation,
-                      self.moments_object, self.current_level/self.number_of_levels)
+        # Creating new Level instance
+        level = Level(self.simulation_factory, previous_level_simulation,
+                      self.moments_object, self.current_level / self.number_of_levels)
+
         self._levels.append(level)
         self.current_level += 1
 
@@ -121,14 +123,13 @@ class MLMC:
         # Count new number of simulations for each level
         for level in self._levels:
             new_num_of_sim_pom = []
-            for index, moment in enumerate(level.moments_estimate[1:]):
 
-                amount = sum([np.sqrt(level.moments_estimate[index+1][1] * level.n_ops_estimate()) for level in self._levels])
+            for index, moment in enumerate(level.moments[1:]):
+
+                amount = sum([np.sqrt(level.moments[index+1][1] * level.n_ops_estimate()) for level in self._levels])
 
                 new_num_of_sim_pom.append(np.round((amount * np.sqrt(np.abs(moment[1]) / level.n_ops_estimate()))
                 / target_variance[index]).astype(int))
-            print("new num of sim pom", new_num_of_sim_pom)
-
             self.num_of_simulations.append(np.max(new_num_of_sim_pom))
 
     def _count_sum(self):
