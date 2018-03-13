@@ -2,8 +2,11 @@ import flow_mc as fsim
 #import importlib
 import pytest
 import os
-import flow_mc
+import flow_mc as flow_mc
 import mlmc
+import mlmc.correlated_field
+import mlmc.moments
+import mlmc.mlmc
 import numpy as np
 import matplotlib.pyplot as plt
 #from scipy.stats.mstats import mquantiles
@@ -18,12 +21,8 @@ def test_flow_mc():
     file_dir = os.path.dirname(os.path.realpath(__file__))
 
     # Make flow123 wrapper script.
-    flow123d = os.path.join(file_dir, "flow123d_mock.sh")
-    flow_mock = os.path.join(file_dir, "flow123d_mock.py")
-    with open(flow123d, 'w') as f:
-        f.write("#!/bin/bash\n")
-        f.write("python3 %s"%(flow_mock))
-    os.chmod(flow123d, 0o770)
+    flow123d = "/storage/praha1/home/jan_brezina/local/flow123d_2.2.0/"
+
 
     # GMSH (make empty mesh)
     gmsh = None
@@ -41,16 +40,15 @@ def test_flow_mc():
     env = flow_mc.Environment(flow123d, gmsh, pbs)
     cond_field = mlmc.correlated_field.SpatialCorrelatedField(corr_exp='gauss', dim=2, corr_length=0.5, )
     fields = mlmc.correlated_field.FieldSet("conductivity", cond_field)
-    yaml_path = os.path.join(file_dir, '01_cond_field', '01_cond.yaml')
+    yaml_path = os.path.join(file_dir, '01_cond_field', '01_conductivity.yaml')
     geo_path = 'square.geo'
 
-    sim = flow_mc.FlowMC(env, fields, yaml_path, geo_path)
-    sim.set_range((0.2, 0.01))
+    sim = flow_mc.FlowSimGeneric(env, fields, yaml_path, (0.2, 0.01), geo_path)
 
     n_levels = 3
-    moments = mlmc.Monomials()  # JS TODO: This should set a single moment function corresponding to the mean value.
+    n_moments = 5
+    moments = mlmc.moments.Monomials(n_moments)  # JS TODO: This should set a single moment function corresponding to the mean value.
     mc = mlmc.mlmc.MLMC(n_levels, sim, moments)
     mc.set_target_variance(0.01)
     mc.refill_samples()
-
     # process samples, whch should be moved from Result into MLMC

@@ -2,7 +2,7 @@ import os
 import os.path
 import yaml
 import subprocess
-import gmsh_io
+import mlmc.gmsh_io as gmsh_io
 import numpy as np
 
 #from operator import add
@@ -70,7 +70,8 @@ class FlowSim(mlmc.simulation.Simulation):
         using common fields_step.msh file for generated fields.
         :return:
         """
-        subprocess.call(self.env.gmsh, '-2', '-clscale', self.mesh_step, self.geo_file)
+        print(self.geo_file)
+        subprocess.call(self.env.gmsh, -2, '-clscale', self.mesh_step, self.geo_file)
         self.mesh_file = os.path.splitext(self.geo_file)[0] + '.msh'
         mesh = gmsh_io.GmshIO(self.mesh_file)
         n_ele = len(mesh.elements)
@@ -162,12 +163,11 @@ class FlowSim(mlmc.simulation.Simulation):
         - check that simulation is done
         - extract  boundary flux
         """
-        if run_is_done:
+        if self.result is not None:
             # extract the flux
             balance_file = os.path.join(run_token['work_dir'], "water_balance.yaml")
             with open(balance_file, "r") as f:
                 balance = yaml.load(f)
-
 
 
 
@@ -191,8 +191,6 @@ class FlowSimGeneric:
     5. extract element centers
 
 
-
-
     Run simulation:
     4. Create realization directory, cd to relaization directory
     5. Generate random fields, write them to the GMSH file
@@ -210,7 +208,7 @@ class FlowSimGeneric:
         :param yaml_file: Path to the main YAML input.  (absolute or relative to CWD)
         :param geo_file: Path to the geometry file (default is <yaml file base>.geo
         """
-        yaml_file = os.path.abs_path(yaml_file)
+        yaml_file = os.path.abspath(yaml_file)
         if geo_file is None:
             geo_file = os.path.splitext(yaml_file)[0] + '.geo'
 
@@ -223,17 +221,20 @@ class FlowSimGeneric:
         }
 
 
-    def interpolate_precision(self, t):
+    def interpolate_precision(self, t=None):
             """
             't' is a parameter from interval [0,1], where 0 corresponds to the lower bound
             and 1 to the upper bound of the simulation parameter range.
             :param t: float 0 to 1
             :return:
+            TODO: move to the parent class, pass in the range as a parameter
             """
-            # JS TODO: this should be in the parent path
-            assert 0 <= t <= 1
-            # logaritmic interpolation
-            sim_param = self.sim_param_range[0] ** (1 - t) * self.sim_param_range[1] ** t
+            if t is None:
+                sim_param = 0
+            else:
+                assert 0 <= t <= 1
+                # logaritmic interpolation
+                sim_param = self.flow_setup['sim_param_range'][0] ** (1 - t) * self.flow_setup['sim_param_range'][1] ** t
 
             return FlowSim(self.flow_setup, sim_param)
 

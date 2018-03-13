@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.linalg as la
-from src.simulation import Simulation
+from src.mlmc.simulation import Simulation
 
 
 class SimulationWater(Simulation):
@@ -33,18 +33,18 @@ class SimulationWater(Simulation):
         self.time_step = self.h
 
     def cycle(self, n_fine):
-        '''
+        """
         Execution of simulation 
         :param n_coarse: coarse n - number of steps
         :param F: pseudorandom array
         :param n_fine: fine n - number of steps
         :return: Last value of concentration
-        '''
+        """
 
-        if (None == self.F):
+        if None is self.F:
             self.random_array(self.n_sim_steps)
 
-        if (self.n_sim_steps != n_fine):
+        if self.n_sim_steps != n_fine:
             self.F = self.averaging(self.n_sim_steps, n_fine, self.F)
 
         prumer = np.average(self.F)
@@ -84,11 +84,11 @@ class SimulationWater(Simulation):
         self.F = F
 
     def getMatrix(self, v):
-        '''
+        """
         Count matrix
         :param v: array of speed
         :return: matrix
-        '''
+        """
 
         a = []
         b = []

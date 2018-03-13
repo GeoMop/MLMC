@@ -1,6 +1,8 @@
 import numpy as np
 import scipy as sc
-
+import scipy.stats
+import uuid
+import copy as cp
 
 class Level:
     """
@@ -12,62 +14,40 @@ class Level:
     documentation of returned data structures otherwise related code is very hard to read.
     """
 
-    def __init__(self, simulation_size, sim, moments_object):
+    def __init__(self, sim, previous_level_sim, moments_object, precision):
         """
         :param simulation_size: number of simulation steps
         :param sim: instance of object Simulation
         """
-
-        # Number of simulation steps in previous level
-        self.n_coarse = simulation_size[0]
-
-        # Number of simulation steps in this level
-        self.n_fine = simulation_size[1]
-
-        self._data = []
+        self.data = []
+        self.simulation = sim
 
         # Instance of object Simulation
-        self.fine_simulation = sim.make_simulation()
-        self.fine_simulation.n_sim_steps = self.n_fine
-        self.coarse_simulation = sim.make_simulation()
-        self.coarse_simulation.n_sim_steps = self.n_coarse
+        self.fine_simulation = sim.interpolate_precision(precision)
+        self.fine_simulation.n_sim_steps = self.fine_simulation.sim_param
+        self.coarse_simulation = previous_level_sim
+        self.coarse_simulation.n_sim_steps = self.coarse_simulation.sim_param
 
         # Initialization of variables
-        self.variance = 0
-
-        # Random variable (fine, coarse)
         self._result = []
-        self._variance = 0
         self._moments = []
-        self._moments_object = moments_object
+        self.moments_object = moments_object
         self.moments_estimate = []
 
         # Default number of simulations is 10
         # that is enough for estimate variance
-        self._number_of_simulations = 10
+        self.number_of_simulations = 10
         self._estimate_moments()
 
         self.variance = np.var(self.result)
 
     @property
-    def data(self):
-        """
-        Simulations data on this level
-        """
-        return self._data
-
     # JS TODO: Very bed, this setter does not have semantics of setter but is rather an append.
     # Extremaly confusing. Expose the level data attribute or make clear MCLevel.append_sample() method.
-    @data.setter
-    def data(self, values):
-        if tuple is not type(values):
-            raise TypeError("Item of level data must be tuple")
-        self._data.append(values)
-
-    @property
     def result(self):
         """
         Simulations results (fine step simulations result - coarse step simulation result)
+        :return: array, each item is fine_result - coarse_result
         """
         return self._result
 
@@ -79,31 +59,10 @@ class Level:
 
     # JS TODO: No usage of variance in this class. Remove.
     @property
-    def variance(self):
-        """
-        Result variance
-        """
-        return self._variance
-
-    @variance.setter
-    def variance(self, value):
-        self._variance = value
-
-    @property
-    def number_of_simulations(self):
-        """
-        Number of simulations
-        """
-        return self._number_of_simulations
-
-    @number_of_simulations.setter
-    def number_of_simulations(self, value):
-        self._number_of_simulations = value
-
-    @property
     def moments(self):
         """
         Result moments
+        :return: array of moments
         """
         self.get_moments()
         return self._moments
@@ -113,17 +72,6 @@ class Level:
         if not isinstance(moments, list):
             raise TypeError("Moments must be list")
         self._moments = moments
-
-    @property
-    def moments_object(self):
-        """
-        Moments class instance
-        """
-        return self._moments_object
-
-    @moments_object.setter
-    def moments_object(self, moments_object):
-        self._moments_object = moments_object
 
     def get_moments(self):
         """
@@ -138,28 +86,60 @@ class Level:
         """
         return self.fine_simulation.n_ops_estimate()
 
+    def _create_simulations(self):
+        """
+        Create fine and coarse simulations and run their simulation
+        :return: fine and coarse simulation object
+        """
+        fine_simulation = cp.deepcopy(self.fine_simulation)
+        # Generate random array
+        fine_simulation.random_array()
+        coarse_simulation = cp.deepcopy(self.coarse_simulation)
+        fine_simulation.set_coarse_sim(coarse_simulation)
+        # Set random array to coarse step simulation
+        coarse_simulation._input_sample = fine_simulation.get_random_array()
+
+        # Run simulations
+        fine_simulation.cycle(uuid.uuid1())
+        coarse_simulation.cycle(uuid.uuid1())
+        return fine_simulation, coarse_simulation
+
     def level(self):
         """
         Implements level of MLMC
         Call Simulation methods
         Set simulation data
-        :return: array   
+        :return: array of results (fine_sim result - coarse_sim result) 
         """
-        for _ in range(self.number_of_simulations):
-            self.fine_simulation.random_array()
-            fine_step_result = self.fine_simulation.cycle(self.n_fine)
-            self.coarse_simulation.set_random_array(self.fine_simulation.get_random_array())
+        running_simulations = []
+        # Run at the same time maximum of 2000 simulations
+        if self.number_of_simulations > 2000:
+            num_of_simulations = 2000
+        else:
+            num_of_simulations = self.number_of_simulations
 
-            if self.n_coarse != 0:
+        # Create pair of fine and coarse simulations and add them to list of all running simulations
+        [running_simulations.append(self._create_simulations()) for _ in range(num_of_simulations)]
 
-                coarse_step_result = self.coarse_simulation.cycle(self.n_fine)
-                self.result.append(fine_step_result - coarse_step_result)
-            else:
-                self.result.append(fine_step_result)
+        while len(running_simulations) > 0:
+            for index, (fine_sim, coarse_sim) in enumerate(running_simulations):
+                try:
+                    if fine_sim.simulation_result is not None and coarse_sim.simulation_result is not None:
+                        if isinstance(fine_sim.simulation_result, (int, float)) and isinstance(coarse_sim.simulation_result, (int, float)):
+                            self.data.append((fine_sim.simulation_result, coarse_sim.simulation_result))
+                        else:
+                            raise ExpWrongResult()
 
-            # Save simulation data
-            self.data = (self.fine_simulation.simulation_result, self.coarse_simulation.simulation_result)
+                        if num_of_simulations < self.number_of_simulations:
+                            running_simulations[index] = self._create_simulations()
+                            num_of_simulations += 1
+                        else:
+                            # Remove simulations pair from running simulations
+                            running_simulations.pop(index)
+                except ExpWrongResult as e:
+                    print(e.message)
 
+        self.result = [data[0] - data[1] for data in self.data]
         return self.result
 
     def _estimate_moments(self):
@@ -173,6 +153,7 @@ class Level:
             self.level()
             if k == 0:
                 self.moments_object.mean = np.mean(self.result)
+
             self.level_moments()
             moments.append(self.moments)
 
@@ -206,7 +187,7 @@ class Level:
         coarse_var = np.var(level_results["coarse"])
 
         # Count moment for each degree
-        for degree in range(self.moments_object.moments_number):
+        for degree in range(self.moments_object.n_moments):
             fine_coarse_diff = []
 
             for lr_fine, lr_coarse in zip(level_results["fine"], level_results["coarse"]):
@@ -226,3 +207,9 @@ class Level:
             moments.append(np.mean(np.array(fine_coarse_diff)))
 
         return moments
+
+class ExpWrongResult(Exception):
+    def __init__(self, *args, **kwargs):
+        print(*args)
+        Exception.__init__(self, *args, **kwargs)
+        self.message = "Wrong simulation result"
