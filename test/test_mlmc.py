@@ -2,11 +2,10 @@
 #myPath = os.path.dirname(os.path.abspath(__file__))
 #sys.path.insert(0, myPath + '/../')
 import pytest
-from src.mlmc.flow_sim_generic import FlowSimGeneric as Sim
-import src.mlmc
+from mlmc.flow_sim_generic import FlowSimGeneric as Sim
+from mlmc.mlmc import MLMC
 from test.result import Result
-import src.mlmc.mlmc
-from src.mlmc.moments import Monomials, FourierFunctions
+from mlmc.moments import Monomials, FourierFunctions
 import numpy as np
 
 @pytest.mark.parametrize('levels, n_moments, moments_variance, final_variance, moments_function', [
@@ -29,7 +28,7 @@ def test_mlmc(levels, n_moments, moments_variance, final_variance, moments_funct
         result = Result(moments_number)
         result.level_number = levels
         # number of levels, n_fine, n_coarse, simulation
-        m = src.mlmc.mlmc.MLMC(levels, sim, mo)
+        m = MLMC(levels, sim, mo)
         m.set_target_variance(moments_variance)
         m.refill_samples()
 

@@ -8,6 +8,8 @@ import mlmc.correlated_field
 import mlmc.moments
 import mlmc.mlmc
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 #from scipy.stats.mstats import mquantiles
 
@@ -15,14 +17,14 @@ import matplotlib.pyplot as plt
 JS TODO:
 This is a proposed test of the flow_mc using a flow123d_mock.py instead of Flow123d.
 """
-@pytest.mark.skip(reason="no way of currently testing this")
+#@pytest.mark.skip(reason="no way of currently testing this")
 def test_flow_mc():
     # Get directory of this test script.
     file_dir = os.path.dirname(os.path.realpath(__file__))
 
     # Make flow123 wrapper script.
-    flow123d = "/storage/praha1/home/jan_brezina/local/flow123d_2.2.0/"
-
+    # flow123d = "/storage/praha1/home/jan_brezina/local/flow123d_2.2.0/"
+    flow123d = ["/home/jb/workspace/flow123d/bin/docker.sh flow123d"]
 
     # GMSH (make empty mesh)
     gmsh = None
