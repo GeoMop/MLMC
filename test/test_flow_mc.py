@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 JS TODO:
 This is a proposed test of the flow_mc using a flow123d_mock.py instead of Flow123d.
 """
-#@pytest.mark.skip(reason="no way of currently testing this")
+@pytest.mark.metacentrum
 def test_flow_mc():
     # Get directory of this test script.
     file_dir = os.path.dirname(os.path.realpath(__file__))
