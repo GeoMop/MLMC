@@ -6,26 +6,14 @@ class MLMC:
     """
     Multi level monte carlo method
     """
-    def __init__(self, number_of_levels, sim, moments_object):
+    def __init__(self, number_of_levels, sim_factory, moments_object):
         """
         :param number_of_levels:    Number of levels
         :param sim:                 Instance of object Simulation
         :param moments_object:      Instance of moments object
-
-        JS TODO:
-
-        - Make 'sim_steps_range' part of simulation, an attribute: 'sim_param_range'
-          and allow it to be any pair of real positive parameters
-          Using logaritmic interpolatin we then compute parameters for individual levels and pass them to the simulation object.
-          So the meaning of the simulation parameter is simulation dependent.
-        - !! Code is wrong, sim is not instance of Simulation but SimulationSetting.
-          Original idea was that sim would be the simulation class however that makes setup of cofigurable simulations
-          problematic. Better would be to introduce a method Simulation.interpolate_by_precision(precision)
-          with t_level be a number between 0 and 1 given as (l/L) so this will interpolate simulation parameter and return copy
-          of the simulation with particular value of the parameter set.
         """
         # Object of simulation
-        self.simulation = sim
+        self.simulation_factory = sim_factory
         # Array of level objects
         self._levels = []
         # Time of all mlmc
@@ -73,11 +61,20 @@ class MLMC:
 
         self._number_of_samples = num_of_sim
 
+        
+    def estimate_n_samples(self):
+        # Count new number of simulations according to variance of time
+        if self.target_variance is not None:
+            self._num_of_samples = self.estimate_n_samples_from_variance()
+        elif self.target_time is not None:
+            self._num_of_samples = self.estimate_n_samples_from_time()
+
     def refill_samples(self):
         """
 
         JS TODO: Rather let user to call 'set_target_time' or 'set_target_variance'.
         and call refill_samples explicitly.
+
         For each level counts further number of simulations by appropriate N
         """
         for step, level in enumerate(self._levels):
@@ -93,16 +90,18 @@ class MLMC:
     def _create_level(self):
         """
         Create new level add its to the array of levels
-        Call method for counting number of simulation steps
-        Pass instance of Simulation to Level
         """
+
         if self.current_level > 0:
             previous_level_simulation = self._levels[self.current_level-1].fine_simulation
         else:
-            previous_level_simulation = self.simulation.interpolate_precision()
+            # For first level the previous level fine simulation doesn't exist
+            previous_level_simulation = self.simulation_factory()
 
-        level = Level(self.simulation, previous_level_simulation,
-                      self.moments_object, self.current_level/self.number_of_levels)
+        # Creating new Level instance
+        level = Level(self.simulation_factory, previous_level_simulation,
+                      self.moments_object, self.current_level / self.number_of_levels)
+
         self._levels.append(level)
         self.current_level += 1
 
@@ -110,7 +109,6 @@ class MLMC:
         """
         For each level counts new N according to target_time
         :return: array
-        JS TODO: Rename: 'set_target_time'
         """
         amount = self._count_sum()
         # Loop through levels
@@ -125,20 +123,18 @@ class MLMC:
         """
         For each level counts new N according to target_variance
         :return: array
-        JS TODO: rename  'set_target_variance'.
         """
         # Loop through levels
         # Count new number of simulations for each level
         for level in self._levels:
             new_num_of_sim_pom = []
-            for index, moment in enumerate(level.moments_estimate[1:]):
 
-                amount = sum([np.sqrt(level.moments_estimate[index+1][1] * level.n_ops_estimate()) for level in self._levels])
+            for index, moment in enumerate(level.moments[1:]):
+
+                amount = sum([np.sqrt(level.moments[index+1][1] * level.n_ops_estimate()) for level in self._levels])
 
                 new_num_of_sim_pom.append(np.round((amount * np.sqrt(np.abs(moment[1]) / level.n_ops_estimate()))
                 / target_variance[index]).astype(int))
-            print("new num of sim pom", new_num_of_sim_pom)
-
             self.num_of_simulations.append(np.max(new_num_of_sim_pom))
 
     def _count_sum(self):

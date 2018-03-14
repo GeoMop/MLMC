@@ -70,7 +70,6 @@ class FlowSim(mlmc.simulation.Simulation):
         using common fields_step.msh file for generated fields.
         :return:
         """
-        print(self.geo_file)
         subprocess.call(self.env.gmsh, -2, '-clscale', self.mesh_step, self.geo_file)
         self.mesh_file = os.path.splitext(self.geo_file)[0] + '.msh'
         mesh = gmsh_io.GmshIO(self.mesh_file)
@@ -112,7 +111,6 @@ class FlowSim(mlmc.simulation.Simulation):
         both_centers = np.concatenate((self.points, coarse_centers), axis=0)
         self.n_fine_elements = self.points.shape[0]
         self.fields.set_points(both_centers)
-
 
     # Needed by Level
     def random_array(self):
@@ -163,12 +161,10 @@ class FlowSim(mlmc.simulation.Simulation):
         - check that simulation is done
         - extract  boundary flux
         """
-        if self.result is not None:
             # extract the flux
             balance_file = os.path.join(run_token['work_dir'], "water_balance.yaml")
             with open(balance_file, "r") as f:
                 balance = yaml.load(f)
-
 
 
 class FlowSimGeneric:
@@ -177,7 +173,6 @@ class FlowSimGeneric:
     Setup:
     - set environment, main YAML, geometry (__init__), field set (must be a single object since we have to deal
     with cross correlations)
-
 
     Initialization:
     1. construction:
@@ -189,7 +184,6 @@ class FlowSimGeneric:
     3. set the coarse mesh (from upper level)
     4. create the yaml file (substitute mesh files, fields)
     5. extract element centers
-
 
     Run simulation:
     4. Create realization directory, cd to relaization directory

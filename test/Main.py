@@ -1,8 +1,6 @@
 import time as t
-#from test.simulation_setting import SimulationSetting as Sim
-from src.mlmc.flow_sim_generic import FlowSimGeneric as Sim
-#from src.mlmc.simulation import Simulation as Sim
 import math
+from test.simulation_test import SimulationTest as TestSim
 from test.result import Result
 from mlmc.mlmc import MLMC
 from mlmc.moments import Monomials
@@ -22,17 +20,16 @@ class Main:
         pocet_urovni = 2
         pocet_vykonani = 1
         moments_number = 5
-        bounds = [0, 2]
+        bounds = []
         toleration = 1e-15
         eps = 1e-10
-
-        sim = Sim()
-        sim.sim_param_range = (10, 100)
 
         result = Result(moments_number)
         result.levels_number = pocet_urovni
         result.execution_number = pocet_vykonani
+        my_config = []
 
+        sim_factory = lambda t_level=None: TestSim.make_sim(my_config, (10, 100), t_level)
         function = mo = Monomials(moments_number)
 
         for i in range(pocet_vykonani):
@@ -43,13 +40,13 @@ class Main:
             start_MC = t.time()
             moments_object = mo
             # number of levels, n_fine, n_coarse, simulation
-            m = MLMC(pocet_urovni, sim, moments_object)
+            m = MLMC(pocet_urovni, sim_factory, moments_object)
 
             # Exact number of simulation on each level
             #m.number_of_simulations = [10000, 500, 100]
 
             # type, time or variance
-            variance = [1e-5, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-3, 1e-5, 1e-5, 1e-5]
+            variance = [1e-3, 1e-3, 1e-1, 1e-1, 1e-1, 1e-3, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-3, 1e-5, 1e-5, 1e-5]
             #variance = [1e-3, 1e+3, 1e+6, 1e+8, 1e+8]
             m.set_target_variance(variance)
             m.refill_samples()
@@ -112,21 +109,33 @@ class Main:
         samples = np.linspace(bounds[0], bounds[1], len(mc_data))
         distribution_function = []
         difference = 0
+        KL_divergence = 0
         ## Set approximate density values
         approximate_density = []
 
         def integrand(x):
             return distribution.density(x)
 
+        def kullback_leibler_distance(x, exact_value):
+            return (distribution.density(x) * math.log(distribution.density(x) / exact_value))
+
+
         for step, value in enumerate(samples):
             integral = sc.integrate.quad(integrand, bounds[0], value)
             approximate_density.append(distribution.density(value))
             distribution_function.append(integral[0])
             difference += abs(ecdf.y[step] - integral[0])**2
+            if ecdf.y[step] != 0:
+
+                integ = sc.integrate.quad(kullback_leibler_distance, bounds[0], value, args=(ecdf.y[step]))
+                KL_divergence += integ[0]
+
+
 
 
         print("Aproximované momenty", distribution.approximation_moments)
         print("Původní momenty", moments)
+        print("Kullback-Leibler distance", KL_divergence)
 
         plt.figure(1)
         plt.plot(ecdf.x, ecdf.y)

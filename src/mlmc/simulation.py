@@ -1,58 +1,66 @@
+import numpy as np
+
+
 class Simulation:
     """
     Parent class for simulations
-
-    JS TODO:
-    - this can not be the base class since the averaging methods are simulation dependent
-    - Make SimulationBase class containing only methods necessary from MLMC, and clearly document
-       methods that should be implemented by derived classes, arguments, return values and effect on the object's data.
-    - Move averaging into tests
     """
 
-    def __init__(self, sim_param=0):
+    def __init__(self, config=None, sim_param=0):
+        """    
+        :param config: Simulation configuration
+        :param sim_param: Number of simulation steps
+        """
         # Simulation result
         self._simulation_result = None
+        self._config = config
         # Fine simulation step
         self._simulation_step = 0
         self.sim_param = sim_param
-        self._coarse_sample = 0
         self._input_sample = []
+        self._coarse_simulation = None
 
     def cycle(self):
         pass
 
-    @property
-    def simulation_result(self):
-        """
-        Simulation result
-        :return: number, result of simulation
-        """
+    def n_ops_estimate(self):
+        pass
+
+    def generate_random_sample(self):
+        pass
+
+    def get_coarse_sample(self):
+        pass
+
+    def set_previous_fine_sim(self, coarse_sim):
+        pass
+
+    def get_result(self):
         return self._simulation_result
 
-    @simulation_result.setter
-    def simulation_result(self, result):
-        self._simulation_result = result
-
-    @property
-    def n_sim_steps(self):
+    @staticmethod
+    def log_interpolation(sim_param_range, t_level=None):
         """
-        Simulation step
+        Calculate particular simulation parameter
+        :param sim_param_range: Tuple or list of two items, range of simulation parameters
+        :param t_level: current level / total number of levels, it means 'precision' of current level fine simulation
         :return: int
         """
-        return self._simulation_step
+        if t_level is None:
+            return 0
+        else:
+            assert 0 <= t_level <= 1
+            return np.round(sim_param_range[0] ** (1 - t_level) * sim_param_range[1] ** t_level).astype(int)
 
-    @n_sim_steps.setter
-    def n_sim_steps(self, step):
-        self._simulation_step = step
+    @classmethod
+    def make_sim(cls, config, sim_par_range, t_level=None):
+        """
+        Create specific simulation
+        :param config: Simulation configuration
+        :param sim_par_range: Tuple or list of two elements, number of  
+        :param t_level: Simulation parameter of particular simulation
+        :return: Particular simulation object
+        """
+        sim_par = Simulation.log_interpolation(sim_par_range, t_level)
 
-    def n_ops_estimate(self):
-        return self.n_sim_steps
-
-    def random_array(self):
-        pass
-
-    def get_random_array(self):
-        pass
-
-    def set_coarse_sim(self, coarse_sim):
-        pass
+        return cls(config, sim_par)
