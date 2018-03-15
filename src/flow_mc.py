@@ -267,7 +267,10 @@ class FlowSim(mlmc.simulation.Simulation):
             with open(balance_file, "r") as f:
                 balance = yaml.load(f)
 
-            flux_regions = ['bc_outlet']
+            # TODO: we need to move this part out of the library as soon as possible
+            # it has to be changed for every new input file or different observation.
+            # However in Analysis it is already done in general way.
+            flux_regions = ['.bc_outflow']
             total_flux = 0.0
             found = False
             for flux_item in balance['data']:
