@@ -159,7 +159,7 @@ class TestSpatialCorrelatedField:
         corr_length = 10
         mu = 3.14
         sigma = 1.5
-        field = SpatialCorrelatedField('gauss', dim=points.shape[1], corr_length = corr_length)
+        field = SpatialCorrelatedField('exp', dim=points.shape[1], corr_length = corr_length)
         field.set_points(points, mu, sigma)
         field.svd_dcmp(precision=0.01, n_terms_range=n_terms_range)
 

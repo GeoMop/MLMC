@@ -2,7 +2,12 @@ import sys, os
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../')
 import pytest
-from test.simulation_test import SimulationTest as TestSim
+
+# MS TODO, comment out to debug this test
+pytestmark = pytest.mark.skip
+
+# MS TODO: test/simulation_test.py seems missing.
+#from test.simulation_test import SimulationTest as TestSim
 from test.result import Result
 import mlmc.mlmc
 from mlmc.moments import Monomials, FourierFunctions
