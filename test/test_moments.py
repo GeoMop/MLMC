@@ -2,9 +2,9 @@
 Test class monomials
 """
 import math
-import src.mlmc.moments
+import mlmc.moments
 
-MONOMIALS = src.mlmc.moments.Monomials()
+MONOMIALS = mlmc.moments.Monomials()
 
 def test_get_moments():
     """
@@ -25,7 +25,7 @@ def test_get_moments():
 Test fourier functions class
 """
 
-FOURIER = src.mlmc.moments.FourierFunctions()
+FOURIER = mlmc.moments.FourierFunctions()
 
 def test_get_moments():
     """

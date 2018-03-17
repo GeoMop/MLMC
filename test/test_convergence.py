@@ -1,6 +1,8 @@
 # TESTS, selected
 import numpy as np
 import numpy.linalg as la
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import importlib
 import os

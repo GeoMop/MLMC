@@ -2,14 +2,13 @@ import time as t
 import math
 from test.simulation_test import SimulationTest as TestSim
 from test.result import Result
-from src.mlmc.mlmc import MLMC
-from src.mlmc.moments import Monomials
-from src.mlmc.moments import FourierFunctions
+from mlmc.mlmc import MLMC
+from mlmc.moments import Monomials, FourierFunctions
 import scipy as sc
 import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.distributions.empirical_distribution import ECDF
-from src.mlmc.distribution import Distribution
+from mlmc.distribution import Distribution
 
 
 class Main:

@@ -1,4 +1,3 @@
-# -*- coding: cp1252 -*-
 import numpy as np
 import numpy.linalg as la
 import scipy as sp
@@ -25,18 +24,25 @@ class FieldSet:
 
         self.field_names = [name]
 
-        def set_points(self, points):
-            for field in self._back_fields:
-                field.set_points(points)
+    def names(self):
+        """
+        Generator for field names.
+        :return:
+        """
+        return self.field_names
 
-        def sample(self):
-            """
-            Return dictionary of sampled fields.
-            :return: { 'field_name': sample, ...}
-            """
-            result = dict()
-            result[self.field_names[0]] = self._back_fields[0].sample()
-            return result
+    def set_points(self, points):
+        for field in self._back_fields:
+            field.set_points(points)
+
+    def sample(self):
+        """
+        Return dictionary of sampled fields.
+        :return: { 'field_name': sample, ...}
+        """
+        result = dict()
+        result[self.field_names[0]] = self._back_fields[0].sample()
+        return result
 
 
 class SpatialCorrelatedField:

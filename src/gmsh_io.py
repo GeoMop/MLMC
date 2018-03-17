@@ -5,7 +5,6 @@ import struct
 import enum
 
 
-
 # class ElementType(enum.IntEnum):
 #     simplex_1d = 1
 #     simplex_2d = 2
@@ -46,19 +45,19 @@ class GmshIO:
 
     def read(self, mshfile=None):
         """Read a Gmsh .msh file.
-        
+
         Reads Gmsh format 1.0 and 2.0 mesh files, storing the nodes and
         elements in the appropriate dicts.
         """
 
         if not mshfile:
-            mshfile = open(self.filename,'r')
+            mshfile = open(self.filename, 'r')
 
         readmode = 0
-        print('Reading %s'%mshfile.name)
-        line='a'
+        print('Reading %s' % mshfile.name)
+        line = 'a'
         while line:
-            line=mshfile.readline()
+            line = mshfile.readline()
             line = line.strip()
             if line.startswith('$'):
                 if line == '$NOD' or line == '$Nodes':
@@ -74,34 +73,34 @@ class GmshIO:
             elif readmode:
                 columns = line.split()
                 if readmode == 4:
-                    if len(columns)==3:
-                        vno,ftype,dsize=(float(columns[0]),
-                                         int(columns[1]),
-                                         int(columns[2]))
-                        print(('ASCII','Binary')[ftype]+' format')
+                    if len(columns) == 3:
+                        vno, ftype, dsize = (float(columns[0]),
+                                             int(columns[1]),
+                                             int(columns[2]))
+                        print(('ASCII', 'Binary')[ftype] + ' format')
                     else:
-                        endian=struct.unpack('i',columns[0])
+                        endian = struct.unpack('i', columns[0])
                 if readmode == 1:
                     # Version 1.0 or 2.0 Nodes
                     try:
-                        if ftype==0 and len(columns)==4:
-                            self.nodes[int(columns[0])] = [ float(col) for col  in  columns[1:] ]
-                        elif ftype==1:
-                            nnods=int(columns[0])
+                        if ftype == 0 and len(columns) == 4:
+                            self.nodes[int(columns[0])] = [float(col) for col in columns[1:]]
+                        elif ftype == 1:
+                            nnods = int(columns[0])
                             for N in range(nnods):
-                                data=mshfile.read(4+3*dsize)
-                                i,x,y,z=struct.unpack('=i3d',data)
-                                self.nodes[i]=[x,y,z]
+                                data = mshfile.read(4 + 3 * dsize)
+                                i, x, y, z = struct.unpack('=i3d', data)
+                                self.nodes[i] = [x, y, z]
                             mshfile.read(1)
                     except ValueError:
-                        print('Node format error: '+line, ERROR)
+                        print('Node format error: ' + line, ERROR)
                         readmode = 0
-                elif ftype==0 and  readmode > 1 and len(columns) > 5:
-                    # Version 1.0 or 2.0 Elements 
+                elif ftype == 0 and readmode > 1 and len(columns) > 5:
+                    # Version 1.0 or 2.0 Elements
                     try:
-                        columns = [ int(col) for col in columns ]
+                        columns = [int(col) for col in columns]
                     except ValueError:
-                        print('Element format error: '+line, ERROR)
+                        print('Element format error: ' + line, ERROR)
                         readmode = 0
                     else:
                         (id, type) = columns[0:2]
@@ -112,32 +111,32 @@ class GmshIO:
                         else:
                             # Version 2.0 Elements
                             ntags = columns[2]
-                            tags = columns[3:3+ntags]
-                            nodes = columns[3+ntags:]
+                            tags = columns[3:3 + ntags]
+                            nodes = columns[3 + ntags:]
                         self.elements[id] = (type, tags, nodes)
-                elif readmode == 3 and ftype==1:
+                elif readmode == 3 and ftype == 1:
                     # el_type : num of nodes per element
-                    tdict={1:2,2:3,3:4,4:4,5:5,6:6,7:5,8:3,9:6,10:9,11:10,15:1}
+                    tdict = {1: 2, 2: 3, 3: 4, 4: 4, 5: 5, 6: 6, 7: 5, 8: 3, 9: 6, 10: 9, 11: 10, 15: 1}
                     try:
-                        neles=int(columns[0])
-                        k=0
-                        while k<neles:
-                            etype,ntype,ntags=struct.unpack('=3i',
-                                                            mshfile.read(3*4))
-                            k+=1
+                        neles = int(columns[0])
+                        k = 0
+                        while k < neles:
+                            etype, ntype, ntags = struct.unpack('=3i',
+                                                                mshfile.read(3 * 4))
+                            k += 1
                             for j in range(ntype):
-                                mysize=1+ntags+tdict[etype]
-                                data=struct.unpack('=%di'%mysize,
-                                                   mshfile.read(4*mysize))
-                                self.elements[data[0]]=(etype,
-                                                        data[1:1+ntags],
-                                                        data[1+ntags:])
+                                mysize = 1 + ntags + tdict[etype]
+                                data = struct.unpack('=%di' % mysize,
+                                                     mshfile.read(4 * mysize))
+                                self.elements[data[0]] = (etype,
+                                                          data[1:1 + ntags],
+                                                          data[1 + ntags:])
                     except:
                         raise
                     mshfile.read(1)
-                            
-        print('  %d Nodes'%len(self.nodes))
-        print('  %d Elements'%len(self.elements))
+
+        print('  %d Nodes' % len(self.nodes))
+        print('  %d Elements' % len(self.elements))
 
         mshfile.close()
 
@@ -147,28 +146,27 @@ class GmshIO:
         if not mshfile:
             mshfile = open(self.filename, 'w')
 
-
         print('$MeshFormat\n2.2 0 8\n$EndMeshFormat', file=mshfile)
-        print('$PhysicalNames\n%d'%len(self.physical), file=mshfile)
+        print('$PhysicalNames\n%d' % len(self.physical), file=mshfile)
         for name in sorted(self.physical.keys()):
             value = self.physical[name]
             region_id, dim = value
-            print('%d %d "%s"'%(dim, region_id, name), file=mshfile)
+            print('%d %d "%s"' % (dim, region_id, name), file=mshfile)
         print('$EndPhysicalNames', file=mshfile)
-        print('$Nodes\n%d'%len(self.nodes), file=mshfile)
+        print('$Nodes\n%d' % len(self.nodes), file=mshfile)
         for node_id in sorted(self.nodes.keys()):
             coord = self.nodes[node_id]
-            print(node_id,' ',' '.join([str(c) for c in  coord]), sep="",
+            print(node_id, ' ', ' '.join([str(c) for c in coord]), sep="",
                   file=mshfile)
-        print('$EndNodes',file=mshfile)
-        print('$Elements\n%d'%len(self.elements),file=mshfile)
+        print('$EndNodes', file=mshfile)
+        print('$Elements\n%d' % len(self.elements), file=mshfile)
         for ele_id in sorted(self.elements.keys()):
             elem = self.elements[ele_id]
             (ele_type, tags, nodes) = elem
-            print(ele_id,' ',ele_type,' ',len(tags),' ',
-                  ' '.join([str(c) for c in tags]),' ',
+            print(ele_id, ' ', ele_type, ' ', len(tags), ' ',
+                  ' '.join([str(c) for c in tags]), ' ',
                   ' '.join([str(c) for c in nodes]), sep="", file=mshfile)
-        print('$EndElements',file=mshfile)
+        print('$EndElements', file=mshfile)
 
     def write_binary(self, filename=None):
         """Dump the mesh out to a Gmsh 2.0 msh file."""
@@ -179,26 +177,26 @@ class GmshIO:
         mshfile = open(filename, 'wr')
 
         mshfile.write("$MeshFormat\n2.2 1 8\n")
-        mshfile.write(struct.pack('@i',1))
+        mshfile.write(struct.pack('@i', 1))
         mshfile.write("\n$EndMeshFormat\n")
-        mshfile.write("$Nodes\n%d\n"%(len(self.nodes)))
+        mshfile.write("$Nodes\n%d\n" % (len(self.nodes)))
         for node_id, coord in self.nodes.items():
-            mshfile.write(struct.pack('@i',node_id))
-            mshfile.write(struct.pack('@3d',*coord))
+            mshfile.write(struct.pack('@i', node_id))
+            mshfile.write(struct.pack('@3d', *coord))
         mshfile.write("\n$EndNodes\n")
-        mshfile.write("$Elements\n%d\n"%(len(self.elements)))
+        mshfile.write("$Elements\n%d\n" % (len(self.elements)))
         for ele_id, elem in self.elements.items():
             (ele_type, tags, nodes) = elem
-            mshfile.write(struct.pack('@i',ele_type))
-            mshfile.write(struct.pack('@i',1))
-            mshfile.write(struct.pack('@i',len(tags)))
-            mshfile.write(struct.pack('@i',ele_id))
+            mshfile.write(struct.pack('@i', ele_type))
+            mshfile.write(struct.pack('@i', 1))
+            mshfile.write(struct.pack('@i', len(tags)))
+            mshfile.write(struct.pack('@i', ele_id))
             for c in tags:
-                mshfile.write(struct.pack('@i',c))
+                mshfile.write(struct.pack('@i', c))
             for c in nodes:
-                mshfile.write(struct.pack('@i',c))
+                mshfile.write(struct.pack('@i', c))
         mshfile.write("\n$EndElements\n")
-                      
+
         mshfile.close()
 
     def write_element_data(self, f, ele_ids, name, values):
@@ -220,7 +218,7 @@ class GmshIO:
         """
         if not msh_file:
             msh_file = open(self.filename, 'w')
-        with open(msh_file,"w") as fout:
+        with open(msh_file, "w") as fout:
             fout.write('$MeshFormat\n2.2 0 8\n$EndMeshFormat\n')
             for name, values in fields.items():
                 self.write_element_data(fout, ele_ids, name, values)
