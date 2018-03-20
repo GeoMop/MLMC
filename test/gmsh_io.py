@@ -194,7 +194,7 @@ class GmshIO:
         """
         if not mshfile:
             mshfile = open(self.filename, 'w')
-        with open(mshfile,"wb") as fout:
+        with open(mshfile,"w") as fout:
          fout.write('$MeshFormat\n2.2 0 8\n$EndMeshFormat\n')
          fout.write('$ElementData\n')
          fout.write('1\n"'+str(name)+'"')

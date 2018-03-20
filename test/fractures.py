@@ -1,6 +1,3 @@
-import os
-from gmsh_io import GmshIO
-import numpy as np
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
@@ -11,11 +8,10 @@ import random
 def Angle(mu):
         # mu is the mean angle, expressed in radians between 0 and 2*pi, and kappa is the concentration parameter, 
         # which must be greater than or equal to zero. If kappa is equal to zero, this distribution reduces to a uniform random angle over the range 0 to 2*pi.
-        kappa = 50
+        kappa = 100
         angle = random.vonmisesvariate(mu,kappa) 
         return angle
         
-
 def PoissonPP(rt,Dx, Dy):
         # rate (rt)  = rho*V, density within the area V, here V is equal to 1  = Dx*Dy
         N = sp.stats.poisson( rt*Dx*Dy ).rvs()
@@ -26,7 +22,7 @@ def PoissonPP(rt,Dx, Dy):
         
 def Lengths(mean_length,amount):
         # Length of the fracture 
-        r = powerlaw.rvs(a = 1, scale = mean_length,size = amount)                              
+        r = mean_length * powerlaw.rvs(a = 5,size = amount)                              
         return r
         
 class Fractures(object):
@@ -42,8 +38,8 @@ class Fractures(object):
         # type_cc, at the moment any type (string)
         self.dx = dx
         self.dy = dy
-        self.typecc = type_cc    # for placing the fractures, only one type - uniform, at the moment    
-        self.coords = np.empty((0,4),float) # start and end of the fracture line
+        self.typecc  = type_cc    # for placing the fractures, only one type - uniform, at the moment    
+        self.coords  = np.empty((0,4),float) # start and end of the fracture line
         self.centers = np.empty((0,2),float)
           
     def get_centers(self, rate):
@@ -74,11 +70,11 @@ class Fractures(object):
         # Clip the first point:
             if x1 < min_x:
                 x1,y1 = min_x, min_x*math.tan(theta) + centers[i,1] -centers[i,0]*math.tan(theta)
-            if x1> max_x:
+            if x1 > max_x:
                 x1,y1 = max_x, max_x*math.tan(theta) + centers[i,1] -centers[i,0]*math.tan(theta) 
-            if y1< min_y:
+            if y1 < min_y:
                 x1,y1 = (min_y - centers[i,1] + math.tan(theta)*centers[i,0])/math.tan(theta), min_y
-            if y1> max_y:
+            if y1 > max_y:
                 x1,y1 = (max_y - centers[i,1] + math.tan(theta)*centers[i,0])/math.tan(theta), max_y
             
         # Clip the second point:
@@ -100,17 +96,15 @@ class Fractures(object):
     def set_conds(self, coords, log_mean_cs = -2.5, var_cs = 0.2, sigma = 0.5):
         nf = len(coords)
         frac_cs   = np.random.lognormal(log_mean_cs,var_cs,nf) # Lognormal distribution for aperture
-        frac_cond = (frac_cs**2)/12
-        frac_sig  = sigma * np.ones(shape=(nf,))
-        frac_char = np.zeros(shape = (nf,3))
-        for i in range(nf):            
-            frac_char[i,:] = [frac_cond[i],frac_cs[i],frac_sig[i]]
+        frac_cond = (frac_cs**2)/12                            # Cubic law for conductivity
+        frac_sig  = sigma * np.ones(shape=(nf,))               # Sigma fixed
+
+        frac_char = np.transpose(np.vstack((frac_cond, frac_cs, frac_sig)))
         frac_char = np.hstack((coords,frac_char))
         return frac_char      
                
     def fracs_plot(self,coords):
         nf = len(coords)
-#       plt.scatter(self.centers[:,0],self.centers[:,1])
         for i in range(nf):
             plt.plot([coords[i,0],coords[i,2] ], [coords[i,1], coords[i,3]], color='k', linestyle='-', linewidth=2)
 #        plt.axes.set_xlim(left = min(self.grid[:,0]),right = max(self.grid[:,0])) 

@@ -22,9 +22,9 @@ def mc_stats(data):
     # so far just mean and variance estimates
     c_int = confidence_interval(data,0.95)
     tab = tt.Texttable()
-    headings = ['Estimates of:','mean','var', 'conf. bounds 0.95']
+    headings = ['Estimates of:','mean','st_dev', 'conf. bounds 0.95']
     tab.header(headings)
-    tab.add_row(['---',data.mean(),data.var(), np.round_(c_int,3)])
+    tab.add_row(['---',data.mean(),np.sqrt(data.var()), np.round_(c_int,3)])
     s = tab.draw()
     print(s)        
     
@@ -38,7 +38,7 @@ class FlowMC(object):
     '''
 
     def  __init__(self, yaml_file_dir, mesh_file_dir):
-        fileDir  = os.path.dirname(os.path.realpath('__file__'))
+        fileDir = os.path.dirname(os.path.realpath('__file__'))
         filename = os.path.join(fileDir, mesh_file_dir)
         gio      = GmshIO()
         with open(filename) as f:
