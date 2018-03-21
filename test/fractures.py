@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
@@ -6,8 +7,28 @@ import math
 import random
 
 def Angle(mu):
-        # mu is the mean angle, expressed in radians between 0 and 2*pi, and kappa is the concentration parameter, 
-        # which must be greater than or equal to zero. If kappa is equal to zero, this distribution reduces to a uniform random angle over the range 0 to 2*pi.
+        """
+        von Mises - Fisher distribution:
+            generating an angle 'theta' which is a deviation from some mean angle 'mu' (expressed in radians between 0 and 2pi)
+            'kappa' - inverse measure of the dispersion, kappa = 0 --> uniform random dist from (0,2pi)
+            von Mises is a special case of vMF
+            
+            f(theta|mu,kappa) = exp(kappa*cos(theta - mu))/ 2*pi I_0(kappa)
+            
+            Parashar, Rishi, and Donald M. Reeves. "On iterative techniques for computing flow in large two-dimensional discrete fracture networks." 
+            Journal of computational and applied mathematics 236.18 (2012): 4712-4724.
+            Baghbanan, Alireza, and Lanru Jing. "Hydraulic properties of fractured rock masses with correlated fracture length and aperture." 
+            International Journal of Rock Mechanics and Mining Sciences 44.5 (2007): 704-719.
+            
+        Fisher distribution:
+            f(theta|mu,kappa) = exp(kappa*cos(kappa mu.T*theta))/ 4*pi sinh(kappa)
+            
+            Hyman, J. D., et al. "Fracture size and transmissivity correlations: Implications for transport simulations in sparse 
+            three‐dimensional discrete fracture networks following a truncated power law distribution of fracture size."
+            Water Resources Research 52.8 (2016): 6472-6489.
+                
+        """
+
         kappa = 100
         angle = random.vonmisesvariate(mu,kappa) 
         return angle
