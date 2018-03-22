@@ -3,8 +3,7 @@ import math
 from test.simulation_test import SimulationTest as TestSim
 from test.result import Result
 from mlmc.mlmc import MLMC
-from mlmc.moments import Monomials
-from mlmc.moments import FourierFunctions
+from mlmc.moments import Monomials, FourierFunctions
 import scipy as sc
 import numpy as np
 import matplotlib.pyplot as plt

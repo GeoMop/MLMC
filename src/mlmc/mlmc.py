@@ -1,5 +1,5 @@
 import numpy as np
-from mlmc.mc_level import Level
+from src.mlmc.mc_level import Level
 
 
 class MLMC:
@@ -71,7 +71,6 @@ class MLMC:
 
     def refill_samples(self):
         """
-
         JS TODO: Rather let user to call 'set_target_time' or 'set_target_variance'.
         and call refill_samples explicitly.
 
