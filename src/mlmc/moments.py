@@ -59,7 +59,7 @@ class FourierFunctions(Moments):
         :param r: int
         :return: moment
         """
-        value = self.change_interval(value - self.mean)
+        #value = self.change_interval(value - self.mean)
 
         if r == 0:
             return 1

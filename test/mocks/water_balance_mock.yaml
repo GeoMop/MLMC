@@ -1,0 +1,18 @@
+column_names: [ flux,  flux_in,  flux_out,  mass,  source,  source_in,  source_out,  flux_increment,  source_increment,  flux_cumulative,  source_cumulative,  error ]
+data:
+  - time: 0
+    region: .bc_inflow
+    quantity: water_volume
+    data: [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
+  - time: 0
+    region: .bc_outflow
+    quantity: water_volume
+    data: [ -100, 0, -100, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
+  - time: 0
+    region: .IMPLICIT_BOUNDARY
+    quantity: water_volume
+    data: [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
+  - time: 0
+    region: bulk
+    quantity: water_volume
+    data: [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]

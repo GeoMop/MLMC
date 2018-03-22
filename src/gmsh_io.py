@@ -212,7 +212,7 @@ class GmshIO:
         """
         Creates input data msh file for Flow model.
         :param msh_file: Target file (or None for current mesh file)
-        :param ele_ids: Element IDs in computational mesh corrsponding to order of
+        :param ele_ids: Element IDs in computational mesh corresponding to order of
         field values in element's barycenter.
         :param fields: {'field_name' : values_array, ..}
         """
@@ -222,5 +222,3 @@ class GmshIO:
             fout.write('$MeshFormat\n2.2 0 8\n$EndMeshFormat\n')
             for name, values in fields.items():
                 self.write_element_data(fout, ele_ids, name, values)
-
-

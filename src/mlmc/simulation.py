@@ -24,7 +24,7 @@ class Simulation:
         pass
 
     def n_ops_estimate(self):
-        pass
+        return self.sim_param
 
     def generate_random_sample(self):
         pass
@@ -35,22 +35,19 @@ class Simulation:
     def set_previous_fine_sim(self, coarse_sim):
         pass
 
-    def get_result(self):
+    def extract_result(self):
         return self._simulation_result
 
     @staticmethod
-    def log_interpolation(sim_param_range, t_level=None):
+    def log_interpolation(sim_param_range, t_level):
         """
         Calculate particular simulation parameter
         :param sim_param_range: Tuple or list of two items, range of simulation parameters
         :param t_level: current level / total number of levels, it means 'precision' of current level fine simulation
-        :return: int
+        :return: float
         """
-        if t_level is None:
-            return 0
-        else:
-            assert 0 <= t_level <= 1
-            return np.round(sim_param_range[0] ** (1 - t_level) * sim_param_range[1] ** t_level).astype(int)
+        assert 0 <= t_level <= 1
+        return sim_param_range[0] ** (1 - t_level) * sim_param_range[1] ** t_level
 
     @classmethod
     def make_sim(cls, config, sim_par_range, t_level=None):
@@ -62,5 +59,4 @@ class Simulation:
         :return: Particular simulation object
         """
         sim_par = Simulation.log_interpolation(sim_par_range, t_level)
-
         return cls(config, sim_par)

@@ -21,7 +21,12 @@ class Level:
 
         # Instance of object Simulation
         self.fine_simulation = sim_factory(precision)
-        self.coarse_simulation = previous_level_sim
+        if previous_level_sim is None:
+            self.coarse_simulation = sim_factory(precision)
+            self.coarse_simulation.mesh_step = 0
+        else:
+            # TODO: coarse_simulation can be different to previous_level_sim if they have same mean value
+            self.coarse_simulation = previous_level_sim
         self.fine_simulation.set_previous_fine_sim(self.coarse_simulation)
 
         # Initialization of variables
@@ -89,7 +94,6 @@ class Level:
         """
         # Generate random array
         self.fine_simulation.generate_random_sample()
-
         # Set random array to coarse step simulation
         self.coarse_simulation._input_sample = self.fine_simulation.get_coarse_sample()
         # Run simulations
@@ -116,9 +120,15 @@ class Level:
             for index, (fine_sim, coarse_sim) in enumerate(running_simulations):
                 try:
                     # Checks if simulation is already finished
-                    if self.fine_simulation.get_result(fine_sim) is not None and self.coarse_simulation.get_result(coarse_sim) is not None:
+                    if self.fine_simulation.extract_result(fine_sim) is not None and self.coarse_simulation.extract_result(coarse_sim) is not None:
+
                         # Save simulations results
-                        self.data.append((self.fine_simulation.get_result(fine_sim), self.coarse_simulation.get_result(coarse_sim)))
+                        if self.coarse_simulation.n_ops_estimate() == 0:
+                            # First level
+                            self.data.append((self.fine_simulation.extract_result(fine_sim), 0))
+                        else:
+                            self.data.append((self.fine_simulation.extract_result(fine_sim),
+                                              self.coarse_simulation.extract_result(coarse_sim)))
 
                         # Create new simulation
                         if num_of_simulations < self.number_of_simulations:

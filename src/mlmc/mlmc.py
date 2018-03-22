@@ -86,12 +86,11 @@ class MLMC:
         """
         Create new level add its to the array of levels
         """
-
         if self.current_level > 0:
             previous_level_simulation = self._levels[self.current_level-1].fine_simulation
         else:
             # For first level the previous level fine simulation doesn't exist
-            previous_level_simulation = self.simulation_factory()
+            previous_level_simulation = None
 
         # Creating new Level instance
         level = Level(self.simulation_factory, previous_level_simulation,

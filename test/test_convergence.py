@@ -12,13 +12,13 @@ import sys
 #sys.path.insert(1,libdir)
 
 #import correlated_field
-from correlated_field import SpatialCorrelatedField
+from mlmc.correlated_field import SpatialCorrelatedField
 import texttable as tt
 import scipy.interpolate as sc_inter
 import scipy.stats as sc_stat
 
-import importlib
-importlib.import_module('correlated_field')
+#import importlib
+#importlib.import_module('correlated_field')
 
 def make_points_grid(bound, size):
     """
