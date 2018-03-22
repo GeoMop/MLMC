@@ -71,7 +71,7 @@ class FlowSim(mlmc.simulation.Simulation):
     Gather data for single flow call (coarse/fine)
     """
 
-    def __init__(self, flow_dict, mesh_step):
+    def __init__(self, flow_dict, mesh_step, parent_fine_sim=None):
         """
 
         :param flow_dict: configuration of the simulation, processed keys:
@@ -84,6 +84,9 @@ class FlowSim(mlmc.simulation.Simulation):
                  (TODO: allow relative paths, not tested but should work)
             geo_file: Path to the geometry file. (TODO: default is <yaml file base>.geo
         :param mesh_step: Mesh step, decrease with increasing MC Level.
+        :param parent_fine_sim: Allow to set the fine simulation on previous level (Sim_f_l) which corresponds
+        to 'self' (Sim_c_l+1) as a coarse simulation. Usually Sim_f_l and Sim_c_l+1 are same simulations, but
+        these need to be different for advanced generation of samples (zero-mean control and antithetic).
         """
         self.sim_id = FlowSim.total_sim_id
         FlowSim.total_sim_id += 1
@@ -145,7 +148,7 @@ class FlowSim(mlmc.simulation.Simulation):
         :return:
         """
         param_dict = {}
-        field_tmpl = "!FieldElementwise {gmsh_file: ${INPUT}/%s, field_name: %s}"
+        field_tmpl = "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
         for field in self.fields.names():
             param_dict[field] = field_tmpl%(self.FIELDS_FILE, field)
         param_dict[self.MESH_FILE_PLACEHOLDER] = self.mesh_file
@@ -200,7 +203,7 @@ class FlowSim(mlmc.simulation.Simulation):
             '# PBS -e {work_dir}/{output_subdir}'
             '# PBS -o {work_dir}/{output_subdir}',
             'cd {work_dir}',
-            'time -p {flow123d} --yaml_balance -i {output_subdir} -o {output_subdir} {main_input} >{work_dir}/{output_subdir}/flow.out',
+            'time -p {flow123d} --yaml_balance -i {output_subdir} -o {output_subdir} {main_input} >{work_dir}/{output_subdir}/flow.out 2>&1',
             'touch FINISHED']
 
         lines = [ line.format(kwargs) for line in lines ]
@@ -220,20 +223,21 @@ class FlowSim(mlmc.simulation.Simulation):
         2. write input sample there
         3. call flow through PBS or a script that mark the folder when done
         """
-        sample_dir = os.path.join(self.work_dir, sample_tag)
+        out_subdir = os.path.join("samples", sample_tag)
+        sample_dir = os.path.join(self.work_dir, out_subdir)
         force_mkdir(sample_dir)
-        fields_file = os.path.join(self.sample_dir, self.FIELDS_FILE)
+        fields_file = os.path.join(sample_dir, self.FIELDS_FILE)
         gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
 
         pbs = self.env.pbs or {}    # Empty dict for None.
         pbs_file = os.path.join(sample_dir, "pbs_script.sh")
         with open(pbs_file, "w") as f:
-            pbs_script = self.make_pbs_script(
+            pbs_script = self._make_pbs_script(
                 n_nodes = pbs.get('n_nodes', 1),
                 n_cores = pbs.get('n_cores', 1),
                 mem = pbs.get('mem', 2),
                 queue = pbs.get('queue', "charon"),
-                output_dir = sample_dir,
+                output_subdir = out_subdir,
                 work_dir = self.work_dir,
                 flow123d = self.env['flow123d']
             )
