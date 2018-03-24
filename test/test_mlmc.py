@@ -2,12 +2,14 @@ import sys, os
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../')
 import pytest
-from test.simulation_test import SimulationTest as TestSim
+#from test.simulation_test import SimulationTest as TestSim
 from test.result import Result
 import mlmc.mlmc
 from mlmc.moments import Monomials, FourierFunctions
 import numpy as np
 
+
+@pytest.mark.skip
 @pytest.mark.parametrize('levels, n_moments, moments_variance, final_variance, moments_function', [
     (1, 5, [1e-3, 1e-3, 1e-2, 1e-1, 1e-1], [1e-2, 1e-2, 1e-1, 1e0, 1e0], Monomials),
     (1, 5, [1e-5, 1e-5, 1e-5, 1e-5, 1e-5], [1e-1, 1e-1, 1e-1, 1e-1, 1e-1], FourierFunctions)
