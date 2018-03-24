@@ -86,8 +86,8 @@ class SpatialCorrelatedField:
         :param dim: dimension of the domain (size of point coords)
         :param corr_length: scalar, correlation length L > machine epsilon; tensor K = (1/L)^2
         :param aniso_correlation: 3x3 array; K tensor, overrides correlation length
-        :param mu - mu field (currently just a constant)
-        :param sigma - sigma field (currently just a constant)
+        :param mu - mu field (currently just a constant), can override by set_points parameters
+        :param sigma - sigma field (currently just a constant), can override by set_points parameters
 
         TODO: use kwargs and move set_points into constructor
         """
@@ -145,7 +145,7 @@ class SpatialCorrelatedField:
 
         if sigma is not None:
             self.sigma = np.array(sigma, dtype=float)
-        assert self.mu.shape == () or sigma.shape == (len(points),)
+        assert self.sigma.shape == () or sigma.shape == (len(points),)
 
         self.cov_mat = None
         self._cov_l_factor = None
@@ -238,7 +238,6 @@ class SpatialCorrelatedField:
 
             m = len(ev)
             m = min(m, range[1])
-
         self.n_approx_terms = m
         self._sqrt_ev = np.sqrt(ev[0:m])
         self._cov_l_factor = U[:, 0:m].dot(sp.diag(self._sqrt_ev))
