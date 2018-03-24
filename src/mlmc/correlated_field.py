@@ -1,4 +1,3 @@
-# -*- coding: cp1252 -*-
 import numpy as np
 import numpy.linalg as la
 import scipy as sp
