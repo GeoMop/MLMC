@@ -140,11 +140,13 @@ class SpatialCorrelatedField:
         self.points = points
 
         if mu is not None:
-            self.mu = np.array(mu, dtype=float)
+            self.mu = mu
+        self.mu = np.array(self.mu, dtype=float)
         assert self.mu.shape == () or self.mu.shape == (len(points),)
 
         if sigma is not None:
-            self.sigma = np.array(sigma, dtype=float)
+            self.sigma = sigma
+        self.sigma = np.array(self.sigma, dtype=float)
         assert self.sigma.shape == () or sigma.shape == (len(points),)
 
         self.cov_mat = None
