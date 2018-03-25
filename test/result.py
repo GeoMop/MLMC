@@ -13,6 +13,7 @@ class Result:
         self.moments = []
         self.simulation_results = []
         self.simulation_on_level = []
+        self.levels_num_of_steps = []
         self.moments_number = moments_number
         self.levels = None
 
@@ -29,6 +30,7 @@ class Result:
     def mc_levels(self):
         """
         Monte Carlo method levels
+        :return: array of levels
         """
         return self._mc_levels
 
@@ -43,6 +45,7 @@ class Result:
     def levels_number(self):
         """
         Number of Monte Carlo method levels
+        :return: array, number of levels
         """
         return self._levels_number
 
@@ -80,12 +83,12 @@ class Result:
         # Each level in one execution of mlmc
         for index, level in enumerate(self.mc_levels):
 
+            self.levels_num_of_steps.append(level.n_ops_estimate())
             # Add fine - coarse
             for fine_and_coarse in level.data:
                 # Array of fine - coarse
                 self.levels_data[index].append(fine_and_coarse[0] - fine_and_coarse[1])
-
-            self.simulation_on_level.append(len(level.data))
+            self.simulation_on_level.append(level.number_of_simulations)
 
         self.result_of_levels()
 
@@ -98,13 +101,8 @@ class Result:
         self.simulation_results = [0 for _ in range(len(max(self.levels_data,key=len)))]
 
         for level_data in self.levels_data:
-            print("delka dat levelu", len(level_data))
             self.levels_dispersion.append(np.var(level_data))
             for index, data in enumerate(level_data):
-                #print("level data len", len(level_data))
-                #print(self.simulation_results)
-                #print(len(self.simulation_results))
-                #print(index)
                 self.simulation_results[index] += data
 
             self.average += np.mean(level_data)
@@ -120,11 +118,16 @@ class Result:
 
     def level_moments(self):
         """
-        Create sum of
+        Create sum of moments values from all levels
         :return: moments
         """
         moments_pom = []
+        moments = [[0, 0] for _ in range(len(self.mc_levels[0].moments))]
         for level in self.mc_levels:
             moments_pom.append(level.moments)
-        return [sum(m) for m in zip(*moments_pom)]
+            for index, moment in enumerate(level.moments):
+                moments[index][0] += moment[0]
+                moments[index][1] += moment[1]
+
+        return [mean for mean, var in moments]
 

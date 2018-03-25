@@ -20,3 +20,6 @@ __pycache__/
 *.so
 
 doc/Bproject.pdf
+
+# test results
+test/01_*/sim_*

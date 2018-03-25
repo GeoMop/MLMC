@@ -1,13 +1,31 @@
 """
-Test fourier functions class
+Test class monomials
 """
 import math
+import mlmc.moments
+
+MONOMIALS = mlmc.moments.Monomials()
+
+def test_get_moments():
+    """
+    Test get moments method
+    """
+    assert MONOMIALS.get_moments(2, 2) == 4
+    assert MONOMIALS.get_moments(-2, 2) == 4
+    assert MONOMIALS.get_moments(0, 1) == 0
+    assert MONOMIALS.get_moments(0.1, 1) == 0.1
+
+    MONOMIALS.mean = 1
+    assert MONOMIALS.get_moments(2, 2) == 1
+    assert MONOMIALS.get_moments(-2, 2) == 9
+    assert MONOMIALS.get_moments(0, 1) == -1
 
 
-from mlmc.fourier_functions import FourierFunctions
+"""
+Test fourier functions class
+"""
 
-FOURIER = FourierFunctions()
-
+FOURIER = mlmc.moments.FourierFunctions()
 
 def test_get_moments():
     """

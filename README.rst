@@ -83,6 +83,7 @@ Installation
 Documentation
 =============
 
+TODO try:
 https://python-nameless.readthedocs.io/
 
 Development
@@ -90,7 +91,9 @@ Development
 
 .. _description: https://docs.google.com/document/d/1u3KTiCAEduGTqbpd9hojn-cw0BiB7mKblrMj1A911FE/edit#
 
-Follow `description`_ of continuous integration practices.
+Follow `description`_ of continuous integration practices. In particular use `tox` to run tests. Tox
+installs necessary requirements as well as the developed package itself into clear virtual environment
+and call pytest to search in the `test` folder for tests to execute.
 
 
 
