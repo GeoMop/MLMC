@@ -37,13 +37,13 @@ import sys
 #sys.path.append(geomop_src)
 #sys.path.append(intersections_src)
 
-import gm_base.json_data as js
-import gm_base.geometry_files.format_last as gs
-import gm_base.geometry_files.layers_io as layers_io
-import gm_base.geometry_files.polygons as polygons
-import gm_base.geometry_files.polygons_io as polygons_io
-import gm_base.geometry_files.bspline_io as bspline_io
-import Geometry.gmsh_io as gmsh_io
+import geomop.json_data as js
+import geomop.format_last as gs
+import geomop.layers_io as layers_io
+import geomop.polygons as polygons
+import geomop.polygons_io as polygons_io
+import geomop.bspline_io as bspline_io
+import geomop.gmsh_io as gmsh_io
 import numpy as np
 import numpy.linalg as la
 import math

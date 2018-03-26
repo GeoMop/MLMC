@@ -985,6 +985,7 @@ class PolygonDecomposition:
         for hole_wire in list(orig_poly.outer_wire.childs):
             if new_poly.outer_wire.contains_wire(hole_wire):
                 hole_wire.set_parent(new_poly.outer_wire)
+                hole_wire.polygon = new_poly
         return new_seg
 
 
@@ -1077,16 +1078,19 @@ class PolygonDecomposition:
             decomp.points.append(Point(pt.xy, poly=None), id=pt.id)
             id_maps[0][pt.id] = pt.id
 
+        seg_orig_to_new={}
         for seg in self.segments.values():
             vtxs_ids = [pt.id for pt in seg.vtxs]
             new_seg = decomp.make_segment(vtxs_ids)
             id_maps[1][new_seg.id] = seg.id
+            seg_orig_to_new[seg.id] = new_seg.id
 
+        # FixMe: map orig segment IDs to new IDs
         for poly in self.polygons.values():
-            outer_wire = [seg.id for seg, side in poly.outer_wire.segments()]
+            outer_wire = [ seg_orig_to_new[seg.id] for seg, side in poly.outer_wire.segments()]
             holes = []
             for hole in poly.outer_wire.childs:
-                wire = [seg.id for seg, side in hole.segments()]
+                wire = [ seg_orig_to_new[seg.id] for seg, side in hole.segments()]
                 holes.append(wire)
             free_points = [pt.id for pt in poly.free_points]
             new_poly = decomp.make_polygon(outer_wire, holes, free_points)
@@ -1801,7 +1805,7 @@ def intersect_decompositions(decomps):
         for one_decomp_maps in all_maps:
             new_decomp_maps = []
             for one_dim_map, common_map in zip(one_decomp_maps, common_maps):
-                new_map = { new_id: one_dim_map[orig_id] for new_id, orig_id in common_map.items() if orig_id is not None }
+                new_map = { new_id: one_dim_map[orig_id] for new_id, orig_id in common_map.items() if orig_id in one_dim_map}
                 new_decomp_maps.append(new_map)
             new_all_maps.append(new_decomp_maps)
         new_all_maps.append(decomp_maps)
