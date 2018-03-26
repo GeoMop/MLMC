@@ -5,7 +5,7 @@ import json
 import enum
 
 
-import gm_base.json_data as js
+import geomop.json_data as js
 
 """
 TODO:
@@ -130,12 +130,12 @@ def convert_file_to_actual_format(json_obj, base_path=""):
     layers = None
     for ver, format_module in versions:
         if version == ver:
-            gs = module_only_import("gm_base.geometry_files." + format_module)
+            gs = module_only_import("geomop." + format_module)
             layers = gs.LayerGeometry(json_obj)
         if version < ver:
             if layers is None:
                 raise Exception("Unknown version of the layers file: %s"%(str(version)))
-            gs_new_module = module_only_import("gm_base.geometry_files." + format_module)
+            gs_new_module = module_only_import("geomop." + format_module)
             layers.base_path = base_path
             layers = gs_new_module.LayerGeometry.convert(layers)
 

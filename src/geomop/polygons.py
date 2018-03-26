@@ -1800,7 +1800,9 @@ def intersect_decompositions(decomps):
     common_decomp = PolygonDecomposition()
     all_maps = []
     for decomp in decomps:
+        print("isec: ", len(all_maps))
         common_decomp, decomp_maps, common_maps = decomp.intersection(common_decomp)
+        decomp_maps = [{key: val for key, val in map.items() if val is not None} for map in decomp_maps]
         new_all_maps = []
         for one_decomp_maps in all_maps:
             new_decomp_maps = []

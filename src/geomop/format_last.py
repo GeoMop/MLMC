@@ -4,8 +4,8 @@ import sys
 import os
 
 
-
-from gm_base.json_data import *
+from enum import IntEnum
+from geomop.json_data import JsonData, ClassFactory
 
 
 class LayerType(IntEnum):
@@ -279,6 +279,8 @@ class FractureLayer(GeoLayer):
         super().__init__(config)
         self.layer_type = LayerType.fracture
         self.top_type = self.top.interface_type
+
+
 class StratumLayer(GeoLayer):
     _not_serialized_attrs_ = ['layer_type', 'top_type','bottom_type']
 
