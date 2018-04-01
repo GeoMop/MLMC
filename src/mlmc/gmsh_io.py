@@ -212,7 +212,7 @@ class GmshIO:
             n_components = n_comp,
             n_els = n_els
         )
-        header = "1\n" \                
+        header = "1\n" \
                  "\"{field}\"\n" \
                  "1\n" \
                  "{time}" \
