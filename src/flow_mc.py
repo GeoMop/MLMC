@@ -137,7 +137,7 @@ class FlowSim(mlmc.simulation.Simulation):
         i = 0
         for id, el in mesh.elements.items():
             type, tags, i_nodes = el
-            self.points[i] = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)
+            self.points[i] = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)[0:2]
             self.ele_ids[i] = id
             i += 1
 
