@@ -132,12 +132,13 @@ class FlowSim(mlmc.simulation.Simulation):
 
         mesh = gmsh_io.GmshIO(mesh_file)
         n_ele = len(mesh.elements)
-        self.points = np.zeros((n_ele, 3))
+        self.points = np.zeros((n_ele, 2))
         self.ele_ids = np.zeros(n_ele)
         i = 0
         for id, el in mesh.elements.items():
             type, tags, i_nodes = el
-            self.points[i] = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)[0:2]
+            center = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)
+            self.points[i] = center[0:2]
             self.ele_ids[i] = id
             i += 1
 
