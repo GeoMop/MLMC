@@ -337,4 +337,6 @@ class LayerGeometry(JsonData):
         self.supplement = UserSupplement()
         """Addition data that is used for displaying in layer editor"""
         super().__init__(config)
+        self.version = [0, 5, 0]
+
 

@@ -268,7 +268,7 @@ class JsonData:
 
     _not_serialized_attrs_=[]
     """
-    List of attributes to not serialize. Lower priarity then _serialized_attrs_. Leave empty to use non-public attributes.
+    List of attributes to not serialize. Lower priority then _serialized_attrs_. Leave empty to use non-public attributes.
     """
 
     def __init__(self, config):
@@ -278,24 +278,25 @@ class JsonData:
         :param serialized_attr: list of serialized attributes
         """
 
-        if self._serialized_attrs_:
-            self.__class__._not_serialized_attrs_ = [key for key in self.__dict__.keys() if key not in self._serialized_attrs_]
-        elif self._not_serialized_attrs_:
-            pass
-        else:
-            self.__class__._not_serialized_attrs_ = [ key  for key in self.__dict__.keys() if key[0] == "_" ]
-        self.__class__._not_serialized_attrs_.extend( ['__class__', '_not_serialized_attrs_'] )
+        # combine serialize attrs to final list
+        if self._not_serialized_attrs_:
+            self.__class__._not_serialized_attrs_.extend(['__class__', '_serialized_attrs_', '_not_serialized_attrs_'])
+        for key in self.__dict__.keys():
+            if key not in self._not_serialized_attrs_ and \
+                    (self._not_serialized_attrs_ or key[0] != "_"):
+               self._serialized_attrs_.append(key)
+
 
         path = []
-        result_dict = self._deserialize_dict(self.__dict__, config, self._not_serialized_attrs_, path)
+        result_dict = self._deserialize_dict(self.__dict__, config, self._serialized_attrs_, path)
         for key, val in result_dict.items():
             self.__dict__[key] = val
 
     @staticmethod
-    def _deserialize_dict(template_dict, config_dict, filter_attrs, path):
+    def _deserialize_dict(template_dict, config_dict, serialized_attrs, path):
         result_dict = {}
         for key, temp in list(template_dict.items()):
-            if key in filter_attrs:
+            if key not in serialized_attrs:
                 continue
             value = config_dict.get(key, temp)
             config_dict.pop(key, 0)
@@ -338,7 +339,7 @@ class JsonData:
             return None
 
         elif isinstance(temp, dict):
-            result = JsonData._deserialize_dict(temp, value, [], path)
+            result = JsonData._deserialize_dict(temp, value, temp, path)
             return result
 
         # list,
@@ -427,7 +428,7 @@ class JsonData:
         """Return dict for serialization."""
         d = {"__class__": self.__class__.__name__}
         for k, v in self.__dict__.items():
-            if k not in self._not_serialized_attrs_ and not isinstance(v, ClassFactory):
+            if k in self._serialized_attrs_ and not isinstance(v, ClassFactory):
                 d[k] = JsonData._serialize_object(v)
         return d
 

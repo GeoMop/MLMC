@@ -41,6 +41,7 @@ import geomop.json_data as js
 import geomop.format_last as gs
 import geomop.layers_io as layers_io
 import geomop.polygons as polygons
+import geomop.merge as merge
 import geomop.polygons_io as polygons_io
 import geomop.bspline_io as bspline_io
 import gmsh_io as gmsh_io
@@ -355,7 +356,7 @@ class Interface:
 
         decomps = list(self.decompositions.values())
         decomp_ids = list(self.decompositions.keys())
-        self.common_decomp, all_maps = polygons.intersect_decompositions(decomps)
+        self.common_decomp, all_maps = merge.intersect_decompositions(decomps)
         #plot_polygons.plot_polygon_decomposition(self.common_decomp)
         # make subpolygon lists
         self.subobj_lists={}
@@ -366,17 +367,18 @@ class Interface:
                     subobjs[dim].setdefault(orig_id, list())    # make new instance every time
                     subobjs[dim][orig_id].append(new_id)
 
-            # sort subsegment lists
+            # sort new segments along original segments
             orig_decomp = decomps[decomp_idx]
             for orig_seg_id, seg_list in subobjs[1].items():
                 if orig_seg_id is None:
                     continue
-                pt_to_seg={}
+                pt_to_seg={} # Ponint ID to outgoing segment
                 for seg_id in seg_list:
                     seg = self.common_decomp.segments[seg_id]
                     pt_id = seg.vtxs[polygons.out_vtx].id
                     pt_to_seg[pt_id] = seg
                 new_seg_list = []
+
                 pt_id = orig_decomp.segments[orig_seg_id].vtxs[polygons.out_vtx].id
                 new_pt_id = subobjs[0][pt_id]
                 assert len(new_pt_id) == 1

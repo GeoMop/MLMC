@@ -1,11 +1,24 @@
-import os
-import sys
-
-
 import geomop.format_last as gs
 import geomop.polygons as polygons
 
-def serialize(decomp):
+
+from geomop.decomp import Point
+"""
+TODO: Try to remove dependency on `decomp` module.
+"""
+
+
+def set_indices(decomp):
+    """
+    Asign index to every node, segment and ppolygon.
+    :return: None
+    """
+    for shapes in decomp.shapes:
+        for idx, obj in enumerate(shapes.values()):
+            obj.index = idx
+
+
+def serialize(polydec):
     """
     Serialization of the PolygonDecomposition, into geometry objects, storing:
     - nodes, given by coordinates (x,y)
@@ -16,11 +29,12 @@ def serialize(decomp):
         - list of free points inside the polygon
     After call of this function, every node, segment, polygon have attribute 'index'
     containing the index of the object in the output file lists.
-    :param decomp: PolygonDecomposition
+    :param polydec: PolygonDecomposition
     :return: (nodes, topology)
     """
+    decomp = polydec.decomp
     decomp.check_consistency()
-    decomp.make_indices()
+    set_indices(decomp)
     nodes = [list(pt.xy) for pt in decomp.points.values()]
     topology = gs.Topology()
 
@@ -52,50 +66,52 @@ def deserialize(nodes, topology):
     :return: PolygonDecomposition. The attributes 'id' and 'index' of nodes, segments and polygons
     are set to their indices in the input file lists, counting from 0.
     """
-    decomp = polygons.PolygonDecomposition()
+    polydec = polygons.PolygonDecomposition()
+    decomp = polydec.decomp
 
     for id, node in enumerate(nodes):
-        node = decomp.points.append(polygons.Point(node, poly=None), id=id)
-        node.index = id
+        point = polydec._add_point(node, poly=polydec.outer_polygon, id=id)
+        point.index = id
 
     if len(topology.polygons) == 0 or len(topology.polygons[0].segment_ids) > 0:
-        return reconstruction_from_old_input(decomp, topology)
+        reconstruction_from_old_input(polydec, topology)
+        return polydec
 
 
     for id, seg in enumerate(topology.segments):
         vtxs_ids = seg.node_ids
-        s = decomp.make_segment(vtxs_ids)
+        s = polydec.make_segment(vtxs_ids)
         s.index = id
         assert s.id == id
 
     for id, poly in enumerate(topology.polygons):
         free_pt_ids = poly.free_points
-        p = decomp.make_polygon(poly.segment_ids, poly.holes, free_pt_ids)
+        p = polydec.make_polygon(poly.segment_ids, poly.holes, free_pt_ids)
         p.index = id
         assert p.id == id
 
-    decomp.set_wire_parents()
+    polydec.set_wire_parents()
 
     decomp.check_consistency()
-    return decomp
+    return polydec
 
 
-def reconstruction_from_old_input(decomp, topology):
+def reconstruction_from_old_input(polydec, topology):
     # Set points free
-    for pt in decomp.points.values():
-        pt.set_polygon(decomp.outer_polygon)
+    for pt in polydec.points.values():
+        pt.set_polygon(polydec.outer_polygon)
 
     for id, seg in enumerate(topology.segments):
-        vtxs = [decomp.points[pt_id] for pt_id in seg.node_ids]
-        s = decomp.new_segment(vtxs[0], vtxs[1])
+        vtxs = [polydec.points[pt_id] for pt_id in seg.node_ids]
+        s = polydec.new_segment(vtxs[0], vtxs[1])
         s.index = id
         assert s.id == id
 
-    decomp.outer_polygon.index  = 0
+    polydec.outer_polygon.index  = 0
     for id, poly in enumerate(topology.polygons):
         segments = {seg_id for seg_id in poly.segment_ids}
         candidates = []
-        for p in decomp.polygons.values():
+        for p in polydec.polygons.values():
             seg_set = set()
             for seg, side in p.outer_wire.segments():
                 seg_set.add(seg.index)
@@ -104,5 +120,4 @@ def reconstruction_from_old_input(decomp, topology):
 
         assert len(candidates) == 1
         candidates[0].index = id + 1
-    decomp.check_consistency()
-    return decomp
+    polydec.decomp.check_consistency()

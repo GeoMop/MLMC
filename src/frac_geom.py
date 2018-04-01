@@ -1,5 +1,6 @@
 import numpy as np
 import geomop.polygons as poly
+import geomop.merge as merge
 import geomop.polygons_io as poly_io
 import geomop.format_last as lg
 import geomop.layers_io
@@ -61,7 +62,7 @@ def make_decomposition(box, fractures, regions):
         pd.add_line(p0, p1)
         decompositions.append(pd)
 
-    common_decomp, maps = poly.intersect_decompositions(decompositions)
+    common_decomp, maps = merge.intersect_decompositions(decompositions)
     #plot_polygon_decomposition(common_decomp)
     #print(maps)
 
@@ -99,6 +100,7 @@ def fill_lg(decomp, reg_map, regions):
     nodes, topology = poly_io.serialize(decomp)
 
     geom = lg.LayerGeometry()
+    geom.version
     geom.regions = regions
 
 
