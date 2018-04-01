@@ -80,7 +80,7 @@ class SpatialCorrelatedField:
     """
 
     def __init__(self, corr_exp='gauss', dim=2, corr_length=1.0,
-                 aniso_correlation=None, mu=0.0, sigma=1.0):
+                 aniso_correlation=None, mu=0.0, sigma=1.0, log=False):
         """
         :param corr_exp: 'gauss', 'exp' or a float (should be >= 1)
         :param dim: dimension of the domain (size of point coords)
@@ -92,6 +92,7 @@ class SpatialCorrelatedField:
         TODO: use kwargs and move set_points into constructor
         """
         self.dim = dim
+        self.log = log
 
         if corr_exp == 'gauss':
             self.correlation_exponent = 2.0
@@ -257,7 +258,12 @@ class SpatialCorrelatedField:
             uncorelated = np.random.normal(0, 1, self.n_approx_terms)
         else:
             assert uncorelated.shape == (self.n_approx_terms,)
-        return (self.sigma * self._cov_l_factor.dot(uncorelated)) + self.mu
+
+        field = (self.sigma * self._cov_l_factor.dot(uncorelated)) + self.mu
+        if self.log:
+            return np.exp(field)
+        else:
+            return field
 
 
 # =====================================================================
