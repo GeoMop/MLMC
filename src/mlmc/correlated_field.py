@@ -92,6 +92,7 @@ class SpatialCorrelatedField:
         TODO: use kwargs and move set_points into constructor
         """
         self.dim = dim
+        self.log = log
 
         if corr_exp == 'gauss':
             self.correlation_exponent = 2.0
