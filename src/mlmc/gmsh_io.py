@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import struct
+import numpy as np
 import enum
 
 
@@ -201,11 +202,30 @@ class GmshIO:
 
     def write_element_data(self, f, ele_ids, name, values):
         f.write('$ElementData\n')
-        f.write('1\n"' + str(name) + '"')
-        f.write('\n0\n3\n0\n1\n')
-        f.write('%d\n' % len(self.elements))
-        for ele_id, value in zip(ele_ids, values):
-            f.write(str(ele_id) + ' ' + str(value) + '\n')
+        n_els = values.shape[0]
+        n_comp = np.atleast_1d(values[0]).shape[0]
+        np.reshape(values, (n_els, n_comp))
+        header_dict = dict(
+            field = str(name),
+            time = 0.0,
+            time_idx = 0,
+            n_components = n_comp,
+            n_els = n_els
+        )
+        header = "1\n" \                
+                 "\"{field}\"\n" \
+                 "1\n" \
+                 "{time}" \
+                 "3" \
+                 "{time_idx}" \
+                 "{n_components}" \
+                 "{n_els}".format(header_dict)
+
+        f.write('$ElementData\n')
+        f.write(header)
+        for ele_id, value_row in enumerate(values):
+            value_line = " ".join([ str(val) for val in value_row ])
+            f.write("{} {}\n".format(ele_id, value_line))
         f.write('$EndElementData\n')
 
     def write_fields(self, msh_file, ele_ids, fields):
