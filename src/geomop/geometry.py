@@ -1389,13 +1389,12 @@ def make_geometry(**kwargs):
     Write: geo file, brep file, tmp.msh file, msh file
     """
     raw_geometry = kwargs.get("geometry", None)
-    layers_file = kwargs.get("layers_file", None)
-    filename_base = ""
+    layers_file = kwargs.get("layers_file")
     mesh_step = kwargs.get("mesh_step", 0.0)
 
     if raw_geometry is None:
         raw_geometry = layers_io.read_geometry(layers_file)
-        filename_base = os.path.splitext(layers_file)[0]
+    filename_base = os.path.splitext(layers_file)[0]
     lg = construct_derived_geometry(raw_geometry)
     lg.filename_base = filename_base
 

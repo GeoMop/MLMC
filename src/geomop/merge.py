@@ -39,7 +39,7 @@ def deep_copy(self):
     return decomp, id_maps
 
 
-def intersect_single(decomp, other):
+def intersect_single(decomp, other, merge_tol = 1e-10):
     """
     TODO: move to separate intersection module.
 
@@ -66,6 +66,8 @@ def intersect_single(decomp, other):
     TODO: Implement clear interface to PolygonDecomposition with history of internal elementary operations
     in particular segment splitting and line splitting. Then we can remove several hacks here.
     """
+    save_tol = decomp.tolerance
+    decomp.tolerance = merge_tol
 
     maps_self = [ {}, {}, {}]
     maps_other = [ {}, {}, {}]
@@ -143,6 +145,7 @@ def intersect_single(decomp, other):
     #     assert maps_self[2][p.id] is not None
 
     # assert decomp.check_consistency()
+    decomp.tolerance = save_tol
     return (decomp, maps_self, maps_other)
 
 
@@ -151,7 +154,7 @@ def intersect_single(decomp, other):
 
 
 
-def intersect_decompositions(decomps):
+def intersect_decompositions(decomps, merge_tol = 1e-10):
     """
     Intersection of a list of decompositions. Segments and polygons are subdivided.
 
@@ -166,6 +169,7 @@ def intersect_decompositions(decomps):
     TODO: For larger number of intersectiong decompositions, it would be better to
     use a binary tree reduction instead of linear pass to have n log(n) complexity of map updating.
     """
+
     common_decomp = polygons.PolygonDecomposition()
     all_maps = []
     for decomp in decomps:
@@ -175,7 +179,7 @@ def intersect_decompositions(decomps):
             len(common_decomp.segments),
             len(common_decomp.decomp.wires),
             len(common_decomp.polygons)))
-        common_decomp, common_maps, decomp_maps = intersect_single(common_decomp, decomp)
+        common_decomp, common_maps, decomp_maps = intersect_single(common_decomp, decomp, merge_tol)
         decomp_maps = [ { key: val for key,val in map.items() if val is not None} for map in decomp_maps ]
         for one_decomp_maps in all_maps:
             for one_dim_map, common_map in zip(one_decomp_maps, common_maps):

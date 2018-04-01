@@ -39,7 +39,7 @@ def make_regions(mesh_step, fractures, frac_step):
     regions = []
     add_reg(regions, "NONE", -1, not_used=True)
     add_reg(regions, "bulk_0", 2, mesh_step)
-    add_reg(regions, ".bc_infow", 1, bc=True)
+    add_reg(regions, ".bc_inflow", 1, bc=True)
     add_reg(regions, ".bc_outflow", 1, bc=True)
     for f_id in range(len(fractures)):
         add_reg(regions, "frac_{}".format(f_id), 1, frac_step)
