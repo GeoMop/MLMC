@@ -7,7 +7,7 @@ import numpy as np
 import shutil
 import random
 # from operator import add
-import simulation
+import simulation as simulation
 
 
 # from unipath import Path
@@ -56,6 +56,62 @@ def force_mkdir(path):
     os.makedirs(path)
 
 
+class Pbs:
+    __instance = None
+
+    @staticmethod
+    def get_instance():
+        if Pbs.__instance is None:
+            Pbs()
+        return Pbs.__instance
+
+    def __init__(self):
+        self.steps_sum = 2000
+        self.pbs_script = ["#!/bin/bash",
+                      '#PBS -S /bin/bash',
+                      '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}',
+                      '#PBS -q {queue}',
+                      '#PBS -N Flow123d',
+                      '#PBS -j oe', ]
+        self.pbs_script_heading = None
+        self.pbs_script_setting = False
+        self.pbs_qsub = False
+
+        if Pbs.__instance is not None:
+            raise Exception("This class is a singleton!")
+        else:
+            Pbs.__instance = self
+
+    def pbs_common_setting(self, **kwargs):
+        self.pbs_script = [line.format(**kwargs) for line in self.pbs_script]
+        self.pbs_script_heading = self.pbs_script
+        self.pbs_script_setting = True
+
+    def add_realization(self, **kwargs):
+        lines = [
+            'cd {work_dir}',
+            'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out 2>&1',
+            'cd {output_subdir}',
+            'touch FINISHED',]
+        lines = [line.format(**kwargs) for line in lines]
+        self.pbs_script , "\n".join(lines)
+
+    def execute(self, dir):
+        pbs_file = os.path.join(dir, "pbs_script.sh")
+        with open(pbs_file, "w") as f:
+            f.write(self.pbs_script)
+        os.chmod(pbs_file, 0o774)  # Make exectutable to allow direct call.
+        if self.pbs_qsub is True:
+            subprocess.call("qsub " + pbs_file, shell=True)
+        else:
+            subprocess.call(pbs_file)
+
+        self.clear_script()
+
+    def clear_script(self):
+        self.pbs_script = self.pbs_script_heading
+
+
 class FlowSim(simulation.Simulation):
     total_sim_id = 0
     MESH_FILE_PLACEHOLDER = 'mesh_file'
@@ -87,12 +143,25 @@ class FlowSim(simulation.Simulation):
         these need to be different for advanced generation of samples (zero-mean control and antithetic).
         """
         self.sim_id = FlowSim.total_sim_id
+        # Pbs script creater
+        self.pbs_creater = Pbs.get_instance()
+
         FlowSim.total_sim_id += 1
         self.env = flow_dict['env']
         self.fields = flow_dict['fields']
         self.base_yaml_file = flow_dict['yaml_file']
         self.base_geo_file = flow_dict['geo_file']
         self.mesh_step = mesh_step
+
+        # TODO pass to own method
+        pbs = self.env["pbs"] or {}
+        if len(pbs) > 0:
+            self.pbs_creater.pbs_qsub = True
+        if self.pbs_creater.pbs_script_setting is False:
+            self.pbs_creater.pbs_common_setting(n_nodes=pbs.get('n_nodes', 1),
+                                                n_cores=pbs.get('n_cores', 1),
+                                                mem=pbs.get('mem', 2),
+                                                queue=pbs.get('queue', "charon"))
 
         # Set in _make_mesh
         self.points = None
@@ -134,12 +203,12 @@ class FlowSim(simulation.Simulation):
 
         mesh = gmsh_io.GmshIO(mesh_file)
         n_ele = len(mesh.elements)
-        self.points = np.zeros((n_ele, 3))
+        self.points = np.zeros((n_ele, 2))
         self.ele_ids = np.zeros(n_ele)
         i = 0
         for id, el in mesh.elements.items():
             type, tags, i_nodes = el
-            self.points[i] = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)
+            self.points[i] = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)[0:2]
             self.ele_ids[i] = id
             i += 1
 
@@ -187,26 +256,6 @@ class FlowSim(simulation.Simulation):
         """
         return self._coarse_sample
 
-    @staticmethod
-    def _make_pbs_script(**kwargs):
-
-        lines = [
-            "#!/bin/bash",
-            '#PBS -S /bin/bash',
-            '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}',
-            '#PBS -q {queue}',
-            '#PBS -N Flow123d',
-            '#PBS -j oe',
-            '#PBS -e {work_dir}/{output_subdir}'
-            '#PBS -o {work_dir}/{output_subdir}',
-            'cd {work_dir}',
-            'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out 2>&1',
-            'cd {output_subdir}',
-            'touch FINISHED']
-
-        lines = [line.format(**kwargs) for line in lines]
-        return "\n".join(lines)
-
     def cycle(self, sample_tag):
         """
         Evaluate model using generated or set input data sample.
@@ -228,28 +277,13 @@ class FlowSim(simulation.Simulation):
 
         gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
 
-        pbs = self.env["pbs"] or {}  # Empty dict for None.
-        pbs_file = os.path.join(sample_dir, "pbs_script.sh")
-        with open(pbs_file, "w") as f:
-            pbs_script = self._make_pbs_script(
-                n_nodes=pbs.get('n_nodes', 1),
-                n_cores=pbs.get('n_cores', 1),
-                mem=pbs.get('mem', 2),
-                queue=pbs.get('queue', "charon"),
-                output_subdir=out_subdir,
-                work_dir=self.work_dir,
-                flow123d=self.env['flow123d']
-            )
-            f.write(pbs_script)
-        os.chmod(pbs_file, 0o774)  # Make exectutable to allow direct call.
+        if self.pbs_creater.steps_sum <= 0:
+            self.pbs_creater.execute(self.work_dir)
 
-        if self.env["pbs"] is None:
-            # Direct execution.
-            subprocess.call(pbs_file)
-        else:
-            # Batch execution.
-            subprocess.call("qsub " + pbs_file, shell=True)
-
+        self.pbs_creater.add_realization(output_subdir=out_subdir,
+                                         work_dir=self.work_dir,
+                                         flow123d=self.env['flow123d'])
+        self.pbs_creater.steps_sum -= len(self.points)
         return sample_tag, sample_dir
 
     def extract_result(self, run_token):
@@ -294,3 +328,4 @@ class FlowSim(simulation.Simulation):
             return total_flux
         else:
             return None
+

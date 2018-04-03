@@ -2,7 +2,7 @@ import numpy as np
 import scipy as sc
 import scipy.stats
 import uuid
-import copy as cp
+
 
 class Level:
     """
@@ -87,9 +87,10 @@ class Level:
         """
         return self.fine_simulation.n_ops_estimate()
 
-    def _create_simulations(self):
+    def _create_simulations(self, last_sim=False):
         """
         Generate new random samples for fine and coarse simulation objects
+        :param last_sim: mark last simulation on the level
         :return: fine and coarse running simulations
         """
         # Generate random array
@@ -97,6 +98,8 @@ class Level:
         # Set random array to coarse step simulation
         self.coarse_simulation._input_sample = self.fine_simulation.get_coarse_sample()
         # Run simulations
+        if last_sim is True:
+            return self.fine_simulation.cycle(uuid.uuid1()), self.coarse_simulation.cycle(uuid.uuid1(), True)
         return self.fine_simulation.cycle(uuid.uuid1()), self.coarse_simulation.cycle(uuid.uuid1())
 
     def level(self):
@@ -108,6 +111,7 @@ class Level:
         """
         running_simulations = []
         # Run at the same time maximum of 2000 simulations
+
         if self.number_of_simulations > 2000:
             num_of_simulations = 2000
         else:
@@ -120,7 +124,8 @@ class Level:
             for index, (fine_sim, coarse_sim) in enumerate(running_simulations):
                 try:
                     # Checks if simulation is already finished
-                    if self.fine_simulation.extract_result(fine_sim) is not None and self.coarse_simulation.extract_result(coarse_sim) is not None:
+                    if self.fine_simulation.extract_result(
+                            fine_sim) is not None and self.coarse_simulation.extract_result(coarse_sim) is not None:
 
                         # Save simulations results
                         if self.coarse_simulation.n_ops_estimate() == 0:
@@ -130,10 +135,13 @@ class Level:
                             self.data.append((self.fine_simulation.extract_result(fine_sim),
                                               self.coarse_simulation.extract_result(coarse_sim)))
 
-                        # Create new simulation
-                        if num_of_simulations < self.number_of_simulations:
-                            running_simulations[index] = self._create_simulations()
+                        # Last simulation on the level
+                        if num_of_simulations == self.number_of_simulations - 1 or num_of_simulations == self.number_of_simulations:
+                            running_simulations[index] = self._create_simulations(True)
                             num_of_simulations += 1
+                        # Create new simulation
+                        elif num_of_simulations < self.number_of_simulations:
+                            running_simulations[index] = self._create_simulations()
                         else:
                             # Remove simulations pair from running simulations
                             running_simulations.pop(index)
@@ -149,7 +157,8 @@ class Level:
         Count moments from level data
         :return: array, moments
         """
-        self.moments_object.bounds = sc.stats.mstats.mquantiles(self.result, prob=[self.moments_object.eps, 1 - self.moments_object.eps])
+        self.moments_object.bounds = sc.stats.mstats.mquantiles(self.result, prob=[self.moments_object.eps,
+                                                                                   1 - self.moments_object.eps])
         return self.count_moments(self.data)
 
     def count_moments(self, level_data):
@@ -193,8 +202,8 @@ class Level:
 
         return moments
 
+
 class ExpWrongResult(Exception):
     def __init__(self, *args, **kwargs):
-        print(*args)
         Exception.__init__(self, *args, **kwargs)
         self.message = "Wrong simulation result"

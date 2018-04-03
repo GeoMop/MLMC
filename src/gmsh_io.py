@@ -1,7 +1,9 @@
-""" Module containing an expanded python gmsh class"""
+
+"""Module containing an expanded python gmsh class"""
 from __future__ import print_function
 
 import struct
+import numpy as np
 import enum
 
 
@@ -200,19 +202,41 @@ class GmshIO:
         mshfile.close()
 
     def write_element_data(self, f, ele_ids, name, values):
+        n_els = values.shape[0]
+        n_comp = np.atleast_1d(values[0]).shape[0]
+        np.reshape(values, (n_els, n_comp))
+        header_dict = dict(
+            field=str(name),
+            time=0,
+            time_idx=0,
+            n_components=n_comp,
+            n_els=n_els
+        )
+
+        header = "1\n" \
+                 "\"{field}\"\n" \
+                 "{time}\n" \
+                 "3\n" \
+                 "{time_idx}\n" \
+                 "{n_components}\n" \
+                 "{n_els}\n".format(**header_dict)
+
         f.write('$ElementData\n')
-        f.write('1\n"' + str(name) + '"')
-        f.write('\n0\n3\n0\n1\n')
-        f.write('%d\n' % len(self.elements))
-        for ele_id, value in zip(ele_ids, values):
-            f.write(str(ele_id) + ' ' + str(value) + '\n')
+        f.write(header)
+
+        for ele_id, value_row in zip(ele_ids, values):
+            if isinstance(value_row, list):
+                value_line = " ".join([str(val) for val in value_row])
+            else:
+                value_line = str(value_row).strip()
+            f.write("{} {}\n".format(str(ele_id.astype(int)), value_line))
         f.write('$EndElementData\n')
 
     def write_fields(self, msh_file, ele_ids, fields):
         """
         Creates input data msh file for Flow model.
         :param msh_file: Target file (or None for current mesh file)
-        :param ele_ids: Element IDs in computational mesh corresponding to order of
+        :param ele_ids: Element IDs in computational mesh corrsponding to order of
         field values in element's barycenter.
         :param fields: {'field_name' : values_array, ..}
         """
@@ -222,3 +246,5 @@ class GmshIO:
             fout.write('$MeshFormat\n2.2 0 8\n$EndMeshFormat\n')
             for name, values in fields.items():
                 self.write_element_data(fout, ele_ids, name, values)
+
+

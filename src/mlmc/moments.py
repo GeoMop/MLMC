@@ -10,6 +10,7 @@ class Moments:
         self._bounds = None
         self._moments_function = None
         self.n_moments = n_moments
+        self.fixed_quad_n = n_moments
         self.eps = 0
 
     @property
@@ -60,14 +61,15 @@ class FourierFunctions(Moments):
         :return: moment
         """
         #value = self.change_interval(value - self.mean)
+        value = value - self.mean
 
         if r == 0:
             return 1
         if r % 2 != 0:
-            new_r = int((r + 1) / 2)
+            new_r = int((r+1) /2)
             return np.sin(new_r * value)
         if r % 2 == 0:
-            new_r = int((r + 1) / 2)
+            new_r = int((r+1) /2)
             return np.cos(new_r * value)
 
     def change_interval(self, value):
