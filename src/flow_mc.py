@@ -2,7 +2,7 @@ import os
 import os.path
 import yaml
 import subprocess
-import mlmc.gmsh_io as gmsh_io
+import gmsh_io as gmsh_io
 import numpy as np
 import shutil
 
@@ -131,12 +131,18 @@ class FlowSim(mlmc.simulation.Simulation):
         subprocess.call([self.env['gmsh'], "-2", '-clscale', str(self.mesh_step), '-o', mesh_file, geo_file])
 
         mesh = gmsh_io.GmshIO(mesh_file)
+        is_bc_region = {}
+        for name, (id, dim) in mesh.physical.items():
+            is_bc_region[id] = (name[0] == '.')
         n_ele = len(mesh.elements)
         self.points = np.zeros((n_ele, 2))
         self.ele_ids = np.zeros(n_ele)
         i = 0
         for id, el in mesh.elements.items():
             type, tags, i_nodes = el
+            region_id = tags[0]
+            if is_bc_region[region_id]:
+                continue
             center = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)
             self.points[i] = center[0:2]
             self.ele_ids[i] = id
@@ -228,6 +234,7 @@ class FlowSim(mlmc.simulation.Simulation):
         sample_dir = os.path.join(self.work_dir, out_subdir)
         force_mkdir(sample_dir)
         fields_file = os.path.join(sample_dir, self.FIELDS_FILE)
+
         gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
 
         pbs = self.env.pbs or {}    # Empty dict for None.
