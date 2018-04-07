@@ -212,7 +212,7 @@ class GmshIO:
             n_components=n_comp,
             n_els=n_els
         )
-
+   
         header = "1\n" \
                  "\"{field}\"\n" \
                  "{time}\n" \
@@ -223,15 +223,15 @@ class GmshIO:
 
         f.write('$ElementData\n')
         f.write(header)
-
+        
         for ele_id, value_row in zip(ele_ids, values):
             if isinstance(value_row, list):
                 value_line = " ".join([str(val) for val in value_row])
-            else:
+            else: 
                 value_line = str(value_row).strip()
-            f.write("{} {}\n".format(str(ele_id.astype(int)), value_line))
+            f.write("{} {}\n".format(ele_id.astype(int), value_line))
         f.write('$EndElementData\n')
-
+        
     def write_fields(self, msh_file, ele_ids, fields):
         """
         Creates input data msh file for Flow model.
@@ -246,5 +246,4 @@ class GmshIO:
             fout.write('$MeshFormat\n2.2 0 8\n$EndMeshFormat\n')
             for name, values in fields.items():
                 self.write_element_data(fout, ele_ids, name, values)
-
 
