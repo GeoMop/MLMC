@@ -21,13 +21,12 @@ class Level:
 
         # Instance of object Simulation
         self.fine_simulation = sim_factory(precision)
-        if previous_level_sim is None:
-            self.coarse_simulation = sim_factory(precision)
-            self.coarse_simulation.mesh_step = 0
-        else:
-            # TODO: coarse_simulation can be different to previous_level_sim if they have same mean value
-            self.coarse_simulation = previous_level_sim
+        # TODO: coarse_simulation can be different to previous_level_sim if they have same mean value
+        self.coarse_simulation = previous_level_sim
         self.fine_simulation.set_previous_fine_sim(self.coarse_simulation)
+
+        # Currently running simulations
+        self.running_simulations = []
 
         # Initialization of variables
         self._result = []
@@ -49,7 +48,7 @@ class Level:
         Simulations results (fine step simulations result - coarse step simulation result)
         :return: array, each item is fine_result - coarse_result
         """
-        return self._result
+        return [data[0] - data[1] for data in self.data]
 
     @result.setter
     def result(self, result):
@@ -87,70 +86,65 @@ class Level:
         """
         return self.fine_simulation.n_ops_estimate()
 
-    def _create_simulations(self, last_sim=False):
+    def _create_simulations(self):
         """
         Generate new random samples for fine and coarse simulation objects
         :param last_sim: mark last simulation on the level
         :return: fine and coarse running simulations
         """
-        # Generate random array
-        self.fine_simulation.generate_random_sample()
-        # Set random array to coarse step simulation
-        self.coarse_simulation._input_sample = self.fine_simulation.get_coarse_sample()
-        # Run simulations
-        if last_sim is True:
-            return self.fine_simulation.cycle(uuid.uuid1()), self.coarse_simulation.cycle(uuid.uuid1(), True)
-        return self.fine_simulation.cycle(uuid.uuid1()), self.coarse_simulation.cycle(uuid.uuid1())
+        # Levels greater than one have fine and coarse simulations
+        if self.coarse_simulation is not None:
+            # Generate random array
+            self.fine_simulation.generate_random_sample()
+            # Set random array to coarse step simulation
+            self.coarse_simulation._input_sample = self.fine_simulation.get_coarse_sample()
+            # Run simulations
+            return self.fine_simulation.cycle(uuid.uuid1()), self.coarse_simulation.cycle(uuid.uuid1())
+        # First level doesn't have coarse simulation
+        else:
+            # Generate random array
+            self.fine_simulation.generate_random_sample()
+            # Run simulations
+            return self.fine_simulation.cycle(uuid.uuid1()), None
 
     def level(self):
         """
         Implements level of MLMC
         Call Simulation methods
         Set simulation data
-        :return: array of results (fine_sim result - coarse_sim result) 
+        :return: None
         """
-        running_simulations = []
-        # Run at the same time maximum of 2000 simulations
-
-        if self.number_of_simulations > 2000:
-            num_of_simulations = 2000
-        else:
-            num_of_simulations = self.number_of_simulations
-
         # Create pair of fine and coarse simulations and add them to list of all running simulations
-        [running_simulations.append(self._create_simulations()) for _ in range(num_of_simulations)]
+        [self.running_simulations.append(self._create_simulations()) for _ in range(self.number_of_simulations)]
 
-        while len(running_simulations) > 0:
-            for index, (fine_sim, coarse_sim) in enumerate(running_simulations):
+    def are_simulations_running(self):
+        # Still running some simulations
+        while len(self.running_simulations) > 0:
+            # Loop through pair of running simulations
+            for index, (fine_sim, coarse_sim) in enumerate(self.running_simulations):
                 try:
-                    # Checks if simulation is already finished
-                    if self.fine_simulation.extract_result(
-                            fine_sim) is not None and self.coarse_simulation.extract_result(coarse_sim) is not None:
-
-                        # Save simulations results
-                        if self.coarse_simulation.n_ops_estimate() == 0:
-                            # First level
+                    # First level has no coarse simulation
+                    if self.coarse_simulation is None:
+                        if self.fine_simulation.extract_result(fine_sim) is not None:
                             self.data.append((self.fine_simulation.extract_result(fine_sim), 0))
-                        else:
+                            # Remove simulations pair from running simulations
+                            self.running_simulations.pop(index)
+                    # Other levels have also coarse simulation
+                    else:
+                        # Checks if simulation is already finished
+                        if self.fine_simulation.extract_result(
+                                fine_sim) is not None and self.coarse_simulation.extract_result(coarse_sim) is not None:
                             self.data.append((self.fine_simulation.extract_result(fine_sim),
                                               self.coarse_simulation.extract_result(coarse_sim)))
 
-                        # Last simulation on the level
-                        if num_of_simulations == self.number_of_simulations - 1 or num_of_simulations == self.number_of_simulations:
-                            running_simulations[index] = self._create_simulations(True)
-                            num_of_simulations += 1
-                        # Create new simulation
-                        elif num_of_simulations < self.number_of_simulations:
-                            running_simulations[index] = self._create_simulations()
-                        else:
-                            # Remove simulations pair from running simulations
-                            running_simulations.pop(index)
+                        # Remove simulations pair from running simulations
+                        self.running_simulations.pop(index)
                 except ExpWrongResult as e:
                     print(e.message)
 
-        # Level results, fine_sim result - coarse_sim result
-        self.result = [data[0] - data[1] for data in self.data]
-        return self.result
+        if len(self.running_simulations) > 1:
+            return True
+        return False
 
     def level_moments(self):
         """
@@ -177,13 +171,11 @@ class Level:
         for data in level_data:
             level_results["fine"].append(data[0])
             level_results["coarse"].append(data[1])
-
         coarse_var = np.var(level_results["coarse"])
 
         # Count moment for each degree
         for degree in range(self.moments_object.n_moments):
             fine_coarse_diff = []
-
             for lr_fine, lr_coarse in zip(level_results["fine"], level_results["coarse"]):
                 # Moment for fine step result
                 fine = self.moments_object.get_moments(lr_fine, degree)
@@ -199,7 +191,6 @@ class Level:
 
             # Append moment to other moments
             moments.append((np.mean(np.array(fine_coarse_diff)), np.var(np.array(fine_coarse_diff))))
-
         return moments
 
 

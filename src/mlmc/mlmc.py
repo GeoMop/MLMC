@@ -1,12 +1,13 @@
 import numpy as np
-from src.mlmc.mc_level import Level
+from mlmc.mc_level import Level
 
 
 class MLMC:
     """
     Multi level monte carlo method
     """
-    def __init__(self, number_of_levels, sim_factory, moments_object):
+
+    def __init__(self, number_of_levels, sim_factory, moments_object, pbs=None):
         """
         :param number_of_levels:    Number of levels
         :param sim:                 Instance of object Simulation
@@ -34,9 +35,15 @@ class MLMC:
         # Calculated number of samples
         self._num_of_samples = None
 
+        self._pbs = pbs
+
         # Create levels
         for _ in range(self.number_of_levels):
             self._create_level()
+        if self._pbs is not None:
+            self._pbs.execute()
+
+        self._check_levels()
 
     @property
     def levels(self):
@@ -72,22 +79,34 @@ class MLMC:
         """
         For each level counts further number of simulations by appropriate N
         """
-        for step, level in enumerate(self._levels):
+        for index, level in enumerate(self._levels):
             if self.number_of_samples is not None:
                 self.num_of_simulations = self.number_of_samples
 
-            if level.number_of_simulations < self.num_of_simulations[step]:
-                level.number_of_simulations = self.num_of_simulations[step] - level.number_of_simulations
+            if level.number_of_simulations < self.num_of_simulations[index]:
+                level.number_of_simulations = self.num_of_simulations[index] - level.number_of_simulations
                 # Launch further simulations
                 level.level()
-                level.number_of_simulations = self.num_of_simulations[step]
+                level.number_of_simulations = self.num_of_simulations[index]
+
+        if self._pbs is not None:
+            self._pbs.execute()
+        self._check_levels()
+
+    def _check_levels(self):
+        not_done = True
+        while not_done is True:
+            not_done = False
+            for index, level in enumerate(self._levels):
+                if level.are_simulations_running():
+                    not_done = True
 
     def _create_level(self):
         """
         Create new level add its to the array of levels
         """
         if self.current_level > 0:
-            previous_level_simulation = self._levels[self.current_level-1].fine_simulation
+            previous_level_simulation = self._levels[self.current_level - 1].fine_simulation
         else:
             # For first level the previous level fine simulation doesn't exist
             previous_level_simulation = None
@@ -124,11 +143,10 @@ class MLMC:
             new_num_of_sim_pom = []
 
             for index, moment in enumerate(level.moments[1:]):
-
-                amount = sum([np.sqrt(level.moments[index+1][1] * level.n_ops_estimate()) for level in self._levels])
+                amount = sum([np.sqrt(level.moments[index + 1][1] * level.n_ops_estimate()) for level in self._levels])
 
                 new_num_of_sim_pom.append(np.round((amount * np.sqrt(np.abs(moment[1]) / level.n_ops_estimate()))
-                / target_variance[index]).astype(int))
+                                                   / target_variance[index]).astype(int))
             self.num_of_simulations.append(np.max(new_num_of_sim_pom))
 
     def _count_sum(self):

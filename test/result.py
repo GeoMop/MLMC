@@ -112,9 +112,18 @@ class Result:
         Print results
         """
         print("Střední hodnota = ", self.average)
-        print("Rozptyl hodnota = ", np.var(self.simulation_results))
         print("Rozptyly na úrovních", self.levels_dispersion)
         print("Počet simulací na jednotlivých úrovních", self.simulation_on_level)
+
+    def save_result(self, path, moment_function):
+        with open(path+'/results.txt', 'w') as results:
+            results.write("Počet úrovní = " + str(len(self.levels)) + "\n")
+            results.write("Počet momentů = " + str(self.moments_number) + "\n")
+            results.write("Funkce momentů = " + moment_function + "\n")
+            results.write("Střední hodnota = " + str(self.average) + "\n")
+            results.write("Rozptyly na úrovních " + str(self.levels_dispersion) + "\n")
+            results.write("Počet simulací na jednotlivých úrovních " + str(self.simulation_on_level) + "\n")
+            results.write("Momenty " + str(self.moments) + "\n")
 
     def level_moments(self):
         """
@@ -129,5 +138,5 @@ class Result:
                 moments[index][0] += moment[0]
                 moments[index][1] += moment[1]
 
+        self.moments = moments
         return [mean for mean, var in moments]
-
