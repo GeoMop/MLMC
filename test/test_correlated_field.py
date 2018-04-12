@@ -141,7 +141,7 @@ def impl_test_mu_sigma(corr_exp, points, n_terms_range):
     :return:
     """
     n_pt = points.size
-    corr_length = 10
+    corr_length = 2
     mu = 3.14
     sigma = 1.5
     field = SpatialCorrelatedField(corr_exp, dim=points.dim, corr_length = corr_length)
@@ -214,8 +214,8 @@ def impl_test_mu_sigma(corr_exp, points, n_terms_range):
 
 
 
-#@pytest.mark.parametrize('seed', [2,3,4,5,6])
-@pytest.mark.parametrize('seed', [3])
+@pytest.mark.parametrize('seed', [2,3,4,5,6])
+#@pytest.mark.parametrize('seed', [3])
 def test_field_mean_std_convergence(seed):
     np.random.seed(seed)
     np.random.rand(1000)
