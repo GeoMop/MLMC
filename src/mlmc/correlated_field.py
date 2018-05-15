@@ -174,12 +174,16 @@ class SpatialCorrelatedField:
 
         # sigma_sqr_mat = np.outer(self.sigma, self.sigma.T)
         self._sigma_sqr_max = np.max(self.sigma) ** 2
-        diff_mat = self.points[None, :, :] - self.points[:, None, :]  # shape NxNx3
-        length_srq_mat = np.sum(np.inner(diff_mat, self.correlation_tensor) * diff_mat, axis=-1)
-
+        n_pt = len(self.points)
+        self.cov_mat = np.empty( (n_pt, n_pt))
         corr_exp = self.correlation_exponent / 2.0
         exp_scale = - 1.0 / self.correlation_exponent
-        self.cov_mat = np.exp(exp_scale * length_srq_mat ** corr_exp)
+
+        for i_row in range(n_pt):
+            pt = self.points[i_row]
+            diff_row = self.points - pt
+            len_sqr_row = np.sum(diff_row.dot(self.correlation_tensor) * diff_row, axis=-1)
+            self.cov_mat[i_row, :] = np.exp(exp_scale * len_sqr_row ** corr_exp)
         return self.cov_mat
 
     def _eigen_value_estimate(self, m):
