@@ -2,7 +2,7 @@ import numpy as np
 import scipy as sc
 import scipy.stats
 import uuid
-
+import os
 
 class Level:
     """
@@ -10,7 +10,7 @@ class Level:
     There are information about random variable - average, dispersion, number of simulation, ...
     """
 
-    def __init__(self, sim_factory, previous_level_sim, moments_object, precision):
+    def __init__(self, sim_factory, previous_level_sim, moments_object, precision, num):
         """
         :param sim_factory: method that create instance of particular simulation class
         :param previous_level_sim: fine simulation on previous level
@@ -18,6 +18,7 @@ class Level:
         :param precision: current level number / total number of all levels
         """
         self.data = []
+        self.num = num
 
         # Instance of object Simulation
         self.fine_simulation = sim_factory(precision)
@@ -36,7 +37,7 @@ class Level:
 
         # Default number of simulations is 10
         # that is enough for estimate variance
-        self.number_of_simulations = 10
+        self.number_of_simulations=10
         # Run simulations
         self.level()
 
@@ -99,14 +100,16 @@ class Level:
             # Set random array to coarse step simulation
             self.coarse_simulation._input_sample = self.fine_simulation.get_coarse_sample()
             # Run simulations
-            return self.fine_simulation.cycle(uuid.uuid1()), self.coarse_simulation.cycle(uuid.uuid1())
+            return self.fine_simulation.cycle(uuid.uuid1()), self.coarse_simulation.cycle(uuid.uuid1()) 
         # First level doesn't have coarse simulation
         else:
             # Generate random array
             self.fine_simulation.generate_random_sample()
+
             # Run simulations
             return self.fine_simulation.cycle(uuid.uuid1()), None
 
+ 
     def level(self):
         """
         Implements level of MLMC
@@ -136,9 +139,8 @@ class Level:
                                 fine_sim) is not None and self.coarse_simulation.extract_result(coarse_sim) is not None:
                             self.data.append((self.fine_simulation.extract_result(fine_sim),
                                               self.coarse_simulation.extract_result(coarse_sim)))
-
-                        # Remove simulations pair from running simulations
-                        self.running_simulations.pop(index)
+                            # Remove simulations pair from running simulations
+                            self.running_simulations.pop(index)
                 except ExpWrongResult as e:
                     print(e.message)
 

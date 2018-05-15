@@ -1,3 +1,4 @@
+
 """Module containing an expanded python gmsh class"""
 from __future__ import print_function
 
@@ -60,7 +61,7 @@ class GmshIO:
         while line:
             line = mshfile.readline()
             line = line.strip()
-
+           
             if line.startswith('$'):
                 if line == '$NOD' or line == '$Nodes':
                     readmode = 1
@@ -79,7 +80,7 @@ class GmshIO:
                 if readmode == 5:
                     if len(columns) == 3:
                         self.physical[str(columns[2])] = (int(columns[1]), int(columns[0]))
-
+                       
                 if readmode == 4:
                     if len(columns) == 3:
                         vno, ftype, dsize = (float(columns[0]),
@@ -208,7 +209,7 @@ class GmshIO:
         mshfile.close()
 
     def write_element_data(self, f, ele_ids, name, values):
-        n_els = values.shape[0]
+        n_els = values.shape[0] 
         n_comp = np.atleast_1d(values[0]).shape[0]
         np.reshape(values, (n_els, n_comp))
         header_dict = dict(
@@ -218,7 +219,7 @@ class GmshIO:
             n_components=n_comp,
             n_els=n_els
         )
-
+   
         header = "1\n" \
                  "\"{field}\"\n" \
                  "{time}\n" \
@@ -229,15 +230,15 @@ class GmshIO:
 
         f.write('$ElementData\n')
         f.write(header)
-
+        
         for ele_id, value_row in zip(ele_ids, values):
             if isinstance(value_row, list):
                 value_line = " ".join([str(val) for val in value_row])
-            else:
+            else: 
                 value_line = str(value_row).strip()
             f.write("{} {}\n".format(ele_id.astype(int), value_line))
         f.write('$EndElementData\n')
-
+        
     def write_fields(self, msh_file, ele_ids, fields):
         """
         Creates input data msh file for Flow model.
@@ -252,3 +253,4 @@ class GmshIO:
             fout.write('$MeshFormat\n2.2 0 8\n$EndMeshFormat\n')
             for name, values in fields.items():
                 self.write_element_data(fout, ele_ids, name, values)
+

@@ -1,4 +1,5 @@
 import numpy as np
+from result_level import ResultLevel
 
 
 class Result:
@@ -17,6 +18,7 @@ class Result:
         self.moments_number = moments_number
         self.levels = None
 
+
         self._mc_data = []
         self._mc_levels = []
         self.levels = []
@@ -25,6 +27,7 @@ class Result:
         self._levels_number = None
         # Each level values (fine_step - coarse_step)
         self.levels_data = []
+        self.extract_levels = 0
 
     @property
     def mc_levels(self):
@@ -140,3 +143,33 @@ class Result:
 
         self.moments = moments
         return [mean for mean, var in moments]
+
+    def extract_data(self, path=None):
+        self.extract_levels = 0
+        if path is None:
+            path = "data"
+        with open(path, "r") as reader:
+            lines = reader.readlines()
+
+            for index, line in enumerate(lines):
+                if line.strip() == "LEVEL":
+                    if index > 1:
+                        self.extract_levels += 1
+                        self.mc_levels.append(current_level)
+                    current_level = ResultLevel()
+                    reader.readline()
+                    level_index = index
+                elif level_index == index -1:
+                    current_level.number_of_simulations = int(line.strip())
+                elif level_index == index -2:
+                    current_level.n_ops = float(line.strip())
+                else:
+                    data = line.strip().split(" ")
+                    current_level.data.append((float(data[0].strip())*(-1), float(data[1].strip())*(-1)))
+            if len(current_level.data) > 9:
+                self.mc_levels.append(current_level)
+            self.extract_levels += 1
+
+    def add_level_moments_object(self, moments_object):
+        for level in self.mc_levels:
+            level.moments_object = moments_object

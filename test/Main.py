@@ -1,4 +1,9 @@
 import time as t
+import os
+import sys, os
+myPath = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, myPath + '/../src/')
+import shutil
 import math
 from test.simulation_test import SimulationTest as TestSim
 from test.result import Result
@@ -8,7 +13,7 @@ import scipy as sc
 import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.distributions.empirical_distribution import ECDF
-from mlmc.distribution import Distribution
+from src.mlmc.distribution import Distribution
 
 
 class Main:
@@ -16,7 +21,7 @@ class Main:
     Class launchs MLMC
     """
     def main(*args):
-        pocet_urovni = 2
+        pocet_urovni = 5
         pocet_vykonani = 1
         moments_number = 5
         bounds = []
@@ -29,7 +34,7 @@ class Main:
         my_config = []
 
         sim_factory = lambda t_level=None: TestSim.make_sim(my_config, (10, 100), t_level)
-        function = mo = Monomials(moments_number)
+        function = mo = FourierFunctions(moments_number)
 
         for i in range(pocet_vykonani):
             mo.eps = eps
@@ -45,7 +50,7 @@ class Main:
             #m.number_of_simulations = [10000, 500, 100]
 
             # type, time or variance
-            variance = [1e-3, 1e-3, 1e-1, 1e-1, 1e-1, 1e-3, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-3, 1e-5, 1e-5, 1e-5]
+            variance = [1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-3, 1e-5, 1e-5, 1e-5]
             #variance = [1e-3, 1e+3, 1e+6, 1e+8, 1e+8]
             m.set_target_variance(variance)
             m.refill_samples()
@@ -136,9 +141,21 @@ class Main:
         print("Původní momenty", moments)
         print("Kullback-Leibler distance", KL_divergence)
 
+
+        path = "Result"
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        os.mkdir(path, 0o755);
+        if isinstance(function, Monomials):
+            m_func = "Monomialy"
+        else:
+            m_func = "Fourierovy funkce"
+        result.save_result(path, m_func)
+
         plt.figure(1)
         plt.plot(ecdf.x, ecdf.y)
         plt.plot(samples, distribution_function, 'r')
+        plt.savefig(path +"/distribution.png")
 
         ## Show approximate and exact density
 
@@ -146,7 +163,9 @@ class Main:
         plt.plot(samples, approximate_density, 'r')
         plt.plot(samples, [sc.stats.norm.pdf(sample, 2, 1) for sample in samples])
 
-        plt.show()
+        plt.savefig(path +"/density.png")
+
+        #plt.show()
 
         '''
         sum = 0

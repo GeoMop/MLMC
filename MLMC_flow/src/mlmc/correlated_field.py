@@ -14,6 +14,7 @@ class FieldSet:
       field that can be evaluated at any point.
     - we can not make hard wired model for any field set so this should be a base class that
       defines an interface and common methods but evaluation of the feild set is case dependent
+
     """
 
     def __init__(self, name, field):
@@ -22,7 +23,6 @@ class FieldSet:
         # decompose resulting fields as functions of the independent fields.
 
         self.field_names = [name]
-        self.length = 0
 
     def names(self):
         """
@@ -32,15 +32,8 @@ class FieldSet:
         return self.field_names
 
     def set_points(self, points):
-        self.other_level(len(points))
         for field in self._back_fields:
-            n = field.set_points(points)
-        return n
-
-    def other_level(self, length):
-        self._back_fields[0]._cov_l_factor = None
-        self._back_fields[0].length = length
-        self.length = length
+            field.set_points(points)
 
     def sample(self):
         """
@@ -93,8 +86,8 @@ class SpatialCorrelatedField:
         :param dim: dimension of the domain (size of point coords)
         :param corr_length: scalar, correlation length L > machine epsilon; tensor K = (1/L)^2
         :param aniso_correlation: 3x3 array; K tensor, overrides correlation length
-        :param mu - mu field (currently just a constant)
-        :param sigma - sigma field (currently just a constant)
+        :param mu - mu field (currently just a constant), can override by set_points parameters
+        :param sigma - sigma field (currently just a constant), can override by set_points parameters
 
         TODO: use kwargs and move set_points into constructor
         """
@@ -147,20 +140,18 @@ class SpatialCorrelatedField:
         self.n_points, self.dimension = points.shape
         self.points = points
 
-        """
         if mu is not None:
-            self.mu = np.array(mu, dtype=float)
+            self.mu = mu
+        self.mu = np.array(self.mu, dtype=float)
         assert self.mu.shape == () or self.mu.shape == (len(points),)
 
         if sigma is not None:
-            self.sigma = np.array(sigma, dtype=float)
-        assert self.mu.shape == () or sigma.shape == (len(points),)
-        """
+            self.sigma = sigma
+        self.sigma = np.array(self.sigma, dtype=float)
+        assert self.sigma.shape == () or sigma.shape == (len(points),)
 
         self.cov_mat = None
         self._cov_l_factor = None
-
-        return self.n_points
 
     def cov_matrix(self):
         """
@@ -175,6 +166,7 @@ class SpatialCorrelatedField:
         # sigma_sqr_mat = np.outer(self.sigma, self.sigma.T)
         self._sigma_sqr_max = np.max(self.sigma) ** 2
         n_pt = len(self.points)
+        print("len self.points", n_pt)
         self.cov_mat = np.empty( (n_pt, n_pt))
         corr_exp = self.correlation_exponent / 2.0
         exp_scale = - 1.0 / self.correlation_exponent
@@ -254,10 +246,9 @@ class SpatialCorrelatedField:
 
             m = len(ev)
             m = min(m, range[1])
-
         self.n_approx_terms = m
         self._sqrt_ev = np.sqrt(ev[0:m])
-        self._cov_l_factor = U[:self.length, 0:m].dot(sp.diag(self._sqrt_ev))
+        self._cov_l_factor = U[:, 0:m].dot(sp.diag(self._sqrt_ev))
         return self._cov_l_factor, ev[0:m]
 
     def sample(self, uncorelated=None):
@@ -265,21 +256,24 @@ class SpatialCorrelatedField:
         :param uncorelated: Random samples from standard normal distribution.
         :return: Random field evaluated in points given by 'set_points'.
         """
+
         if self._cov_l_factor is None:
             self.svd_dcmp()
         if uncorelated is None:
             uncorelated = np.random.normal(0, 1, self.n_approx_terms)
         else:
             assert uncorelated.shape == (self.n_approx_terms,)
-        field = (self.sigma * self._cov_l_factor.dot(uncorelated)) + self.mu
 
-        if not self.log:
+        field = (self.sigma * self._cov_l_factor.dot(uncorelated)) + self.mu
+        if self.log:
+            return np.exp(field)
+        else:
             return field
-        return np.exp(field)
 
 
 # =====================================================================
 # Example:
 """
 """
+
 

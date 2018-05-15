@@ -6,7 +6,6 @@ class MLMC:
     """
     Multi level monte carlo method
     """
-
     def __init__(self, number_of_levels, sim_factory, moments_object, pbs=None):
         """
         :param number_of_levels:    Number of levels
@@ -43,7 +42,7 @@ class MLMC:
         if self._pbs is not None:
             self._pbs.execute()
 
-        self._check_levels()
+        self._check_levels() 
 
     @property
     def levels(self):
@@ -88,12 +87,30 @@ class MLMC:
                 # Launch further simulations
                 level.level()
                 level.number_of_simulations = self.num_of_simulations[index]
-
+              
         if self._pbs is not None:
             self._pbs.execute()
         self._check_levels()
+        self.save_data()
+
+    def save_data(self):
+        """
+        Save results for future use
+        """
+        with open("data", "w") as fout:
+            for index, level in enumerate(self._levels):
+                fout.write("LEVEL" + "\n")
+                fout.write(str(level.number_of_simulations) + "\n")
+                fout.write(str(level.n_ops_estimate()) + "\n")
+                for tup in level.data:
+                    fout.write(str(tup[0])+ " " + str(tup[1]))
+                    fout.write("\n")
+
 
     def _check_levels(self):
+        """
+        Check if all simulations are done
+        """
         not_done = True
         while not_done is True:
             not_done = False
@@ -106,14 +123,18 @@ class MLMC:
         Create new level add its to the array of levels
         """
         if self.current_level > 0:
-            previous_level_simulation = self._levels[self.current_level - 1].fine_simulation
+            previous_level_simulation = self._levels[self.current_level-1].fine_simulation
+            # Creating new Level instance
+            level = Level(self.simulation_factory, previous_level_simulation,
+                      self.moments_object, self.current_level / (self.number_of_levels-1), self.current_level)
+
         else:
             # For first level the previous level fine simulation doesn't exist
             previous_level_simulation = None
 
-        # Creating new Level instance
-        level = Level(self.simulation_factory, previous_level_simulation,
-                      self.moments_object, self.current_level / self.number_of_levels)
+            # Creating new Level instance
+            level = Level(self.simulation_factory, previous_level_simulation,
+                      self.moments_object, 0, self.current_level)
 
         self._levels.append(level)
         self.current_level += 1
@@ -135,20 +156,20 @@ class MLMC:
     def set_target_variance(self, target_variance):
         """
         For each level counts new N according to target_variance
-        :return: array
+         :return: array
         """
         # Loop through levels
         # Count new number of simulations for each level
+
         for level in self._levels:
             new_num_of_sim_pom = []
-
             for index, moment in enumerate(level.moments[1:]):
-                amount = sum([np.sqrt(level.moments[index + 1][1] * level.n_ops_estimate()) for level in self._levels])
+                amount = sum([np.sqrt(level.moments[index+1][1] * level.n_ops_estimate()) for level in self._levels])
 
                 new_num_of_sim_pom.append(np.round((amount * np.sqrt(np.abs(moment[1]) / level.n_ops_estimate()))
-                                                   / target_variance[index]).astype(int))
+                / target_variance[index]).astype(int))
             self.num_of_simulations.append(np.max(new_num_of_sim_pom))
-
+       
     def _count_sum(self):
         """
         Loop through levels and count sum of variance * simulation step

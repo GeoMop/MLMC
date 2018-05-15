@@ -44,7 +44,7 @@ class Simulation:
         Calculate particular simulation parameter
         :param sim_param_range: Tuple or list of two items, range of simulation parameters
         :param t_level: current level / total number of levels, it means 'precision' of current level fine simulation
-        :return: float
+        :return: int
         """
         assert 0 <= t_level <= 1
         return sim_param_range[0] ** (1 - t_level) * sim_param_range[1] ** t_level
@@ -59,4 +59,5 @@ class Simulation:
         :return: Particular simulation object
         """
         sim_par = Simulation.log_interpolation(sim_par_range, t_level)
+
         return cls(config, sim_par)
