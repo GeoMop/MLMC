@@ -7,6 +7,7 @@ import numpy as np
 import shutil
 # from operator import add
 import mlmc.simulation as simulation
+import mlmc.correlated_field as correlated_field
 
 # from unipath import Path
 
@@ -88,13 +89,13 @@ class FlowSim(simulation.Simulation):
 
         FlowSim.total_sim_id += 1
         self.env = flow_dict['env']
-        self.fields = flow_dict['fields']
+        self.fields_names = flow_dict['field_name']
+        self.fields = None
         self.base_yaml_file = flow_dict['yaml_file']
         self.base_geo_file = flow_dict['geo_file']
         self.mesh_step = mesh_step
         # Pbs script creater
         self.pbs_creater = self.env["pbs"]
-        self.n = 0
 
         # Set in _make_mesh
         self.points = None
@@ -123,7 +124,7 @@ class FlowSim(simulation.Simulation):
         super(simulation.Simulation, self).__init__()
 
     def n_ops_estimate(self):
-        return self.mesh_step
+        return self.n_fine_elements
 
     def _make_mesh(self, geo_file, mesh_file):
         """
@@ -136,32 +137,27 @@ class FlowSim(simulation.Simulation):
 
         mesh = gmsh_io.GmshIO(mesh_file)
         is_bc_region = {}
-
-        for name, (id, dim) in mesh.physical.items():
+       
+        for name, (id, dim) in mesh.physical.items():      
             is_bc_region[id] = (name[1] == '.')
-        # get number of bc elements
-        n_bulk_el = 0
-        for id, el in mesh.elements.items():
-            type, tags, i_nodes = el
-            region_id = tags[0]
-            if not is_bc_region[region_id]:
-                n_bulk_el += 1
-
+         
         n_ele = len(mesh.elements)
-        self.points = np.zeros((n_bulk_el, 2))
-        self.ele_ids = np.zeros(n_bulk_el, dtype=int)
+        self.points = np.zeros((n_ele, 2))
+        self.ele_ids = np.zeros(n_ele)
         i = 0
-
+       
         for id, el in mesh.elements.items():
             type, tags, i_nodes = el
             region_id = tags[0]
             if is_bc_region[region_id]:
+                self.points = np.delete(self.points, [i], axis=0)
+                self.ele_ids = np.delete(self.ele_ids, i)     
                 continue
-
+            
             center = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)
             self.points[i] = center[0:2]
             self.ele_ids[i] = id
-            i += 1
+            i += 1    
 
     def _substitute_yaml(self, yaml_tmpl, yaml_out):
         """
@@ -170,7 +166,7 @@ class FlowSim(simulation.Simulation):
         """
         param_dict = {}
         field_tmpl = "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
-        for field in self.fields.names():
+        for field in self.fields_names["names"]:
             param_dict[field] = field_tmpl % (self.FIELDS_FILE, field)
         param_dict[self.MESH_FILE_PLACEHOLDER] = self.mesh_file
         substitute_placeholders(yaml_tmpl, yaml_out, param_dict)
@@ -183,12 +179,16 @@ class FlowSim(simulation.Simulation):
         Here in particular set_points to the field generator
         :param coarse_sim
         """
-        both_centers = self.points
+        cond_field = correlated_field.SpatialCorrelatedField(corr_exp=self.fields_names["corr_exp"], dim=self.fields_names["dim"], corr_length=self.fields_names["corr_length"], log=self.fields_names['log'])
+        self.fields = correlated_field.FieldSet("conductivity", cond_field)
+
+
         if coarse_sim is not None:
             coarse_centers = coarse_sim.points
             both_centers = np.concatenate((self.points, coarse_centers), axis=0)
-        self.fields.set_points(both_centers)
-        self.n = both_centers.shape[0]
+            self.fields.set_points(both_centers)
+        else:
+            self.fields.set_points(self.points)       
         self.n_fine_elements = self.points.shape[0]
 
     # Needed by Level
@@ -199,12 +199,9 @@ class FlowSim(simulation.Simulation):
         :return:
         """
         # assert self._is_fine_sim
-        if self.fields.length != self.n:
-            self.fields.other_level(self.n)
-
         fields_sample = self.fields.sample()
-        self._input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
-        self._coarse_sample = {name: values[self.n_fine_elements:, None] for name, values in fields_sample.items()}
+        self._input_sample = {name: values[:self.n_fine_elements] for name, values in fields_sample.items()}
+        self._coarse_sample = {name: values[self.n_fine_elements:] for name, values in fields_sample.items()}
 
     def get_coarse_sample(self):
         """
@@ -232,11 +229,11 @@ class FlowSim(simulation.Simulation):
         sample_dir = os.path.join(self.work_dir, out_subdir)
         force_mkdir(sample_dir)
         fields_file = os.path.join(sample_dir, self.FIELDS_FILE)
-
+        
         gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
 
         # Add flow123d realization to pbs script
-        self.pbs_creater.add_realization(len(self.points), output_subdir=out_subdir,
+        self.pbs_creater.add_realization(self.n_fine_elements, output_subdir=out_subdir,
                                          work_dir=self.work_dir,
                                          flow123d=self.env['flow123d'])
         return sample_tag, sample_dir
@@ -254,32 +251,33 @@ class FlowSim(simulation.Simulation):
         sample_tag, sample_dir = run_token
 
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
+            try:
+                # extract the flux
+                balance_file = os.path.join(sample_dir, "water_balance.yaml")
+                with open(balance_file, "r") as f:
+                    balance = yaml.load(f)
 
-            # extract the flux
-            balance_file = os.path.join(sample_dir, "water_balance.yaml")
-            with open(balance_file, "r") as f:
-                balance = yaml.load(f)
+                # TODO: we need to move this part out of the library as soon as possible
+                # it has to be changed for every new input file or different observation.
+                # However in Analysis it is already done in general way.
+                flux_regions = ['.bc_outflow']
+                total_flux = 0.0
+                found = False
+                for flux_item in balance['data']:
+                    if flux_item['time'] > 0:
+                        break
 
-            # TODO: we need to move this part out of the library as soon as possible
-            # it has to be changed for every new input file or different observation.
-            # However in Analysis it is already done in general way.
-            flux_regions = ['.bc_outflow']
-            total_flux = 0.0
-            found = False
-            for flux_item in balance['data']:
-                if flux_item['time'] > 0:
-                    break
+                    if flux_item['region'] in flux_regions:
+                        flux = float(flux_item['data'][0])
+                        flux_in = float(flux_item['data'][1])
+                        if flux_in > 1e-10:
+                            raise Exception("Possitive inflow at outlet region.")
+                        total_flux += flux  # flux field
+                        found = True
 
-                if flux_item['region'] in flux_regions:
-                    flux = float(flux_item['data'][0])
-                    flux_in = float(flux_item['data'][1])
-                    if flux_in > 1e-10:
-                        raise Exception("Possitive inflow at outlet region.")
-                    total_flux += flux  # flux field
-                    found = True
-
-            if not found:
-                raise Exception("Observation region not found.")
-            return total_flux
+                if not found:
+                    raise Exception("Observation region not found.")
+                return total_flux
+            except: return 0
         else:
             return None
