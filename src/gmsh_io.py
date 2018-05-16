@@ -208,6 +208,16 @@ class GmshIO:
         mshfile.close()
 
     def write_element_data(self, f, ele_ids, name, values):
+        """
+        Write given element data to the MSH file. Write only a single '$ElementData' section.
+        :param f: Output file stream.
+        :param ele_ids: Iterable giving element ids of N value rows given in 'values'
+        :param name: Field name.
+        :param values: np.array (N, L); N number of elements, L values per element (components)
+        :return:
+
+        TODO: Generalize to time dependent fields.
+        """
         n_els = values.shape[0]
         n_comp = np.atleast_1d(values[0]).shape[0]
         np.reshape(values, (n_els, n_comp))
@@ -221,6 +231,7 @@ class GmshIO:
 
         header = "1\n" \
                  "\"{field}\"\n" \
+                 "1\n" \   
                  "{time}\n" \
                  "3\n" \
                  "{time_idx}\n" \
@@ -229,13 +240,10 @@ class GmshIO:
 
         f.write('$ElementData\n')
         f.write(header)
-
+        assert len(values.shape) == 2
         for ele_id, value_row in zip(ele_ids, values):
-            if isinstance(value_row, list):
-                value_line = " ".join([str(val) for val in value_row])
-            else:
-                value_line = str(value_row).strip()
-            f.write("{} {}\n".format(ele_id.astype(int), value_line))
+            value_line = " ".join([str(val) for val in value_row])
+            f.write("{} {}\n".format(ele_id, value_line))
         f.write('$EndElementData\n')
 
     def write_fields(self, msh_file, ele_ids, fields):

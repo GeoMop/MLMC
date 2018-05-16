@@ -32,15 +32,15 @@ class FieldSet:
         return self.field_names
 
     def set_points(self, points):
-        self.other_level(len(points))
+        #self.other_level(len(points))
         for field in self._back_fields:
-            n = field.set_points(points)
-        return n
+            field.set_points(points)
 
-    def other_level(self, length):
-        self._back_fields[0]._cov_l_factor = None
-        self._back_fields[0].length = length
-        self.length = length
+
+    # def other_level(self, length):
+    #     self._back_fields[0]._cov_l_factor = None
+    #     self._back_fields[0].length = length
+    #     self.length = length
 
     def sample(self):
         """
@@ -147,20 +147,22 @@ class SpatialCorrelatedField:
         self.n_points, self.dimension = points.shape
         self.points = points
 
-        """
+
         if mu is not None:
-            self.mu = np.array(mu, dtype=float)
+            self.mu = mu
+        self.mu = np.array(self.mu, dtype=float)
         assert self.mu.shape == () or self.mu.shape == (len(points),)
 
         if sigma is not None:
-            self.sigma = np.array(sigma, dtype=float)
-        assert self.mu.shape == () or sigma.shape == (len(points),)
-        """
+            self.sigma = sigma
+        self.sigma = np.array(self.sigma, dtype=float)
+        assert self.sigma.shape == () or sigma.shape == (len(points),)
+
 
         self.cov_mat = None
         self._cov_l_factor = None
 
-        return self.n_points
+        #return self.n_points
 
     def cov_matrix(self):
         """
@@ -257,7 +259,7 @@ class SpatialCorrelatedField:
 
         self.n_approx_terms = m
         self._sqrt_ev = np.sqrt(ev[0:m])
-        self._cov_l_factor = U[:self.length, 0:m].dot(sp.diag(self._sqrt_ev))
+        self._cov_l_factor = U[:, 0:m].dot(sp.diag(self._sqrt_ev))
         return self._cov_l_factor, ev[0:m]
 
     def sample(self, uncorelated=None):

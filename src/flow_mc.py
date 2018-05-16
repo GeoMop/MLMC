@@ -139,18 +139,23 @@ class FlowSim(simulation.Simulation):
 
         for name, (id, dim) in mesh.physical.items():
             is_bc_region[id] = (name[1] == '.')
+        # get number of bc elements
+        n_bulk_el = 0
+        for id, el in mesh.elements.items():
+            type, tags, i_nodes = el
+            region_id = tags[0]
+            if not is_bc_region[region_id]:
+                n_bulk_el += 1
 
         n_ele = len(mesh.elements)
-        self.points = np.zeros((n_ele, 2))
-        self.ele_ids = np.zeros(n_ele)
+        self.points = np.zeros((n_bulk_el, 2))
+        self.ele_ids = np.zeros(n_bulk_el, dtype=int)
         i = 0
 
         for id, el in mesh.elements.items():
             type, tags, i_nodes = el
             region_id = tags[0]
             if is_bc_region[region_id]:
-                self.points = np.delete(self.points, [i], axis=0)
-                self.ele_ids = np.delete(self.ele_ids, i)
                 continue
 
             center = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)
@@ -178,12 +183,12 @@ class FlowSim(simulation.Simulation):
         Here in particular set_points to the field generator
         :param coarse_sim
         """
+        both_centers = self.points
         if coarse_sim is not None:
             coarse_centers = coarse_sim.points
             both_centers = np.concatenate((self.points, coarse_centers), axis=0)
-            self.n = self.fields.set_points(both_centers)
-        else:
-            self.n = self.fields.set_points(self.points)
+        self.fields.set_points(both_centers)
+        self.n = both_centers.shape[0]
         self.n_fine_elements = self.points.shape[0]
 
     # Needed by Level
@@ -198,8 +203,8 @@ class FlowSim(simulation.Simulation):
             self.fields.other_level(self.n)
 
         fields_sample = self.fields.sample()
-        self._input_sample = {name: values[:self.n_fine_elements] for name, values in fields_sample.items()}
-        self._coarse_sample = {name: values[self.n_fine_elements:] for name, values in fields_sample.items()}
+        self._input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
+        self._coarse_sample = {name: values[self.n_fine_elements:, None] for name, values in fields_sample.items()}
 
     def get_coarse_sample(self):
         """
