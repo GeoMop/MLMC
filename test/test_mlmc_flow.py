@@ -8,13 +8,13 @@ import flow_mc as flow_mc
 import mlmc.correlated_field as correlated_field
 from mlmc.moments import Monomials, FourierFunctions
 import mlmc.mlmc
-from result import Result
+#from result import Result
 from mlmc.distribution import Distribution
 import numpy as np
 import matplotlib
 # matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-from simulation_test import SimulationTest as SimT
+#from simulation_test import SimulationTest as SimT
 from scipy.stats.mstats import mquantiles
 from flow_pbs import FlowPbs
 import scipy as sc
@@ -73,16 +73,16 @@ def test_mlmc_flow():
                           names=["conductivity"])
 
     yaml_path = os.path.join(file_dir, '01_cond_field', '01_conductivity.yaml')
-    geo_path = "/storage/liberec1-tul/home/martin_spetlik/MLMC/test/01_cond_field/square_1x1.geo"
+    geo_path = os.path.join(file_dir, '01_cond_field', 'square_1x1.geo')
 
-    yaml_path = os.path.abspath(yaml_path)
-    if geo_path is None:
-        pass
-        # geo_path = os.path.splitext(yaml_path)[0] + '.geo'
-        # geo_path = "/storage/01_cond_field/square_1x1.geo"
+    #yaml_path = os.path.abspath(yaml_path)
+    #if geo_path is None:
+    #    pass
+    #    # geo_path = os.path.splitext(yaml_path)[0] + '.geo'
+    #    # geo_path = "/storage/01_cond_field/square_1x1.geo"
     
     step_range = (1, 0.08) 
-    my_config = {
+    simulation_config = {
         'env': env,  # The Environment.
         'field_name': corr_field_dict,  # correlated_field.FieldSet object
         'yaml_file': yaml_path,  # The template with a mesh and field placeholders
@@ -90,13 +90,13 @@ def test_mlmc_flow():
         'geo_file': geo_path  # The file with simulation geometry (independent of the step)
     }
          
-    sim_factory = lambda t_level=None: flow_mc.FlowSim.make_sim(my_config, step_range, t_level)
+    simultion_factory = lambda t_level: flow_mc.FlowSim.make_sim(simulation_config, step_range, t_level)
  
     n_levels=5
     n_moments=20
-    result = Result(n_moments)
+    #result = Result(n_moments)
     moments_function = FourierFunctions(n_moments)  # JS TODO: This should set a single moment function corresponding to the mean value. 
-    mc = mlmc.mlmc.MLMC(n_levels, sim_factory, moments_function, pbs)
+    mc = mlmc.mlmc.MLMC(n_levels, simultion_factory, moments_function, pbs)
     #mc.set_target_variance([1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5,
     #                        1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5,
     #                        1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5,

@@ -143,7 +143,7 @@ class FlowSim(simulation.Simulation):
          
         n_ele = len(mesh.elements)
         self.points = np.zeros((n_ele, 2))
-        self.ele_ids = np.zeros(n_ele)
+        self.ele_ids = np.zeros(n_ele, dtype=int)
         i = 0
        
         for id, el in mesh.elements.items():
@@ -200,8 +200,8 @@ class FlowSim(simulation.Simulation):
         """
         # assert self._is_fine_sim
         fields_sample = self.fields.sample()
-        self._input_sample = {name: values[:self.n_fine_elements] for name, values in fields_sample.items()}
-        self._coarse_sample = {name: values[self.n_fine_elements:] for name, values in fields_sample.items()}
+        self._input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
+        self._coarse_sample = {name: values[self.n_fine_elements:, None] for name, values in fields_sample.items()}
 
     def get_coarse_sample(self):
         """
@@ -229,7 +229,7 @@ class FlowSim(simulation.Simulation):
         sample_dir = os.path.join(self.work_dir, out_subdir)
         force_mkdir(sample_dir)
         fields_file = os.path.join(sample_dir, self.FIELDS_FILE)
-        
+                
         gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
 
         # Add flow123d realization to pbs script

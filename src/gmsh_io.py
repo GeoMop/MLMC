@@ -231,7 +231,7 @@ class GmshIO:
 
         header = "1\n" \
                  "\"{field}\"\n" \
-                 "1\n" \   
+                 "1\n" \
                  "{time}\n" \
                  "3\n" \
                  "{time_idx}\n" \
@@ -243,7 +243,7 @@ class GmshIO:
         assert len(values.shape) == 2
         for ele_id, value_row in zip(ele_ids, values):
             value_line = " ".join([str(val) for val in value_row])
-            f.write("{} {}\n".format(ele_id, value_line))
+            f.write("{:d} {}\n".format(int(ele_id), value_line))
         f.write('$EndElementData\n')
 
     def write_fields(self, msh_file, ele_ids, fields):
