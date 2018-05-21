@@ -10,16 +10,20 @@ class Level:
     There are information about random variable - average, dispersion, number of simulation, ...
     """
 
-    def __init__(self, sim_factory, previous_level_sim, moments_object, precision, num):
+    def __init__(self, sim_factory, previous_level_sim, moments_object, precision):
         """
         :param sim_factory: method that create instance of particular simulation class
         :param previous_level_sim: fine simulation on previous level
         :param moments_object: object for calculating statistical moments
         :param precision: current level number / total number of all levels
         """
-        self.data = []
-        self.num = num
+        # Reference to all created simulations.
+        #self.simulations = []
 
+        # Collected data samples, pairs (fine, coarse)
+        self.data = []
+
+        self.is_zero_level = (precision == 0.0)
         # Instance of object Simulation
         self.fine_simulation = sim_factory(precision)
         # TODO: coarse_simulation can be different to previous_level_sim if they have same mean value
@@ -31,9 +35,9 @@ class Level:
 
         # Initialization of variables
         self._result = []
-        self._moments = []
-        self.moments_object = moments_object
-        self.moments_estimate = []
+        #self._moments = []
+        #self.moments_object = moments_object
+        #self.moments_estimate = []
 
         # Default number of simulations is 10
         # that is enough for estimate variance
@@ -57,29 +61,29 @@ class Level:
             raise TypeError("Simulation results must be list")
         self._result = result
 
-    @property
-    def moments(self):
-        """
-        Result moments
-        :return: array of moments
-        """
-        self.get_moments()
-        return self._moments
+    # @property
+    # def moments(self):
+    #     """
+    #     Result moments
+    #     :return: array of moments
+    #     """
+    #     self.get_moments()
+    #     return self._moments
 
-    @moments.setter
-    def moments(self, moments):
-        if not isinstance(moments, list):
-            raise TypeError("Moments must be list")
-        self._moments = moments
+    # @moments.setter
+    # def moments(self, moments):
+    #     if not isinstance(moments, list):
+    #         raise TypeError("Moments must be list")
+    #     self. = moments
 
-    def get_moments(self):
-        """
-        Get moments from results of simulations on this level
-        :return: array, moments
-        """
-        self.moments = self.level_moments()
-        if len(self.moments_estimate) == 0:
-            self.moments_estimate = self._moments
+    # def get_moments(self):
+    #     """
+    #     Get moments from results of simulations on this level
+    #     :return: array, moments
+    #     """
+    #     self.moments = self.level_moments()
+    #     if len(self.moments_estimate) == 0:
+    #         self.moments_estimate = self._moments
 
     def n_ops_estimate(self):
         """
@@ -148,52 +152,34 @@ class Level:
             return True
         return False
 
-    def level_moments(self):
-        """
-        Count moments from level data
-        :return: array, moments
-        """
-        self.moments_object.bounds = sc.stats.mstats.mquantiles(self.result, prob=[self.moments_object.eps,
-                                                                                   1 - self.moments_object.eps])
-        return self.count_moments(self.data)
 
-    def count_moments(self, level_data):
+    def estimate_diff_mean(self, moments_obj = None):
         """
-        Count moments
-        :param level_data: array of tuples (fine step result, coarse step result)
+        Compute estimate of mead of the level difference:
+            E{ M_r(fine_samples) - M_r(coarse_samples) }
+        :param moments_obj: Function to compute moment matrix (shape NxR) for given samples vector (shape N).
+                            If None just the mean moment is computed
         :return: array, moments
         """
-        level_results = {}
-        level_results["fine"] = []
-        level_results["coarse"] = []
-        # Initialize array of moments
-        moments = []
+
+        #moments_obj.bounds = sc.stats.mstats.mquantiles(self.result, prob=[moments_obj.eps,
+        #
+        if moments_obj is None:
+            moments_obj = Mome
 
         # Separate fine step result and coarse step result
-        for data in level_data:
-            level_results["fine"].append(data[0])
-            level_results["coarse"].append(data[1])
-        coarse_var = np.var(level_results["coarse"])
+        fine, coarse = zip(*self.data)
+        fine_values = np.array(fine)
+        coarse_values = np.array(coarse)
+        fine_moments = moments_obj.get_moments(fine_values)
+        if self.is_zero_level:
+            coarse_moments = np.zeros_like(fine_moments)
+        else:
+            coarse_moments = moments_obj.get_moments(coarse_values)
+        diff_mean = np.mean(fine_moments - coarse_moments)
+        diff_var = np.var(fine_moments - coarse_moments, ddof = 1)
 
-        # Count moment for each degree
-        for degree in range(self.moments_object.n_moments):
-            fine_coarse_diff = []
-            for lr_fine, lr_coarse in zip(level_results["fine"], level_results["coarse"]):
-                # Moment for fine step result
-                fine = self.moments_object.get_moments(lr_fine, degree)
-
-                # For first level use only fine step result
-                if coarse_var != 0:
-                    # Moment from coarse step result
-                    coarse = self.moments_object.get_moments(lr_coarse, degree)
-                    fine_coarse_diff.append(fine - coarse)
-                else:
-                    # Add subtract moment from coarse step result from moment from fine step result
-                    fine_coarse_diff.append(fine)
-
-            # Append moment to other moments
-            moments.append((np.mean(np.array(fine_coarse_diff)), np.var(np.array(fine_coarse_diff))))
-        return moments
+        return diff_mean, diff_var
 
 
 class ExpWrongResult(Exception):

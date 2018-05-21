@@ -1,8 +1,8 @@
 import os
 import sys
 import shutil
-myPath = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, myPath + '/../src/')
+src_path = os.path.dirname(os.path.abspath(__file__))
+sys.path.append( os.path.join(src_path, '..', 'src'))
 
 import flow_mc as flow_mc
 import mlmc.correlated_field as correlated_field
@@ -48,14 +48,16 @@ def test_mlmc_flow():
     file_dir = os.path.dirname(os.path.realpath(__file__))
 
     # Make flow123 wrapper script.
-    flow123d = "/storage/praha1/home/jan_brezina/local/flow123d_2.2.0/flow123d"
+    flow123d = os.path.join(src_path, 'mocks', 'flow_mock')
 
     # GMSH (make empty mesh)
     # gmsh = "/usr/bin/gmsh"
-    gmsh = "/storage/liberec1-tul/home/martin_spetlik/astra/gmsh/bin/gmsh"
-
+    #gmsh = "/storage/liberec1-tul/home/martin_spetlik/astra/gmsh/bin/gmsh"
+    gmsh = "/home/jb/local/gmsh-3.0.5-git-Linux/bin/gmsh"
     # Charon setting:
-    pbs = FlowPbs("scripts", qsub=True)
+    pbs = FlowPbs("scripts",
+                  qsub=True,
+                  qsub_cmd=os.path.join(src_path, 'mocks', 'qsub'),)
     pbs.pbs_common_setting(n_cores=1,
         n_nodes=1,
         mem='4gb',
@@ -103,7 +105,7 @@ def test_mlmc_flow():
     #                        1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5,
     #                        1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5
     #                       ])
-    mc.num_of_simulations = [20, 20, 20, 20, 20]
+    mc.num_of_simulations = [10, 10, 10, 10, 10]
     mc.refill_samples()
 
 test_mlmc_flow()

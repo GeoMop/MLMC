@@ -16,7 +16,7 @@ class FlowPbs:
             FlowPbs()
         return FlowPbs.__instance
 
-    def __init__(self, work_dir="", steps_sum=200000, qsub=False):
+    def __init__(self, work_dir="", steps_sum=200000, qsub=False, qsub_cmd="qsub"):
         # Number of simulation steps for first pbs script execution
         self.steps_sum = steps_sum
         self.current_steps_sum = self.steps_sum
@@ -35,6 +35,7 @@ class FlowPbs:
         self.pbs_script_heading = None
         # Use -qsub
         self.pbs_qsub = qsub
+        self.qsub_cmd = qsub_cmd
 
         if FlowPbs.__instance is not None:
             raise Exception("This class is a singleton!")
@@ -83,7 +84,7 @@ class FlowPbs:
             f.write(self.pbs_script)
         os.chmod(pbs_file, 0o774)  # Make exectutable to allow direct call.
         if self.pbs_qsub is True:
-            subprocess.call("qsub " + pbs_file, shell=True)
+            subprocess.call(self.qsub_cmd + " " + pbs_file, shell=True)
         else:
             subprocess.call(pbs_file)
 

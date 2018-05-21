@@ -2,7 +2,7 @@ import os
 import os.path
 import yaml
 import subprocess
-import gmsh_io as gmsh_io
+import gmsh_io
 import numpy as np
 import shutil
 # from operator import add
