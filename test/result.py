@@ -1,5 +1,5 @@
 import numpy as np
-from result_level import ResultLevel
+from test.result_level import ResultLevel
 
 
 class Result:

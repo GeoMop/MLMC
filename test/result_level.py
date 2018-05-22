@@ -156,9 +156,9 @@ class ResultLevel(Level):
         """
         self.moments_object.bounds = sc.stats.mstats.mquantiles(self.result, prob=[self.moments_object.eps,
                                                                                    1 - self.moments_object.eps])
-        return self.count_moments(self.data)
+        return self.compute_moments(self.data)
 
-    def count_moments(self, level_data):
+    def compute_moments(self, level_data):
         """
         Count moments
         :param level_data: array of tuples (fine step result, coarse step result)

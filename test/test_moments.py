@@ -1,51 +1,59 @@
 """
 Test class monomials
 """
-import math
+import numpy as np
 import mlmc.moments
 
-MONOMIALS = mlmc.moments.Monomials()
 
-def test_get_moments():
-    """
-    Test get moments method
-    """
-    assert MONOMIALS.get_moments(2, 2) == 4
-    assert MONOMIALS.get_moments(-2, 2) == 4
-    assert MONOMIALS.get_moments(0, 1) == 0
-    assert MONOMIALS.get_moments(0.1, 1) == 0.1
-
-    MONOMIALS.mean = 1
-    assert MONOMIALS.get_moments(2, 2) == 1
-    assert MONOMIALS.get_moments(-2, 2) == 9
-    assert MONOMIALS.get_moments(0, 1) == -1
+def test_monomials():
+    # Natural domain (0,1).
+    moments_fn  = mlmc.moments.monomial_moments
+    values = np.array([-2, -1, -0.5, 0, 0.5, 1, 2])
+    size = 5
+    moments = moments_fn(values, size)
+    for r in range(size):
+        assert np.allclose(moments[:, r], values**r)
 
 
-"""
-Test fourier functions class
-"""
+    # Given domain (a,b).
+    a, b = (-1, 3)
+    moments = moments_fn((b - a)*values + a , size, a, b)
+    for r in range(size):
+        assert np.allclose(moments[:, r], values**r)
 
-FOURIER = mlmc.moments.FourierFunctions()
-
-def test_get_moments():
-    """
-    Test get moments method
-    """
-    FOURIER.bounds = [-10, 10]
-    assert FOURIER.get_moments(10, 0) == 1
-    assert FOURIER.get_moments(0, 2) == -1
-    assert FOURIER.get_moments(10, 4) == 1
-    assert FOURIER.get_moments(-10, 4) == 1
-    assert FOURIER.get_moments(0, 3) < 0
-    assert FOURIER.get_moments(10, 5) < 0
-    assert FOURIER.get_moments(-2, 5) > 0
+    # Approximate mean.
+    values = np.random.randn(1000)
+    moments = moments_fn(values, 2)
+    assert np.abs( np.mean(moments[:, 1]) ) < 0.1
 
 
-def test_change_interval():
-    """
-    Test change interval method
-    """
-    FOURIER.bounds = [-10, 10]
-    assert FOURIER.change_interval(-10) == 0
-    assert FOURIER.change_interval(10) == 2*math.pi
-    assert math.pi == FOURIER.change_interval(0)
+
+
+def test_fourier():
+    # Natural domain (0,1).
+    moments_fn = mlmc.moments.fourier_moments
+
+    values = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+    size = 6
+    moments = moments_fn(values, size)
+    values = 2*np.pi* values
+    ref = [ np.ones_like(values), np.cos(values), np.sin(values), np.cos(2*values), np.sin(2*values), np.cos(3*values)]
+    assert np.allclose(np.array(ref).T, moments)
+
+    # Given domain (a,b).
+    a, b = (-1, 3)
+    moments = moments_fn((b - a)*values + a , size, a, b)
+    values = 2 * np.pi * values
+    ref = [ np.ones_like(values), np.cos(values), np.sin(values), np.cos(2*values), np.sin(2*values), np.cos(3*values)]
+    assert np.allclose(np.array(ref).T, moments)
+
+
+def test_legendere():
+    # Natural domain (0,1).
+    moments_fn = mlmc.moments.legendre_moments
+
+    values = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+    size = 4
+    moments = moments_fn(values, size, -1.0, 1.0)
+    ref = [ np.ones_like(values), values, (3*values**2 - 1.0) / 2.0, (5*values**3 - 3 * values) / 2.0]
+    assert np.allclose(np.array(ref).T, moments)

@@ -106,7 +106,7 @@ class Main:
 
         # Run distribution
         distribution = Distribution(function, moments_number, moments, toleration)
-        distribution.newton_method()
+        distribution.estimate_density()
 
         # Empirical distribution function
         ecdf = ECDF(mc_data)

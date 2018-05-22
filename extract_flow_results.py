@@ -88,7 +88,7 @@ class ExtractResult:
 
             # Run distribution
             distribution = Distribution(moments_object, moments_number, moments, toleration)
-            distribution.newton_method()
+            distribution.estimate_density()
 
             # Empirical distribution function
             # ecdf = ECDF(mc_data)
