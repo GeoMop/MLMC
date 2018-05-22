@@ -27,8 +27,9 @@ and given moment functions.
 import numpy as np
 import scipy.stats as stats
 import scipy.integrate as integrate
-import matplotlib.pyplot as plt
-import matplotlib as mpl
+
+#import matplotlib.pyplot as plt
+#import matplotlib as mpl
 import sys
 
 #sys.path.insert(0, '/home/martin/Documents/MLMC/src')
