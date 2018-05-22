@@ -1,24 +1,11 @@
 import time as t
-import os
 import sys, os
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../src/')
-import shutil
-import math
 import csv
-from test.simulation_test import SimulationTest as TestSim
 from test.result import Result
-from mlmc.mlmc import MLMC
-from mlmc.moments import Monomials, FourierFunctions
-import scipy as sc
+from mlmc.moments import FourierFunctions
 import numpy as np
-import matplotlib.pyplot as plt
-from statsmodels.distributions.empirical_distribution import ECDF
-from src.mlmc.distribution import Distribution
-import scipy.stats as st
-from scipy.stats import norm
-import scipy.misc as sm
-import pynverse as pv
 
 
 def main(*args):

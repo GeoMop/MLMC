@@ -20,3 +20,10 @@ for rel_path in rel_paths:
 sys.path = [ x for x in sys.path if x not in {this_source_dir, ''} ]
 print(sys.path)
 
+#https://stackoverflow.com/questions/37563396/deleting-py-test-tmpdir-directory-after-successful-test-case
+# @pytest.fixture(scope='session')
+# def temporary_dir(tmpdir_factory):
+#     img = compute_expensive_image()
+#     fn = tmpdir_factory.mktemp('data').join('img.png')
+#     img.save(str(fn))
+#     return fn

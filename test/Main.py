@@ -1,11 +1,10 @@
 import time as t
-import os
 import sys, os
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../src/')
 import shutil
 import math
-from test.simulation_test import SimulationTest as TestSim
+from test.simulations.simulation_test import SimulationTest as TestSim
 from test.result import Result
 from mlmc.mlmc import MLMC
 from mlmc.moments import Monomials, FourierFunctions

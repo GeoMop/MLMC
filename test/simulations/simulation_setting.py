@@ -1,7 +1,7 @@
 import numpy as np
-from test.simulation_water import SimulationWater as sim_water
-from test.simulation_shooting import SimulationShooting as sim_shooting
-from test.simulation_test import SimulationTest as sim_test
+from test.simulations.simulation_water import SimulationWater as sim_water
+from test.simulations.simulation_shooting import SimulationShooting as sim_shooting
+from test.simulations.simulation_test import SimulationTest as sim_test
 
 
 class SimulationSetting:

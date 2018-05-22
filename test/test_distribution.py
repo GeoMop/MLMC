@@ -139,10 +139,10 @@ def plot_approximations(dist, args, approx_objs):
 
 
 def test_distribution():
-    #moment_fns = [mlmc.moments.monomial_moments, mlmc.moments.fourier_moments, mlmc.moments.legendre_moments]
-    moment_fns = [mlmc.moments.monomial_moments]
+    moment_fns = [mlmc.moments.monomial_moments, mlmc.moments.fourier_moments, mlmc.moments.legendre_moments]
+    #moment_fns = [mlmc.moments.monomial_moments]
     distrs = [
-        #(stats.norm, dict(loc=1.0, scale=2.0)),
+        (stats.norm, dict(loc=1.0, scale=2.0)),
         (stats.lognorm, dict(s=0.5, scale=np.exp(2.0)))
         ]
 
@@ -150,7 +150,7 @@ def test_distribution():
         approx_objs = []
         for fn in moment_fns:
             approx_objs.append(check_distr_approx(fn, distr, args))
-        plot_approximations(distr, args, approx_objs)
+        #plot_approximations(distr, args, approx_objs)
 
 
 # shape = 0.1
