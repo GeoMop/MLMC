@@ -2,15 +2,18 @@
 
 
 import pytest
-import statprof
 import numpy as np
 import numpy.linalg as la
-import matplotlib
-#matplotlib.use("agg")
-import matplotlib.pyplot as plt
-#plt.switch_backend('agg')
 
 from mlmc.correlated_field import SpatialCorrelatedField
+
+# Only for debugging
+#import statprof
+#import matplotlib
+#matplotlib.use("agg")
+#import matplotlib.pyplot as plt
+#plt.switch_backend('agg')
+
 #import scipy.interpolate as sc_inter
 #import scipy.stats as sc_stat
 
