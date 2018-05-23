@@ -7,10 +7,9 @@ class Distribution:
     """
     def __init__(self, moments_fn, moment_data, positive_distr = False):
         """
-        :param moments_fce: Function for calculating moments
-        :param moments_number: Number of moments
-        :param moments: Moments 
-        :param toleration: Accuracy tolerance solution
+        :param moments_fn: Function for calculating moments
+        :param moment_data: Array  of moments or tuple (moments, variance).
+        :param positive_distr: Indication of distribution for a positive variable.
         """
         # Family of moments basis functions.
         self.moments_basis = moments_fn
@@ -22,15 +21,11 @@ class Distribution:
         self.domain = None
 
         # Approximation of moment values.
-        if len(moment_data.shape) == 1:
-            moment_data = moment_data[:, None]
-        self.moment_means = moment_data[:, 0]
-
-        # Optional variance of approximation.
-        if moment_data.shape[1] == 2:
-            self.moment_vars = moment_data[:, 1]
+        if type(moment_data) is tuple:
+            self.moment_means, self.moment_vars = moment_data
         else:
-            self.moment_vars = np.ones_like(self.moment_means)
+            self.moment_means, self.moment_vars = moment_data, np.ones_like(self.moment_means)
+
 
         # Force density with positive support.
         self.is_positive = positive_distr

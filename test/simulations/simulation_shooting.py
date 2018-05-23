@@ -25,7 +25,7 @@ class SimulationShooting(Simulation):
 
         super(SimulationShooting, self).__init__()
 
-    def cycle(self, sim_id):
+    def simulation_sample(self, sim_id):
         """
         Simulation of 2D shooting 
         :param sim_id:    simulation id

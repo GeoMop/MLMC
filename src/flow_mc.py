@@ -43,16 +43,17 @@ def substitute_placeholders(file_in, file_out, params):
         dst.write(text)
 
 
-def force_mkdir(path):
+def force_mkdir(path, force=False):
     """
     Make directory 'path' with all parents,
     remove the leaf dir recoursively if it already exists.
     :param path:
     :return:
     """
-    if os.path.isdir(path):
-        shutil.rmtree(path)
-    os.makedirs(path)
+    if force:
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+    os.makedirs(path, mode=0o775, exist_ok=True)
 
 
 class FlowSim(simulation.Simulation):
@@ -89,13 +90,14 @@ class FlowSim(simulation.Simulation):
 
         FlowSim.total_sim_id += 1
         self.env = flow_dict['env']
-        self.fields_names = flow_dict['field_name']
+        self.field_config = flow_dict['field_name']
         self.fields = None
         self.base_yaml_file = flow_dict['yaml_file']
         self.base_geo_file = flow_dict['geo_file']
-        self.mesh_step = mesh_step
+        self.step = mesh_step
         # Pbs script creater
         self.pbs_creater = self.env["pbs"]
+        remove_old = flow_dict["remove_old"]
 
         # Set in _make_mesh
         self.points = None
@@ -105,8 +107,8 @@ class FlowSim(simulation.Simulation):
 
         # Prepare base workdir for this mesh_step
         base_dir = os.path.dirname(self.base_yaml_file)
-        self.work_dir = os.path.join(base_dir, 'sim_%d_step_%f' % (self.sim_id, self.mesh_step))
-        force_mkdir(self.work_dir)
+        self.work_dir = os.path.join(base_dir, 'output', 'sim_%d_step_%f' % (self.sim_id, self.step))
+        force_mkdir(self.work_dir, remove_old)
 
         # Prepare mesh
         geo_file = os.path.join(self.work_dir, self.GEO_FILE)
@@ -133,7 +135,7 @@ class FlowSim(simulation.Simulation):
         using common fields_step.msh file for generated fields.
         :return:
         """
-        subprocess.call([self.env['gmsh'], "-2", '-clscale', str(self.mesh_step), '-o', mesh_file, geo_file])
+        subprocess.call([self.env['gmsh'], "-2", '-clscale', str(self.step), '-o', mesh_file, geo_file])
 
         mesh = gmsh_io.GmshIO(mesh_file)
         is_bc_region = {}
@@ -166,12 +168,12 @@ class FlowSim(simulation.Simulation):
         """
         param_dict = {}
         field_tmpl = "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
-        for field in self.fields_names["names"]:
+        for field in self.field_config["names"]:
             param_dict[field] = field_tmpl % (self.FIELDS_FILE, field)
         param_dict[self.MESH_FILE_PLACEHOLDER] = self.mesh_file
         substitute_placeholders(yaml_tmpl, yaml_out, param_dict)
 
-    def set_previous_fine_sim(self, coarse_sim=None):
+    def set_coarse_sim(self, coarse_sim=None):
         """
         Set coarse simulation ot the fine simulation so that the fine can generate the
         correlated input data sample for both.
@@ -179,16 +181,19 @@ class FlowSim(simulation.Simulation):
         Here in particular set_points to the field generator
         :param coarse_sim
         """
-        cond_field = correlated_field.SpatialCorrelatedField(corr_exp=self.fields_names["corr_exp"], dim=self.fields_names["dim"], corr_length=self.fields_names["corr_length"], log=self.fields_names['log'])
+        self.coarse_sim = coarse_sim
+
+        cond_field = correlated_field.SpatialCorrelatedField(**self.field_config)
         self.fields = correlated_field.FieldSet("conductivity", cond_field)
 
 
-        if coarse_sim is not None:
+        if self.coarse_sim is  None:
+            self.fields.set_points(self.points)
+        else:
             coarse_centers = coarse_sim.points
             both_centers = np.concatenate((self.points, coarse_centers), axis=0)
             self.fields.set_points(both_centers)
-        else:
-            self.fields.set_points(self.points)       
+
         self.n_fine_elements = self.points.shape[0]
 
     # Needed by Level
@@ -201,16 +206,17 @@ class FlowSim(simulation.Simulation):
         # assert self._is_fine_sim
         fields_sample = self.fields.sample()
         self._input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
-        self._coarse_sample = {name: values[self.n_fine_elements:, None] for name, values in fields_sample.items()}
+        if self.coarse_sim is not None:
+            self.coarse_sim._input_sample = {name: values[self.n_fine_elements:, None] for name, values in fields_sample.items()}
 
-    def get_coarse_sample(self):
-        """
-        Return coarse part of generated field.
-        :return:
-        """
-        return self._coarse_sample
+    # def get_coarse_sample(self):
+    #     """
+    #     Return coarse part of generated field.
+    #     :return:
+    #     """
+    #     return self._coarse_sample
 
-    def cycle(self, sample_tag):
+    def simulation_sample(self, sample_tag):
         """
         Evaluate model using generated or set input data sample.
         :param sample_tag: A unique ID used as work directory of the single simulation run.
@@ -238,7 +244,7 @@ class FlowSim(simulation.Simulation):
                                          flow123d=self.env['flow123d'])
         return sample_tag, sample_dir
 
-    def extract_result(self, run_token):
+    def extract_result(self, sample_tuple):
         """
         Extract the observed value from the Flow123d output.
         Get sample from the field restriction, write to the GMSH file, call flow.
@@ -248,8 +254,7 @@ class FlowSim(simulation.Simulation):
         TODO: Pass an extraction function as other FlowSim parameter. This function will take the
         balance data and retun observed values.
         """
-        sample_tag, sample_dir = run_token
-
+        sample_dir = sample_tuple[1]
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             try:
                 # extract the flux

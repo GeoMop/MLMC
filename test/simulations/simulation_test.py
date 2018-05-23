@@ -13,7 +13,7 @@ class SimulationTest(Simulation):
         self.sim_param = sim_param
         self._result_dict = {}
 
-    def cycle(self, sim_id, last_sim=False):
+    def simulation_sample(self, tag):
         """
         Run simulation
         :param sim_id:    Simulation id
@@ -25,9 +25,9 @@ class SimulationTest(Simulation):
 
         self.simulation_result = x
         # vrati sim_id, result, metoda extract result
-        self._result_dict[sim_id] = self.simulation_result
+        self._result_dict[tag] = self.simulation_result
 
-        return sim_id
+        return tag
 
     def generate_random_sample(self):
         self._input_sample = np.random.lognormal(0, 0.5)
@@ -48,7 +48,7 @@ class SimulationTest(Simulation):
     def mesh_step(self, step):
         self.sim_param = step
 
-    def set_previous_fine_sim(self, coarse_simulation):
+    def set_coarse_sim(self, coarse_simulation):
         self._coarse_simulation = coarse_simulation
 
     def extract_result(self, sim_id):

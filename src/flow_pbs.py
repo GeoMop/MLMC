@@ -2,45 +2,40 @@ import os
 import os.path
 import shutil
 import subprocess
+import yaml
 
 
 class FlowPbs:
-    __instance = None
 
-    @staticmethod
-    def get_instance():
+    def __init__(self, work_dir="", package_weight=200000, qsub=None):
         """
-        Getting instance, class is singleton
-        """
-        if FlowPbs.__instance is None:
-            FlowPbs()
-        return FlowPbs.__instance
 
-    def __init__(self, work_dir="", steps_sum=200000, qsub=False, qsub_cmd="qsub"):
-        # Number of simulation steps for first pbs script execution
-        self.steps_sum = steps_sum
-        self.current_steps_sum = self.steps_sum
+        :param work_dir:
+        :param package_weight:
+        :param qsub: string with qsub command.
+        """
+        # Weight of the single PBS script (putting more small jobs into single PBS job).
+        self.package_weight = package_weight
+        # Current collected weight.
+        self._current_package_weight = 0
+        # Number of executed packages.
+        self._package_count = 0
+        # Work dir for scripts and PBS files.
         self.work_dir = work_dir
+
+        # Fresh work dir.
         if os.path.isdir(self.work_dir):
             shutil.rmtree(self.work_dir)
-        os.mkdir(self.work_dir, 0o755);
-        # Script header
-        self.pbs_script = ["#!/bin/bash",
-                           '#PBS -S /bin/bash',
-                           '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}',
-                           '#PBS -q {queue}',
-                           '#PBS -N Flow123d',
-                           '#PBS -j oe',
-                           '']
-        self.pbs_script_heading = None
-        # Use -qsub
-        self.pbs_qsub = qsub
-        self.qsub_cmd = qsub_cmd
+        os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
 
-        if FlowPbs.__instance is not None:
-            raise Exception("This class is a singleton!")
-        else:
-            FlowPbs.__instance = self
+        # Lines to put at the beginning of the PBS script.
+        self.pbs_script_heading = None
+        self.pbs_script = None
+        # Set q sub command or direct execution.
+        self.qsub_cmd = qsub
+
+        self.log_path = os.path.join(self.work_dir, "simulation_log.yaml")
+        self.simulation_log = open(self.log_path, "w")
 
     def pbs_common_setting(self, **kwargs):
         """
@@ -48,18 +43,27 @@ class FlowPbs:
         :param kwargs: dict with params vales
         :return: None
         """
-        lines = [line.format(**kwargs) for line in self.pbs_script]
+        # Script header
+        pbs_header_template = ["#!/bin/bash",
+                           '#PBS -S /bin/bash',
+                           '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}',
+                           '#PBS -q {queue}',
+                           '#PBS -N Flow123d',
+                           '#PBS -j oe',
+                           '']
 
-        self.pbs_script = "\n".join(lines)
-        self.pbs_script_heading = self.pbs_script
+        self.pbs_script_heading = [line.format(**kwargs) for line in pbs_header_template]
+        self.clean_script()
 
-    def add_realization(self, steps, **kwargs):
+    def add_realization(self, weight, **kwargs):
         """
         Append new flow123d realization to the existing script content
-        :param steps: current simulation steps
+        :param weight: current simulation steps
         :param kwargs: dict with params
         :return: None
         """
+        assert self.pbs_script is not None
+
         lines = [
             'cd {work_dir}',
             'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out 2>&1',
@@ -67,26 +71,30 @@ class FlowPbs:
             'touch FINISHED',
             '']
         lines = [line.format(**kwargs) for line in lines]
-        self.pbs_script = self.pbs_script + "\n".join(lines)
+        self.pbs_script.extend(lines)
 
-        self.current_steps_sum -= steps
-        if self.current_steps_sum < 0:
+        self._current_package_weight += weight
+        if self._current_package_weight > self.package_weight:
             self.execute()
-            self.current_steps_sum = self.steps_sum
+            self._current_package_weight = 0
 
     def execute(self):
         """
         Execute script 
         :return: None
         """
-        pbs_file = os.path.join(self.work_dir, "pbs_script.sh")
+        if self.pbs_script is None:
+            return
+        script_content = "\n".join(self.pbs_script)
+        pbs_file = os.path.join(self.work_dir, "package_{:04d}.sh".format(self._package_count))
+        self._package_count += 1
         with open(pbs_file, "w") as f:
-            f.write(self.pbs_script)
+            f.write(script_content)
         os.chmod(pbs_file, 0o774)  # Make exectutable to allow direct call.
-        if self.pbs_qsub is True:
-            subprocess.call(self.qsub_cmd + " " + pbs_file, shell=True)
-        else:
+        if self.qsub_cmd is None:
             subprocess.call(pbs_file)
+        else:
+            subprocess.call(self.qsub_cmd + " " + pbs_file, shell=True)
 
         # Clean script for other usage
         self.clean_script()
@@ -97,3 +105,18 @@ class FlowPbs:
         :return: None
         """
         self.pbs_script = self.pbs_script_heading
+
+    def log_simulations(self, level, simulations, values=None):
+        status = 'R' if values is None else 'F'
+        value = None
+        lines = []
+        for i, sim_pair in enumerate(simulations):
+            if values is not None:
+                value = values[i].tolist()
+            line = dict(
+                status=status,
+                level=level,
+                sim=sim_pair,
+                value=value)
+            lines.append(line)
+        self.simulation_log.write(yaml.safe_dump(lines))

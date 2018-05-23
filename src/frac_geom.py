@@ -5,7 +5,7 @@ import geomop.polygons_io as poly_io
 import geomop.format_last as lg
 import geomop.layers_io
 import geomop.geometry
-from geomop.plot_polygons import plot_polygon_decomposition
+#from geomop.plot_polygons import plot_polygon_decomposition
 
 
 

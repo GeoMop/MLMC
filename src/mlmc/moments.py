@@ -1,33 +1,33 @@
 import numpy as np
 
 
-class Moments:
-    """
-    Class for moments of random distribution
-    """
-    def __init__(self, n_moments):
-        self.mean = 0.0
-        self._bounds = None
-        self._moments_function = None
-        self.n_moments = n_moments
-        self.fixed_quad_n = n_moments
-        self.eps = 0
-
-    @property
-    def bounds(self):
-        """
-        Bounds of random variable
-        :return: array 
-        """
-        return self._bounds
-
-    @bounds.setter
-    def bounds(self, bounds):
-        if len(bounds) != 2:
-            raise TypeError("Bounds should have two items")
-        if bounds[1] < bounds[0]:
-            raise ValueError("Second bound must be greater than the first one")
-        self._bounds = bounds
+# class Moments:
+#     """
+#     Class for moments of random distribution
+#     """
+#     def __init__(self, n_moments):
+#         self.mean = 0.0
+#         self._bounds = None
+#         self._moments_function = None
+#         self.n_moments = n_moments
+#         self.fixed_quad_n = n_moments
+#         self.eps = 0
+#
+#     @property
+#     def bounds(self):
+#         """
+#         Bounds of random variable
+#         :return: array
+#         """
+#         return self._bounds
+#
+#     @bounds.setter
+#     def bounds(self, bounds):
+#         if len(bounds) != 2:
+#             raise TypeError("Bounds should have two items")
+#         if bounds[1] < bounds[0]:
+#             raise ValueError("Second bound must be greater than the first one")
+#         self._bounds = bounds
 
 
 def moment_argument_scale(value, a=0.0, b=None, target = (0.0, 1.0)):
@@ -84,7 +84,7 @@ def fourier_moments(value, size=1, a=0.0, b=None):
     return res
 
 
-def legendre_moments(value, size=1, a=0.0, b=None, safe_eval=False):
+def legendre_moments(value, size=1, a=0.0, b=None, safe_eval=True):
     """
     Evaluate Legendere polynomials basis on (a,b) interval in given points.
     :param value: value or np.array of length N
@@ -95,5 +95,14 @@ def legendre_moments(value, size=1, a=0.0, b=None, safe_eval=False):
     """
     transformed = moment_argument_scale(value, a, b, target = (-1.0, 1.0))
     if safe_eval:
-        transformed = np.minimum(1.0, np.maximum(0.0, transformed))
+
+        mask = transformed < -1.0
+        n_out = np.sum(mask)
+        transformed[mask] = -1.0
+        mask = transformed > 1.0
+        n_out += np.sum(mask)
+        transformed[mask] = 1.0
+        #transformed = np.minimum(1.0, np.maximum(-1.0, transformed))
+        if n_out > 0:
+            print("N outlayers: ", n_out)
     return np.polynomial.legendre.legvander(transformed, deg = size - 1)

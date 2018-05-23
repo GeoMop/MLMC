@@ -16,24 +16,33 @@ class Simulation:
         self._config = config
         # Fine simulation step
         self._simulation_step = 0
-        self.sim_param = sim_param
+        self.step = sim_param
         self._input_sample = []
         self._coarse_simulation = None
 
-    def cycle(self):
+    def set_coarse_sim(self, coarse_sim):
+        """
+        Must be called, it is part of initialization.
+        :param coarse_sim:
+        :return:
+        """
+        pass
+
+    def simulation_sample(self, tag):
+        # Forward simulatino for generated input.
         pass
 
     def n_ops_estimate(self):
-        return self.sim_param
+        # complexity function
+        return self.step
 
     def generate_random_sample(self):
+        # Create new correlated random input for both fine and (related) coarse simulation
         pass
 
-    def get_coarse_sample(self):
-        pass
+    # def get_coarse_sample(self):
+    #     pass
 
-    def set_previous_fine_sim(self, coarse_sim):
-        pass
 
     def extract_result(self):
         return self._simulation_result

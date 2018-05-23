@@ -1,98 +1,161 @@
 import numpy as np
 from mlmc.mc_level import Level
-
+import time
 
 class MLMC:
     """
     Multi level monte carlo method
     """
-    def __init__(self, number_of_levels, sim_factory, moments_object, pbs=None):
+    def __init__(self, n_levels, sim_factory, pbs=None):
         """
         :param number_of_levels:    Number of levels
         :param sim:                 Instance of object Simulation
-        :param moments_object:      Instance of moments object
         """
+
         # Object of simulation
         self.simulation_factory = sim_factory
         # Array of level objects
         self.levels = []
-        for i_level in range(number_of_levels):
+        for i_level in range(n_levels):
             previous = self.levels[-1].fine_simulation if i_level else None
-            level_param = i_level / (number_of_levels - 1)
-            level = Level(self.simulation_factory, previous, moments_object, level_param)
+            if n_levels == 1:
+                level_param = 1
+            else:
+                level_param = i_level / (n_levels - 1)
+            level = Level(i_level, self.simulation_factory, previous, level_param)
             self.levels.append(level)
 
         # Time of all mlmc
         self.target_time = None
         # Variance of all mlmc
         self.target_variance = None
-        # Number of levels
-        self.number_of_levels = number_of_levels
         # The fines simulation step
 
-        self.num_of_simulations = []
-        # It is used if want to have fixed number of simulations
-        self._number_of_samples = None
-        # Instance of selected moments object
-        self.moments_object = moments_object
-        # Calculated number of samples
-        self._num_of_samples = None
+        # self.num_of_simulations = []
+        # # It is used if want to have fixed number of simulations
+        # self._number_of_samples = None
+        # # Calculated number of samples
+        # self._num_of_samples = None
 
         self._pbs = pbs
 
-        # Create levels
-        if self._pbs is not None:
-            self._pbs.execute()
-
-        self._check_levels() 
-
-
-
-    def set_target_time(self, target_time):
-        """
-        For each level counts new N according to target_time
-        :return: array
-        """
-        amount = self._count_sum()
-        # Loop through levels
-        # Count new number of simulations for each level
-        for level in self.levels:
-            new_num_of_sim = np.round((target_time * np.sqrt(level.variance / level.n_ops_estimate()))
-                                      / amount).astype(int)
-
-            self.num_of_simulations.append(new_num_of_sim)
-
-    def set_target_variance(self, target_variance):
-        """
-        For each level counts new N according to target_variance
-         :return: array
-        """
-        # Loop through levels
-        # Count new number of simulations for each level
-
-        for level in self.levels:
-            new_num_of_sim_pom = []
-            for index, moment in enumerate(level.moments[1:]):
-                amount = sum([np.sqrt(level.moments[index+1][1] * level.n_ops_estimate()) for level in self.levels])
-
-                new_num_of_sim_pom.append(np.round((amount * np.sqrt(np.abs(moment[1]) / level.n_ops_estimate()))
-                / target_variance[index]).astype(int))
-            self.num_of_simulations.append(np.max(new_num_of_sim_pom))
+        # # Create levels
+        # if self._pbs is not None:
+        #     self._pbs.execute()
+        #
+        # self._check_levels()
 
     @property
-    def number_of_samples(self):
-        """
-        List of samples in each level
-        :return: array 
-        """
-        return self._number_of_samples
+    def n_levels(self):
+        return len(self.levels)
 
-    @number_of_samples.setter
-    def number_of_samples(self, num_of_sim):
-        if len(num_of_sim) < self.number_of_levels:
-            raise ValueError("Number of simulations must be list")
 
-        self._number_of_samples = num_of_sim
+    def estimate_diff_vars(self, moments_fn):
+        vars = []
+        n_samples = []
+        for level in self.levels:
+            v, n = level.estimate_diff_var(moments_fn)
+            vars.append(v)
+            n_samples.append(n)
+        return np.array(vars), np.array(n_samples)
+
+    def _varinace_regresion(self, raw_vars, n_samples, sim_steps):
+        L, R = raw_vars.shape
+        if L < 2:
+            return raw_vars
+
+        # estimate of variances, not use until we have model that fits well also for small levels
+        S = 1 / (n_samples - 1)  # shape L
+        W = np.sqrt(2 * S + 3 * S ** 2 + 2 * S ** 3)  # shape L
+
+        # Use linear regresion to improve esimtae of variances V1, ...
+        # model log var_{r,l} = a_r  + b * log step_l
+        # X_(r,l), j = dirac_{r,j}
+
+        X = np.zeros(( L, R-1, R))
+        X[:, :, :-1] = np.eye(R-1)
+        X[:, :, -1] = np.repeat(np.log(sim_steps[1:]), R-1).reshape((L, R-1))
+
+        # X = X*W[:, None, None]    # scale
+        X.shape = (-1, R)
+        # solve X.T * X = X.T * V
+
+
+
+        log_vars = np.log(raw_vars[:, 1:])     # omit first moment that is constant 1.0
+        #log_vars = W[:, None] * log_vars    # scale
+        params, res, rank, sing_vals = np.linalg.lstsq(X, log_vars.ravel())
+        new_vars = np.empty_like(raw_vars)
+        new_vars[:, 0] = raw_vars[:, 0]
+        assert np.allclose(raw_vars[:, 0], 0.0)
+        new_vars[:, 1:] = np.exp(np.dot(X, params)).reshape(L, -1)
+        #print(raw_vars - new_vars)
+        return new_vars
+
+    def estimate_diff_vars_regression(self, moments_fn):
+        vars, n_samples = self.estimate_diff_vars(moments_fn)
+        sim_steps = np.array([lvl.fine_simulation.step for lvl in self.levels])
+        vars[1:] = self._varinace_regresion(vars[1:], n_samples, sim_steps)
+        return vars
+
+    def set_initial_n_samples(self):
+        n0 = 30
+        nL = 7
+        L = max(2, self.n_levels)
+        factor = (n0 / nL)**(1 / (L-1))
+        n = n0
+        for i, level in enumerate(self.levels):
+            level.set_target_n_samples(int(n))
+            n /= factor
+
+    # def set_target_time(self, target_time):
+    #     """
+    #     For each level counts new N according to target_time
+    #     :return: array
+    #     """
+    #     vars =
+    #     amount = self._count_sum()
+    #     # Loop through levels
+    #     # Count new number of simulations for each level
+    #     for level in self.levels:
+    #         new_num_of_sim = np.round((target_time * np.sqrt(level.variance / level.n_ops_estimate()))
+    #                                   / amount).astype(int)
+    #
+    #         self.num_of_simulations.append(new_num_of_sim)
+
+
+    def set_target_variance(self, target_variance, moments_fn):
+        """
+        Estimate optimal number of samples for individual levels that should provide a target variance of
+        resulting moment estimate. Number of samples are directly set to levels.
+        TODO: separate target_variance per moment
+         :return: np.array with number of samples
+        """
+        vars = self.estimate_diff_vars_regression(moments_fn)
+        n_ops = np.array([lvl.n_ops_estimate() for lvl in self.levels])
+        sqrt_var_n = np.sqrt(vars.T * n_ops)    # moments in rows, levels in cols
+        total = np.sum(sqrt_var_n, axis=1)      # sum over levels
+        n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int) # moments in cols
+        n_samples_estimate_max = np.max(n_samples_estimate, axis=1)
+
+        for level, n  in zip(self.levels, n_samples_estimate_max):
+            level.set_target_n_samples(n)
+        return  n_samples_estimate
+
+    # @property
+    # def number_of_samples(self):
+    #     """
+    #     List of samples in each level
+    #     :return: array
+    #     """
+    #     return self._number_of_samples
+
+    # @number_of_samples.setter
+    # def number_of_samples(self, num_of_sim):
+    #     if len(num_of_sim) < self.number_of_levels:
+    #         raise ValueError("Number of simulations must be list")
+    #
+    #     self._number_of_samples = num_of_sim
 
     #def estimate_n_samples(self):
     #    # Count new number of simulations according to variance of time
@@ -105,51 +168,61 @@ class MLMC:
         """
         For each level counts further number of simulations by appropriate N
         """
-        for index, level in enumerate(self.levels):
-            if self.number_of_samples is not None:
-                self.num_of_simulations = self.number_of_samples
 
-            if level.number_of_simulations < self.num_of_simulations[index]:
-                level.number_of_simulations = self.num_of_simulations[index] - level.number_of_simulations
-                # Launch further simulations
-                level.level()
-                level.number_of_simulations = self.num_of_simulations[index]
-              
-        if self._pbs is not None:
-            self._pbs.execute()
-        self._check_levels()
-        self.save_data()
+        for level in (self.levels):
+            level.fill_samples(self._pbs)
 
-    def save_data(self):
+        self._pbs.execute()
+
+    def wait_for_simulations(self):
+        n_running = 1
+        while n_running > 0:
+            n_running=0
+            for level in self.levels:
+                n_running += level.collect_samples(self._pbs)
+            time.sleep(1)
+
+
+
+    def estimate_domain(self):
         """
-        Save results for future use
+        Estimate domain of the density function.
+        TODO: compute mean and variance and use quantiles of normal or lognormal distribution (done in Distribution)
+        :return:
         """
-        with open("data", "w") as fout:
-            for index, level in enumerate(self.levels):
-                fout.write("LEVEL" + "\n")
-                fout.write(str(level.number_of_simulations) + "\n")
-                fout.write(str(level.n_ops_estimate()) + "\n")
-                for tup in level.data:
-                    fout.write(str(tup[0])+ " " + str(tup[1]))
-                    fout.write("\n")
+        ranges = np.array([l.sample_range() for l in self.levels])
+        return (np.min(ranges[:,0]), np.max(ranges[:,1]))
 
 
-    def _check_levels(self):
-        """
-        Check if all simulations are done
-        """
-        not_done = True
-        while not_done is True:
-            not_done = False
-            for index, level in enumerate(self.levels):
-                if level.are_simulations_running():
-                    not_done = True
+    # def save_data(self):
+    #     """
+    #     Save results for future use
+    #     """
+    #     with open("data", "w") as fout:
+    #         for index, level in enumerate(self.levels):
+    #             fout.write("LEVEL" + "\n")
+    #             fout.write(str(level.number_of_simulations) + "\n")
+    #             fout.write(str(level.n_ops_estimate()) + "\n")
+    #             for tup in level.data:
+    #                 fout.write(str(tup[0])+ " " + str(tup[1]))
+    #                 fout.write("\n")
 
 
+    def estimate_moments(self, moments_fn):
+        """
+        Use collected samples to estimate moments and variance of this estimate.
+        :param moments_fn: Vector moment function, gives vector of moments for given sample or sample vector.
+        :return: estimate_of_moment_means, estimate_of_variance_of_estimate
+        """
+        means = np.sum([ lvl.estimate_diff_mean(moments_fn) for lvl in self.levels])
 
-    def _count_sum(self):
-        """
-        Loop through levels and count sum of variance * simulation step
-        :return: float sum
-        """
-        return sum([np.sqrt(level.variance * level.n_ops_estimate()) for level in self.levels])
+        vars = np.zeros_like(means)
+        for level in self.levels:
+            l_vars, n_samples = level.estimate_diff_var(moments_fn)
+            vars += l_vars / np.sqrt(n_samples)
+        return means, vars
+
+
+    def clean_levels(self):
+        for level in self.levels:
+            level.reset()
