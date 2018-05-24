@@ -168,7 +168,7 @@ class FlowSim(simulation.Simulation):
         """
         param_dict = {}
         field_tmpl = "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
-        for field in self.field_config["names"]:
+        for field in self.field_config.keys():
             param_dict[field] = field_tmpl % (self.FIELDS_FILE, field)
         param_dict[self.MESH_FILE_PLACEHOLDER] = self.mesh_file
         substitute_placeholders(yaml_tmpl, yaml_out, param_dict)
@@ -183,7 +183,7 @@ class FlowSim(simulation.Simulation):
         """
         self.coarse_sim = coarse_sim
 
-        cond_field = correlated_field.SpatialCorrelatedField(**self.field_config)
+        cond_field = correlated_field.SpatialCorrelatedField(**self.field_config['conductivity'])
         self.fields = correlated_field.FieldSet("conductivity", cond_field)
 
 
@@ -193,6 +193,7 @@ class FlowSim(simulation.Simulation):
             coarse_centers = coarse_sim.points
             both_centers = np.concatenate((self.points, coarse_centers), axis=0)
             self.fields.set_points(both_centers)
+
 
         self.n_fine_elements = self.points.shape[0]
 

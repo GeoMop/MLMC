@@ -11,10 +11,22 @@ class MLMC:
         :param number_of_levels:    Number of levels
         :param sim:                 Instance of object Simulation
         """
-
+        # System interaction object (FlowPBS)
+        self._pbs = pbs
         # Object of simulation
         self.simulation_factory = sim_factory
         # Array of level objects
+        self.create_levels(n_levels)
+        if pbs.collected_log_content is not None:
+            self.load_levels(pbs.collected_log_content)
+
+        # Time of all mlmc
+        self.target_time = None
+        # Variance of all mlmc
+        self.target_variance = None
+        # The fines simulation step
+
+    def create_levels(self, n_levels):
         self.levels = []
         for i_level in range(n_levels):
             previous = self.levels[-1].fine_simulation if i_level else None
@@ -25,25 +37,18 @@ class MLMC:
             level = Level(i_level, self.simulation_factory, previous, level_param)
             self.levels.append(level)
 
-        # Time of all mlmc
-        self.target_time = None
-        # Variance of all mlmc
-        self.target_variance = None
-        # The fines simulation step
-
-        # self.num_of_simulations = []
-        # # It is used if want to have fixed number of simulations
-        # self._number_of_samples = None
-        # # Calculated number of samples
-        # self._num_of_samples = None
-
-        self._pbs = pbs
-
-        # # Create levels
-        # if self._pbs is not None:
-        #     self._pbs.execute()
-        #
-        # self._check_levels()
+    def load_levels(self, sim_list):
+        self.clean_levels()
+        for sim in sim_list:
+            i_level, i, fine, coarse, value = sim
+            self.levels[i_level].finished_simulations.append( (i, fine, coarse) )
+        for level in self.levels:
+            level.sample_values = np.zeros((level.n_collected_samples, 2))
+            level.target_n_samples = level.n_collected_samples
+        for sim in sim_list:
+            i_level, i, fine, coarse, value = sim
+            self.levels[i_level].sample_values[i, :] = value
+        pass
 
     @property
     def n_levels(self):

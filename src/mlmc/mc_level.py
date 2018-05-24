@@ -70,7 +70,7 @@ class Level:
 
     @property
     def n_collected_samples(self):
-        return len(self.sample_values) - len(self.running_simulations)
+        return len(self.finished_simulations)
 
     def _get_sample_tag(self, char):
         return "L{:02d}_{}_S{:07d}".format(self.level_idx, char, self.n_total_samples)
@@ -149,11 +149,11 @@ class Level:
 
                 if fine_done and coarse_done:
                     # collect values
-                    self.finished_simulations.append( (fine_sim, coarse_sim) )
+                    self.finished_simulations.append( (idx, fine_sim, coarse_sim) )
                     self.sample_values[idx, :] = (fine_result, coarse_result)
                     # TODO: mark to sample file
                 else:
-                    new_running.append( (fine_sim, coarse_sim) )
+                    new_running.append( (idx, fine_sim, coarse_sim) )
 
             except ExpWrongResult as e:
                 print(e.message)
@@ -161,11 +161,11 @@ class Level:
 
         # log new collected simulation pairs
         new_finished = self.finished_simulations[orig_n_finised:]
-        new_values = self.sample_values[orig_n_finised:, :]
-        assert len(new_values) >= len(new_finished)
+        #new_values = self.sample_values[orig_n_finised:, :]
+        #assert len(new_values) >= len(new_finished)
         logger.log_simulations(self.level_idx,
                                new_finished,
-                               values=new_values)
+                               values=self.sample_values)
         return len(self.running_simulations)
 
     def evaluate_moments(self,  moments_fn):

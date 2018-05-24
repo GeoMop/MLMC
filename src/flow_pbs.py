@@ -7,7 +7,7 @@ import yaml
 
 class FlowPbs:
 
-    def __init__(self, work_dir=None, package_weight=200000, qsub=None):
+    def __init__(self, work_dir=None, package_weight=200000, qsub=None, reload=False):
         """
 
         :param work_dir: if None, means no logging and just direct execution.
@@ -29,15 +29,29 @@ class FlowPbs:
         # Set q sub command or direct execution.
         self.qsub_cmd = qsub
 
+        self.collected_log_content = None
+
         if work_dir is not None:
-            # Fresh work dir.
-            if os.path.isdir(self.work_dir):
-                shutil.rmtree(self.work_dir)
-            os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
+            log_running_file = os.path.join(self.work_dir, "running_log.yaml")
+            log_collected_file = os.path.join(self.work_dir, "collected_log.yaml")
+            open_flag = 'w'
+            if reload:
+                with open(log_collected_file, 'r') as f:
+                    self.collected_log_content = yaml.load(f)
+                open_flag = 'a'
+            else:
+                # Fresh work dir.
+                if os.path.isdir(self.work_dir):
+                    shutil.rmtree(self.work_dir)
+                os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
 
+            self.running_log = open(log_running_file, open_flag)
+            self.collected_log = open(log_collected_file, open_flag)
 
-            self.log_path = os.path.join(self.work_dir, "simulation_log.yaml")
-            self.simulation_log = open(self.log_path, "w")
+    def close(self):
+        self.running_log.close()
+        self.collected_log.close()
+
 
     def pbs_common_setting(self, **kwargs):
         """
@@ -111,16 +125,15 @@ class FlowPbs:
     def log_simulations(self, level, simulations, values=None):
         if self.work_dir is None:
             return
-        status = 'R' if values is None else 'F'
+        if values is None:
+            log_file = self.running_log
+        else:
+            log_file = self.collected_log
         value = None
         lines = []
-        for i, sim_pair in enumerate(simulations):
+        for i, fine, coarse in simulations:
             if values is not None:
                 value = values[i].tolist()
-            line = dict(
-                status=status,
-                level=level,
-                sim=sim_pair,
-                value=value)
+            line = [ level, i, fine, coarse, value ]
             lines.append(line)
-        self.simulation_log.write(yaml.safe_dump(lines))
+        log_file.write(yaml.safe_dump(lines))

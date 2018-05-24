@@ -56,11 +56,13 @@ def test_mlmc_flow():
         gmsh=gmsh,
         pbs=pbs
     )
-    corr_field_dict = dict(corr_exp='gauss',
-                          dim=2,
-                          corr_length=0.5, 
-                          log=True,
-                          names=["conductivity"])
+    corr_field_dict = dict(
+                          conductivity = dict (
+                            corr_exp='gauss',
+                            dim=2,
+                            corr_length=0.5,
+                            log=True
+                          ))
 
     yaml_path = os.path.join(file_dir, '01_cond_field', '01_conductivity.yaml')
     geo_path = os.path.join(file_dir, '01_cond_field', 'square_1x1.geo')
@@ -71,7 +73,7 @@ def test_mlmc_flow():
     #    # geo_path = os.path.splitext(yaml_path)[0] + '.geo'
     #    # geo_path = "/storage/01_cond_field/square_1x1.geo"
     
-    step_range = (1, 0.08) 
+    step_range = (1, 0.02)
     simulation_config = {
         'env': env,  # The Environment.
         'field_name': corr_field_dict,  # correlated_field.FieldSet object
@@ -84,7 +86,7 @@ def test_mlmc_flow():
     flow_mc.FlowSim.total_sim_id = 0
     simultion_factory = lambda t_level: flow_mc.FlowSim.make_sim(simulation_config, step_range, t_level)
  
-    n_levels=2
+    n_levels=5
     n_moments=5
     #result = Result(n_moments)
     mc = mlmc.mlmc.MLMC(n_levels, simultion_factory, pbs)
@@ -94,7 +96,7 @@ def test_mlmc_flow():
     #                        1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5,
     #                        1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5
     #                       ])
-    mc.set_initial_n_samples(7)
+    mc.set_initial_n_samples()
     #mc.num_of_simulations = [10, 10, 10, 10, 10]
     mc.refill_samples()
     mc.wait_for_simulations()
@@ -102,10 +104,10 @@ def test_mlmc_flow():
 
     #domain = (0, 6)
     moments_fn = lambda x,n=n_moments, a=domain[0], b=domain[1]:   mlmc.moments.legendre_moments(x, n, a, b)
-    mc.set_target_variance(0.1, moments_fn)
-    mc.refill_samples()
-    mc.wait_for_simulations()
+    #mc.set_target_variance(0.1, moments_fn)
+    #mc.refill_samples()
+    #mc.wait_for_simulations()
 
-    mlmc.distribution.Distribution(mlmc.moments.legendre_moments, positive_distr=True)
+    #mlmc.distribution.Distribution(mlmc.moments.legendre_moments, positive_distr=True)
 
 test_mlmc_flow()

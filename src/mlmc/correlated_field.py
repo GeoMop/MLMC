@@ -35,6 +35,7 @@ class FieldSet:
         #self.other_level(len(points))
         for field in self._back_fields:
             field.set_points(points)
+            field.svd_dcmp(n_terms_range=(10, 100))
 
 
     # def other_level(self, length):
@@ -257,6 +258,7 @@ class SpatialCorrelatedField:
             m = len(ev)
             m = min(m, range[1])
 
+        print("KL approximation: {} for {} points.".format(m, self.n_points))
         self.n_approx_terms = m
         self._sqrt_ev = np.sqrt(ev[0:m])
         self._cov_l_factor = U[:, 0:m].dot(sp.diag(self._sqrt_ev))

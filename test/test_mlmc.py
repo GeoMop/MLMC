@@ -10,6 +10,8 @@ import mlmc.distribution
 import numpy as np
 import flow_pbs
 
+src_path = os.path.dirname(os.path.abspath(__file__))
+
 
 def aux_sim(x,  h):
     return x +  h*np.sqrt(x)
@@ -331,7 +333,55 @@ def test_var_estimate():
     #statprof.display()
 
 
-# ... do something ...
+
+def test_save_load_samples():
+    # 1. make some somples in levels
+    # 2. copy key data from levels
+    # 3. clean levels
+    # 4. create new mlmc object
+    # 5. read stored data
+    # 6. check that they match the reference copy
+
+    #print("var: ", distr.var())
+    work_dir = '_test_tmp'
+    work_dir = os.path.join( os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+
+
+    n_levels = 5
+    distr = stats.norm()
+    step_range = (0.8, 0.01)
+    pbs = flow_pbs.FlowPbs(work_dir=work_dir)
+    simulation_config = dict(
+        distr= distr, complexity=2)
+    simultion_factory = lambda t_level: SimulationTest.make_sim(simulation_config, step_range, t_level)
+    mc = mlmc.mlmc.MLMC(n_levels, simultion_factory, pbs)
+    mc.set_initial_n_samples()
+    mc.refill_samples()
+    mc.wait_for_simulations()
+
+    # Copy level data
+    level_data = []
+    for level in mc.levels:
+        l_data  = (level.running_simulations.copy(),
+                   level.finished_simulations.copy(),
+                   level.sample_values)
+        level_data.append(l_data)
+
+    mc.clean_levels()
+    pbs.close()
+    # New mlmc
+    pbs = flow_pbs.FlowPbs(work_dir=work_dir, reload = True)
+    mc = mlmc.mlmc.MLMC(n_levels, simultion_factory, pbs)
+
+    # Test
+    for level, data in zip(mc.levels, level_data):
+        run, fin, values = data
+        assert run == level.running_simulations
+        assert fin == level.finished_simulations
+        assert np.allclose(values, level.sample_values, equal_nan=True)
+
+
+
 
 # class TestMLMC(mlmc.mlmc.MLMC):
 #     def __init__(self):
