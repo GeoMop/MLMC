@@ -1,5 +1,6 @@
 import numpy as np
 import scipy as sc
+import scipy.integrate as integrate
 
 class Distribution:
     """
@@ -159,3 +160,41 @@ class Distribution:
         jacobian_matrix[triu_idx[0], triu_idx[1]] = -integral[0]
         jacobian_matrix[triu_idx[1], triu_idx[0]] = -integral[0]
         return jacobian_matrix
+
+
+
+def compute_exact_moments(moments_fn, n_moments, density, a, b, tol=1e-4):
+    """
+    Compute approximation of moments using exact density.
+    :param moments_fn: Moments function.
+    :param n_moments: Number of mements to compute.
+    :param density: Density function (must accept np vectors).
+    :param a, b: Integral bounds, approximate integration over R.
+    :param tol: Tolerance of integration.
+    :return: np.array, moment values
+    """
+    integrand = lambda x, size=n_moments, a=a, b=b: moments_fn(x, size, a, b).T * density(x)
+    last_integral = integrate.fixed_quad(integrand, a, b, n=n_moments)[0]
+    integral = integrate.fixed_quad(integrand, a, b, n=2*n_moments)[0]
+    size = 2*n_moments
+    while np.linalg.norm(integral - last_integral) > tol:
+        last_integral = integral
+        size *= 2
+        integral = integrate.fixed_quad(integrand, a, b, n=size)[0]
+    return integral
+
+
+def KL_divergence(prior_density, posterior_density, a, b):
+    """
+    \int_R P(x) \log( P(X)/Q(x)) \dx
+    :param prior_density: Q
+    :param posterior_density: P
+    :return: KL divergence value
+    """
+    integrand = lambda x: posterior_density(x) * np.log( posterior_density(x) / prior_density(x) )
+    return integrate.quad(integrand, a, b)
+
+def L2_distance(prior_density, posterior_density, a, b):
+    integrand = lambda x: (posterior_density(x) -  prior_density(x))**2
+    return np.sqrt( integrate.quad(integrand, a, b) )
+

@@ -103,6 +103,6 @@ def legendre_moments(value, size=1, a=0.0, b=None, safe_eval=True):
         n_out += np.sum(mask)
         transformed[mask] = 1.0
         #transformed = np.minimum(1.0, np.maximum(-1.0, transformed))
-        if n_out > 0:
+        if n_out > 0.1 * len(value):
             print("N outlayers: ", n_out)
     return np.polynomial.legendre.legvander(transformed, deg = size - 1)

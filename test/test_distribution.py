@@ -26,52 +26,13 @@ and given moment functions.
 
 import numpy as np
 import scipy.stats as stats
-import scipy.integrate as integrate
-
-#import matplotlib.pyplot as plt
-#import matplotlib as mpl
-import sys
-
-#sys.path.insert(0, '/home/martin/Documents/MLMC/src')
 
 import mlmc.distribution
 import mlmc.moments
 import time
 
 
-def compute_exact_moments(moments_fn, n_moments, density, a, b, tol=1e-4):
-    """
-    Compute approximation of moments using exact density.
-    :param moments_fn: Moments function.
-    :param n_moments: Number of mements to compute.
-    :param density: Density function (must accept np vectors).
-    :param a, b: Integral bounds, approximate integration over R.
-    :param tol: Tolerance of integration.
-    :return: np.array, moment values
-    """
-    integrand = lambda x, size=n_moments, a=a, b=b: moments_fn(x, size, a, b).T * density(x)
-    last_integral = integrate.fixed_quad(integrand, a, b, n=n_moments)[0]
-    integral = integrate.fixed_quad(integrand, a, b, n=2*n_moments)[0]
-    size = 2*n_moments
-    while np.linalg.norm(integral - last_integral) > tol:
-        last_integral = integral
-        size *= 2
-        integral = integrate.fixed_quad(integrand, a, b, n=size)[0]
-    return integral
 
-def KL_divergence(prior_density, posterior_density, a, b):
-    """
-    \int_R P(x) \log( P(X)/Q(x)) \dx
-    :param prior_density: Q
-    :param posterior_density: P
-    :return: KL divergence value
-    """
-    integrand = lambda x: posterior_density(x) * np.log( posterior_density(x) / prior_density(x) )
-    return integrate.quad(integrand, a, b)
-
-def L2_distance(prior_density, posterior_density, a, b):
-    integrand = lambda x: (posterior_density(x) -  prior_density(x))**2
-    return np.sqrt( integrate.quad(integrand, a, b) )
 
 
 def check_distr_approx(moment_function, distribution, distr_args):
@@ -92,7 +53,7 @@ def check_distr_approx(moment_function, distribution, distr_args):
     variance = distribution.var(**distr_args)
     n_moments = 10
     tol = 1e-4
-    exact_moments = compute_exact_moments(moment_function, n_moments, density, domain[0], domain[1], tol)
+    exact_moments = mlmc.distributioncompute_exact_moments(moment_function, n_moments, density, domain[0], domain[1], tol)
     moments_data = np.empty((n_moments, 2))
     moments_data[:, 0] = exact_moments
     moments_data[:, 1] = tol
@@ -107,14 +68,17 @@ def check_distr_approx(moment_function, distribution, distr_args):
     t2 = time.clock()
     t = t2 - t1
     nit = getattr(result, 'nit', result.njev)
-    kl_div = KL_divergence(distr_obj.density, density, domain[0], domain[1])
-    l2_dist = L2_distance(distr_obj.density, density, domain[0], domain[1])
+    kl_div = mlmc.distributionKL_divergence(distr_obj.density, density, domain[0], domain[1])
+    l2_dist = mlmc.distributionL2_distance(distr_obj.density, density, domain[0], domain[1])
     print("Conv: {} Nit: {} Time: {} KL: {} L2: {}".format(
         result.success, nit, t, kl_div, l2_dist
     ))
     return distr_obj
 
 def plot_approximations(dist, args, approx_objs):
+    import matplotlib.pyplot as plt
+    import matplotlib as mpl
+
     domain = approx_objs[0].domain
     X = np.linspace(domain[0], domain[1], 1000)
     fig = plt.figure(figsize=(15,5))

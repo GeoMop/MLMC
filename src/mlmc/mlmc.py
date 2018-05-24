@@ -49,6 +49,10 @@ class MLMC:
     def n_levels(self):
         return len(self.levels)
 
+    @property
+    def n_samples(self):
+        return np.array([ l.n_collected_samples for l in self.levels ])
+
 
     def estimate_diff_vars(self, moments_fn):
         vars = []
@@ -98,15 +102,17 @@ class MLMC:
         vars[1:] = self._varinace_regresion(vars[1:], n_samples, sim_steps)
         return vars
 
-    def set_initial_n_samples(self):
-        n0 = 30
-        nL = 7
-        L = max(2, self.n_levels)
-        factor = (n0 / nL)**(1 / (L-1))
-        n = n0
+    def set_initial_n_samples(self, n_samples=None):
+        if n_samples is None:
+            n0 = 30
+            nL = 7
+            L = max(2, self.n_levels)
+            factor = (nL / n0)**(1 / (L-1))
+            n_samples = n0 * factor ** np.arange(L)
+
         for i, level in enumerate(self.levels):
-            level.set_target_n_samples(int(n))
-            n /= factor
+            level.set_target_n_samples(int(n_samples[i]))
+
 
     # def set_target_time(self, target_time):
     #     """
@@ -123,23 +129,36 @@ class MLMC:
     #
     #         self.num_of_simulations.append(new_num_of_sim)
 
+    # def reset_moment_fn(self, moments_fn):
+    #     for level in self.levels:
+    #         level.reset_moment_fn(moments_fn)
 
-    def set_target_variance(self, target_variance, moments_fn):
+    def set_target_variance(self, target_variance, moments_fn=None, fraction = 1.0, prescribe_vars=None):
         """
         Estimate optimal number of samples for individual levels that should provide a target variance of
         resulting moment estimate. Number of samples are directly set to levels.
+        This also set given moment functions to be used for further estimates if not specified otherwise.
         TODO: separate target_variance per moment
-         :return: np.array with number of samples
+        :param target_variance: Constrain to achive this variance.
+        :param moments_fn: moment evaluation functions
+        :param fraction: Plan only this fraction of computed counts.
+        :return: np.array with number of optimal samples
         """
-        vars = self.estimate_diff_vars_regression(moments_fn)
+        if prescribe_vars is None:
+            vars = self.estimate_diff_vars_regression(moments_fn)
+        else:
+            vars = prescribe_vars
         n_ops = np.array([lvl.n_ops_estimate() for lvl in self.levels])
         sqrt_var_n = np.sqrt(vars.T * n_ops)    # moments in rows, levels in cols
         total = np.sum(sqrt_var_n, axis=1)      # sum over levels
         n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int) # moments in cols
-        n_samples_estimate_max = np.max(n_samples_estimate, axis=1)
+        n_samples_estimate_safe = np.minimum(n_samples_estimate, vars*self.n_levels/target_variance)
+        n_samples_estimate_max = np.max(n_samples_estimate_safe, axis=1)
 
+        #n_samples_estimate_max= np.array([30, 3, 0.3])/target_variance
+        #print(n_samples_estimate_max)
         for level, n  in zip(self.levels, n_samples_estimate_max):
-            level.set_target_n_samples(n)
+            level.set_target_n_samples( int(n*fraction) )
         return  n_samples_estimate
 
     # @property
@@ -174,13 +193,13 @@ class MLMC:
 
         self._pbs.execute()
 
-    def wait_for_simulations(self):
+    def wait_for_simulations(self, sleep = 0):
         n_running = 1
         while n_running > 0:
             n_running=0
             for level in self.levels:
                 n_running += level.collect_samples(self._pbs)
-            time.sleep(1)
+            time.sleep(0)
 
 
 
@@ -212,16 +231,21 @@ class MLMC:
         """
         Use collected samples to estimate moments and variance of this estimate.
         :param moments_fn: Vector moment function, gives vector of moments for given sample or sample vector.
-        :return: estimate_of_moment_means, estimate_of_variance_of_estimate
+        :return: estimate_of_moment_means, estimate_of_variance_of_estimate ; arrays of length n_moments
         """
-        means = np.sum([ lvl.estimate_diff_mean(moments_fn) for lvl in self.levels])
+        l_means = np.array([ lvl.estimate_diff_mean(moments_fn) for lvl in self.levels])
+        means = np.sum(l_means, axis=0)
 
         vars = np.zeros_like(means)
         for level in self.levels:
             l_vars, n_samples = level.estimate_diff_var(moments_fn)
-            vars += l_vars / np.sqrt(n_samples)
+            #print(l_vars)
+            vars += l_vars / n_samples
+
         return means, vars
 
+    def estimate_cost(self):
+        return np.sum([ lvl.n_ops_estimate()*lvl.n_collected_samples for lvl in self.levels])
 
     def clean_levels(self):
         for level in self.levels:

@@ -43,7 +43,7 @@ class Level:
         self.target_n_samples=7
         # Array for collected sample pairs (fine, coarse)
         self.sample_values = np.empty( (self.target_n_samples, 2) )
-
+        self._last_moments_fn = None
 
     def reset(self):
         # Currently running simulations
@@ -169,13 +169,16 @@ class Level:
         return len(self.running_simulations)
 
     def evaluate_moments(self,  moments_fn):
-        samples = self.sample_values[:self.n_collected_samples, :]
-        moments_fine = moments_fn(samples[:, 0])
-        if self.is_zero_level:
-            moments_coarse = np.zeros_like(moments_fine)
-        else:
-            moments_coarse = moments_fn(samples[:, 1])
-        return moments_fine, moments_coarse
+        if moments_fn != self._last_moments_fn:
+            samples = self.sample_values[:self.n_collected_samples, :]
+            moments_fine = moments_fn(samples[:, 0])
+            if self.is_zero_level:
+                moments_coarse = np.zeros_like(moments_fine)
+            else:
+                moments_coarse = moments_fn(samples[:, 1])
+                self._last_moments_fn = moments_fn
+            self.last_moments_eval = moments_fine, moments_coarse
+        return self.last_moments_eval
 
     def estimate_diff_var(self, moments_fn):
         # n_samples = n_dofs + 1 >= 7 leads to probability 0.9 that estimate is whithin range of 10% error from true variance
@@ -191,9 +194,16 @@ class Level:
         return mean_vec
 
     def sample_range(self):
-        q1, q3 = np.percentile(self.sample_values, [25, 75])
+        fine_sample = self.sample_values[:, 0]
+        q1, q3 = np.percentile(fine_sample, [25, 75])
         iqr = 3*(q3 - q1)
-        return q1 - iqr, q3 + iqr
+        min_sample = np.min(fine_sample)
+        l = min( min_sample , q1-iqr )
+        if min_sample > 0.0:    # guess that we have positive distribution
+            l = max(0.0, l)
+        r = max( np.max(fine_sample), q3+iqr)
+
+        return l,r
 
 
 

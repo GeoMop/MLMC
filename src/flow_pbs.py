@@ -7,10 +7,10 @@ import yaml
 
 class FlowPbs:
 
-    def __init__(self, work_dir="", package_weight=200000, qsub=None):
+    def __init__(self, work_dir=None, package_weight=200000, qsub=None):
         """
 
-        :param work_dir:
+        :param work_dir: if None, means no logging and just direct execution.
         :param package_weight:
         :param qsub: string with qsub command.
         """
@@ -23,19 +23,21 @@ class FlowPbs:
         # Work dir for scripts and PBS files.
         self.work_dir = work_dir
 
-        # Fresh work dir.
-        if os.path.isdir(self.work_dir):
-            shutil.rmtree(self.work_dir)
-        os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
-
         # Lines to put at the beginning of the PBS script.
         self.pbs_script_heading = None
         self.pbs_script = None
         # Set q sub command or direct execution.
         self.qsub_cmd = qsub
 
-        self.log_path = os.path.join(self.work_dir, "simulation_log.yaml")
-        self.simulation_log = open(self.log_path, "w")
+        if work_dir is not None:
+            # Fresh work dir.
+            if os.path.isdir(self.work_dir):
+                shutil.rmtree(self.work_dir)
+            os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
+
+
+            self.log_path = os.path.join(self.work_dir, "simulation_log.yaml")
+            self.simulation_log = open(self.log_path, "w")
 
     def pbs_common_setting(self, **kwargs):
         """
@@ -107,6 +109,8 @@ class FlowPbs:
         self.pbs_script = self.pbs_script_heading
 
     def log_simulations(self, level, simulations, values=None):
+        if self.work_dir is None:
+            return
         status = 'R' if values is None else 'F'
         value = None
         lines = []

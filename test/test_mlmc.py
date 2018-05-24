@@ -1,4 +1,5 @@
 import os
+import statprof
 import scipy.stats as stats
 import scipy.integrate as integrate
 
@@ -8,6 +9,7 @@ import mlmc.moments
 import mlmc.distribution
 import numpy as np
 import flow_pbs
+
 
 def aux_sim(x,  h):
     return x +  h*np.sqrt(x)
@@ -90,13 +92,20 @@ def direct_estimate_diff_var(moments_fn, domain, distr, sims):
     return means, vars
 
 def mc_estimate_diff_var(moments_fn, domain, distr, sims):
+    """
+    :param moments_fn:
+    :param domain:
+    :param distr:
+    :param sims:
+    :return: means, vars ; shape n_levels, n_moments
+    """
     means=[]
     vars=[]
     sim_l = None
     for l in range(len(sims)):
         sim_0 = sim_l
         sim_l = lambda x, h=sims[l].step: sims[l]._sample_fn(x, h)
-        X = distr.rvs(size = 1000)
+        X = distr.rvs(size = 10000)
         if l==0:
             MD = moments_fn(sim_l(X))
         else:
@@ -106,55 +115,60 @@ def mc_estimate_diff_var(moments_fn, domain, distr, sims):
         moment_vars = np.var(MD, axis=0, ddof=1)
         means.append(moment_means)
         vars.append(moment_vars)
-    return means, vars
+    return np.array(means), np.array(vars)
 
-
-
-def impl_estimate_n_samples(n_levels, n_moments, target_var, distr, is_log=False):
-
-    print("\n")
-    print("L: {} R: {} var: {} distr: {}".format(n_levels, n_moments, target_var, distr.dist.__class__.__name__))
-    if is_log:
-        q1,q3 = np.log(distr.ppf([0.25, 0.75]))
-        iqr = 2*(q3-q1)
-        domain =np.exp( [q1 - iqr, q3 + iqr ] )
-    else:
-        q1,q3 = distr.ppf([0.25, 0.75])
-        iqr = 2*(q3-q1)
-        domain = [q1 - iqr, q3 + iqr ]
-
+def make_simulation_mc(step_range, distr, n_levels):
     step_range = (0.8, 0.01)
 
-    file_dir = os.path.dirname(os.path.realpath(__file__))
-    scripts_dir = os.path.join(file_dir, 'aux_sim_work')
+    #file_dir = os.path.dirname(os.path.realpath(__file__))
+    #scripts_dir = os.path.join(file_dir, 'aux_sim_work')
 
-    pbs = flow_pbs.FlowPbs(work_dir=scripts_dir)
+    pbs = flow_pbs.FlowPbs()
     simulation_config = dict(
         distr= distr, complexity=2)
     simultion_factory = lambda t_level: SimulationTest.make_sim(simulation_config, step_range, t_level)
 
-    moments_fn = lambda x, n=n_moments, a=domain[0], b=domain[1]: mlmc.moments.legendre_moments(x, n, a, b)
 
     mc = mlmc.mlmc.MLMC(n_levels, simultion_factory, pbs)
     sims = [level.fine_simulation for level in mc.levels ]
+    return mc, sims
+
+def impl_var_estimate(n_levels, n_moments, target_var, distr, is_log=False):
+
+    print("\n")
+    print("L: {} R: {} var: {} distr: {}".format(n_levels, n_moments, target_var, distr.dist.__class__.__name__))
+    # if is_log:
+    #     q1,q3 = np.log(distr.ppf([0.25, 0.75]))
+    #     iqr = 2*(q3-q1)
+    #     domain =np.exp( [q1 - iqr, q3 + iqr ] )
+    # else:
+    #     q1,q3 = distr.ppf([0.25, 0.75])
+    #     iqr = 2*(q3-q1)
+    #     domain = [q1 - iqr, q3 + iqr ]
+
+    step_range = (0.8, 0.01)
+    mc, sims = make_simulation_mc(step_range, distr, n_levels)
+
     true_domain = distr.ppf([0.001, 0.999])
-    means, vars = mc_estimate_diff_var(moments_fn, true_domain, distr, sims)
+    true_moments_fn = lambda x, n=n_moments, a=true_domain[0], b=true_domain[1]: mlmc.moments.legendre_moments(x, n, a, b)
+    means, vars = mc_estimate_diff_var(true_moments_fn, true_domain, distr, sims)
     vars = np.array(vars)
 
     raw_vars = []
     reg_vars = []
 
     n_loops=5
+    print("--")
     for _ in range(n_loops):
         mc.clean_levels()
         mc.set_initial_n_samples()
         mc.refill_samples()
         mc.wait_for_simulations()
-        #est_domain = mc.estimate_domain()
-        #assert est_domain[0] < true_domain[0]
-        #assert est_domain[1] > true_domain[1]
-        #print("Domain: {}, est: {} true: {}".format(domain, est_domain, true_domain))
-
+        est_domain = mc.estimate_domain()
+        domain_err = [distr.cdf(est_domain[0]), 1-distr.cdf(est_domain[1])]
+        print("Domain error: ", domain_err )
+        assert np.sum(domain_err) < 0.01
+        moments_fn = lambda x, n=n_moments, a=est_domain[0], b=est_domain[1]: mlmc.moments.legendre_moments(x, n, a, b)
         raw_var_estimate, n_col_samples = mc.estimate_diff_vars(moments_fn)
 
         reg_var_estimate = mc.estimate_diff_vars_regression(moments_fn)
@@ -163,13 +177,107 @@ def impl_estimate_n_samples(n_levels, n_moments, target_var, distr, is_log=False
     print("n samples   : ", n_col_samples)
     print("ref var min    : ", np.min(vars[:, 1:], axis=1) )
     print("ref var max    : ", np.max(vars, axis=1) )
-    #print("mean raw var: ", np.mean( np.array(raw_vars), axis=0) )
-    print("std  raw var: ", np.max( np.sqrt(np.mean( (np.array(raw_vars) - vars)**2, axis=0)) / (1e-4 + vars) , axis=1) )
 
+    # relative max over loops
+    print("max raw err: ", np.max( np.abs(np.array(raw_vars) - vars) / (1e-4 + vars), axis=0))
+    print("max reg err: ", np.max( np.abs(np.array(reg_vars) - vars) / (1e-4 + vars), axis=0))
+
+    # std over loops
+    # max (of relative std) over moments
+    print("std  raw var: ", np.max( np.sqrt(np.mean( (np.array(raw_vars) - vars)**2, axis=0)) / (1e-4 + vars) , axis=1) )
     print("std  reg var: ", np.max( np.sqrt(np.mean( (np.array(reg_vars) - vars)**2, axis=0)) / (1e-4 + vars) , axis=1) )
     #print("Linf raw var: ", np.max( np.abs(np.array(raw_vars) - vars), axis=0) / (1e-4 + vars))
 
-    # n_samples = mc.set_target_variance(target_var, moments_fn)
+def err_tuple(x):
+    return (np.min(x), np.median(x), np.max(x))
+
+def impl_var_estimate_conv(n_levels, n_moments, rel_target_var, distr, is_log=False):
+    # Test that if we modify variance estimate on the fly, we obtain good estimate
+
+    print("\n")
+    print("L: {} R: {} var: {} distr: {}".format(n_levels, n_moments, rel_target_var, distr.dist.__class__.__name__))
+    #print("var: ", distr.var())
+    step_range = (0.8, 0.01)
+    mc, sims = make_simulation_mc(step_range, distr, n_levels)
+
+    # reference variance
+    true_domain = distr.ppf([0.001, 0.999])
+    true_moments_fn = lambda x, n=n_moments, a=true_domain[0], b=true_domain[1]: \
+        mlmc.moments.legendre_moments(x, n, a, b)
+    means, vars = mc_estimate_diff_var(true_moments_fn, true_domain, distr, sims)
+    ref_vars = np.array(vars)[:, 1:]
+    ref_means = np.sum(np.array(means)[:, 1:], axis=0)
+    print("Ref means: ", ref_means)
+    print("Ref vars: ", ref_vars)
+    target_var = rel_target_var
+
+    # estimate n_samples using precise variance estimates
+
+    # reference
+
+    print("--")
+    mean_list = []
+    err_list = []
+    tot_n_samples = np.zeros(n_levels)
+    n_loops = 10
+    for _ in range(n_loops):
+        for fraction in [0, 1]: #[ 0, 0.01, 0.1, 1]:
+            if fraction == 0:
+                mc.clean_levels()
+                mc.set_initial_n_samples()
+            else:
+                n_samples = mc.set_target_variance(target_var, moments_fn, fraction=fraction, prescribe_vars=ref_vars)
+                #mc.set_initial_n_samples([1000, 100, 10])
+
+            mc.refill_samples()
+            mc.wait_for_simulations()
+            #print("N s: ", mc.n_samples)
+
+            # Domain error
+            est_domain = mc.estimate_domain()
+            domain_err = [distr.cdf(est_domain[0]), 1-distr.cdf(est_domain[1])]
+            #print("Domain error: ", domain_err )
+            #assert np.sum(domain_err) < 0.01
+
+
+            # Variance error
+            #moments_fn = lambda x, n=n_moments, a=est_domain[0], b=est_domain[1]: mlmc.moments.legendre_moments(x, n, a, b)
+            #moments_fn = lambda x, n=n_moments, a=est_domain[0], b=est_domain[1]: \
+            #    mlmc.moments.monomial_moments(x, n, a, b)
+            moments_fn = true_moments_fn
+            #raw_var_estimate, n_col_samples = mc.estimate_diff_vars(moments_fn)
+            #reg_var_estimate = mc.estimate_diff_vars_regression(moments_fn)
+
+
+            #raw_rel_diff = np.abs(np.array(raw_var_estimate[:, 1:]) - ref_vars[:, 1:]) / (1e-4 + ref_vars[:,1:])
+            #reg_rel_diff = np.abs(np.array(reg_var_estimate[:, 1:]) - ref_vars[:, 1:]) / (1e-4 + ref_vars[:,1:])
+
+            #print("Varaince error: RAW: {} REG: {} ".format(
+            #    err_tuple(raw_rel_diff),
+            #    err_tuple(reg_rel_diff)))
+        tot_n_samples += mc.n_samples
+        # Total mean and variance
+        means, vars = mc.estimate_moments(moments_fn)
+        #mean_est = (means[1]) * (true_domain[1] - true_domain[0]) + true_domain[0]
+        #err_est = np.sqrt(vars[1]) * ((true_domain[1] - true_domain[0]))**2
+        #print("Mean estimate {} diff {} err: {}".format(distr.mean(), distr.mean() - mean_est, err_est))
+        mean_list.append(np.array(means)[1:])
+        err_list.append(np.sqrt(np.array(vars)[1:]))
+    tot_n_samples /= n_loops
+
+
+    mean_mean = np.mean(mean_list, axis=0)
+    avg_err = np.sqrt(np.mean((np.array(mean_list) - ref_means[None, :])**2, axis=0))
+    target_err = np.sqrt(target_var)
+    print("N samples: ", tot_n_samples)
+    print("Mean estimate: ", mean_mean)
+    print("avg error: ", avg_err, target_err)
+    ref_est_err = np.sqrt( np.sum(ref_vars[:, :] / np.array(mc.n_samples)[:, None], axis=0) )
+    print("ref est err: ", ref_est_err)
+    print("min est err: ", np.min(err_list, axis=0))
+    print("med est err: ", np.median(err_list, axis=0))
+    print("max est err: ", np.max(err_list, axis=0))
+        # Estimate new counts
     # min_n = np.min(n_samples, axis=1)
     # max_n = np.max(n_samples, axis=1)
     # mm = np.array([min_n, max_n]).T
@@ -181,21 +289,49 @@ def impl_estimate_n_samples(n_levels, n_moments, target_var, distr, is_log=False
     #moment_data = mc.estimate_moments(moments_fn)
     #mlmc.distribution.Distribution(mlmc.moments.legendre_moments, moment_data, positive_distr=True)
 
-def test_estimate_n_samples():
-    n_levels=[5] #, 2, 3] #, 4, 5, 7, 9]
-    n_moments=[11] #,4,5] #,7, 10,14,19]
-    target_var = [0.1]
+
+
+
+
+def test_var_estimate():
+    print("test start")
+    n_levels=[4] #, 2, 3] #, 4, 5, 7, 9]
+    n_moments=[5] #,4,5] #,7, 10,14,19]
+    target_var = [0.1, 0.01, 0.001, 0.0001]
     distr = [
-        (stats.lognorm(scale=np.exp(-5), s=2), True),
-        (stats.norm(42.0, 5), False),
-        (stats.chi2(df=10), True),
-        (stats.alpha(a=0.1), True),
+        (stats.norm(loc=42.0, scale=5), False)
+        #,(stats.lognorm(scale=np.exp(-5), s=2), True)
+        #,(stats.chi2(df=10), True)
+        #,(stats.weibull_min(c=1), True)    # Exponential
+        #,(stats.weibull_min(c=1.5), True)  # Infinite derivative at zero
+        #,(stats.weibull_min(c=3), True)    # Close to normal
+        #,(stats.alpha(a=0.5), True),  # infinite mean, distribution of 1/Y if Y is Norm(mu, sig); a=mu/sig
         ]
+    #statprof.start()
+
+    # import cProfile, pstats, io
+    # pr = cProfile.Profile()
+    # pr.enable()
+
     for nl in n_levels:
         for nm in n_moments:
             for tv in target_var:
                 for d, il in distr:
-                    impl_estimate_n_samples(nl, nm, tv, d, il)
+                    #impl_var_estimate(nl, nm, tv, d, il)
+                    impl_var_estimate_conv(nl, nm, tv, d, il)
+
+    # pr.disable()
+    # s = io.StringIO()
+    # sortby = 'cumulative'
+    # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    # ps.print_stats()
+    # print(s.getvalue())
+
+    #statprof.stop()
+    #statprof.display()
+
+
+# ... do something ...
 
 # class TestMLMC(mlmc.mlmc.MLMC):
 #     def __init__(self):
