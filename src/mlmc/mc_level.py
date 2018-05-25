@@ -145,7 +145,7 @@ class Level:
                    coarse_done = True
                 else:
                     coarse_result = self.coarse_simulation.extract_result(coarse_sim)
-                    coarse_done = fine_result is not None
+                    coarse_done = coarse_result is not None
 
                 if fine_done and coarse_done:
                     # collect values

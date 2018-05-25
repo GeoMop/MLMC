@@ -123,7 +123,7 @@ class FlowPbs:
         self.pbs_script = self.pbs_script_heading
 
     def log_simulations(self, level, simulations, values=None):
-        if self.work_dir is None:
+        if self.work_dir is None or not simulations:
             return
         if values is None:
             log_file = self.running_log
