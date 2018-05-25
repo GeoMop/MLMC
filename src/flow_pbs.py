@@ -59,6 +59,7 @@ class FlowPbs:
         :param kwargs: dict with params vales
         :return: None
         """
+        kwargs['pbs_output_dir'] = self.work_dir
         # Script header
         pbs_header_template = ["#!/bin/bash",
                            '#PBS -S /bin/bash',
@@ -66,6 +67,8 @@ class FlowPbs:
                            '#PBS -q {queue}',
                            '#PBS -N Flow123d',
                            '#PBS -j oe',
+                           '#PBS -o {pbs_output_dir}',
+                           '#PBS -e {pbs_output_dir}',
                            '']
 
         self.pbs_script_heading = [line.format(**kwargs) for line in pbs_header_template]
