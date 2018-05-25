@@ -37,15 +37,18 @@ def test_mlmc_flow():
     scripts_dir = os.path.join(output_dir, 'scripts')
 
     # Make flow123 wrapper script.
-    flow123d = os.path.join(src_path, 'mocks', 'flow_mock')
+    flow123d = "/storage/praha1/home/jan_brezina/local/flow123d_2.2.0/flow123d"
+    #flow123d = os.path.join(src_path, 'mocks', 'flow_mock')
 
     # GMSH (make empty mesh)
     # gmsh = "/usr/bin/gmsh"
-    #gmsh = "/storage/liberec1-tul/home/martin_spetlik/astra/gmsh/bin/gmsh"
-    gmsh = "/home/jb/local/gmsh-3.0.5-git-Linux/bin/gmsh"
+    gmsh = "/storage/liberec1-tul/home/martin_spetlik/astra/gmsh/bin/gmsh"
+    #gmsh = "/home/jb/local/gmsh-3.0.5-git-Linux/bin/gmsh"
     # Charon setting:
+    #pbs = FlowPbs(scripts_dir,
+    #              qsub=os.path.join(src_path, 'mocks', 'qsub'))
     pbs = FlowPbs(scripts_dir,
-                  qsub=os.path.join(src_path, 'mocks', 'qsub'))
+                  qsub='qsub')
     pbs.pbs_common_setting(n_cores=1,
         n_nodes=1,
         mem='4gb',
@@ -100,10 +103,10 @@ def test_mlmc_flow():
     #mc.num_of_simulations = [10, 10, 10, 10, 10]
     mc.refill_samples()
     mc.wait_for_simulations()
-    domain = mc.estimate_domain()
+    #domain = mc.estimate_domain()
 
     #domain = (0, 6)
-    moments_fn = lambda x,n=n_moments, a=domain[0], b=domain[1]:   mlmc.moments.legendre_moments(x, n, a, b)
+    #moments_fn = lambda x,n=n_moments, a=domain[0], b=domain[1]:   mlmc.moments.legendre_moments(x, n, a, b)
     #mc.set_target_variance(0.1, moments_fn)
     #mc.refill_samples()
     #mc.wait_for_simulations()
