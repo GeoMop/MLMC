@@ -1,0 +1,21 @@
+#!/bin/bash
+
+py_script=`pwd`/$1
+pbs_script=`pwd`/$1.pbs
+script_path=${py_script%/*}
+
+
+cat >$pbs_script <<EOF
+#!/bin/bash 
+#PBS -S /bin/bash
+#PBS -l select=1:ncpus=1:mem=16GB
+#PBS -q charon
+#PBS -N MLMC
+#PBS -j oe
+
+cd ${script_path}
+module load python36-modules-gcc
+python3 ${py_script}
+EOF
+
+qsub $pbs_script

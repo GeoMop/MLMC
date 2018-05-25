@@ -33,7 +33,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         self._coarse_simulation = None
 
     def _sample_fn(self, x, h):
-        return x + h * np.sqrt(x)
+        return x + h * np.sqrt(1e-4 + np.abs(x))
 
     def simulation_sample(self, tag):
         """
@@ -43,7 +43,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         x = self._input_sample
         h = self.step
         y = self._sample_fn(x, h)
-        self._result_dict[tag] = y
+        self._result_dict[tag] = float(y)
 
         return tag
 
@@ -365,6 +365,7 @@ def test_save_load_samples():
         l_data  = (level.running_simulations.copy(),
                    level.finished_simulations.copy(),
                    level.sample_values)
+        assert not np.isnan(level.sample_values).any()
         level_data.append(l_data)
 
     mc.clean_levels()
@@ -378,7 +379,7 @@ def test_save_load_samples():
         run, fin, values = data
         assert run == level.running_simulations
         assert fin == level.finished_simulations
-        assert np.allclose(values, level.sample_values, equal_nan=True)
+        assert np.allclose(values, level.sample_values)
 
 
 

@@ -59,6 +59,7 @@ class FlowPbs:
         :param kwargs: dict with params vales
         :return: None
         """
+        kwargs['pbs_output_dir'] = self.work_dir
         # Script header
         pbs_header_template = ["#!/bin/bash",
                            '#PBS -S /bin/bash',
@@ -66,6 +67,8 @@ class FlowPbs:
                            '#PBS -q {queue}',
                            '#PBS -N Flow123d',
                            '#PBS -j oe',
+                           '#PBS -o {pbs_output_dir}',
+                           '#PBS -e {pbs_output_dir}',
                            '']
 
         self.pbs_script_heading = [line.format(**kwargs) for line in pbs_header_template]
@@ -81,10 +84,12 @@ class FlowPbs:
         assert self.pbs_script is not None
 
         lines = [
+            'echo {work_dir}',
             'cd {work_dir}',
+            'date +%y.%m.%d_%H:%M:%S',
             'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out 2>&1',
-            'cd {output_subdir}',
-            'touch FINISHED',
+            'date +%y.%m.%d_%H:%M:%S',
+            'touch {output_subdir}/FINISHED',
             '']
         lines = [line.format(**kwargs) for line in lines]
         self.pbs_script.extend(lines)
@@ -123,7 +128,7 @@ class FlowPbs:
         self.pbs_script = self.pbs_script_heading
 
     def log_simulations(self, level, simulations, values=None):
-        if self.work_dir is None:
+        if self.work_dir is None or not simulations:
             return
         if values is None:
             log_file = self.running_log
@@ -137,3 +142,4 @@ class FlowPbs:
             line = [ level, i, fine, coarse, value ]
             lines.append(line)
         log_file.write(yaml.safe_dump(lines))
+        log_file.flush()

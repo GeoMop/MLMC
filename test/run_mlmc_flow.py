@@ -48,6 +48,7 @@ def test_mlmc_flow():
     #pbs = FlowPbs(scripts_dir,
     #              qsub=os.path.join(src_path, 'mocks', 'qsub'))
     pbs = FlowPbs(scripts_dir,
+                  package_weight=25000,     # max number of elements per package
                   qsub='qsub')
     pbs.pbs_common_setting(n_cores=1,
         n_nodes=1,
@@ -76,7 +77,7 @@ def test_mlmc_flow():
     #    # geo_path = os.path.splitext(yaml_path)[0] + '.geo'
     #    # geo_path = "/storage/01_cond_field/square_1x1.geo"
     
-    step_range = (1, 0.02)
+    step_range = (1, 0.01)
     simulation_config = {
         'env': env,  # The Environment.
         'field_name': corr_field_dict,  # correlated_field.FieldSet object
