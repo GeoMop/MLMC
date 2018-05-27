@@ -90,7 +90,7 @@ def test_mlmc_flow():
     flow_mc.FlowSim.total_sim_id = 0
     simultion_factory = lambda t_level: flow_mc.FlowSim.make_sim(simulation_config, step_range, t_level)
  
-    n_levels=5
+    n_levels=9
     n_moments=5
     #result = Result(n_moments)
     mc = mlmc.mlmc.MLMC(n_levels, simultion_factory, pbs)
@@ -100,7 +100,8 @@ def test_mlmc_flow():
     #                        1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5,
     #                        1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5
     #                       ])
-    mc.set_initial_n_samples()
+    #mc.set_initial_n_samples([10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000])
+    mc.set_initial_n_samples(9*[10000])
     #mc.num_of_simulations = [10, 10, 10, 10, 10]
     mc.refill_samples()
     mc.wait_for_simulations()

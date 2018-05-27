@@ -125,7 +125,7 @@ class FlowPbs:
         Clean script keep just header
         :return: None
         """
-        self.pbs_script = self.pbs_script_heading
+        self.pbs_script = self.pbs_script_heading.copy()
 
     def log_simulations(self, level, simulations, values=None):
         if self.work_dir is None or not simulations:
