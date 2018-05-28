@@ -159,7 +159,7 @@ class FlowPbs:
         """
         if self.pbs_script is None:
             return
-        self.pbs_script.append("SUCCESS.")
+        self.pbs_script.append("echo SUCCESS.")
         script_content = "\n".join(self.pbs_script)
         pbs_file = os.path.join(self.work_dir, "package_{:04d}.sh".format(self._package_count))
         self._package_count += 1
@@ -171,9 +171,8 @@ class FlowPbs:
         else:
             process = subprocess.run([self.qsub_cmd, pbs_file], shell=True, stdout=subprocess.PIPE)
             job_str = process.stdout
-            if job_str:
-                line = [job_str]
-                self.running_log.write(yaml.safe_dump(line))
+            line = [pbs_file, job_str]
+            self.running_log.write(yaml.safe_dump(line))
 
         # Clean script for other usage
         self.clean_script()
