@@ -89,7 +89,7 @@ class ResultLevel(Level):
         """
         return self.n_ops
 
-    def _create_simulations(self):
+    def make_sample_pair(self):
         """
         Generate new random samples for fine and coarse simulation objects
         :param last_sim: mark last simulation on the level
@@ -102,15 +102,15 @@ class ResultLevel(Level):
             # Set random array to coarse step simulation
             self.coarse_simulation._input_sample = self.fine_simulation.get_coarse_sample()
             # Run simulations
-            return self.fine_simulation.cycle(uuid.uuid1()), self.coarse_simulation.cycle(uuid.uuid1())
+            return self.fine_simulation.simulation_sample(uuid.uuid1()), self.coarse_simulation.simulation_sample(uuid.uuid1())
         # First level doesn't have coarse simulation
         else:
             # Generate random array
             self.fine_simulation.generate_random_sample()
             # Run simulations
-            return self.fine_simulation.cycle(uuid.uuid1()), None
+            return self.fine_simulation.simulation_sample(uuid.uuid1()), None
 
-    def level(self):
+    def fill_samples(self):
         """
         Implements level of MLMC
         Call Simulation methods
@@ -118,9 +118,9 @@ class ResultLevel(Level):
         :return: None
         """
         # Create pair of fine and coarse simulations and add them to list of all running simulations
-        [self.running_simulations.append(self._create_simulations()) for _ in range(self.number_of_simulations)]
+        [self.running_simulations.append(self.make_sample_pair()) for _ in range(self.number_of_simulations)]
 
-    def are_simulations_running(self):
+    def collect_samples(self):
         # Still running some simulations
         while len(self.running_simulations) > 0:
             # Loop through pair of running simulations
