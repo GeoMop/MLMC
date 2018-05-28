@@ -3,6 +3,7 @@ import os.path
 import shutil
 import subprocess
 import yaml
+import shlex
 
 import glob
 import json
@@ -41,8 +42,12 @@ class FlowPbs:
             if reload:
                 with open(log_collected_file, 'r') as f:
                     self.collected_log_content = yaml.load(f)
+                    if self.collected_log_content is None:
+                        self.collected_log_content = []
                 with open(log_running_file, 'r') as f:
                     self.running_log_content = yaml.load(f)
+                    if self.running_log_content is None:
+                        self.running_log_content = []
                 self.check_finished_jobs()
                 open_flag = 'a'
             else:
@@ -63,13 +68,16 @@ class FlowPbs:
         check sucessfuly completed packages.
         :return:
         """
-        package_jobs = []
+        running_log_content = []
+        package_jobs_idx = 0
         for sim in self.running_log_content:
             if len(sim) == 1:
                 job_str = sim[0]
-                self.check_job(job_str, package_jobs)
+                #self.check_job(job_str, running_log_content[package_jobs_idx:])
+                package_jobs_idx = len(running_log_content)
             else:
-                package_jobs.append(sim)
+                running_log_content.append(sim)
+        self.running_log_content = running_log_content
 
     def check_job(self, job_str, jobs):
         """
@@ -78,14 +86,18 @@ class FlowPbs:
         :param jobs:
         :return:
         """
+
         with open(os.path.join(self.work_dir, job_str + ".OU"), 'r') as f:
             content = f.readlines()
             if content[-1].find("SUCCESS.") > -1:
                 return
             else:
+                finished = set()
                 for l in content:
                     if l.find("Finished simulation: ") > -1:
-                        sim_tag = l.split[2]
+                        _, flow123d, sim_tag, sim_dir = shlex.split(l)
+
+
 
                 # check individual jobs
 
@@ -129,7 +141,7 @@ class FlowPbs:
             'date +%y.%m.%d_%H:%M:%S',
             'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out 2>&1',
             'date +%y.%m.%d_%H:%M:%S',
-            'touch {output_subdir}/FINISHED'
+            'touch {output_subdir}/FINISHED',
             'echo \\"Finished simulation:\\" \\"{flow123d}\\" \\"{work_dir}\\" \\"{output_subdir}\\"',
             '']
         lines = [line.format(**kwargs) for line in lines]
@@ -194,7 +206,6 @@ class FlowPbs:
         output_dir = os.path.join(self.work_dir, "..")
         level_times = []
         for dir in os.listdir(output_dir):
-            print(dir)
             sim_dir = os.path.join(output_dir, dir, "samples")
             if os.path.isdir(sim_dir) and dir.startswith("sim_"):
                 all = os.listdir(sim_dir)

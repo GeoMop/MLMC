@@ -260,33 +260,33 @@ class FlowSim(simulation.Simulation):
         """
         sample_dir = sample_tuple[1]
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
-            try:
-                # extract the flux
-                balance_file = os.path.join(sample_dir, "water_balance.yaml")
-                with open(balance_file, "r") as f:
-                    balance = yaml.load(f)
 
-                # TODO: we need to move this part out of the library as soon as possible
-                # it has to be changed for every new input file or different observation.
-                # However in Analysis it is already done in general way.
-                flux_regions = ['.bc_outflow']
-                total_flux = 0.0
-                found = False
-                for flux_item in balance['data']:
-                    if flux_item['time'] > 0:
-                        break
+            # extract the flux
+            balance_file = os.path.join(sample_dir, "water_balance.yaml")
+            with open(balance_file, "r") as f:
+                balance = yaml.load(f)
 
-                    if flux_item['region'] in flux_regions:
-                        flux = float(flux_item['data'][0])
-                        flux_in = float(flux_item['data'][1])
-                        if flux_in > 1e-10:
-                            raise Exception("Possitive inflow at outlet region.")
-                        total_flux += flux  # flux field
-                        found = True
+            # TODO: we need to move this part out of the library as soon as possible
+            # it has to be changed for every new input file or different observation.
+            # However in Analysis it is already done in general way.
+            flux_regions = ['.bc_outflow']
+            total_flux = 0.0
+            found = False
+            for flux_item in balance['data']:
+                if flux_item['time'] > 0:
+                    break
 
-                if not found:
-                    raise Exception("Observation region not found.")
-                return total_flux
-            except: return 0
+                if flux_item['region'] in flux_regions:
+                    flux = float(flux_item['data'][0])
+                    flux_in = float(flux_item['data'][1])
+                    if flux_in > 1e-10:
+                        raise Exception("Possitive inflow at outlet region.")
+                    total_flux += flux  # flux field
+                    found = True
+
+            if not found:
+                raise Exception("Observation region not found.")
+            return -total_flux
+
         else:
             return None

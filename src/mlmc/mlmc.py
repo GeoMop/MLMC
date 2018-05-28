@@ -18,7 +18,7 @@ class MLMC:
         # Array of level objects
         self.create_levels(n_levels)
         if pbs.collected_log_content is not None:
-            self.load_levels(pbs.collected_log_content)
+            self.load_levels(pbs.collected_log_content, pbs.running_log_content)
 
         # Time of all mlmc
         self.target_time = None
@@ -37,18 +37,35 @@ class MLMC:
             level = Level(i_level, self.simulation_factory, previous, level_param)
             self.levels.append(level)
 
-    def load_levels(self, sim_list):
+    def load_levels(self, finished_list, running_list):
+        # recover finished
         self.clean_levels()
-        for sim in sim_list:
+        for sim in finished_list:
             i_level, i, fine, coarse, value = sim
             self.levels[i_level].finished_simulations.append( (i, fine, coarse) )
         for level in self.levels:
             level.sample_values = np.zeros((level.n_collected_samples, 2))
             level.target_n_samples = level.n_collected_samples
-        for sim in sim_list:
+        for sim in finished_list:
             i_level, i, fine, coarse, value = sim
             self.levels[i_level].sample_values[i, :] = value
-        pass
+
+        # recover running
+        for sim in running_list:
+            i_level, i, fine, coarse, _ = sim
+            self.levels[i_level].running_simulations.append( (i, fine, coarse) )
+        for level in self.levels:
+            level.enlarge_samples(level.n_total_samples)
+            level.collect_samples(self._pbs)
+
+
+    # def update_collected(self):
+    #     """
+    #     Re-create collected sample values from simulation sample directories.
+    #     :return:
+    #     """
+    #     for l in self.levels:
+    #         l.update_collected()
 
     @property
     def n_levels(self):
@@ -56,7 +73,7 @@ class MLMC:
 
     @property
     def n_samples(self):
-        return np.array([ l.n_collected_samples for l in self.levels ])
+        return np.array([ l.n_samples for l in self.levels ])
 
 
     def estimate_diff_vars(self, moments_fn):
@@ -231,6 +248,16 @@ class MLMC:
     #                 fout.write(str(tup[0])+ " " + str(tup[1]))
     #                 fout.write("\n")
 
+    def subsample(self, sub_samples=None):
+        """
+        :param sub_samples: None - use all generated samples
+                    array of ints, shape = n_levels; choose given number of sub samples from computed samples
+        :return:
+        """
+        if sub_samples is None:
+            sub_samples = [None]*self.n_levels
+        for ns, level in zip(sub_samples,self.levels):
+            level.subsample(ns)
 
     def estimate_moments(self, moments_fn):
         """
@@ -238,20 +265,25 @@ class MLMC:
         :param moments_fn: Vector moment function, gives vector of moments for given sample or sample vector.
         :return: estimate_of_moment_means, estimate_of_variance_of_estimate ; arrays of length n_moments
         """
-        l_means = np.array([ lvl.estimate_diff_mean(moments_fn) for lvl in self.levels])
-        means = np.sum(l_means, axis=0)
-
-        vars = np.zeros_like(means)
+        means = []
+        vars = []
+        n_samples = []
         for level in self.levels:
-            l_vars, n_samples = level.estimate_diff_var(moments_fn)
-            #print(l_vars)
-            vars += l_vars / n_samples
+            means.append(level.estimate_diff_mean(moments_fn))
+            l_vars, ns = level.estimate_diff_var(moments_fn)
+            vars.append(l_vars)
+            n_samples.append(ns)
+        means = np.sum(np.array(means), axis=0)
+        n_samples = np.array(n_samples, dtype=int)
+        vars = np.sum(np.array(vars), axis=0) / n_samples[:, None]
 
         return means, vars
 
-    def estimate_cost(self):
-        return np.sum([ lvl.n_ops_estimate()*lvl.n_collected_samples for lvl in self.levels])
+
+    def estimate_cost(self, level_times):
+        return np.sum([ lvl.n_ops_estimate()*lvl.n_samples for lvl in self.levels])
 
     def clean_levels(self):
         for level in self.levels:
             level.reset()
+

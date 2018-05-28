@@ -54,6 +54,9 @@ class Level:
         self.target_n_samples=5
         # Collected samples (array may be partly filled)
         self.sample_values = np.empty( (self.target_n_samples, 2) )
+        # Possible subsample indices.
+        self.sample_indices = None
+
 
 
     def set_target_n_samples(self, n_samples):
@@ -71,6 +74,13 @@ class Level:
     @property
     def n_collected_samples(self):
         return len(self.finished_simulations)
+
+    @property
+    def n_samples(self):
+        if self.sample_indices is None:
+            return len(self.finished_simulations)
+        else:
+            return len(self.sample_indices)
 
     def _get_sample_tag(self, char):
         return "L{:02d}_{}_S{:07d}".format(self.level_idx, char, self.n_total_samples)
@@ -102,7 +112,13 @@ class Level:
 
         return (idx, fine_sample, coarse_sample)
 
- 
+    def enlarge_samples(self, size):
+        # Enlarge array for sample values.
+        new_values = np.empty((size, 2))
+        n_collected = len(self.sample_values)
+        new_values[:n_collected, :] = self.sample_values
+        self.sample_values = new_values
+
     def fill_samples(self, logger):
         """
         Generate samples up to target number set through 'set_target_n_samples'.
@@ -112,11 +128,7 @@ class Level:
 
         orig_n_running = len(self.running_simulations)
         if self.target_n_samples > self.n_total_samples:
-            # Enlarge array for sample values.
-            new_values = np.empty( (self.target_n_samples, 2) )
-            n_collected = len(self.sample_values)
-            new_values[:n_collected, : ] = self.sample_values
-            self.sample_values = new_values
+            self.enlarge_samples(self.target_n_samples)
 
             # Create pair of fine and coarse simulations and add them to list of all running simulations
             while self.n_total_samples < self.target_n_samples:
@@ -131,7 +143,7 @@ class Level:
         :return: Number of simulations to finish yet.
         """
         # Still running some simulations
-
+        #logger.check_finished()
         # Loop through pair of running simulations
         orig_n_finised = len(self.finished_simulations)
         new_running = []
@@ -168,9 +180,21 @@ class Level:
                                values=self.sample_values)
         return len(self.running_simulations)
 
+    def subsample(self, size):
+        if size is None:
+            self.sample_indices = None
+        else:
+            assert size < self.n_collected_samples
+            self.sample_indices = np.random.choice(np.arange(self.n_collected_samples), size=size)
+
     def evaluate_moments(self,  moments_fn):
+
         if moments_fn != self._last_moments_fn:
-            samples = self.sample_values[:self.n_collected_samples, :]
+            if self.sample_indices is None:
+                samples = self.sample_values[:self.n_collected_samples, :]
+            else:
+                samples = self.sample_values[self.sample_indices, :]
+
             moments_fine = moments_fn(samples[:, 0])
             if self.is_zero_level:
                 moments_coarse = np.zeros_like(moments_fine)
