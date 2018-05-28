@@ -94,10 +94,12 @@ class FlowSim(simulation.Simulation):
         self.fields = None
         self.base_yaml_file = flow_dict['yaml_file']
         self.base_geo_file = flow_dict['geo_file']
+        self.field_template = flow_dict.get('field_template',
+                                            "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}")
         self.step = mesh_step
         # Pbs script creater
         self.pbs_creater = self.env["pbs"]
-        remove_old = flow_dict["remove_old"]
+        remove_old = flow_dict.get("remove_old", False)
 
         # Set in _make_mesh
         self.points = None
@@ -167,7 +169,8 @@ class FlowSim(simulation.Simulation):
         :return:
         """
         param_dict = {}
-        field_tmpl = "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
+        #field_tmpl = "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
+        field_tmpl = self.field_template
         for field in self.field_config.keys():
             param_dict[field] = field_tmpl % (self.FIELDS_FILE, field)
         param_dict[self.MESH_FILE_PLACEHOLDER] = self.mesh_file
