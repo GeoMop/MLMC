@@ -4,6 +4,9 @@ import shutil
 import subprocess
 import yaml
 
+import glob
+import json
+import numpy as np
 
 class FlowPbs:
 
@@ -38,6 +41,9 @@ class FlowPbs:
             if reload:
                 with open(log_collected_file, 'r') as f:
                     self.collected_log_content = yaml.load(f)
+                with open(log_running_file, 'r') as f:
+                    self.running_log_content = yaml.load(f)
+                self.check_finished_jobs()
                 open_flag = 'a'
             else:
                 # Fresh work dir.
@@ -47,6 +53,41 @@ class FlowPbs:
 
             self.running_log = open(log_running_file, open_flag)
             self.collected_log = open(log_collected_file, open_flag)
+
+    def check_finished_jobs(self):
+        """
+        Pass through the list of queued simulations, group simulations by packages,
+        check which packages are done, check if if their simulations are done.
+
+        TODO: write simulation tags into stdout and report end of the whole package. Need not to
+        check sucessfuly completed packages.
+        :return:
+        """
+        package_jobs = []
+        for sim in self.running_log_content:
+            if len(sim) == 1:
+                job_str = sim[0]
+                self.check_job(job_str, package_jobs)
+            else:
+                package_jobs.append(sim)
+
+    def check_job(self, job_str, jobs):
+        """
+        Check if the (finished) package is complete, otherwise check all its simulations, and rerun those that are not finished.
+        :param job_str:
+        :param jobs:
+        :return:
+        """
+        with open(os.path.join(self.work_dir, job_str + ".OU"), 'r') as f:
+            content = f.readlines()
+            if content[-1].find("SUCCESS.") > -1:
+                return
+            else:
+                for l in content:
+                    if l.find("Finished simulation: ") > -1:
+                        sim_tag = l.split[2]
+
+                # check individual jobs
 
     def close(self):
         self.running_log.close()
@@ -84,12 +125,12 @@ class FlowPbs:
         assert self.pbs_script is not None
 
         lines = [
-            'echo {work_dir}',
             'cd {work_dir}',
             'date +%y.%m.%d_%H:%M:%S',
             'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out 2>&1',
             'date +%y.%m.%d_%H:%M:%S',
-            'touch {output_subdir}/FINISHED',
+            'touch {output_subdir}/FINISHED'
+            'echo \\"Finished simulation:\\" \\"{flow123d}\\" \\"{work_dir}\\" \\"{output_subdir}\\"',
             '']
         lines = [line.format(**kwargs) for line in lines]
         self.pbs_script.extend(lines)
@@ -106,6 +147,7 @@ class FlowPbs:
         """
         if self.pbs_script is None:
             return
+        self.pbs_script.append("SUCCESS.")
         script_content = "\n".join(self.pbs_script)
         pbs_file = os.path.join(self.work_dir, "package_{:04d}.sh".format(self._package_count))
         self._package_count += 1
@@ -115,7 +157,11 @@ class FlowPbs:
         if self.qsub_cmd is None:
             subprocess.call(pbs_file)
         else:
-            subprocess.call(self.qsub_cmd + " " + pbs_file, shell=True)
+            process = subprocess.run([self.qsub_cmd, pbs_file], shell=True, stdout=subprocess.PIPE)
+            job_str = process.stdout
+            if job_str:
+                line = [job_str]
+                self.running_log.write(yaml.safe_dump(line))
 
         # Clean script for other usage
         self.clean_script()
@@ -143,3 +189,25 @@ class FlowPbs:
             lines.append(line)
         log_file.write(yaml.safe_dump(lines))
         log_file.flush()
+
+    def estimate_level_times(self):
+        output_dir = os.path.join(self.work_dir, "..")
+        level_times = []
+        for dir in os.listdir(output_dir):
+            print(dir)
+            sim_dir = os.path.join(output_dir, dir, "samples")
+            if os.path.isdir(sim_dir) and dir.startswith("sim_"):
+                all = os.listdir(sim_dir)
+                if len(all) > 20:
+                    all = np.random.choice(all, size=20)
+                times = []
+                for dir in all:
+                    sample_dir = os.path.join(sim_dir, dir)
+                    prof_files = list(glob.iglob(os.path.join(sample_dir, "profiler_*.json")))
+                    assert len(prof_files) == 1, "N: " + str(prof_files)
+                    with open(prof_files[0], 'r') as f:
+                        prof_data = json.load(f)
+                    total_time = float(prof_data['children'][0]['cumul-time-max'])
+                    times.append(total_time)
+                level_times.append(np.mean(np.array(times)))
+        return level_times
