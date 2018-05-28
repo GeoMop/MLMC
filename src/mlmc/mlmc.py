@@ -40,9 +40,12 @@ class MLMC:
     def load_levels(self, finished_list, running_list):
         # recover finished
         self.clean_levels()
+        finished = set()
         for sim in finished_list:
             i_level, i, fine, coarse, value = sim
             self.levels[i_level].finished_simulations.append( (i, fine, coarse) )
+            finished.add(i)
+
         for level in self.levels:
             level.sample_values = np.zeros((level.n_collected_samples, 2))
             level.target_n_samples = level.n_collected_samples
@@ -53,7 +56,8 @@ class MLMC:
         # recover running
         for sim in running_list:
             i_level, i, fine, coarse, _ = sim
-            self.levels[i_level].running_simulations.append( (i, fine, coarse) )
+            if i not in finished:
+                self.levels[i_level].running_simulations.append( (i, fine, coarse) )
         for level in self.levels:
             level.enlarge_samples(level.n_total_samples)
             level.collect_samples(self._pbs)
@@ -174,14 +178,14 @@ class MLMC:
         sqrt_var_n = np.sqrt(vars.T * n_ops)    # moments in rows, levels in cols
         total = np.sum(sqrt_var_n, axis=1)      # sum over levels
         n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int) # moments in cols
-        n_samples_estimate_safe = np.minimum(n_samples_estimate, vars*self.n_levels/target_variance)
+        n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars*self.n_levels/target_variance), 2)
         n_samples_estimate_max = np.max(n_samples_estimate_safe, axis=1)
 
         #n_samples_estimate_max= np.array([30, 3, 0.3])/target_variance
         #print(n_samples_estimate_max)
         for level, n  in zip(self.levels, n_samples_estimate_max):
             level.set_target_n_samples( int(n*fraction) )
-        return  n_samples_estimate
+        return  n_samples_estimate_safe
 
     # @property
     # def number_of_samples(self):
@@ -254,9 +258,10 @@ class MLMC:
                     array of ints, shape = n_levels; choose given number of sub samples from computed samples
         :return:
         """
+        assert len(sub_samples) == self.n_levels
         if sub_samples is None:
             sub_samples = [None]*self.n_levels
-        for ns, level in zip(sub_samples,self.levels):
+        for ns, level in zip(sub_samples, self.levels):
             level.subsample(ns)
 
     def estimate_moments(self, moments_fn):
@@ -275,7 +280,7 @@ class MLMC:
             n_samples.append(ns)
         means = np.sum(np.array(means), axis=0)
         n_samples = np.array(n_samples, dtype=int)
-        vars = np.sum(np.array(vars), axis=0) / n_samples[:, None]
+        vars = np.sum(np.array(vars) / n_samples[:, None], axis=0)
 
         return means, vars
 

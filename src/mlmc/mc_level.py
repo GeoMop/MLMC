@@ -185,15 +185,12 @@ class Level:
             self.sample_indices = None
         else:
             assert size < self.n_collected_samples
-            self.sample_indices = np.random.choice(np.arange(self.n_collected_samples), size=size)
+            self.sample_indices = np.random.choice(np.arange(self.n_collected_samples, dtype=int), size=size)
 
     def evaluate_moments(self,  moments_fn):
 
         if moments_fn != self._last_moments_fn:
-            if self.sample_indices is None:
-                samples = self.sample_values[:self.n_collected_samples, :]
-            else:
-                samples = self.sample_values[self.sample_indices, :]
+            samples = self.sample_values[:self.n_collected_samples, :]
 
             moments_fine = moments_fn(samples[:, 0])
             if self.is_zero_level:
@@ -202,7 +199,13 @@ class Level:
                 moments_coarse = moments_fn(samples[:, 1])
                 self._last_moments_fn = moments_fn
             self.last_moments_eval = moments_fine, moments_coarse
-        return self.last_moments_eval
+
+        if self.sample_indices is None:
+            return self.last_moments_eval
+        else:
+            m_fine, m_coarse = self.last_moments_eval
+            return m_fine[self.sample_indices, :], m_coarse[self.sample_indices, :]
+
 
     def estimate_diff_var(self, moments_fn):
         # n_samples = n_dofs + 1 >= 7 leads to probability 0.9 that estimate is whithin range of 10% error from true variance
