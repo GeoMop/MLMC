@@ -221,7 +221,7 @@ class FlowPbs:
         log_file.write(yaml.safe_dump(lines))
         log_file.flush()
 
-    def estimate_level_times(self):
+    def estimate_level_times(self, n_samples=20):
         output_dir = os.path.join(self.work_dir, "..")
         level_times = []
         for dir_entry in os.scandir(output_dir):
@@ -229,16 +229,24 @@ class FlowPbs:
             print(sim_dir)
             if os.path.isdir(sim_dir) and dir_entry.name.startswith("sim_"):
                 times = []
-                for sample_entry in os.scandir(sim_dir):
+                sample_entries = list(os.scandir(sim_dir))
+                total_samples = len(sample_entries)
+                if total_samples > n_samples:
+                    indices = np.random.choice(np.arange(total_samples, dtype=int), size=n_samples)
+                    selected_samples = [ sample_entries[i] for i in indices]
+                else:
+                    selected_samples = sample_entries
+                
+                for sample_entry in selected_samples:
                     sample_dir = sample_entry.path
                     print("   ", sample_dir)
                     prof_files = list(glob.iglob(os.path.join(sample_dir, "profiler_*.json")))
-                    assert len(prof_files) == 1, "N: " + str(prof_files)
-                    with open(prof_files[0], 'r') as f:
+                    #assert len(prof_files) == 1, "N: " + str(prof_files)
+                    with open(prof_files[-1], 'r') as f:
                         prof_data = json.load(f)
                     total_time = float(prof_data['children'][0]['cumul-time-max'])
                     times.append(total_time)
-                    if len(times) > 20:
+                    if len(times) > 100:
                         break
                 level_times.append(np.mean(np.array(times)))
         return level_times
