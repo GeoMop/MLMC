@@ -121,8 +121,10 @@ class FlowPbs:
         self.collected_log_ = open(self.log_collected_file, flag)
 
     def close(self):
-        self.running_log_.close()
-        self.collected_log_.close()
+        if self.running_log_ is not None:
+            self.running_log_.close()
+        if self.collected_log_ is not None:
+            self.collected_log_.close()
 
     def pbs_common_setting(self, **kwargs):
         """
@@ -188,7 +190,7 @@ class FlowPbs:
             subprocess.call(pbs_file)
         else:
             process = subprocess.run([self.qsub_cmd, pbs_file], stdout=subprocess.PIPE)
-            job_str = process.stdout
+            job_str = process.stdout.decode('ascii').split("\n")[0]
             line = [pbs_file, job_str]
             self.running_log.write(yaml.safe_dump(line))
 

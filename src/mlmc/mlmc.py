@@ -55,6 +55,8 @@ class MLMC:
 
         # recover running
         for sim in running_list:
+            if len(sim) !=5:
+                continue
             i_level, i, fine, coarse, _ = sim
             if i not in finished:
                 self.levels[i_level].running_simulations.append( (i, fine, coarse) )
