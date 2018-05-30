@@ -149,6 +149,8 @@ class TestMLMC:
 
         # print("var: ", distr.var())
         step_range = (0.8, 0.01)
+        coef = (step_range[1]/step_range[0])**(1.0/(self.n_levels - 1))
+        self.steps = step_range[0] * coef**np.arange(self.n_levels)
         self.mc, self.sims = self.make_simulation_mc(step_range)
 
         # reference variance
@@ -159,7 +161,7 @@ class TestMLMC:
         sample_size = 10000
         self.exact_mean = self.mc_estimate_exact_mean(self.moments_fn, 5*sample_size)
         means, vars = self.mc_estimate_diff_var(self.moments_fn, sample_size)
-        self.ref_diff_vars = np.array(vars)[:, 1:]
+        self.ref_diff_vars = np.array(vars)[:, :]
         self.ref_vars = np.sum(np.array(vars)/sample_size, axis=0)
         self.ref_means = np.sum(np.array(means), axis=0)
         #print("Ref means: ", ref_means)
@@ -224,6 +226,12 @@ class TestMLMC:
         return np.mean(moments_fn(X), axis=0)
 
 
+    def generate_samples(self, size):
+        # generate samples
+        self.mc.set_initial_n_samples(self.n_levels*[size])
+        self.mc.refill_samples()
+        self.mc.wait_for_simulations()
+
     # @staticmethod
     # def box_plot(ax, X, Y):
     #     bp = boxplot(column='age', by='pclass', grid=False)
@@ -267,31 +275,30 @@ class TestMLMC:
 
 
 
+    def check_lindep(self, x, y, slope):
+        fit = np.polyfit(np.log(x), np.log(y), deg=1)
+        print("MC fit: ", fit, slope)
+        assert np.isclose(fit[0], slope, rtol=0.2), (fit, slope)
 
     def convergence_test(self):
 
-        # generate samples
-        total_samples = 10000
-        mc = self.mc
-        mc.set_initial_n_samples(self.n_levels*[total_samples])
-        mc.refill_samples()
-        mc.wait_for_simulations()
 
+        # subsamples
         var_exp = np.linspace(-1, -4, 10)
         target_var = 10**var_exp
         means_el = []
         vars_el = []
         n_loops = 30
         for t_var in target_var:
-            n_samples = mc.set_target_variance(t_var, prescribe_vars=self.ref_diff_vars)
+            n_samples = self.mc.set_target_variance(t_var, prescribe_vars=self.ref_diff_vars)
             n_samples = np.max(n_samples, axis=1).astype(int)
 
             print( t_var, n_samples)
-            n_samples = np.minimum(n_samples, int(total_samples*0.9))
+            n_samples = np.minimum(n_samples, (self.mc.n_samples*0.9).astype(int))
             n_samples = np.maximum(n_samples, 1)
             for i in range(n_loops):
-                mc.subsample(n_samples)
-                means_est, vars_est = mc.estimate_moments(self.moments_fn)
+                self.mc.subsample(n_samples)
+                means_est, vars_est = self.mc.estimate_moments(self.moments_fn)
                 means_el.append(means_est)
                 vars_el.append(vars_est)
         self.means_est = np.array(means_el).reshape(len(target_var), n_loops, self.n_moments)
@@ -309,16 +316,129 @@ class TestMLMC:
             Y = np.mean(np.abs(self.exact_mean[m] - self.means_est[:, :, m])**2, axis=1)
             self.check_lindep(target_var, Y,  1.0)
 
+    def plot_diff_var(self):
+        import matplotlib.pyplot as plt
+        fig = plt.figure(figsize=(10,20))
+        ax = fig.add_subplot(1, 1, 1)
 
-    def check_lindep(self, x, y, slope):
-        fit = np.polyfit(np.log(x), np.log(y), deg=1)
-        print("MC fit: ", fit, slope)
-        assert np.isclose(fit[0], slope, rtol=0.2), (fit, slope)
+        error_power = 2.0
+        for m in range(1, self.n_moments):
+            color = 'C' + str(m)
+            Y = self.ref_diff_vars[:,m]/(self.steps**error_power)
+
+            ax.plot(self.steps[1:], Y[1:], c=color, label=str(m))
+            ax.plot(self.steps[0], Y[0], 'o', c=color)
+        #
+        #
+        #     Y = np.percentile(self.vars_est[:, :, m],  [10, 50, 90], axis=1)
+        #     ax.plot(target_var, Y[1,:], c=color)
+        #     ax.plot(target_var, Y[0,:], c=color, ls='--')
+        #     ax.plot(target_var, Y[2, :], c=color, ls ='--')
+        #     Y = (self.exact_mean[m] - self.means_est[:, :, m])**2
+        #     Y = np.percentile(Y, [10, 50, 90], axis=1)
+        #     ax.plot(target_var, Y[1,:], c='gray')
+        #     ax.plot(target_var, Y[0,:], c='gray', ls='--')
+        #     ax.plot(target_var, Y[2, :], c='gray', ls ='--')
+        ax.set_yscale('log')
+        ax.set_xscale('log')
+        ax.legend()
+        ax.set_ylabel("observed var. of mean est.")
+
+        plt.show()
+
+    def plot_n_sample_est_distributions(self, cost, total_std, n_samples):
+        import matplotlib.pyplot as plt
+
+        fig = plt.figure(figsize=(30,10))
+        ax1 = fig.add_subplot(1, 3, 1)
+        ax1.hist(cost, normed=1)
+        ax1.set_xlabel("cost")
+        cost_99 = np.percentile(cost, [99])
+        ax1.axvline(x=cost_99, label=str(cost_99), c='red')
+        ax1.legend()
+
+        ax2 = fig.add_subplot(1, 3, 2)
+        ax2.hist(total_std, normed=1)
+        ax2.set_xlabel("total var")
+        tstd_99 = np.percentile(total_std, [99])
+        ax2.axvline(x=tstd_99, label=str(tstd_99), c='red')
+        ax2.legend()
+
+        ax3 = fig.add_subplot(1, 3, 3)
+        ax3.hist(n_samples, normed=1)
+        ax3.set_xlabel("n_samples")
+        ns_99 = np.percentile(n_samples, [99])
+        ax3.axvline(x=ns_99, label=str(ns_99), c='red')
+        ax3.legend()
+
+        plt.show()
+
+    def test_min_samples(self):
+        """
+        How many samples we need on every level to get same Nl or higher but
+        with at most 10% cost increase in 99%
+        :return:
+        """
+        #self.plot_diff_var()
+
+        t_var = 0.0002
+        ref_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=self.ref_diff_vars)
+        ref_n_samples = np.max(ref_n_samples, axis=1)
+        ref_cost = self.mc.estimate_cost(n_samples=ref_n_samples.astype(int))
+        ref_total_var = np.sum(self.ref_diff_vars / ref_n_samples[:, None])/self.n_moments
+        n_samples = self.n_levels*[100]
+        n_loops = 10
+
+        print("ref var: {} target var: {}".format(ref_total_var, t_var))
+        print(ref_n_samples.astype(int))
+
+        # subsamples
+        l_cost_err = []
+        l_total_std_err = []
+        l_n_samples_err = []
+        for i in range(n_loops):
+            fractions = [0, 0.001, 0.01, 0.1,  1]
+            for fr in fractions:
+                if fr == 0:
+                    nL, n0 = 3, 30
+                    L = max(2, self.n_levels)
+                    factor = (nL / n0) ** (1 / (L - 1))
+                    n_samples = (n0 * factor ** np.arange(L)).astype(int)
+                else:
+                    n_samples = np.maximum( n_samples, (fr*max_est_n_samples).astype(int))
+                # n_samples = np.maximum(n_samples, 1)
+
+                self.mc.subsample(n_samples)
+                est_diff_vars, _ = self.mc.estimate_diff_vars(self.moments_fn)
+                est_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=est_diff_vars)
+                max_est_n_samples = np.max(est_n_samples, axis=1)
+                est_cost = self.mc.estimate_cost(n_samples=max_est_n_samples.astype(int))
+                est_total_var = np.sum(self.ref_diff_vars / max_est_n_samples[:, None])/self.n_moments
+
+                n_samples_err = np.min( (max_est_n_samples - ref_n_samples) /ref_n_samples)
+                #total_std_err =  np.log2(est_total_var/ref_total_var)/2
+                total_std_err = (np.sqrt(est_total_var) - np.sqrt(ref_total_var)) / np.sqrt(ref_total_var)
+                cost_err = (est_cost - ref_cost)/ref_cost
+                print("Fr: {:6f} NSerr: {} Tstderr: {} cost_err: {}".format(fr, n_samples_err, total_std_err, cost_err))
+            print("est cost: {} ref cost: {}".format(est_cost, ref_cost))
+            print(n_samples)
+            print(np.maximum( n_samples, (max_est_n_samples).astype(int)))
+            print(ref_n_samples.astype(int))
+            print("\n")
+            #l_n_samples_err.append(n_samples_err)
+            #l_total_std_err.append( )
+            #l_cost_err.append((ref_cost - est_cost)/ref_cost)
+
+        # l_cost_err.sort()
+        # l_total_std_err.sort()
+        # l_n_samples_err.sort()
+        # self.plot_n_sample_est_distributions(l_cost_err, l_total_std_err, l_n_samples_err)
+
 
 def test_var_estimate():
-    np.random.seed(3)
-    n_levels=[4] #, 2, 3] #, 4, 5, 7, 9]
-    n_moments=[20] #,4,5] #,7, 10,14,19]
+    #np.random.seed(3)
+    n_levels=[9] #, 2, 3] #, 4, 5, 7, 9]
+    n_moments=[8] #,4,5] #,7, 10,14,19]
     distr = [
         (stats.norm(loc=42.0, scale=5), False)
         #,(stats.lognorm(scale=np.exp(-5), s=1), True)            # worse conv of higher moments
@@ -339,9 +459,10 @@ def test_var_estimate():
         for nm in n_moments:
             for d, il in distr:
                 mc = TestMLMC(nl, nm, d, il)
-
+                mc.generate_samples(10000)
                 #impl_var_estimate(nl, nm, tv, d, il)
-                mc.convergence_test()
+                mc.test_min_samples()
+                #mc.convergence_test()
 
     # pr.disable()
     # s = io.StringIO()

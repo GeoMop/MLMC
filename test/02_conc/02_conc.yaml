@@ -1,0 +1,93 @@
+flow123d_version: 2.0.0
+problem: !Coupling_Sequential
+  description: Steady flow through heterogeneous media, compute resulting flux.
+  mesh:
+    mesh_file: repo_0.2.msh  #<mesh_file>
+  flow_equation: !Flow_Darcy_MH
+    output_specific:
+    nonlinear_solver:
+      linear_solver: !Petsc
+        a_tol: 1.0e-10
+        r_tol: 1.0e-10
+        #max_it: 1000
+    n_schurs: 2
+    input_fields:
+      - region: ground_0
+        conductivity: 1e-8  #<conductivity_0>   
+      
+      - region: [ground_1, repo]
+        conductivity: 1e-9  #<conductivity_1>   
+      
+      - region: .surface
+        bc_type: seepage
+        bc_pressure: 0
+        bc_flux: 3e-8   # odpovida uhrnu srazek zhruba 1000mm za rok
+    output:
+      fields:
+        - pressure_p0
+        - velocity_p0
+        - conductivity
+    balance: {}
+    output_stream:
+      format: !vtk
+
+  solute_equation: !Coupling_OperatorSplitting
+    transport: !Solute_Advection_FV
+      input_fields:
+
+        - region: repo
+          sources_conc: 1.0
+          sources_sigma: 0.001    # CFL time 1000.0
+
+        - region: [ground_0, ground_1, repo]
+          init_conc: 0
+        
+        - region: ground_0  
+          porosity: 0.01  #<porosity_0>
+        
+        - region: ground_1  
+          porosity: 0.001 #<porosity_1>
+        
+        - region: repo
+          porosity: 1.0  #<porosity_1>
+        
+      output:
+        fields:
+          - porosity
+          - conc
+        observe_fields:
+          - conc
+          
+    output_stream:
+        file: ./transport_test15.msh
+        format: !vtk
+            null
+        name: transport_output_stream
+        times:
+        - step: 1e6
+        observe_points:
+          - [1,   0,  0.2]
+          - [0.9, 0,  0.16]
+          
+          - [0.85, 0, 0.14]
+          - [0.8, 0,  0.13]
+          - [0.75, 0, 0.11]
+          - [0.7, 0,  0.1]
+          - [0.65, 0, 0.09]
+          - [0.6, 0,  0.09]
+          - [0.55, 0, 0.09]
+          - [0.5, 0,  0.09]
+          
+          - [0.4, 0,  0.1]
+          - [0.3, 0,  0.15]
+          - [0.2, 0,  0.22]
+          - [0.1, 0,  0.3]
+    substances:
+        - X
+    time:
+        max_dt: 1e5
+        end_time: 5e7
+    balance:
+        times:
+            step: 1e5
+        

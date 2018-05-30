@@ -184,7 +184,8 @@ class Level:
         if size is None:
             self.sample_indices = None
         else:
-            assert size < self.n_collected_samples
+            assert 0 < size < self.n_collected_samples, "0 < {} < {}".format(size, self.n_collected_samples)
+
             self.sample_indices = np.random.choice(np.arange(self.n_collected_samples, dtype=int), size=size)
 
     def evaluate_moments(self,  moments_fn):

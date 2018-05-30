@@ -168,6 +168,7 @@ class MLMC:
         :param target_variance: Constrain to achive this variance.
         :param moments_fn: moment evaluation functions
         :param fraction: Plan only this fraction of computed counts.
+        :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
         :return: np.array with number of optimal samples
         """
         if prescribe_vars is None:
@@ -285,8 +286,12 @@ class MLMC:
         return means, vars
 
 
-    def estimate_cost(self, level_times):
-        return np.sum([ lvl.n_ops_estimate()*lvl.n_samples for lvl in self.levels])
+    def estimate_cost(self, level_times=None, n_samples=None):
+        if level_times is None:
+            level_times = [ lvl.n_ops_estimate() for lvl in self.levels]
+        if n_samples is None:
+           n_samples = self.n_samples
+        return np.sum(level_times * n_samples)
 
     def clean_levels(self):
         for level in self.levels:
