@@ -9,9 +9,10 @@ import glob
 import json
 import numpy as np
 
+
 class FlowPbs:
 
-    def __init__(self, work_dir=None, package_weight=200000, qsub=None, reload=False):
+    def __init__(self, work_dir=None, package_weight=200000, qsub=None, clean=False):
         """
 
         :param work_dir: if None, means no logging and just direct execution.
@@ -34,30 +35,46 @@ class FlowPbs:
         self.qsub_cmd = qsub
 
         self.collected_log_content = None
+        self.running_log_content = None
 
+        self.collected_log_ = None
+        self.running_log_ = None
         if work_dir is not None:
-            log_running_file = os.path.join(self.work_dir, "running_log.yaml")
-            log_collected_file = os.path.join(self.work_dir, "collected_log.yaml")
-            open_flag = 'w'
-            if reload:
-                with open(log_collected_file, 'r') as f:
-                    self.collected_log_content = yaml.load(f)
-                    if self.collected_log_content is None:
-                        self.collected_log_content = []
-                with open(log_running_file, 'r') as f:
-                    self.running_log_content = yaml.load(f)
-                    if self.running_log_content is None:
-                        self.running_log_content = []
-                self.check_finished_jobs()
-                open_flag = 'a'
-            else:
+            self.log_running_file = os.path.join(self.work_dir, "running_log.yaml")
+            self.log_collected_file = os.path.join(self.work_dir, "collected_log.yaml")
+            if clean:
                 # Fresh work dir.
                 if os.path.isdir(self.work_dir):
                     shutil.rmtree(self.work_dir)
                 os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
+                self.open(flag='w')
 
-            self.running_log = open(log_running_file, open_flag)
-            self.collected_log = open(log_collected_file, open_flag)
+
+    @property
+    def running_log(self):
+        if self.running_log_ is None:
+            self.open()
+        return self.running_log_
+
+    @property
+    def collected_log(self):
+        if self.collected_log_ is None:
+            self.open()
+        return self.collected_log_
+
+
+
+    def reload_logs(self):
+        self.close()
+        with open(self.log_collected_file, 'r') as f:
+            self.collected_log_content = yaml.load(f)
+            if self.collected_log_content is None:
+                self.collected_log_content = []
+        with open(self.log_running_file, 'r') as f:
+            self.running_log_content = yaml.load(f)
+            if self.running_log_content is None:
+                self.running_log_content = []
+
 
     def check_finished_jobs(self):
         """
@@ -73,7 +90,7 @@ class FlowPbs:
         for sim in self.running_log_content:
             if len(sim) == 1:
                 job_str = sim[0]
-                #self.check_job(job_str, running_log_content[package_jobs_idx:])
+                # self.check_job(job_str, running_log_content[package_jobs_idx:])
                 package_jobs_idx = len(running_log_content)
             else:
                 running_log_content.append(sim)
@@ -97,14 +114,15 @@ class FlowPbs:
                     if l.find("Finished simulation: ") > -1:
                         _, flow123d, sim_tag, sim_dir = shlex.split(l)
 
-
-
                 # check individual jobs
 
-    def close(self):
-        self.running_log.close()
-        self.collected_log.close()
+    def open(self, flag='a'):
+        self.running_log_ = open(self.log_running_file, flag)
+        self.collected_log_ = open(self.log_collected_file, flag)
 
+    def close(self):
+        self.running_log_.close()
+        self.collected_log_.close()
 
     def pbs_common_setting(self, **kwargs):
         """
@@ -115,14 +133,14 @@ class FlowPbs:
         kwargs['pbs_output_dir'] = self.work_dir
         # Script header
         pbs_header_template = ["#!/bin/bash",
-                           '#PBS -S /bin/bash',
-                           '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}',
-                           '#PBS -q {queue}',
-                           '#PBS -N Flow123d',
-                           '#PBS -j oe',
-                           '#PBS -o {pbs_output_dir}',
-                           '#PBS -e {pbs_output_dir}',
-                           '']
+                               '#PBS -S /bin/bash',
+                               '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}',
+                               '#PBS -q {queue}',
+                               '#PBS -N Flow123d',
+                               '#PBS -j oe',
+                               '#PBS -o {pbs_output_dir}',
+                               '#PBS -e {pbs_output_dir}',
+                               '']
 
         self.pbs_script_heading = [line.format(**kwargs) for line in pbs_header_template]
         self.clean_script()
@@ -154,7 +172,7 @@ class FlowPbs:
 
     def execute(self):
         """
-        Execute script 
+        Execute script
         :return: None
         """
         if self.pbs_script is None:
@@ -169,7 +187,7 @@ class FlowPbs:
         if self.qsub_cmd is None:
             subprocess.call(pbs_file)
         else:
-            process = subprocess.run([self.qsub_cmd, pbs_file], shell=True, stdout=subprocess.PIPE)
+            process = subprocess.run([self.qsub_cmd, pbs_file], stdout=subprocess.PIPE)
             job_str = process.stdout
             line = [pbs_file, job_str]
             self.running_log.write(yaml.safe_dump(line))
@@ -196,7 +214,7 @@ class FlowPbs:
         for i, fine, coarse in simulations:
             if values is not None:
                 value = values[i].tolist()
-            line = [ level, i, fine, coarse, value ]
+            line = [level, i, fine, coarse, value]
             lines.append(line)
         log_file.write(yaml.safe_dump(lines))
         log_file.flush()
@@ -204,20 +222,21 @@ class FlowPbs:
     def estimate_level_times(self):
         output_dir = os.path.join(self.work_dir, "..")
         level_times = []
-        for dir in os.listdir(output_dir):
-            sim_dir = os.path.join(output_dir, dir, "samples")
-            if os.path.isdir(sim_dir) and dir.startswith("sim_"):
-                all = os.listdir(sim_dir)
-                if len(all) > 20:
-                    all = np.random.choice(all, size=20)
+        for dir_entry in os.scandir(output_dir):
+            sim_dir = os.path.join(dir_entry.path, "samples")
+            print(sim_dir)
+            if os.path.isdir(sim_dir) and dir_entry.name.startswith("sim_"):
                 times = []
-                for dir in all:
-                    sample_dir = os.path.join(sim_dir, dir)
+                for sample_entry in os.scandir(sim_dir):
+                    sample_dir = sample_entry.path
+                    print("   ", sample_dir)
                     prof_files = list(glob.iglob(os.path.join(sample_dir, "profiler_*.json")))
                     assert len(prof_files) == 1, "N: " + str(prof_files)
                     with open(prof_files[0], 'r') as f:
                         prof_data = json.load(f)
                     total_time = float(prof_data['children'][0]['cumul-time-max'])
                     times.append(total_time)
+                    if len(times) > 20:
+                        break
                 level_times.append(np.mean(np.array(times)))
         return level_times
