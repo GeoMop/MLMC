@@ -22,10 +22,8 @@ class Distribution:
         self.domain = None
 
         # Approximation of moment values.
-        if type(moment_data) is tuple:
-            self.moment_means, self.moment_vars = moment_data
-        else:
-            self.moment_means, self.moment_vars = moment_data, np.ones_like(self.moment_means)
+        self.moment_means = moment_data[:, 0]
+        self.moment_vars = moment_data[:, 1]
 
 
         # Force density with positive support.

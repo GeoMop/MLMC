@@ -435,7 +435,7 @@ class TestMLMC:
         # self.plot_n_sample_est_distributions(l_cost_err, l_total_std_err, l_n_samples_err)
 
 
-def test_var_estimate():
+def _test_var_estimate():
     #np.random.seed(3)
     n_levels=[9] #, 2, 3] #, 4, 5, 7, 9]
     n_moments=[8] #,4,5] #,7, 10,14,19]
@@ -492,7 +492,7 @@ def test_save_load_samples():
     n_levels = 5
     distr = stats.norm()
     step_range = (0.8, 0.01)
-    pbs = flow_pbs.FlowPbs(work_dir=work_dir)
+    pbs = flow_pbs.FlowPbs(work_dir=work_dir, clean=True)
     simulation_config = dict(
         distr= distr, complexity=2)
     simultion_factory = lambda t_level: SimulationTest.make_sim(simulation_config, step_range, t_level)
@@ -513,7 +513,8 @@ def test_save_load_samples():
     mc.clean_levels()
     pbs.close()
     # New mlmc
-    pbs = flow_pbs.FlowPbs(work_dir=work_dir, reload = True)
+    pbs = flow_pbs.FlowPbs(work_dir=work_dir)
+    pbs.reload_logs()
     mc = mlmc.mlmc.MLMC(n_levels, simultion_factory, pbs)
 
     # Test

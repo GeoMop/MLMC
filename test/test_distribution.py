@@ -53,7 +53,7 @@ def check_distr_approx(moment_function, distribution, distr_args):
     variance = distribution.var(**distr_args)
     n_moments = 10
     tol = 1e-4
-    exact_moments = mlmc.distributioncompute_exact_moments(moment_function, n_moments, density, domain[0], domain[1], tol)
+    exact_moments = mlmc.distribution.compute_exact_moments(moment_function, n_moments, density, domain[0], domain[1], tol)
     moments_data = np.empty((n_moments, 2))
     moments_data[:, 0] = exact_moments
     moments_data[:, 1] = tol
@@ -68,8 +68,8 @@ def check_distr_approx(moment_function, distribution, distr_args):
     t2 = time.clock()
     t = t2 - t1
     nit = getattr(result, 'nit', result.njev)
-    kl_div = mlmc.distributionKL_divergence(distr_obj.density, density, domain[0], domain[1])
-    l2_dist = mlmc.distributionL2_distance(distr_obj.density, density, domain[0], domain[1])
+    kl_div = mlmc.distribution.KL_divergence(distr_obj.density, density, domain[0], domain[1])
+    l2_dist = mlmc.distribution.L2_distance(distr_obj.density, density, domain[0], domain[1])
     print("Conv: {} Nit: {} Time: {} KL: {} L2: {}".format(
         result.success, nit, t, kl_div, l2_dist
     ))
