@@ -59,14 +59,14 @@ class Simulation:
         return sim_param_range[0] ** (1 - t_level) * sim_param_range[1] ** t_level
 
     @classmethod
-    def make_sim(cls, config, sim_par_range, t_level=None):
+    def factory(cls, step_range, **kwargs):
         """
         Create specific simulation
         :param config: Simulation configuration
-        :param sim_par_range: Tuple or list of two elements, number of  
+        :param sim_par_range: Tuple or list of two elements, number of
         :param t_level: Simulation parameter of particular simulation
         :return: Particular simulation object
         """
-        sim_par = Simulation.log_interpolation(sim_par_range, t_level)
 
-        return cls(config, sim_par)
+
+        return lambda t_level, kw=kwargs : cls(Simulation.log_interpolation(step_range, t_level), **kw)

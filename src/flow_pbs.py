@@ -67,11 +67,11 @@ class FlowPbs:
     def reload_logs(self):
         self.close()
         with open(self.log_collected_file, 'r') as f:
-            self.collected_log_content = yaml.load(f)
+            self.collected_log_content = [json.loads(line) for line in f.readlines()]
             if self.collected_log_content is None:
                 self.collected_log_content = []
         with open(self.log_running_file, 'r') as f:
-            self.running_log_content = yaml.load(f)
+            self.running_log_content = [json.loads(line) for line in f.readlines()]
             if self.running_log_content is None:
                 self.running_log_content = []
 
@@ -189,10 +189,13 @@ class FlowPbs:
         if self.qsub_cmd is None:
             subprocess.call(pbs_file)
         else:
-            process = subprocess.run([self.qsub_cmd, pbs_file], stdout=subprocess.PIPE)
+            process = subprocess.run([self.qsub_cmd, pbs_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            if process.returncode != 0:
+                raise Exception(process.stderr.decode('ascii'))
             job_str = process.stdout.decode('ascii').split("\n")[0]
             line = [pbs_file, job_str]
-            self.running_log.write(yaml.safe_dump(line))
+            self.running_log.write(json.dumps(line))
+            self.running_log.write("\n")
 
         # Clean script for other usage
         self.clean_script()
@@ -217,8 +220,8 @@ class FlowPbs:
             if values is not None:
                 value = values[i].tolist()
             line = [level, i, fine, coarse, value]
-            lines.append(line)
-        log_file.write(yaml.safe_dump(lines))
+            log_file.write(json.dumps(line))
+            log_file.write("\n")
         log_file.flush()
 
     def estimate_level_times(self):

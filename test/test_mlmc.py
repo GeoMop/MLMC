@@ -1,5 +1,5 @@
 import os
-import statprof
+#import statprof
 import scipy.stats as stats
 import scipy.integrate as integrate
 
@@ -21,7 +21,7 @@ def aux_sim(x,  h):
 
 class SimulationTest(mlmc.simulation.Simulation):
     # Artificial simulation. Just random parameter + numerical error."""
-    def __init__(self, config, step):
+    def __init__(self, step, config):
         """
         :param config: Dict:
             'distr' scipy.stats.XYZ freezed distribution
@@ -170,7 +170,7 @@ class TestMLMC:
     def make_simulation_mc(self, step_range):
         pbs = flow_pbs.FlowPbs()
         simulation_config = dict(distr=self.distr, complexity=2)
-        simultion_factory = lambda t_level: SimulationTest.make_sim(simulation_config, step_range, t_level)
+        simultion_factory = SimulationTest.factory(step_range, config=simulation_config)
 
         mc = mlmc.mlmc.MLMC(self.n_levels, simultion_factory, pbs)
         sims = [level.fine_simulation for level in mc.levels]
@@ -435,7 +435,7 @@ class TestMLMC:
         # self.plot_n_sample_est_distributions(l_cost_err, l_total_std_err, l_n_samples_err)
 
 
-def _test_var_estimate():
+def test_var_estimate():
     #np.random.seed(3)
     n_levels=[9] #, 2, 3] #, 4, 5, 7, 9]
     n_moments=[8] #,4,5] #,7, 10,14,19]
@@ -495,7 +495,7 @@ def test_save_load_samples():
     pbs = flow_pbs.FlowPbs(work_dir=work_dir, clean=True)
     simulation_config = dict(
         distr= distr, complexity=2)
-    simultion_factory = lambda t_level: SimulationTest.make_sim(simulation_config, step_range, t_level)
+    simultion_factory = SimulationTest.factory(step_range, config = simulation_config)
     mc = mlmc.mlmc.MLMC(n_levels, simultion_factory, pbs)
     mc.set_initial_n_samples()
     mc.refill_samples()

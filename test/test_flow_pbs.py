@@ -71,6 +71,7 @@ class TstFlowPbs:
         simulation_config = {
             'env': env,  # The Environment.
             'field_name': corr_field_dict,  # correlated_field.FieldSet object
+            'output_dir': os.path.join(file_dir, '01_cond_field', 'output'),
             'yaml_file': yaml_path,  # The template with a mesh and field placeholders
             'sim_param_range': step_range,  # Range of MLMC simulation parametr. Here the mesh step.
             'geo_file': geo_path,  # The file with simulation geometry (independent of the step)
@@ -78,7 +79,7 @@ class TstFlowPbs:
         }
 
         flow_mc.FlowSim.total_sim_id = 0
-        self.simulation_factory = lambda t_level: flow_mc.FlowSim.make_sim(simulation_config, step_range, t_level)
+        self.simulation_factory = flow_mc.FlowSim.factory(step_range, config=simulation_config)
 
         self.n_levels = 3
         mc = mlmc.mlmc.MLMC(self.n_levels, self.simulation_factory, self.pbs)

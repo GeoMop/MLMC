@@ -69,10 +69,10 @@ class FlowSim(simulation.Simulation):
     Gather data for single flow call (coarse/fine)
     """
 
-    def __init__(self, flow_dict, mesh_step, parent_fine_sim=None):
+    def __init__(self, mesh_step, config = None, clean=False, parent_fine_sim=None):
         """
 
-        :param flow_dict: configuration of the simulation, processed keys:
+        :param config: configuration of the simulation, processed keys:
             env - Environment object.
             fields - FieldSet object
             yaml_file: Template for main input file. Placeholders:
@@ -87,19 +87,17 @@ class FlowSim(simulation.Simulation):
         these need to be different for advanced generation of samples (zero-mean control and antithetic).
         """
         self.sim_id = FlowSim.total_sim_id
-
         FlowSim.total_sim_id += 1
-        self.env = flow_dict['env']
-        self.field_config = flow_dict['field_name']
+        self.env = config['env']
+        self.field_config = config['field_name']
         self.fields = None
-        self.base_yaml_file = flow_dict['yaml_file']
-        self.base_geo_file = flow_dict['geo_file']
-        self.field_template = flow_dict.get('field_template',
+        self.base_yaml_file = config['yaml_file']
+        self.base_geo_file = config['geo_file']
+        self.field_template = config.get('field_template',
                                             "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}")
         self.step = mesh_step
         # Pbs script creater
         self.pbs_creater = self.env["pbs"]
-        remove_old = flow_dict.get("remove_old", False)
 
         # Set in _make_mesh
         self.points = None
@@ -108,9 +106,9 @@ class FlowSim(simulation.Simulation):
         # Element IDs of computational mesh.
 
         # Prepare base workdir for this mesh_step
-        base_dir = os.path.dirname(self.base_yaml_file)
-        self.work_dir = os.path.join(base_dir, 'output', 'sim_%d_step_%f' % (self.sim_id, self.step))
-        force_mkdir(self.work_dir, remove_old)
+        output_dir = config['output_dir']
+        self.work_dir = os.path.join(output_dir, 'sim_%d_step_%f' % (self.sim_id, self.step))
+        force_mkdir(self.work_dir, clean)
 
         # Prepare mesh
         geo_file = os.path.join(self.work_dir, self.GEO_FILE)
