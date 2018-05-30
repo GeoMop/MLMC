@@ -132,11 +132,14 @@ class MLMC:
 
     def set_initial_n_samples(self, n_samples=None):
         if n_samples is None:
-            n0 = 30
-            nL = 7
+            n_samples = [100, 3]
+        n_samples = np.atleast_1d(n_samples)
+        if len(n_samples) == 1:
+            n_samples = np.array([n_samples, 3])
+        if len(n_samples) == 2:
             L = max(2, self.n_levels)
-            factor = (nL / n0)**(1 / (L-1))
-            n_samples = n0 * factor ** np.arange(L)
+            factor = (n_samples[-1] / n_samples[0])**(1 / (L-1))
+            n_samples = n_samples[0] * factor ** np.arange(L)
 
         for i, level in enumerate(self.levels):
             level.set_target_n_samples(int(n_samples[i]))
@@ -222,15 +225,17 @@ class MLMC:
 
         self._pbs.execute()
 
-    def wait_for_simulations(self, sleep = 0):
+    def wait_for_simulations(self, sleep = 0, timeout=0):
         n_running = 1
+        t0 = time.clock()
         while n_running > 0:
             n_running=0
             for level in self.levels:
                 n_running += level.collect_samples(self._pbs)
-            time.sleep(0)
-
-
+            time.sleep(sleep)
+            if timeout > 0 and (time.clock() - t0) > timeout:
+                break
+        return n_running
 
     def estimate_domain(self):
         """
