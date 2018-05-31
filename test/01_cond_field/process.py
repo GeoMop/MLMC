@@ -40,11 +40,13 @@ class ProcessMLMC:
             mem='4gb',
             queue='charon')
 
-        if self.get_root_dir() == 'auto':
+        print("root: '", self.get_root_dir(),"'")
+        if self.get_root_dir() == 'storage':
             # Metacentrum
-            self.sample_sleep = 60
-            self.init_sample_timeout = 3600
-            self.pbs_config['qsub'] = 'qsub'
+            self.sample_sleep = 30
+            self.init_sample_timeout = 600
+            self.sample_timeout = 0
+            self.pbs_config['qsub'] = '/usr/bin/qsub'
             flow123d = "/storage/praha1/home/jan_brezina/local/flow123d_2.2.0/flow123d"
             gmsh = "/storage/liberec1-tul/home/martin_spetlik/astra/gmsh/bin/gmsh"
         else:
@@ -69,7 +71,6 @@ class ProcessMLMC:
     def setup(self, n_levels):
         self._set_n_levels(n_levels)
         self.output_dir = os.path.join(self.work_dir, "output_{}".format(n_levels))
-        self.pbs_work_dir = os.path.join(self.output_dir, "scripts")
 
         self.setup_environment()
 
@@ -81,7 +82,7 @@ class ProcessMLMC:
                 log=True
             ))
 
-        self.step_range = (1, 0.1)
+        self.step_range = (1, 0.01)
         yaml_path = os.path.join(self.work_dir, '01_conductivity.yaml')
         geo_path = os.path.join(self.work_dir, 'square_1x1.geo')
         self.simulation_config = {
@@ -100,15 +101,16 @@ class ProcessMLMC:
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
     def initialize(self, clean):
-        assert ProcessMLMC.is_exe(self.env['flow123d'])
-        assert ProcessMLMC.is_exe(self.env['gmsh'])
-        assert ProcessMLMC.is_exe(self.pbs_config['qsub'])
+        print('init')
+        self.pbs_work_dir = os.path.join(self.output_dir, "scripts")
         self.pbs = flow_pbs.FlowPbs(self.pbs_work_dir,
-                       qsub=None,
+                       qsub=self.pbs_config['qsub'],
                        clean=clean)
         self.pbs.pbs_common_setting(**self.pbs_config)
         if not clean:
+            print('read logs')
             self.pbs.reload_logs()
+            print('done')
         self.env['pbs'] = self.pbs
 
         flow_mc.FlowSim.total_sim_id = 0
@@ -117,7 +119,13 @@ class ProcessMLMC:
 
         self.mc = mlmc.mlmc.MLMC(self.n_levels, self.simultion_factory, self.pbs)
         if clean:
+            assert ProcessMLMC.is_exe(self.env['flow123d'])
+            assert ProcessMLMC.is_exe(self.env['gmsh'])
+            assert ProcessMLMC.is_exe(self.pbs_config['qsub'])
             self.save()
+
+    def collect(self):
+        return self.mc.wait_for_simulations(sleep=self.sample_sleep, timeout=0.1)
 
     def set_moments(self, n_moments):
         self.moments_fn = \
@@ -137,7 +145,7 @@ class ProcessMLMC:
         if n_samples is not None:
             self.mc.set_initial_n_samples(n_samples)
         self.mc.refill_samples()
-        self.mc.wait_for_simulations(sleep=self.sample_sleep)
+        self.mc.wait_for_simulations(sleep=self.sample_sleep, timeout=self.sample_timeout)
 
 
     def save(self):
@@ -150,7 +158,10 @@ class ProcessMLMC:
 
       
     def load(self, n_levels):
+        
         self._set_n_levels(n_levels)
+        self.setup(n_levels)
+        print('read  setup')
         # read setup
         with open(self._setup_file, 'r') as f:
             setup = json.load(f)
@@ -457,9 +468,19 @@ class ProcessMLMC:
     #statprof.display()
 
 
+def all_collect(mlmc_list):
+    running = 1
+    while running > 0:
+        running = 0
+        for mlc in mlmc_list:
+            running += mlmc.collect()
+        print("N running: ", running)    
 
 
 def main():
+    level_list = [3, 4, 5, 7]
+    
+    print('main')
     command = sys.argv[1]
     work_dir = os.path.abspath(sys.argv[2])
     if command == 'run':
@@ -469,19 +490,38 @@ def main():
         for file_res in os.scandir(src_path):
             if (os.path.isfile(file_res.path)):
                 shutil.copy(file_res.path, work_dir)
-
-        for nl in [2, 3, 4, 5, 7, 9]:
+        
+        mlmc_list = []
+        for nl in [5,7]:
             mlmc = ProcessMLMC(work_dir)
             mlmc.setup(nl)
             mlmc.initialize(clean=True)
-            mlmc.generate_jobs(n_samples=[60, 6])
+            mlmc.generate_jobs(n_samples=[10000, 100])
+            mlmc_list.append(mlmc)  
 
-    elif command == 'process':
-        assert os.path.isdir(work_dir)
-        for nl in [9]: #[2, 3, 4, 5, 7, 9]:
+        for nl in [3,4]:
             mlmc = ProcessMLMC(work_dir)
             mlmc.load(nl)
+            mlmc_list.append(mlmc)  
+            
+        all_collect(mlmc_list)
+        
+    elif command == 'collect':
+        assert os.path.isdir(work_dir)
+        mlmc_list = []
+        for nl in level_list:
+            mlmc = ProcessMLMC(work_dir)
+            mlmc.load(nl)
+            mlmc_list.append(mlmc)  
+        all_collect(mlmc_list)    
+    elif command == 'process':
+        assert os.path.isdir(work_dir)
+        for nl in level_list:
+            mlmc = ProcessMLMC(work_dir)
+            print('load')
+            mlmc.load(nl)
+            print('plot')
             mlmc.plot_diff_var()
-
+        
 
 main()

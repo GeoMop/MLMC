@@ -225,7 +225,11 @@ class MLMC:
 
         self._pbs.execute()
 
-    def wait_for_simulations(self, sleep = 0, timeout=0):
+    def wait_for_simulations(self, sleep = 0, timeout=None):
+        if timeout is None:
+            timeout = 0
+        elif timeout <= 0:
+            return 1
         n_running = 1
         t0 = time.clock()
         while n_running > 0:

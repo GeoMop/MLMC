@@ -40,8 +40,8 @@ class FlowPbs:
         self.collected_log_ = None
         self.running_log_ = None
         if work_dir is not None:
-            self.log_running_file = os.path.join(self.work_dir, "running_log.yaml")
-            self.log_collected_file = os.path.join(self.work_dir, "collected_log.yaml")
+            self.log_running_file = os.path.join(self.work_dir, "running_log.json")
+            self.log_collected_file = os.path.join(self.work_dir, "collected_log.json")
             if clean:
                 # Fresh work dir.
                 if os.path.isdir(self.work_dir):
@@ -66,14 +66,16 @@ class FlowPbs:
 
     def reload_logs(self):
         self.close()
-        with open(self.log_collected_file, 'r') as f:
-            self.collected_log_content = [json.loads(line) for line in f.readlines()]
-            if self.collected_log_content is None:
-                self.collected_log_content = []
-        with open(self.log_running_file, 'r') as f:
-            self.running_log_content = [json.loads(line) for line in f.readlines()]
-            if self.running_log_content is None:
-                self.running_log_content = []
+        try:
+            with open(self.log_collected_file, 'r') as f:
+                self.collected_log_content = [json.loads(line) for line in f.readlines()]
+        except FileNotFoundError:
+            self.collected_log_content = []
+        try:
+            with open(self.log_running_file, 'r') as f:
+                self.running_log_content = [json.loads(line) for line in f.readlines()]
+        except FileNotFoundError:
+            self.running_log_content = []
 
 
     def check_finished_jobs(self):
@@ -134,9 +136,15 @@ class FlowPbs:
         """
         kwargs['pbs_output_dir'] = self.work_dir
         # Script header
+        select_flags_list = kwargs.get('select_flags', [])
+        if select_flags_list:
+            kwargs['select_flags'] = ":" + ":".join(select_flags_list)
+        else:
+            kwargs['select_flags'] = ""
+            
         pbs_header_template = ["#!/bin/bash",
                                '#PBS -S /bin/bash',
-                               '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}',
+                               '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}{select_flags}',
                                '#PBS -q {queue}',
                                '#PBS -N Flow123d',
                                '#PBS -j oe',
@@ -206,6 +214,7 @@ class FlowPbs:
         :return: None
         """
         self.pbs_script = self.pbs_script_heading.copy()
+
 
     def log_simulations(self, level, simulations, values=None):
         if self.work_dir is None or not simulations:

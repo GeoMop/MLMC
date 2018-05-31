@@ -110,19 +110,22 @@ class FlowSim(simulation.Simulation):
         self.work_dir = os.path.join(output_dir, 'sim_%d_step_%f' % (self.sim_id, self.step))
         force_mkdir(self.work_dir, clean)
 
-        # Prepare mesh
-        geo_file = os.path.join(self.work_dir, self.GEO_FILE)
-        shutil.copy(self.base_geo_file, geo_file)
         self.mesh_file = os.path.join(self.work_dir, self.MESH_FILE)
-        # Common computational mesh for all samples.
-        self._make_mesh(geo_file, self.mesh_file)
+        if clean:
+            # Prepare mesh
+            geo_file = os.path.join(self.work_dir, self.GEO_FILE)
+            shutil.copy(self.base_geo_file, geo_file)
+            
+            # Common computational mesh for all samples.
+            self._make_mesh(geo_file, self.mesh_file)
 
-        # Prepare main input YAML
-        yaml_template = os.path.join(self.work_dir, self.YAML_TEMPLATE)
-        shutil.copy(self.base_yaml_file, yaml_template)
-        self.yaml_file = os.path.join(self.work_dir, self.YAML_FILE)
-        self._substitute_yaml(yaml_template, self.yaml_file)
-
+            # Prepare main input YAML
+            yaml_template = os.path.join(self.work_dir, self.YAML_TEMPLATE)
+            shutil.copy(self.base_yaml_file, yaml_template)
+            self.yaml_file = os.path.join(self.work_dir, self.YAML_FILE)
+            self._substitute_yaml(yaml_template, self.yaml_file)
+        self._extract_mesh(self.mesh_file)
+            
         super(simulation.Simulation, self).__init__()
 
     def n_ops_estimate(self):
@@ -137,6 +140,8 @@ class FlowSim(simulation.Simulation):
         """
         subprocess.call([self.env['gmsh'], "-2", '-clscale', str(self.step), '-o', mesh_file, geo_file])
 
+    def _extract_mesh(self, mesh_file):
+    
         mesh = gmsh_io.GmshIO(mesh_file)
         is_bc_region = {}
        
