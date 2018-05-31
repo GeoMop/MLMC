@@ -6,14 +6,14 @@ class Distribution:
     """
     Calculation of the distribution
     """
-    def __init__(self, moments_fn, moment_data, positive_distr = False):
+    def __init__(self, moments_obj, moment_data, is_positive = False):
         """
         :param moments_fn: Function for calculating moments
         :param moment_data: Array  of moments or tuple (moments, variance).
         :param positive_distr: Indication of distribution for a positive variable.
         """
         # Family of moments basis functions.
-        self.moments_basis = moments_fn
+        self.moments_basis = moments_obj
 
         # Moment evaluation function with bounded number of moments and their domain.
         self.moments_fn = None
@@ -27,13 +27,15 @@ class Distribution:
 
 
         # Force density with positive support.
-        self.is_positive = positive_distr
+        self.is_positive = is_positive
 
         # Approximation paramters. Lagrange multipliers for moment equations.
         self.multipliers = None
         # Number of basis functions to approximate the density.
         # In future can be smaller then number of provided approximative moments.
         self.approx_size = len(self.moment_means)
+        assert moments_obj.size == self.approx_size
+        self.moments_fn = moments_obj
 
 
     def choose_parameters_from_samples(self, samples):
@@ -69,7 +71,7 @@ class Distribution:
         pass
 
 
-    def estimate_density(self, tolerance=None):
+    def estimate_density(self, tol=None):
         """
         Run nonlinear iterative solver to estimate density, use previous solution as initial guess.
         :return: None
@@ -78,11 +80,11 @@ class Distribution:
         if self.is_positive:
             self.domain = (max(0.0, self.domain[0]), self.domain[1])
 
-        self.moments_fn = lambda x, size=self.approx_size, a=self.domain[0], b=self.domain[1] : self.moments_basis(x, size, a, b)
-        self._n_quad_points = 4 * self.approx_size
+        #self.moments_fn = lambda x, size=self.approx_size, a=self.domain[0], b=self.domain[1] : self.moments_basis(x, size, a, b)
+        self._n_quad_points = 20 * self.approx_size
 
 
-        assert tolerance is not None
+        assert tol is not None
         if self.multipliers is None:
             self.multipliers = np.ones(self.approx_size)
 
@@ -92,7 +94,7 @@ class Distribution:
             fun=self._calculate_moments_approximation,
             x0=self.multipliers,
             jac=self._calculate_jacobian_matrix,
-            tol=tolerance,
+            tol=tol,
             callback = self._iteration_monitor
         )
 
@@ -116,6 +118,25 @@ class Distribution:
         """
         moments = self.moments_fn(value)
         return np.exp( - np.sum(moments * self.multipliers, axis=1))
+
+    def cdf(self, values):
+        values = np.atleast_1d(values)
+        np.sort(values)
+        last_x = self.domain[0]
+        last_y = 0
+        cdf_y = np.empty(len(values))
+        
+        for i, val in enumerate(values):
+            if val <= self.domain[0]:
+                last_y = 0
+            elif val >= self.domain[1]:
+                last_y = 1
+            else:    
+                dy = integrate.fixed_quad(self.density, last_x, val, n=10)[0]
+                last_x = val
+                last_y = last_y + dy
+            cdf_y[i] = last_y    
+        return cdf_y    
 
     def _calculate_moments_approximation(self, approx):
         """

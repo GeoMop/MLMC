@@ -90,7 +90,7 @@ class FlowSim(simulation.Simulation):
         FlowSim.total_sim_id += 1
         self.env = config['env']
         self.field_config = config['field_name']
-        self.fields = None
+        self._fields = None
         self.base_yaml_file = config['yaml_file']
         self.base_geo_file = config['geo_file']
         self.field_template = config.get('field_template',
@@ -188,7 +188,19 @@ class FlowSim(simulation.Simulation):
         :param coarse_sim
         """
         self.coarse_sim = coarse_sim
+        if self.coarse_sim is None:
+            self.n_fine_elements = len(self.points) 
+        else:    
+            self.n_fine_elements = len(self.points) + len(self.coarse_sim.points)
 
+    @property
+    def fields(self):
+        if self._fields == None:
+            self._make_fiels()
+        return self._fields
+      
+      
+    def _make_fiels(self):
         cond_field = correlated_field.SpatialCorrelatedField(**self.field_config['conductivity'])
         self.fields = correlated_field.FieldSet("conductivity", cond_field)
 
@@ -199,10 +211,10 @@ class FlowSim(simulation.Simulation):
             coarse_centers = coarse_sim.points
             both_centers = np.concatenate((self.points, coarse_centers), axis=0)
             self.fields.set_points(both_centers)
+        assert self.n_fine_elements == len(both_centers)
 
-
-        self.n_fine_elements = self.points.shape[0]
-
+            
+            
     # Needed by Level
     def generate_random_sample(self):
         """

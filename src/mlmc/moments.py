@@ -84,25 +84,88 @@ def fourier_moments(value, size=1, a=0.0, b=None):
     return res
 
 
-def legendre_moments(value, size=1, a=0.0, b=None, safe_eval=True):
-    """
-    Evaluate Legendere polynomials basis on (a,b) interval in given points.
-    :param value: value or np.array of length N
-    :param size; polynomials up to degree size -1
-    :param a,b, interval end points, for None b, jsut shift by 'a' is performed.
-    :param safe_eval, project values to the domain (a,b)
-    :return: moments matrix N x size;
-    """
-    transformed = moment_argument_scale(value, a, b, target = (-1.0, 1.0))
-    if safe_eval:
-        transformed = np.atleast_1d(transformed)
-        mask = transformed < -1.0
-        n_out = np.sum(mask)
-        transformed[mask] = -1.0
-        mask = transformed > 1.0
-        n_out += np.sum(mask)
-        transformed[mask] = 1.0
-        #transformed = np.minimum(1.0, np.maximum(-1.0, transformed))
-        if n_out > 0.1 * len(transformed):
-            print("N outlayers: ", n_out)
-    return np.polynomial.legendre.legvander(transformed, deg = size - 1)
+#def legendre_moments(value, size=1, a=0.0, b=None, safe_eval=True):
+    #"""
+    #Evaluate Legendere polynomials basis on (a,b) interval in given points.
+    #:param value: value or np.array of length N
+    #:param size; polynomials up to degree size -1
+    #:param a,b, interval end points, for None b, jsut shift by 'a' is performed.
+    #:param safe_eval, project values to the domain (a,b)
+    #:return: moments matrix N x size;
+    #"""
+    #transformed = moment_argument_scale(value, a, b, target = (-1.0, 1.0))
+    #if safe_eval:
+        #transformed = np.atleast_1d(transformed)
+        #mask = transformed < -1.0
+        #n_out = np.sum(mask)
+        #transformed[mask] = -1.0
+        #mask = transformed > 1.0
+        #n_out += np.sum(mask)
+        #transformed[mask] = 1.0
+        ##transformed = np.minimum(1.0, np.maximum(-1.0, transformed))
+        #if n_out > 0.1 * len(transformed):
+            #print("N outlayers: ", n_out)
+    #return np.polynomial.legendre.legvander(transformed, deg = size - 1)
+
+
+
+
+
+class LegendreMoments:
+    def __init__(self, size, domain, log=False, safe_eval=True):
+        assert size > 0
+        self.size = size
+        self.n_outlayers = 0
+        self.value_domain = domain
+        self.ref_domain = (-1, 1)
+        
+        if log:
+            lin_domain = (np.log(domain[0]), np.log(domain[1]))
+        else:
+            lin_domain = domain
+            
+        diff = lin_domain[1] - lin_domain[0]
+        assert diff > 0
+        diff = max(diff, 1e-15)
+        self._linear_scale = (self.ref_domain[1] - self.ref_domain[0]) / diff
+        self._linear_shift = lin_domain[0]
+        
+        
+        if safe_eval and log:
+            self.transform = lambda val : self.clip(self.linear(np.log(val)))
+            self.inv_transform = lambda ref : np.exp(self.inv_linear(ref))
+        elif safe_eval and not log:    
+            self.transform = lambda val : self.clip(self.linear(val))
+            self.inv_transform = lambda ref : self.inv_linear(ref)
+        elif not safe_eval and log:
+            self.transform = lambda val : self.linear(np.log(val))
+            self.inv_transform = lambda ref : np.exp(self.inv_linear(ref))
+        elif not safe_eval and not log:    
+            self.transform = lambda val : self.linear(val)
+            self.inv_transform = lambda ref : self.inv_linear(ref)
+        
+    def clip(self, value):
+        mask = np.where(value < self.ref_domain[0])
+        self.n_outlayers += len(mask)
+        value[mask] = self.ref_domain[0]
+        
+        mask = np.where(value > self.ref_domain[1])
+        self.n_outlayers += len(mask)
+        value[mask] = self.ref_domain[1]
+        return value
+      
+    #def mean(moment_values):
+        #return self.inv_transform(moment_values[1])
+      
+    #def std(moment_values):
+        #return np.sqrt( ((2*moment_values[2] + 1)/3 - moment_values[1]**2) / self._linear_scale ** 2
+    
+    def linear(self, value):
+        return (value - self._linear_shift ) * self._linear_scale + self.ref_domain[0]
+
+    def inv_linear(self, value):
+        return (value - self.ref_domain[0]) / self._linear_scale + self._linear_shift
+    
+    def __call__(self, value):
+        t = self.transform(value)
+        return np.polynomial.legendre.legvander(t, deg = self.size - 1)    

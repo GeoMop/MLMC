@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import shutil
+import copy
 #import statprof
 import numpy as np
 import scipy.stats as stats
@@ -127,10 +128,8 @@ class ProcessMLMC:
     def collect(self):
         return self.mc.wait_for_simulations(sleep=self.sample_sleep, timeout=0.1)
 
-    def set_moments(self, n_moments):
-        self.moments_fn = \
-            lambda x, n=n_moments, a=self.domain[0], b=self.domain[1]: \
-                mlmc.moments.legendre_moments(x, n, a, b)
+    def set_moments(self, n_moments, log=False):
+        self.moments_fn = mlmc.moments.LegendreMoments(n_moments, self.domain, safe_eval=True, log=log)
         return self.moments_fn
 
     def n_sample_estimate(self, target_variance):
@@ -457,28 +456,126 @@ class ProcessMLMC:
 
 
 
-    # pr.disable()
-    # s = io.StringIO()
-    # sortby = 'cumulative'
-    # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-    # ps.print_stats()
-    # print(s.getvalue())
+    @staticmethod
+    def ecdf(x):
+        xs = np.sort(x)
+        ys = np.arange(1, len(xs)+1)/float(len(xs))
+        return xs, ys
 
-    #statprof.stop()
-    #statprof.display()
+    def plot_pdf_approx(self, ax1, ax2, mc0_samples):
+        import matplotlib.pyplot as plt
+        
+        X = np.exp( np.linspace(np.log(self.domain[0]), np.log(self.domain[1]), 1000) )
+        bins = np.exp( np.linspace(np.log(self.domain[0]), np.log(10), 60) )
+        
+        n_levels = self.mc.n_levels
+        color = "C{}".format(n_levels)
+        label = "l {}".format(n_levels)
+        Y = self.distr_obj.density(X)
+        ax1.plot(X, Y, c=color, label=label)
+        
+        Y = self.distr_obj.cdf(X)
+        ax2.plot(X, Y, c=color, label=label)
+        
+        if n_levels == 1:
+            ax1.hist(mc0_samples, normed=1,  bins=bins, alpha = 0.3, label='full MC', color=color)
+            X, Y = ProcessMLMC.ecdf(mc0_samples)
+            ax2.plot(X, Y, 'red')
+
+            #Y = stats.lognorm.pdf(X, s=1, scale=np.exp(0.0))
+            #ax1.plot(X, Y, c='gray', label="stdlognorm")
+            #Y = stats.lognorm.cdf(X, s=1, scale=np.exp(0.0))
+            #ax2.plot(X, Y, c='gray')
+          
+        ax1.axvline(x=self.est_domain[0], c=color)
+        ax1.axvline(x=self.est_domain[1], c=color)
+          
+        
+        
+
+    @staticmethod    
+    def align_array(arr):
+        return "[" + ", ".join([ "{:10.5f}".format(x) for x in arr]) + "]" 
+  
+
+
+    def compute_results(self, mlmc_0, n_moments):
+        self.domain = mlmc_0.ref_domain         
+        self.est_domain = self.mc.estimate_domain()
+        
+        moments_fn = self.set_moments(n_moments, log=True)       
+        self.est_moments, self.est_vars = self.mc.estimate_moments(moments_fn)
+        self.est_std = np.sqrt(self.est_vars)
+        
+              
+        #a, b = self.domain              
+        #distr_mean = self.distr_mean = moments_fn.inv_linear(ref_means[1])
+        #distr_var  = ((2*ref_means[2] + 1)/3 - ref_means[1]**2) / 4 * ((b-a)**2)        
+        #self.distr_std  = np.sqrt(distr_var)
+
+        
+        moments_data = np.stack( (self.est_moments, self.est_vars), axis=1)    
+        self.distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data)
+        self.distr_obj.domain = self.domain
+        result = self.distr_obj.estimate_density(tol=0.01)
+        #print(result)
+
+        t_var = 1e-5
+        diff_vars, _ = self.mc.estimate_diff_vars(moments_fn)
+        diff_vars_max = np.max(diff_vars, axis =1)
+        est_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=diff_vars)
+        self.est_n_samples = np.max(est_n_samples, axis=1)
+        self.est_cost = self.mc.estimate_cost(n_samples = self.est_n_samples)
+        
+        print("\nLevels : ", self.mc.n_levels)
+        #np.set_printoptions(precision=4, suppress=True, linewidth=140)
+        print("moments:  ", self.align_array(self.est_moments))
+        print("std:      ", self.align_array(self.est_std ))
+        print("err:      ", self.align_array(self.est_moments - mlmc_0.est_moments ))
+        print("domain:   ", self.est_domain)
+        print("cost:     ", self.est_cost)
+        print("dif_vars: ", self.align_array(diff_vars_max)) 
+        print("ns :      ", self.align_array(self.est_n_samples))
+        
+
+
+
+
+
+def all_results(mlmc_list):
+        import matplotlib.pyplot as plt
+
+        fig = plt.figure(figsize=(30,10))
+        ax1 = fig.add_subplot(1, 2, 1)
+        ax2 = fig.add_subplot(1, 2, 2)
+        #ax1.set_xscale('log')
+        ax1.set_xlim(0.02, 10)
+        ax2.set_xscale('log')
+        
+        n_moments = 5
+        mc0_samples = mlmc_list[0].mc.levels[0].sample_values[:, 0]
+        mlmc_list[0].ref_domain = (np.min(mc0_samples), np.max(mc0_samples) )         
+        
+        for prmc in mlmc_list:
+            prmc.compute_results(mlmc_list[0], n_moments)
+            prmc.plot_pdf_approx(ax1, ax2, mc0_samples)
+        ax1.legend()
+        ax2.legend()
+        plt.show()
+
 
 
 def all_collect(mlmc_list):
     running = 1
     while running > 0:
         running = 0
-        for mlc in mlmc_list:
-            running += mlmc.collect()
+        for mc in mlmc_list:
+            running += mc.collect()
         print("N running: ", running)    
 
 
 def main():
-    level_list = [3, 4, 5, 7]
+    level_list = [9]
     
     print('main')
     command = sys.argv[1]
@@ -509,19 +606,22 @@ def main():
     elif command == 'collect':
         assert os.path.isdir(work_dir)
         mlmc_list = []
-        for nl in level_list:
+        for nl in [ 5,7]:
             mlmc = ProcessMLMC(work_dir)
             mlmc.load(nl)
             mlmc_list.append(mlmc)  
         all_collect(mlmc_list)    
+    
     elif command == 'process':
         assert os.path.isdir(work_dir)
-        for nl in level_list:
-            mlmc = ProcessMLMC(work_dir)
-            print('load')
-            mlmc.load(nl)
-            print('plot')
-            mlmc.plot_diff_var()
+        mlmc_list = []
+        for nl in [ 1, 2,3 ,4,5,7,9]:
+            prmc = ProcessMLMC(work_dir)
+            prmc.load(nl)
+            mlmc_list.append(prmc)  
+
+        all_results(mlmc_list)
+            
         
 
 main()

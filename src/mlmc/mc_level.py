@@ -149,9 +149,11 @@ class Level:
         new_running = []
         for (idx, fine_sim, coarse_sim) in self.running_simulations:
             try:
+                print( fine_sim, coarse_sim)
                 fine_result = self.fine_simulation.extract_result(fine_sim)
                 fine_done = fine_result is not None
-
+                
+                
                 if self.is_zero_level:
                    coarse_result = 0.0
                    coarse_done = True
@@ -228,7 +230,7 @@ class Level:
         min_sample = np.min(fine_sample)
         l = min( min_sample , q1-iqr )
         if min_sample > 0.0:    # guess that we have positive distribution
-            l = max(0.0, l)
+            l = min_sample
         r = max( np.max(fine_sample), q3+iqr)
 
         return l,r

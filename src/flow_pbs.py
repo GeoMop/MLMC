@@ -69,6 +69,9 @@ class FlowPbs:
         try:
             with open(self.log_collected_file, 'r') as f:
                 self.collected_log_content = [json.loads(line) for line in f.readlines()]
+                #self.collected_log_content = []
+                #for line in f.readlines():                    
+                #    self.collected_log_content.append(json.loads(line))
         except FileNotFoundError:
             self.collected_log_content = []
         try:
