@@ -77,9 +77,9 @@ class ProcessMLMC:
 
         self.fields_config = dict(
             conductivity=dict(
-                corr_exp='gauss',
+                corr_exp='exp',
                 dim=2,
-                corr_length=0.5,
+                corr_length=0.125,
                 log=True
             ))
 
@@ -664,17 +664,30 @@ def main():
                 shutil.copy(file_res.path, work_dir)
         
         mlmc_list = []
-        for nl in [5,7]:
+        for nl in [1, 2, 3, 4,5, 7, 9]:
             mlmc = ProcessMLMC(work_dir)
             mlmc.setup(nl)
             mlmc.initialize(clean=True)
+            ns = { 
+                1: [7087],
+                2: [14209,  332],
+                3: [18979,  487,    2],
+                4: [13640,  610,    2,    2],
+                5: [12403,  679,   10,    2,    2],
+                7: [12102,  807,   11,    2,    2,    2,    2],
+                9: [11449,  806,   72,    8,    2,    2,    2,    2,    2]
+                }
+            
+            
+            n_samples = 2*np.array(ns[nl])
+            #mlmc.generate_jobs(n_samples=n_samples)
             mlmc.generate_jobs(n_samples=[10000, 100])
             mlmc_list.append(mlmc)  
 
-        for nl in [3,4]:
-            mlmc = ProcessMLMC(work_dir)
-            mlmc.load(nl)
-            mlmc_list.append(mlmc)  
+        #for nl in [3,4]:
+            #mlmc = ProcessMLMC(work_dir)
+            #mlmc.load(nl)
+            #mlmc_list.append(mlmc)  
             
         all_collect(mlmc_list)
         

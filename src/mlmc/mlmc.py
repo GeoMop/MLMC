@@ -294,7 +294,7 @@ class MLMC:
         n_samples = np.array(n_samples, dtype=int)
         vars = np.sum(np.array(vars) / n_samples[:, None], axis=0)
 
-        return means, vars
+        return np.array(means), np.array(vars)
 
 
     def estimate_cost(self, level_times=None, n_samples=None):
