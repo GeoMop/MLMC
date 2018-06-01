@@ -36,7 +36,8 @@ problem: !Coupling_Sequential
       input_fields:
 
         - region: repo
-          sources_conc: 1.0
+          sources_conc: !FieldFormula
+            value: "max(1.0 - 0.001*t, 0.0)"
           sources_sigma: 0.001    # CFL time 1000.0
 
         - region: [ground_0, ground_1, repo]
