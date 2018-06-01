@@ -188,6 +188,7 @@ class FlowSim(simulation.Simulation):
         :param coarse_sim
         """
         self.coarse_sim = coarse_sim
+        self.n_fine_elements = len(self.points)
 
 
       
@@ -202,7 +203,7 @@ class FlowSim(simulation.Simulation):
             coarse_centers = self.coarse_sim.points
             both_centers = np.concatenate((self.points, coarse_centers), axis=0)
             self._fields.set_points(both_centers)
-        self.n_fine_elements = len(self.points)
+        
 
             
             
