@@ -9,7 +9,7 @@ class Moments:
         assert size > 0
         self.size = size
         self.n_outlayers = 0
-        self.value_domain = domain
+        self.domain = domain
 
         if log:
             lin_domain = (np.log(domain[0]), np.log(domain[1]))
@@ -109,7 +109,7 @@ class Fourier(Moments):
         k = np.arange(1, R + 1)
         kx = np.outer(t, k)
 
-        res = np.empty((len(value), self.size))
+        res = np.empty((len(t), self.size))
         res[:, 0] = 1
         res[:, 1::2] = np.cos(kx[:, :])
         res[:, 2::2] = np.sin(kx[:, : R - shorter_sin])

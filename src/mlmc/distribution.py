@@ -182,7 +182,7 @@ class Distribution:
 
 
 
-def compute_exact_moments(moments_fn, n_moments, density, a, b, tol=1e-4):
+def compute_exact_moments(moments_fn, density,  tol=1e-4):
     """
     Compute approximation of moments using exact density.
     :param moments_fn: Moments function.
@@ -192,14 +192,16 @@ def compute_exact_moments(moments_fn, n_moments, density, a, b, tol=1e-4):
     :param tol: Tolerance of integration.
     :return: np.array, moment values
     """
-    integrand = lambda x, size=n_moments, a=a, b=b: moments_fn(x, size, a, b).T * density(x)
-    last_integral = integrate.fixed_quad(integrand, a, b, n=n_moments)[0]
-    integral = integrate.fixed_quad(integrand, a, b, n=2*n_moments)[0]
-    size = 2*n_moments
+    integrand = lambda x: moments_fn(x).T * density(x)
+    a, b = moments_fn.domain
+    last_integral = integrate.fixed_quad(integrand, a, b, n=moments_fn.size)[0]
+
+    n_points = 2*moments_fn.size
+    integral = integrate.fixed_quad(integrand, a, b, n=n_points)[0]
     while np.linalg.norm(integral - last_integral) > tol:
         last_integral = integral
-        size *= 2
-        integral = integrate.fixed_quad(integrand, a, b, n=size)[0]
+        n_points *= 2
+        integral = integrate.fixed_quad(integrand, a, b, n=n_points)[0]
     return integral
 
 

@@ -35,30 +35,35 @@ import time
 
 
 
-def check_distr_approx(moment_function, distribution, distr_args):
+def check_distr_approx(moment_class, distribution, distr_args):
     """
-    :param moment_function:
+    :param moment_class:
     :param distribution:
     :return:
     """
-    fn_name = moment_function.__name__
+    fn_name = moment_class.__name__
     distr_name = distribution.__class__.__name__
     print("Testing moments: {} for distribution: {}".format(fn_name, distr_name))
 
+
     # Approximation for exact moments
+
     density = lambda x : distribution.pdf(x, **distr_args)
     domain = distribution.ppf([0.01, 0.99], **distr_args)
     print("domain: ", domain)
-    mean = distribution.mean(**distr_args)
-    variance = distribution.var(**distr_args)
+
     n_moments = 10
     tol = 1e-4
-    exact_moments = mlmc.distribution.compute_exact_moments(moment_function, n_moments, density, domain[0], domain[1], tol)
+
+    mean = distribution.mean(**distr_args)
+    variance = distribution.var(**distr_args)
+    moments_fn = moment_class(n_moments, domain)
+    exact_moments = mlmc.distribution.compute_exact_moments(moments_fn, density, tol)
     moments_data = np.empty((n_moments, 2))
     moments_data[:, 0] = exact_moments
     moments_data[:, 1] = tol
     is_positive = (domain[0] > 0.0)
-    distr_obj = mlmc.distribution.Distribution(moment_function, moments_data, is_positive)
+    distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data, is_positive)
     distr_obj.choose_parameters_from_moments(mean, variance)
 
     # Just for test plotting
@@ -104,7 +109,7 @@ def plot_approximations(dist, args, approx_objs):
 
 
 def test_distribution():
-    moment_fns = [mlmc.moments.monomial_moments, mlmc.moments.fourier_moments, mlmc.moments.legendre_moments]
+    moment_fns = [mlmc.moments.Monomial, mlmc.moments.Fourier, mlmc.moments.Legendre]
     #moment_fns = [mlmc.moments.monomial_moments]
     distrs = [
         (stats.norm, dict(loc=1.0, scale=2.0)),
