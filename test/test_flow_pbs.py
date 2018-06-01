@@ -89,8 +89,7 @@ class TstFlowPbs:
         self.mc = mc
         self.n_moments = 5
         true_domain = stat.norm.ppf([0.001, 0.999])
-        self.moments_fn = lambda x, n=self.n_moments, a=true_domain[0], b=true_domain[1]: \
-                                    mlmc.moments.legendre_moments(x, n, a, b)
+        self.moments_fn = mlmc.moments.Legendre(self.n_moments, true_domain)
 
 
     def test_load_levels(self):

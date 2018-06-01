@@ -188,30 +188,21 @@ class FlowSim(simulation.Simulation):
         :param coarse_sim
         """
         self.coarse_sim = coarse_sim
-        if self.coarse_sim is None:
-            self.n_fine_elements = len(self.points) 
-        else:    
-            self.n_fine_elements = len(self.points) + len(self.coarse_sim.points)
 
-    @property
-    def fields(self):
-        if self._fields == None:
-            self._make_fiels()
-        return self._fields
+
       
-      
-    def _make_fiels(self):
+    def _make_fields(self):
         cond_field = correlated_field.SpatialCorrelatedField(**self.field_config['conductivity'])
         self._fields = correlated_field.FieldSet("conductivity", cond_field)
 
 
         if self.coarse_sim is  None:
-            self.fields.set_points(self.points)
+            self._fields.set_points(self.points)
         else:
             coarse_centers = self.coarse_sim.points
             both_centers = np.concatenate((self.points, coarse_centers), axis=0)
-            self.fields.set_points(both_centers)
-            assert self.n_fine_elements == len(both_centers)
+            self._fields.set_points(both_centers)
+        self.n_fine_elements = len(self.points)
 
             
             
@@ -223,7 +214,9 @@ class FlowSim(simulation.Simulation):
         :return:
         """
         # assert self._is_fine_sim
-        fields_sample = self.fields.sample()
+        if self._fields is None:
+            self._make_fields()
+        fields_sample = self._fields.sample()
         self._input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
         if self.coarse_sim is not None:
             self.coarse_sim._input_sample = {name: values[self.n_fine_elements:, None] for name, values in fields_sample.items()}
