@@ -202,16 +202,16 @@ class FlowSim(simulation.Simulation):
       
     def _make_fiels(self):
         cond_field = correlated_field.SpatialCorrelatedField(**self.field_config['conductivity'])
-        self.fields = correlated_field.FieldSet("conductivity", cond_field)
+        self._fields = correlated_field.FieldSet("conductivity", cond_field)
 
 
         if self.coarse_sim is  None:
             self.fields.set_points(self.points)
         else:
-            coarse_centers = coarse_sim.points
+            coarse_centers = self.coarse_sim.points
             both_centers = np.concatenate((self.points, coarse_centers), axis=0)
             self.fields.set_points(both_centers)
-        assert self.n_fine_elements == len(both_centers)
+            assert self.n_fine_elements == len(both_centers)
 
             
             
