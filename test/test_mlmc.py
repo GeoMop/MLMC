@@ -155,8 +155,7 @@ class TestMLMC:
 
         # reference variance
         true_domain = distr.ppf([0.001, 0.999])
-        self.moments_fn = lambda x, n=n_moments, a=true_domain[0], b=true_domain[1]: \
-                                    mlmc.moments.legendre_moments(x, n, a, b)
+        self.moments_fn = mlmc.moments.Legendre(n_moments, true_domain)
 
         sample_size = 10000
         self.exact_mean = self.mc_estimate_exact_mean(self.moments_fn, 5*sample_size)
