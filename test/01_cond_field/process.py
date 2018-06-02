@@ -374,7 +374,7 @@ class ProcessMLMC:
         ax.axvline(x=prc, label=str(prc), c='red')
         ax.legend()
 
-    def plot_n_sample_est_distributions(self, cost, total_std, n_samples, rel_moments):
+    def plot_n_sample_est_distributions(self, title, cost, total_std, n_samples, rel_moments):
         import matplotlib.pyplot as plt
 
         fig = plt.figure(figsize=(30,10))
@@ -389,70 +389,10 @@ class ProcessMLMC:
 
         ax4 = fig.add_subplot(2, 2, 4)
         self.plot_error(rel_moments, ax4, "moments err")
-
+        fig.suptitle(title)
+        fig.savefig(title+".pdf")
         plt.show()
 
-    def test_min_samples(self):
-        """
-        How many samples we need on every level to get same Nl or higher but
-        with at most 10% cost increase in 99%
-        :return:
-        """
-
-
-        t_var = 0.0002
-        ref_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=self.ref_diff_vars)
-        ref_n_samples = np.max(ref_n_samples, axis=1)
-        ref_cost = self.mc.estimate_cost(n_samples=ref_n_samples.astype(int))
-        ref_total_var = np.sum(self.ref_diff_vars / ref_n_samples[:, None])/self.n_moments
-        
-        n_samples = self.n_levels*[100]
-        n_loops = 10
-
-        print("ref var: {} target var: {}".format(ref_total_var, t_var))
-        print(ref_n_samples.astype(int))
-
-        # subsamples
-        l_cost_err = []
-        l_total_std_err = []
-        l_n_samples_err = []
-        for i in range(n_loops):
-            fractions = [0, 0.001, 0.01, 0.1,  1]
-            for fr in fractions:
-                if fr == 0:
-                    nL, n0 = 3, 30
-                    L = max(2, self.n_levels)
-                    factor = (nL / n0) ** (1 / (L - 1))
-                    n_samples = (n0 * factor ** np.arange(L)).astype(int)
-                else:
-                    n_samples = np.maximum( n_samples, (fr*max_est_n_samples).astype(int))
-                # n_samples = np.maximum(n_samples, 1)
-
-                self.mc.subsample(n_samples)
-                est_diff_vars, _ = self.mc.estimate_diff_vars(self.moments_fn)
-                est_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=est_diff_vars)
-                max_est_n_samples = np.max(est_n_samples, axis=1)
-                est_cost = self.mc.estimate_cost(n_samples=max_est_n_samples.astype(int))
-                est_total_var = np.sum(self.ref_diff_vars / max_est_n_samples[:, None])/self.n_moments
-
-                n_samples_err = np.min( (max_est_n_samples - ref_n_samples) /ref_n_samples)
-                #total_std_err =  np.log2(est_total_var/ref_total_var)/2
-                total_std_err = (np.sqrt(est_total_var) - np.sqrt(ref_total_var)) / np.sqrt(ref_total_var)
-                cost_err = (est_cost - ref_cost)/ref_cost
-                print("Fr: {:6f} NSerr: {} Tstderr: {} cost_err: {}".format(fr, n_samples_err, total_std_err, cost_err))
-            print("est cost: {} ref cost: {}".format(est_cost, ref_cost))
-            print(n_samples)
-            print(np.maximum( n_samples, (max_est_n_samples).astype(int)))
-            print(ref_n_samples.astype(int))
-            print("\n")
-            #l_n_samples_err.append(n_samples_err)
-            #l_total_std_err.append( )
-            #l_cost_err.append((ref_cost - est_cost)/ref_cost)
-
-        # l_cost_err.sort()
-        # l_total_std_err.sort()
-        # l_n_samples_err.sort()
-        # self.plot_n_sample_est_distributions(l_cost_err, l_total_std_err, l_n_samples_err)
 
 
 
@@ -579,14 +519,20 @@ class ProcessMLMC:
             
             est_diff_vars, _ = self.mc.estimate_diff_vars(self.moments_fn)
             est_moments, est_vars = self.mc.estimate_moments(self.moments_fn)
-                        
+            #print("Vars:", est_vars)
+            #print("em:", est_moments)
+            #print("rm:", self.ref_moments)
+            
             n_samples_err = np.min( (n_samples - self.ref_n_samples) /self.ref_n_samples )
             est_total_std = np.sqrt(np.sum(est_diff_vars / n_samples[:, None])/n_moments)
             # est_total_std = np.sqrt(np.mean(est_vars))
             total_std_err =  np.log2(est_total_std/self.ref_total_std)
             est_cost = self.mc.estimate_cost(n_samples = n_samples)
             cost_err = (est_cost - self.ref_cost)/self.ref_cost
-            relative_moments_err = np.linalg.norm((est_moments - self.ref_moments) / est_vars)
+            
+            print("MM: ", (est_moments[1:] - self.ref_moments[1:]), "\n    ",  est_vars[1:])
+            
+            relative_moments_err = np.linalg.norm((est_moments[1:] - self.ref_moments[1:]) / est_vars[1:])
             #print("est cost: {} ref cost: {}".format(est_cost, ref_cost))
             #print(n_samples)
             #print(np.maximum( n_samples, (max_est_n_samples).astype(int)))
@@ -601,8 +547,20 @@ class ProcessMLMC:
         l_total_std_err.sort()
         l_n_samples_err.sort()
         l_rel_mom_err.sort()
-        print(l_rel_mom_err)
-        self.plot_n_sample_est_distributions(l_cost_err, l_total_std_err, l_n_samples_err, l_rel_mom_err)
+        
+        def describe(arr):
+            q1, q3 = np.percentile(arr, [25,75])
+            return "{:f8.2} < {:f8.2} | {:f8.2} | {:f8.2} < {:f8.2}".format(
+                np.min(arr), q1, np.mean(arr), q3, np.max(arr))
+          
+        print("Cost err:       ", describe(l_cost_err))
+        print("Total std err:  ", describe(l_total_std_err))
+        print("N. samples err: ", describe(l_n_samples_err))
+        print("Rel. Mom. err:  ", describe(l_rel_mom_err))
+        
+        #print(l_rel_mom_err)
+        title = "N levels = {}".format(self.mc.n_levels)
+        self.plot_n_sample_est_distributions(title, l_cost_err, l_total_std_err, l_n_samples_err, l_rel_mom_err)
       
         
         moments_data = np.stack( (est_moments, est_vars), axis=1)    
@@ -636,6 +594,7 @@ def all_results(mlmc_list):
             prmc.plot_pdf_approx(ax1, ax2, mc0_samples)
         ax1.legend()
         ax2.legend()
+        fig.savefig('compare_distributions.pdf')
         plt.show()
 
 
