@@ -1,56 +1,254 @@
 import numpy as np
 import numpy.linalg as la
 import scipy as sp
+import copy
 from sklearn.utils.extmath import randomized_svd
 
 
-class FieldSet:
+# class FieldSet:
+#     """
+#     A set of cross correlated named correlated fields.
+#     Currently just a wrapper of a single named field.
+#     TODO, questions:
+#     - mu, and sigma for individual fields can not be set via set_points method
+#       as we need the field set to be shared for different meshes. We have to introduce a kind of continuous
+#       field that can be evaluated at any point.
+#     - we can not make hard wired model for any field set so this should be a base class that
+#       defines an interface and common methods but evaluation of the feild set is case dependent
+#     """
+#
+#     def __init__(self, name, field):
+#         self._back_fields = [field]
+#         # List of backend fields that are independent. We always have to
+#         # decompose resulting fields as functions of the independent fields.
+#
+#         self.field_names = [name]
+#         self.length = 0
+#
+#     def names(self):
+#         """
+#         Generator for field names.
+#         :return:
+#         """
+#         return self.field_names
+#
+#     def set_points(self, points):
+#         #self.other_level(len(points))
+#         for field in self._back_fields:
+#             field.set_points(points)
+#             field.svd_dcmp(n_terms_range=(10, 100))
+#
+#
+#     # def other_level(self, length):
+#     #     self._back_fields[0]._cov_l_factor = None
+#     #     self._back_fields[0].length = length
+#     #     self.length = length
+#
+#     def sample(self):
+#         """
+#         Return dictionary of sampled fields.
+#         :return: { 'field_name': sample, ...}
+#         """
+#         result = dict()
+#         result[self.field_names[0]] = self._back_fields[0].sample()
+#         return result
+
+def kozeny_carman(porosity, m, factor, viscosity):
     """
-    A set of cross correlated named correlated fields.
-    Currently just a wrapper of a single named field.
-    TODO, questions:
-    - mu, and sigma for individual fields can not be set via set_points method
-      as we need the field set to be shared for different meshes. We have to introduce a kind of continuous
-      field that can be evaluated at any point.
-    - we can not make hard wired model for any field set so this should be a base class that
-      defines an interface and common methods but evaluation of the feild set is case dependent
+    Kozeny-Carman law,  but any other relation can be implemented in derived class.
+    :param porosity:
+    :param m: Suitable values are 1 < m < 4
+    :param factor: [m^2]
+        E.g. 1e-7 ,   m = 3.48;  juta fibers
+             2.2e-8 ,     1.46;  glass fibers
+             1.8e-13,     2.89;  erruptive material
+             1e-12        2.76;  erruptive material
+             1.8e-12      1.99;  basalt
+    :param viscosity: [Pa . s], water: 8.90e-4
+    :return:
     """
+    assert np.all( viscosity > 1e-10 )
+    porosity = np.minimum(porosity, 1-1e-10)
+    porosity = np.maximum(porosity, 1e-10)
+    cond = factor * porosity ** (2 + m) / (1 - porosity) ** 2 / viscosity
+    cond = np.maximum(cond, 1e-15)
+    return cond
 
-    def __init__(self, name, field):
-        self._back_fields = [field]
-        # List of backend fields that are independent. We always have to
-        # decompose resulting fields as functions of the independent fields.
+def lognorm_to_porosity(ln, a, b):
+    return  b * (1 - (b - a) / (b + (b - a) * ln))
 
-        self.field_names = [name]
-        self.length = 0
-
-    def names(self):
+class Field:
+    def __init__(self, name, field=None, param_fields=[], regions=[]):
         """
-        Generator for field names.
-        :return:
+        :param name: Name of the field.
+        :param field: scalar (const field), or instance of SpatialCorrelatedField, or a callable
+               for evaluation of the field from its param_fields.
+        :param regions: Domain where field is sampled.
+        :param param_fields: List of names of parameter fields, dependees.
+        TODO: consider three different derived classes for: const, random and func fields.
         """
-        return self.field_names
+        self.correlated_field = None
+        self.const = None
+        self._func = field
+        self.is_outer = True
+
+        if type(regions) is str:
+            regions = [regions]
+        self.name = name
+        if type(field) in [float, int]:
+            self.const = field
+            assert len(param_fields) == 0
+        elif type(field) is SpatialCorrelatedField:
+            self.correlated_field = field
+            assert len(param_fields) == 0
+        else:
+            assert len(param_fields) > 0, field
+
+            # check callable
+            try:
+                params = [ np.ones(2) for i in range(len(param_fields))]
+                field(*params)
+            except:
+                raise Exception("Invalid field function for field: {}".format(name))
+            self._func = field
+
+        self.regions = regions
+        self.param_fields = param_fields
 
     def set_points(self, points):
-        #self.other_level(len(points))
-        for field in self._back_fields:
-            field.set_points(points)
-            field.svd_dcmp(n_terms_range=(10, 100))
+        if self.const is not None:
+            self._sample = self.const * np.ones(len(points))
+        elif self.correlated_field is not None:
+            self.correlated_field.set_points(points)
+            self.correlated_field.svd_dcmp(n_terms_range=(10, 100))
+        else:
+            pass
+
+    def sample(self):
+        if self.const is not None:
+            return self._sample
+        elif self.correlated_field is not None:
+            self._sample = self.correlated_field.sample()
+        else:
+            params = [ pf._sample for pf in self.param_fields]
+            self._sample = self._func(*params)
+        return self._sample
 
 
-    # def other_level(self, length):
-    #     self._back_fields[0]._cov_l_factor = None
-    #     self._back_fields[0].length = length
-    #     self.length = length
+class Fields:
+
+    def __init__(self, fields):
+        """
+         Assume list is already topologicaly sorted so that dependet fields are after its parameter fields.
+         fields_dict = [
+            cond_1 : {
+                law: (kozeny, por_1, )
+                regions: [top_bulk]
+                }
+            cond_2 : {
+                law: (kozeny, por_2)
+                region: [bot_bulk]
+                }
+            por_1 : {
+                law: (basic, field)
+                regions: [top_bulk]
+                }
+            por_2 : {
+                law: (basic, field)
+                region: [bot_bulk]
+                }
+        :param fields_dict:
+        """
+        self.fields_orig = fields
+        self.fields_dict = {}
+        self.fields = []
+        for field in self.fields_orig:
+            new_field = copy.copy(field)
+            if new_field.param_fields:
+                new_field.param_fields = [ self._get_field_obj(field, new_field.regions) for field in new_field.param_fields]
+            self.fields_dict[new_field.name] = new_field
+            self.fields.append(new_field)
+
+    def _get_field_obj(self, field_name, regions):
+        if type(field_name) in [float, int]:
+            const_field = Field("const_{}".format(field_name), field_name, regions=regions)
+            self.fields.insert(0, const_field)
+            self.fields_dict[const_field.name] = const_field
+            return const_field
+        else:
+            assert field_name in self.fields_dict, "name: {} dict: {}".format(field_name, self.fields_dict)
+            return self.fields_dict[field_name]
+
+    @property
+    def names(self):
+        return self.fields_dict.keys()
+
+    # def iterative_dfs(self, graph, start, path=[]):
+    #     q = [start]
+    #     while q:
+    #         v = q.pop(0)
+    #         if v not in path:
+    #             path = path + [v]
+    #             q = graph[v] + q
+    #
+    #     return path
+
+    def set_outer_fields(self, outer):
+        outer_set = set(outer)
+        for f in self.fields:
+            if f.name in outer_set:
+                f.is_outer = True
+            else:
+                f.is_outer = False
+
+
+    def set_points(self, points, region_ids=[], region_map={}):
+        """
+        Set mesh related data to fields.
+        - set points for sample evaluation
+        - translate region names to region ids in fields
+        - create maps from region constraned point sets of fields to full point set
+        :param points: np array of points for field evaluation
+        :param regions: regions of the points;
+               empty means no points for fields restricted to regions and all points for unrestricted fields
+        :return:
+        """
+        self.n_elements = len(points)
+        assert len(points) == len(region_ids)
+        reg_points = {}
+        for i, reg_id in enumerate(region_ids):
+            reg_list = reg_points.get(reg_id, [])
+            reg_list.append(i)
+            reg_points[reg_id] = reg_list
+
+        for field in self.fields:
+            point_ids = []
+            if field.regions:
+                for reg in field.regions:
+                    reg_id = region_map[reg]
+                    point_ids.extend(reg_points.get(reg_id, []))
+                field.set_points(points[point_ids])
+                field.full_sample_ids = point_ids
+            else:
+                field.set_points(points)
+                field.full_sample_ids = np.arange(self.n_elements)
+
+
+
 
     def sample(self):
         """
         Return dictionary of sampled fields.
         :return: { 'field_name': sample, ...}
         """
-        result = dict()
-        result[self.field_names[0]] = self._back_fields[0].sample()
+        result = {}
+        for field in self.fields:
+            sample = field.sample()
+            if field.is_outer:
+                result[field.name] = np.zeros(self.n_elements)
+                result[field.name][field.full_sample_ids] = sample
         return result
+
 
 
 class SpatialCorrelatedField:
@@ -249,8 +447,8 @@ class SpatialCorrelatedField:
             m = max(m, range[0])
             threshold = 2 * precision
             # TODO: Test if we should cut eigen values by relative (like now) or absolute value
-            while threshold > precision and m < range[1]:
-                print("t: ", threshold, "m: ", m, precision, range[1])
+            while threshold >= precision and m <= range[1]:
+                print("treshold: {} m: {} precision: {} max_m: {}".format(threshold,  m, precision, range[1]))
                 U, ev, VT = randomized_svd(self.cov_mat, n_components=m, n_iter=3, random_state=None)
                 threshold = ev[-1] / ev[0]
                 m = int(np.ceil(1.5 * m))
@@ -262,6 +460,7 @@ class SpatialCorrelatedField:
         self.n_approx_terms = m
         self._sqrt_ev = np.sqrt(ev[0:m])
         self._cov_l_factor = U[:, 0:m].dot(sp.diag(self._sqrt_ev))
+        self.cov_mat = None
         return self._cov_l_factor, ev[0:m]
 
     def sample(self, uncorelated=None):

@@ -54,23 +54,26 @@ class TstFlowPbs:
             gmsh=gmsh,
             pbs=self.pbs
         )
-        corr_field_dict = dict(
-            conductivity=dict(
+        conductivity=dict(
                 mu = 0.0,
                 sigma = 1.0,
                 corr_exp='gauss',
                 dim=2,
                 corr_length=0.5,
                 log=True
-            ))
+            )
+        cond_field = correlated_field.SpatialCorrelatedField(**conductivity)
+        fields = correlated_field.Fields([
+            correlated_field.Field("conductivity", cond_field)])
 
         yaml_path = os.path.join(file_dir, '01_cond_field', '01_conductivity.yaml')
         geo_path = os.path.join(file_dir, '01_cond_field', 'square_1x1.geo')
 
+
         step_range = (1, 0.1)
         simulation_config = {
             'env': env,  # The Environment.
-            'field_name': corr_field_dict,  # correlated_field.FieldSet object
+            'fields': fields,
             'output_dir': os.path.join(file_dir, '01_cond_field', 'output'),
             'yaml_file': yaml_path,  # The template with a mesh and field placeholders
             'sim_param_range': step_range,  # Range of MLMC simulation parametr. Here the mesh step.

@@ -35,13 +35,18 @@ def substitute_placeholders(file_in, file_out, params):
     :param file_out: Values substituted.
     :param params: { 'name': value, ...}
     """
+    used_params = []
     with open(file_in, 'r') as src:
         text = src.read()
     for name, value in params.items():
-        text = text.replace('<%s>' % name, str(value))
+        placeholder = '<%s>' % name
+        n_repl = text.count(placeholder)
+        if n_repl > 0:
+            used_params.append(name)
+            text = text.replace(placeholder, str(value))
     with open(file_out, 'w') as dst:
         dst.write(text)
-
+    return used_params
 
 def force_mkdir(path, force=False):
     """
@@ -57,8 +62,13 @@ def force_mkdir(path, force=False):
 
 
 class FlowSim(simulation.Simulation):
+    # placeholders in YAML
     total_sim_id = 0
-    MESH_FILE_PLACEHOLDER = 'mesh_file'
+    MESH_FILE_VAR = 'mesh_file'
+    TIMESTEP_H1_VAR = 'timestep_h1'
+    TIMESTEP_H2_VAR = 'timestep_h2'
+
+    # files
     GEO_FILE = 'mesh.geo'
     MESH_FILE = 'mesh.msh'
     YAML_TEMPLATE = 'flow_input.yaml.tmpl'
@@ -89,8 +99,10 @@ class FlowSim(simulation.Simulation):
         self.sim_id = FlowSim.total_sim_id
         FlowSim.total_sim_id += 1
         self.env = config['env']
-        self.field_config = config['field_name']
-        self._fields = None
+        #self.field_config = config['field_name']
+        self._fields_inititialied = False
+        self._fields = config['fields']
+        self.time_factor = config['time_factor']
         self.base_yaml_file = config['yaml_file']
         self.base_geo_file = config['geo_file']
         self.field_template = config.get('field_template',
@@ -104,6 +116,10 @@ class FlowSim(simulation.Simulation):
         # Element centers of computational mesh.
         self.ele_ids = None
         # Element IDs of computational mesh.
+
+        # TODO: determine minimal element from mesh
+        self.time_step_h1 = self.time_factor * self.step
+        self.time_step_h2 = self.time_factor * self.step * self.step
 
         # Prepare base workdir for this mesh_step
         output_dir = config['output_dir']
@@ -144,27 +160,41 @@ class FlowSim(simulation.Simulation):
     
         mesh = gmsh_io.GmshIO(mesh_file)
         is_bc_region = {}
-       
-        for name, (id, dim) in mesh.physical.items():      
-            is_bc_region[id] = (name[1] == '.')
+        self.region_map = {}
+        for name, (id, dim) in mesh.physical.items():
+            unquoted_name = name.strip("\"'")
+            is_bc_region[id] = (unquoted_name[0] == '.')
+            self.region_map[unquoted_name] = id
          
-        n_ele = len(mesh.elements)
-        self.points = np.zeros((n_ele, 2))
-        self.ele_ids = np.zeros(n_ele, dtype=int)
-        i = 0
-       
+
+        bulk_elements = []
         for id, el in mesh.elements.items():
             type, tags, i_nodes = el
             region_id = tags[0]
-            if is_bc_region[region_id]:
-                self.points = np.delete(self.points, [i], axis=0)
-                self.ele_ids = np.delete(self.ele_ids, i)     
-                continue
-            
-            center = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)
-            self.points[i] = center[0:2]
-            self.ele_ids[i] = id
-            i += 1    
+            if not is_bc_region[region_id]:
+                bulk_elements.append(id)
+
+        n_bulk = len(bulk_elements)
+        centers = np.empty((n_bulk, 3))
+        self.ele_ids = np.zeros(n_bulk, dtype=int)
+        self.point_region_ids = np.zeros(n_bulk, dtype=int)
+
+        for i, id_bulk in enumerate(bulk_elements):
+            type, tags, i_nodes = mesh.elements[id_bulk]
+            region_id = tags[0]
+            centers[i] = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)
+            self.point_region_ids[i] = region_id
+            self.ele_ids[i] = id_bulk
+
+        min_pt = np.min(centers, axis=0)
+        max_pt = np.max(centers, axis=0)
+        diff = max_pt - min_pt
+        min_axis = np.argmin(diff)
+        non_zero_axes = [0, 1, 2]
+        # TODO: be able to use this mesh_dimension in fields
+        if diff[min_axis] < 1e-10:
+            non_zero_axes.pop(min_axis)
+        self.points = centers[:, non_zero_axes]
 
     def _substitute_yaml(self, yaml_tmpl, yaml_out):
         """
@@ -174,10 +204,13 @@ class FlowSim(simulation.Simulation):
         param_dict = {}
         #field_tmpl = "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
         field_tmpl = self.field_template
-        for field in self.field_config.keys():
-            param_dict[field] = field_tmpl % (self.FIELDS_FILE, field)
-        param_dict[self.MESH_FILE_PLACEHOLDER] = self.mesh_file
-        substitute_placeholders(yaml_tmpl, yaml_out, param_dict)
+        for field_name in self._fields.names:
+            param_dict[field_name] = field_tmpl % (self.FIELDS_FILE, field_name)
+        param_dict[self.MESH_FILE_VAR] = self.mesh_file
+        param_dict[self.TIMESTEP_H1_VAR] = self.time_step_h1
+        param_dict[self.TIMESTEP_H2_VAR] = self.time_step_h2
+        used_params = substitute_placeholders(yaml_tmpl, yaml_out, param_dict)
+        self._fields.set_outer_fields(used_params)
 
     def set_coarse_sim(self, coarse_sim=None):
         """
@@ -193,16 +226,17 @@ class FlowSim(simulation.Simulation):
 
       
     def _make_fields(self):
-        cond_field = correlated_field.SpatialCorrelatedField(**self.field_config['conductivity'])
-        self._fields = correlated_field.FieldSet("conductivity", cond_field)
+
 
 
         if self.coarse_sim is  None:
-            self._fields.set_points(self.points)
+            self._fields.set_points(self.points, self.point_region_ids, self.region_map)
         else:
             coarse_centers = self.coarse_sim.points
             both_centers = np.concatenate((self.points, coarse_centers), axis=0)
-            self._fields.set_points(both_centers)
+            both_regions_ids = np.concatenate( (self.point_region_ids, self.coarse_sim.point_region_ids) )
+            assert self.region_map == self.coarse_sim.region_map
+            self._fields.set_points(both_centers, both_regions_ids, self.region_map)
         
 
             
@@ -215,7 +249,7 @@ class FlowSim(simulation.Simulation):
         :return:
         """
         # assert self._is_fine_sim
-        if self._fields is None:
+        if not self._fields_inititialied:
             self._make_fields()
         fields_sample = self._fields.sample()
         self._input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
