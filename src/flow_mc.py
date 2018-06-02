@@ -102,7 +102,7 @@ class FlowSim(simulation.Simulation):
         #self.field_config = config['field_name']
         self._fields_inititialied = False
         self._fields = config['fields']
-        self.time_factor = config['time_factor']
+        self.time_factor = config.get('time_factor', 1.0)
         self.base_yaml_file = config['yaml_file']
         self.base_geo_file = config['geo_file']
         self.field_template = config.get('field_template',
