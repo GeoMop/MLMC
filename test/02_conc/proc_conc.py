@@ -115,8 +115,6 @@ class ProcessMLMC:
         self.fields_config = dict(
             conductivity=dict(
             ))
-        regions_top = ['ground_0']
-        regions_bot = ['ground_1', 'repo']
         por_top = cf.SpatialCorrelatedField(
                 corr_exp='gauss',
                 dim=2,

@@ -43,25 +43,21 @@ class MLMC:
         finished = set()
         for sim in finished_list:
             i_level, i, fine, coarse, value = sim
-            self.levels[i_level].finished_simulations.append( (i, fine, coarse) )
-            finished.add(i)
-
+            self.levels[i_level].finished_simulations.append( sim )
+            self.levels[i_level].add_sample(i, value)
+            finished.add((i_level, i))
         for level in self.levels:
-            level.sample_values = np.zeros((level.n_collected_samples, 2))
-            level.target_n_samples = level.n_collected_samples
-        for sim in finished_list:
-            i_level, i, fine, coarse, value = sim
-            self.levels[i_level].sample_values[i, :] = value
+            level.target_n_samples = level._n_valid_samples
+
 
         # recover running
         for sim in running_list:
             if len(sim) !=5:
                 continue
             i_level, i, fine, coarse, _ = sim
-            if i not in finished:
-                self.levels[i_level].running_simulations.append( (i, fine, coarse) )
+            if (i_level, i) not in finished:
+                self.levels[i_level].running_simulations.append( sim )
         for level in self.levels:
-            level.enlarge_samples(level.n_total_samples)
             level.collect_samples(self._pbs)
 
 

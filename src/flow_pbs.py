@@ -81,45 +81,45 @@ class FlowPbs:
             self.running_log_content = []
 
 
-    def check_finished_jobs(self):
-        """
-        Pass through the list of queued simulations, group simulations by packages,
-        check which packages are done, check if if their simulations are done.
+    # def check_finished_jobs(self):
+    #     """
+    #     Pass through the list of queued simulations, group simulations by packages,
+    #     check which packages are done, check if if their simulations are done.
+    #
+    #     TODO: write simulation tags into stdout and report end of the whole package. Need not to
+    #     check sucessfuly completed packages.
+    #     :return:
+    #     """
+    #     running_log_content = []
+    #     package_jobs_idx = 0
+    #     for sim in self.running_log_content:
+    #         if len(sim) == 1:
+    #             job_str = sim[0]
+    #             # self.check_job(job_str, running_log_content[package_jobs_idx:])
+    #             package_jobs_idx = len(running_log_content)
+    #         else:
+    #             running_log_content.append(sim)
+    #     self.running_log_content = running_log_content
 
-        TODO: write simulation tags into stdout and report end of the whole package. Need not to
-        check sucessfuly completed packages.
-        :return:
-        """
-        running_log_content = []
-        package_jobs_idx = 0
-        for sim in self.running_log_content:
-            if len(sim) == 1:
-                job_str = sim[0]
-                # self.check_job(job_str, running_log_content[package_jobs_idx:])
-                package_jobs_idx = len(running_log_content)
-            else:
-                running_log_content.append(sim)
-        self.running_log_content = running_log_content
-
-    def check_job(self, job_str, jobs):
-        """
-        Check if the (finished) package is complete, otherwise check all its simulations, and rerun those that are not finished.
-        :param job_str:
-        :param jobs:
-        :return:
-        """
-
-        with open(os.path.join(self.work_dir, job_str + ".OU"), 'r') as f:
-            content = f.readlines()
-            if content[-1].find("SUCCESS.") > -1:
-                return
-            else:
-                finished = set()
-                for l in content:
-                    if l.find("Finished simulation: ") > -1:
-                        _, flow123d, sim_tag, sim_dir = shlex.split(l)
-
-                # check individual jobs
+    # def check_job(self, job_str, jobs):
+    #     """
+    #     Check if the (finished) package is complete, otherwise check all its simulations, and rerun those that are not finished.
+    #     :param job_str:
+    #     :param jobs:
+    #     :return:
+    #     """
+    #
+    #     with open(os.path.join(self.work_dir, job_str + ".OU"), 'r') as f:
+    #         content = f.readlines()
+    #         if content[-1].find("SUCCESS.") > -1:
+    #             return
+    #         else:
+    #             finished = set()
+    #             for l in content:
+    #                 if l.find("Finished simulation: ") > -1:
+    #                     _, flow123d, sim_tag, sim_dir = shlex.split(l)
+    #
+    #             # check individual jobs
 
     def open(self, flag='a'):
         self.running_log_ = open(self.log_running_file, flag)
@@ -219,20 +219,16 @@ class FlowPbs:
         self.pbs_script = self.pbs_script_heading.copy()
 
 
-    def log_simulations(self, level, simulations, values=None):
+    def log_simulations(self, simulations, collected=False):
         if self.work_dir is None or not simulations:
             return
-        if values is None:
-            log_file = self.running_log
-        else:
+        if collected:
             log_file = self.collected_log
-        value = None
-        lines = []
-        for i, fine, coarse in simulations:
-            if values is not None:
-                value = values[i].tolist()
-            line = [level, i, fine, coarse, value]
-            log_file.write(json.dumps(line))
+        else:
+            log_file = self.running_log
+
+        for sim in simulations:
+            log_file.write(json.dumps(sim))
             log_file.write("\n")
         log_file.flush()
 

@@ -30,6 +30,8 @@ class SimulationTest(mlmc.simulation.Simulation):
         """
         super().__init__()
         self.config = config
+        self.nan_fraction = config.get('nan_fraction', 0.0)
+        self.n_nans = 0
         self.step = step
         self._result_dict = {}
         self._coarse_simulation = None
@@ -45,6 +47,10 @@ class SimulationTest(mlmc.simulation.Simulation):
         x = self._input_sample
         h = self.step
         y = self._sample_fn(x, h)
+        if (self.n_nans/(1e-10 + len(self._result_dict)) < self.nan_fraction) :
+            self.n_nans += 1
+            y = np.nan
+
         self._result_dict[tag] = float(y)
 
         return tag
@@ -168,7 +174,7 @@ class TestMLMC:
 
     def make_simulation_mc(self, step_range):
         pbs = flow_pbs.FlowPbs()
-        simulation_config = dict(distr=self.distr, complexity=2)
+        simulation_config = dict(distr=self.distr, complexity=2, nan_fraction=0.2)
         simultion_factory = SimulationTest.factory(step_range, config=simulation_config)
 
         mc = mlmc.mlmc.MLMC(self.n_levels, simultion_factory, pbs)
@@ -473,6 +479,14 @@ def test_var_estimate():
     #statprof.stop()
     #statprof.display()
 
+def check_estimates_for_nans(mc, distr):
+    # test that estimates work even with nans
+    n_moments = 4
+    true_domain = distr.ppf([0.001, 0.999])
+    moments_fn = mlmc.moments.Legendre(n_moments, true_domain)
+    moments, vars = mc.estimate_moments(moments_fn)
+    assert not np.any(np.isnan(moments))
+    assert not np.any(np.isnan(vars))
 
 
 def test_save_load_samples():
@@ -493,12 +507,14 @@ def test_save_load_samples():
     step_range = (0.8, 0.01)
     pbs = flow_pbs.FlowPbs(work_dir=work_dir, clean=True)
     simulation_config = dict(
-        distr= distr, complexity=2)
+        distr= distr, complexity=2, nan_fraction=0.1)
     simultion_factory = SimulationTest.factory(step_range, config = simulation_config)
     mc = mlmc.mlmc.MLMC(n_levels, simultion_factory, pbs)
     mc.set_initial_n_samples()
     mc.refill_samples()
     mc.wait_for_simulations()
+
+    check_estimates_for_nans(mc, distr)
 
     # Copy level data
     level_data = []
@@ -523,8 +539,7 @@ def test_save_load_samples():
         assert fin == level.finished_simulations
         assert np.allclose(values, level.sample_values)
 
-
-
+    check_estimates_for_nans(mc, distr)
 
 # class TestMLMC(mlmc.mlmc.MLMC):
 #     def __init__(self):

@@ -8,6 +8,12 @@ class Level:
     """
     Call Simulation methods
     There are information about random variable - average, dispersion, number of simulation, ...
+    TODO:
+    workflow:
+    - queue simulations ( need simulation object for prepare input, need pbs as executor
+    - check for finished simulations (need pbs
+    - estimates for collected samples ... this can be in separate class as it is independeent of simulation
+    .. have to reconsider in context of Analysis
     """
 
     def __init__(self, level_idx, sim_factory, previous_level_sim, precision):
@@ -33,29 +39,26 @@ class Level:
         self.fine_simulation.set_coarse_sim(self.coarse_simulation)
 
         self.reset()
-        self.running_simulations = []
-        self.finished_simulations = []
 
-        # Initialization of variables
-        #self._result = []
-        # Default number of simulations is 10
-        # that is enough for estimate variance
-        self.target_n_samples=7
-        # Array for collected sample pairs (fine, coarse)
-        self.sample_values = np.empty( (self.target_n_samples, 2) )
-        self._last_moments_fn = None
 
     def reset(self):
         # Currently running simulations
         self.running_simulations = []
-        # Collected simulations
+        # Collected simulations, all results of simulations. Including Nans and None ...
         self.finished_simulations = []
         # Target number of samples.
         self.target_n_samples=5
         # Collected samples (array may be partly filled)
-        self.sample_values = np.empty( (self.target_n_samples, 2) )
+        # Without any order, without Nans and inf. Only this is used for estimates.
+        self._sample_values = np.empty( (self.target_n_samples, 2) )
+        # Number of valid samples in _sample_values.
+        self._n_valid_samples = 0
         # Possible subsample indices.
         self.sample_indices = None
+        # Array of indices of nan samples (in fine or coarse sim)
+        self.nan_samples = []
+        # Cache evaluated moments.
+        self._last_moments_fn = None
 
 
 
@@ -68,17 +71,40 @@ class Level:
         self.target_n_samples = max(self.target_n_samples, n_samples)
 
     @property
+    def sample_values(self):
+        return self._sample_values[:self._n_valid_samples]
+
+    def add_sample(self, id, sample_pair):
+        fine, coarse = sample_pair
+        if np.isnan(fine) or np.isnan(coarse) or np.isinf(fine) or np.isinf(coarse):
+            self.nan_samples.append(id)
+            return
+
+        if self._n_valid_samples == self._sample_values.shape[0]:
+            self.enlarge_samples(2*self._n_valid_samples)
+        self._sample_values[self._n_valid_samples, : ] = (fine, coarse)
+        self._n_valid_samples+=1
+
+    def enlarge_samples(self, size):
+        # Enlarge array for sample values.
+        values = self.sample_values
+        new_values = np.empty((size, 2))
+        new_values[:self._n_valid_samples] = self._sample_values[:self._n_valid_samples]
+        self._sample_values = new_values
+
+    @property
     def n_total_samples(self):
         return len(self.running_simulations) + len(self.finished_simulations)
 
-    @property
-    def n_collected_samples(self):
-        return len(self.finished_simulations)
+    # @property
+    # def n_collected_samples(self):
+    #     return len(self.finished_simulations)
 
     @property
     def n_samples(self):
+        # Number of samples used for estimates.
         if self.sample_indices is None:
-            return len(self.finished_simulations)
+            return self._n_valid_samples
         else:
             return len(self.sample_indices)
 
@@ -110,14 +136,8 @@ class Level:
             # Zero level have no coarse simulation.
             coarse_sample = None
 
-        return (idx, fine_sample, coarse_sample)
+        return [self.level_idx, idx, fine_sample, coarse_sample, None]
 
-    def enlarge_samples(self, size):
-        # Enlarge array for sample values.
-        new_values = np.empty((size, 2))
-        n_collected = len(self.sample_values)
-        new_values[:n_collected, :] = self.sample_values
-        self.sample_values = new_values
 
     def fill_samples(self, logger):
         """
@@ -134,7 +154,7 @@ class Level:
             while self.n_total_samples < self.target_n_samples:
                 self.running_simulations.append(self.make_sample_pair())
         # log new simulation pairs
-        logger.log_simulations(self.level_idx, self.running_simulations[orig_n_running:])
+        logger.log_simulations(self.running_simulations[orig_n_running:])
 
 
     def collect_samples(self, logger):
@@ -147,9 +167,9 @@ class Level:
         # Loop through pair of running simulations
         orig_n_finised = len(self.finished_simulations)
         new_running = []
-        for (idx, fine_sim, coarse_sim) in self.running_simulations:
+        for (level, idx, fine_sim, coarse_sim, value) in self.running_simulations:
             try:
-                print( fine_sim, coarse_sim)
+                #print( fine_sim, coarse_sim)
                 fine_result = self.fine_simulation.extract_result(fine_sim)
                 fine_done = fine_result is not None
                 
@@ -162,12 +182,15 @@ class Level:
                     coarse_done = coarse_result is not None
 
                 if fine_done and coarse_done:
+                    if np.isnan(fine_result):
+                        fine_result = np.inf
+                    if np.isnan(coarse_result):
+                        coarse_result = np.inf
                     # collect values
-                    self.finished_simulations.append( (idx, fine_sim, coarse_sim) )
-                    self.sample_values[idx, :] = (fine_result, coarse_result)
-                    # TODO: mark to sample file
+                    self.finished_simulations.append([self.level_idx, idx, fine_sim, coarse_sim, [fine_result, coarse_result]])
+                    self.add_sample( idx, (fine_result, coarse_result) )
                 else:
-                    new_running.append( (idx, fine_sim, coarse_sim) )
+                    new_running.append( [level, idx, fine_sim, coarse_sim, value] )
 
             except ExpWrongResult as e:
                 print(e.message)
@@ -177,23 +200,21 @@ class Level:
         new_finished = self.finished_simulations[orig_n_finised:]
         #new_values = self.sample_values[orig_n_finised:, :]
         #assert len(new_values) >= len(new_finished)
-        logger.log_simulations(self.level_idx,
-                               new_finished,
-                               values=self.sample_values)
+        logger.log_simulations(new_finished, collected=True)
         return len(self.running_simulations)
 
     def subsample(self, size):
         if size is None:
             self.sample_indices = None
         else:
-            assert 0 < size < self.n_collected_samples, "0 < {} < {}".format(size, self.n_collected_samples)
+            assert 0 < size < self._n_valid_samples, "0 < {} < {}".format(size, self._n_valid_samples)
 
-            self.sample_indices = np.random.choice(np.arange(self.n_collected_samples, dtype=int), size=size)
+            self.sample_indices = np.random.choice(np.arange(self._n_valid_samples, dtype=int), size=size)
 
     def evaluate_moments(self,  moments_fn):
 
         if moments_fn != self._last_moments_fn:
-            samples = self.sample_values[:self.n_collected_samples, :]
+            samples = self.sample_values
 
             moments_fine = moments_fn(samples[:, 0])
             if self.is_zero_level:
@@ -212,7 +233,7 @@ class Level:
 
     def estimate_diff_var(self, moments_fn):
         # n_samples = n_dofs + 1 >= 7 leads to probability 0.9 that estimate is whithin range of 10% error from true variance
-        assert self.n_collected_samples > 4
+        assert self.n_samples > 1
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
         var_vec = np.var( mom_fine - mom_coarse, axis=0, ddof=1)
         return var_vec, len(mom_fine)
