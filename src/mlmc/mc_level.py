@@ -76,7 +76,7 @@ class Level:
 
     def add_sample(self, id, sample_pair):
         fine, coarse = sample_pair
-        if np.isnan(fine) or np.isnan(coarse) or np.isinf(fine) or np.isinf(coarse):
+        if not np.isfinite(fine) or not np.isfinite(coarse):
             self.nan_samples.append(id)
             return
 

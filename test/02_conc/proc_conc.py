@@ -50,7 +50,11 @@ class FlowConcSim(flow_mc.FlowSim):
 
             max_conc = 0
             for snapshot in observe['data']:
-                max_conc = max(max_conc, max(snapshot['X_conc']))
+                arr = np.array(snapshot['X_conc'])
+                if np.all(np.isfinite(arr)):
+                    max_conc = max(max_conc, np.max(arr))
+                else:
+                    return np.inf
             return max_conc
 
         else:
