@@ -17,7 +17,7 @@ import mlmc.moments
 import mlmc.distribution
 import flow_pbs
 import flow_mc as flow_mc
-
+import mlmc.correlated_field as cf
 
 
 class ProcessMLMC:
@@ -54,9 +54,11 @@ class ProcessMLMC:
             # Local
             self.sample_sleep = 1
             self.init_sample_timeout = 60
-            self.pbs_config['qsub'] = os.path.join(src_path, '..', 'mocks', 'qsub')
-            #flow123d = "/home/jb/workspace/flow123d/bin/fterm flow123d dbg"
-            flow123d = os.path.join(src_path, '..', 'mocks', 'flow_mock')
+            self.sample_timeout = 60
+            #self.pbs_config['qsub'] = os.path.join(src_path, '..', 'mocks', 'qsub')
+            self.pbs_config['qsub'] = None
+            flow123d = "/home/jb/workspace/flow123d/bin/fterm flow123d dbg"
+            #flow123d = os.path.join(src_path, '..', 'mocks', 'flow_mock')
             gmsh = "/home/jb/local/gmsh-3.0.5-git-Linux/bin/gmsh"
 
         self.env = dict(
@@ -75,26 +77,27 @@ class ProcessMLMC:
 
         self.setup_environment()
 
-        self.fields_config = dict(
-            conductivity=dict(
-                corr_exp='exp',
-                dim=2,
-                corr_length=0.125,
-                log=True
-            ))
+        fields = cf.Fields([
+            cf.Field('conductivity', cf.SpatialCorrelatedField('gauss', mu=1e-8, sigma=1, corr_length=0.1, log=True)),
+        ])
 
-        self.step_range = (1, 0.01)
+        self.step_range = (1, 0.02)
+
+
+
+
+
         yaml_path = os.path.join(self.work_dir, '01_conductivity.yaml')
         geo_path = os.path.join(self.work_dir, 'square_1x1.geo')
         self.simulation_config = {
             'env': self.env,  # The Environment.
             'output_dir': self.output_dir,
-            'field_name': self.fields_config,  # correlated_field.FieldSet object
+            'fields': fields,  # correlated_field.FieldSet object
             'yaml_file': yaml_path,  # The template with a mesh and field placeholders
             'sim_param_range': self.step_range,  # Range of MLMC simulation parametr. Here the mesh step.
             'geo_file': geo_path,  # The file with simulation geometry (independent of the step)
-            #'field_template': "!FieldElementwise {mesh_data_file: \"${INPUT}/%s\", field_name: %s}"
-            'field_template': "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
+            'field_template': "!FieldElementwise {mesh_data_file: \"${INPUT}/%s\", field_name: %s}"
+            #'field_template': "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
         }
 
     @staticmethod
@@ -120,9 +123,9 @@ class ProcessMLMC:
 
         self.mc = mlmc.mlmc.MLMC(self.n_levels, self.simultion_factory, self.pbs)
         if clean:
-            assert ProcessMLMC.is_exe(self.env['flow123d'])
+            #assert ProcessMLMC.is_exe(self.env['flow123d'])
             assert ProcessMLMC.is_exe(self.env['gmsh'])
-            assert ProcessMLMC.is_exe(self.pbs_config['qsub'])
+            #assert ProcessMLMC.is_exe(self.pbs_config['qsub'])
             self.save()
 
     def collect(self):
@@ -623,7 +626,7 @@ def main():
                 shutil.copy(file_res.path, work_dir)
         
         mlmc_list = []
-        for nl in [1, 2, 3, 4,5, 7, 9]:
+        for nl in [1]:  #, 2, 3, 4,5, 7, 9]:
             mlmc = ProcessMLMC(work_dir)
             mlmc.setup(nl)
             mlmc.initialize(clean=True)
@@ -640,7 +643,9 @@ def main():
             
             n_samples = 2*np.array(ns[nl])
             #mlmc.generate_jobs(n_samples=n_samples)
-            mlmc.generate_jobs(n_samples=[10000, 100])
+            #mlmc.generate_jobs(n_samples=[10000, 100])
+            mlmc.mc.levels[0].target_n_samples = 1
+            mlmc.generate_jobs(n_samples=[1])
             mlmc_list.append(mlmc)  
 
         #for nl in [3,4]:

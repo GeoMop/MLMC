@@ -23,6 +23,45 @@ import mlmc.correlated_field as cf
 
 class FlowConcSim(flow_mc.FlowSim):
     # Extract 
+    # def extract_result(self, sample_tuple):
+    #     """
+    #     Extract the observed value from the Flow123d output.
+    #     Get sample from the field restriction, write to the GMSH file, call flow.
+    #     :param fields:
+    #     :return:
+    #
+    #     TODO: Pass an extraction function as other FlowSim parameter. This function will take the
+    #     balance data and retun observed values.
+    #     """
+    #     sample_dir = sample_tuple[1]
+    #     if os.path.exists(os.path.join(sample_dir, "FINISHED")):
+    #
+    #         # extract the flux
+    #         obs_file = os.path.join(sample_dir, "solute_observe.yaml")
+    #         with open(obs_file, "r") as f:
+    #             observe = yaml.load(f)
+    #
+    #         # TODO: we need to move this part out of the library as soon as possible
+    #         # it has to be changed for every new input file or different observation.
+    #         # However in Analysis it is already done in general way.
+    #         flux_regions = ['.bc_outflow']
+    #         total_flux = 0.0
+    #         found = False
+    #
+    #         max_conc = 0
+    #         for snapshot in observe['data']:
+    #             arr = np.array(snapshot['X_conc'])
+    #             if np.all(np.isfinite(arr)):
+    #                 time_max = np.max(arr[arr>0.0])
+    #                 max_conc = max(max_conc, time_max)
+    #             else:
+    #                 return np.inf
+    #         return max_conc
+    #
+    #     else:
+    #         return None
+
+
     def extract_result(self, sample_tuple):
         """
         Extract the observed value from the Flow123d output.
@@ -37,25 +76,30 @@ class FlowConcSim(flow_mc.FlowSim):
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
 
             # extract the flux
-            obs_file = os.path.join(sample_dir, "solute_observe.yaml")
-            with open(obs_file, "r") as f:
-                observe = yaml.load(f)
+            balance_file = os.path.join(sample_dir, "mass_balance.yaml")
+            with open(balance_file, "r") as f:
+                balance = yaml.load(f)
 
             # TODO: we need to move this part out of the library as soon as possible
             # it has to be changed for every new input file or different observation.
             # However in Analysis it is already done in general way.
-            flux_regions = ['.bc_outflow']
-            total_flux = 0.0
+            flux_regions = ['.surface']
+            max_flux = 0.0
             found = False
+            for flux_item in balance['data']:
+                if flux_item['region'] in flux_regions:
+                    out_flux = -float(flux_item['data'][0])
+                    if not np.isfinite(out_flux):
+                        return np.inf
+                    #flux_in = float(flux_item['data'][1])
+                    #if flux_in > 1e-10:
+                    #    raise Exception("Possitive inflow at outlet region.")
+                    max_flux = max(max_flux, out_flux)  # flux field
+                    found = True
 
-            max_conc = 0
-            for snapshot in observe['data']:
-                arr = np.array(snapshot['X_conc'])
-                if np.all(np.isfinite(arr)):
-                    max_conc = max(max_conc, np.max(arr))
-                else:
-                    return np.inf
-            return max_conc
+            if not found:
+                raise Exception("Observation region not found.")
+            return max_flux
 
         else:
             return None
@@ -149,7 +193,7 @@ class ProcessMLMC:
             cf.Field('conductivity_top', cf.kozeny_carman, ['porosity_top', 1, 'factor_top', water_viscosity], regions='ground_0'),
             cf.Field('conductivity_bot', cf.kozeny_carman, ['porosity_bot', 1, 'factor_bot', water_viscosity], regions='ground_1'),
             #cf.Field('conductivity_repo', cf.kozeny_carman, ['porosity_repo', 1, 'factor_repo', water_viscosity], regions='repo')
-            cf.Field('conductivity_repo', 0.1, regions='repo')
+            cf.Field('conductivity_repo', 0.001, regions='repo')
         ])
 
         self.step_range = (1, 0.1)     # finest mesh about 18k elements
@@ -163,8 +207,8 @@ class ProcessMLMC:
             'yaml_file': yaml_path,  # The template with a mesh and field placeholders
             'sim_param_range': self.step_range,  # Range of MLMC simulation parametr. Here the mesh step.
             'geo_file': geo_path,  # The file with simulation geometry (independent of the step)
-            #'field_template': "!FieldElementwise {mesh_data_file: \"${INPUT}/%s\", field_name: %s}"
-            'field_template': "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
+            'field_template': "!FieldElementwise {mesh_data_file: \"${INPUT}/%s\", field_name: %s}"
+            #'field_template': "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
         }
 
     @staticmethod
@@ -694,7 +738,7 @@ def main():
                 shutil.copy(file_res.path, work_dir)
         
         mlmc_list = []
-        for nl in [1, 2, 3, 4,5, 7, 9]:
+        for nl in [1,3]:    #[1, 2, 3, 4,5, 7, 9]:
             mlmc = ProcessMLMC(work_dir)
             mlmc.setup(nl)
             mlmc.initialize(clean=True)
@@ -711,7 +755,8 @@ def main():
             
             n_samples = 2*np.array(ns[nl])
             #mlmc.generate_jobs(n_samples=n_samples)
-            mlmc.generate_jobs(n_samples=[10000, 100])
+            #mlmc.generate_jobs(n_samples=[10000, 100])
+            mlmc.generate_jobs(n_samples=[3, 1])
             mlmc_list.append(mlmc)  
 
         #for nl in [3,4]:
@@ -724,7 +769,7 @@ def main():
     elif command == 'collect':
         assert os.path.isdir(work_dir)
         mlmc_list = []
-        for nl in [ 5,7]:
+        for nl in [1,3]:
             mlmc = ProcessMLMC(work_dir)
             mlmc.load(nl)
             mlmc_list.append(mlmc)  

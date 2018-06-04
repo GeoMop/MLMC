@@ -31,8 +31,8 @@ problem: !Coupling_Sequential
       - region: .surface
         bc_type: seepage
         bc_pressure: 0
-        #bc_flux: 3e-8   # odpovida uhrnu srazek zhruba 1000mm za rok
-        bc_flux: 1e-10  # Seems that the realistic flow is two high, forcing nearly no outflow
+        bc_flux: 3e-8   # odpovida uhrnu srazek zhruba 1000mm za rok
+        #bc_flux: 1e-10  # Seems that the realistic flow is two high, forcing nearly no outflow
     output:
       fields:
         - piezo_head_p0
@@ -43,8 +43,8 @@ problem: !Coupling_Sequential
       format: !vtk
 
   solute_equation: !Coupling_OperatorSplitting
-    #transport: !Solute_AdvectionDiffusion_DG
-    transport: !Solute_Advection_FV
+    transport: !Solute_AdvectionDiffusion_DG
+    #transport: !Solute_Advection_FV
       input_fields:
 
         #- region: repo
@@ -78,7 +78,9 @@ problem: !Coupling_Sequential
           - conc
         observe_fields:
           - conc
-          
+    balance: 
+        times:
+          - step: 1e6
     output_stream:
         file: ./transport_test15.msh
         format: !vtk
@@ -88,7 +90,7 @@ problem: !Coupling_Sequential
           #- {begin: 0.0, step: 100, end: 1000}
           #- {begin: 1000, step: 1000, end: 10000}
           #- {begin: 1000, step: 10000, end: 100000}
-          - step: 1e7
+          - step: 10e6
         observe_points:
           - point: [0.98,   0,  0.18]
             dim: 2
@@ -161,5 +163,5 @@ problem: !Coupling_Sequential
     time:  
         min_dt: <timestep_h1>
         max_dt: <timestep_h1>
-        end_time: 1000e6
+        end_time: 200e6
         
