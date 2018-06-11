@@ -203,12 +203,14 @@ class Level:
         logger.log_simulations(new_finished, collected=True)
         return len(self.running_simulations)
 
-    def subsample(self, size):
+    def subsample(self, size, ):
         if size is None:
             self.sample_indices = None
         else:
-            assert 0 < size < self._n_valid_samples, "0 < {} < {}".format(size, self._n_valid_samples)
 
+            assert 0 < size
+            if size > self._n_valid_samples:
+                print("Warning: Oversampling {} from {}.".format(size, self._n_valid_samples) )
             self.sample_indices = np.random.choice(np.arange(self._n_valid_samples, dtype=int), size=size)
 
     def evaluate_moments(self,  moments_fn):

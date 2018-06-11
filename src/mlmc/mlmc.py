@@ -266,9 +266,9 @@ class MLMC:
                     array of ints, shape = n_levels; choose given number of sub samples from computed samples
         :return:
         """
-        assert len(sub_samples) == self.n_levels
         if sub_samples is None:
             sub_samples = [None]*self.n_levels
+        assert len(sub_samples) == self.n_levels
         for ns, level in zip(sub_samples, self.levels):
             level.subsample(ns)
 
