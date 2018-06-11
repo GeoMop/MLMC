@@ -24,7 +24,7 @@ class ProcessMLMC:
     
     def __init__(self, work_dir):        
         self.work_dir = os.path.abspath(work_dir)
-        self._serialize = ['work_dir', 'output_dir', 'n_levels', 'step_range']
+        self._serialize = ['n_levels', 'step_range']
 
     def get_root_dir(self):
         root_dir = os.path.abspath(self.work_dir)
@@ -133,6 +133,7 @@ class ProcessMLMC:
 
     def set_moments(self, n_moments, log=False):
         self.moments_fn = mlmc.moments.Legendre(n_moments, self.domain, safe_eval=True, log=log)
+        #self.moments_fn = mlmc.moments.Fourier(n_moments, self.domain, safe_eval=True, log=log)
         return self.moments_fn
 
     def n_sample_estimate(self, target_variance):
@@ -168,8 +169,10 @@ class ProcessMLMC:
         with open(self._setup_file, 'r') as f:
             setup = json.load(f)
         for key in self._serialize:
+
             self.__dict__[key] = setup.get(key, None)
-        
+
+
         self.initialize(clean=False)
         
         
@@ -377,8 +380,9 @@ class ProcessMLMC:
         ax.axvline(x=prc, label=str(prc), c='red')
         ax.legend()
 
-    def plot_n_sample_est_distributions(self, title, cost, total_std, n_samples, rel_moments):
+    def plot_n_sample_est_distributions(self, cost, total_std, n_samples, rel_moments):
         import matplotlib.pyplot as plt
+        title = "N levels = {}".format(self.mc.n_levels)
 
         fig = plt.figure(figsize=(30,10))
         ax1 = fig.add_subplot(2, 2, 1)
@@ -393,8 +397,8 @@ class ProcessMLMC:
         ax4 = fig.add_subplot(2, 2, 4)
         self.plot_error(rel_moments, ax4, "moments err")
         fig.suptitle(title)
-        fig.savefig(title+".pdf")
-        plt.show()
+        fig.savefig("L{}_subsample_estimates.pdf".format(self.mc.n_levels))
+
 
 
 
@@ -409,29 +413,35 @@ class ProcessMLMC:
         import matplotlib.pyplot as plt
         
         X = np.exp( np.linspace(np.log(self.domain[0]), np.log(self.domain[1]), 1000) )
-        bins = np.exp( np.linspace(np.log(self.domain[0]), np.log(10), 60) )
+
         
         n_levels = self.mc.n_levels
         color = "C{}".format(n_levels)
-        label = "l {}".format(n_levels)
+        label = "L{}: ".format(n_levels) #+ str(self.mc.n_samples)
         Y = self.distr_obj.density(X)
         ax1.plot(X, Y, c=color, label=label)
+        #ax1.plot(X, -np.log(Y), c=color, label=label)
         
         Y = self.distr_obj.cdf(X)
         ax2.plot(X, Y, c=color, label=label)
         
         if n_levels == 1:
-            ax1.hist(mc0_samples, normed=1,  bins=bins, alpha = 0.3, label='full MC', color=color)
+            ax1.axvline(x=self.domain[0], c='black')
+            ax1.axvline(x=self.domain[1], c='black')
+            ax1.axvline(x=np.exp(np.mean(np.log(mc0_samples))), c='black')
+
+            bins = np.exp(np.linspace(np.log(self.domain[0]), np.log(10), 100))
+            ax1.hist(mc0_samples, normed=1,  bins=bins, alpha = 0.3, label='full MC', color='gray')
             X, Y = ProcessMLMC.ecdf(mc0_samples)
-            ax2.plot(X, Y, 'red')
+            ax2.plot(X, Y, 'black')
 
             #Y = stats.lognorm.pdf(X, s=1, scale=np.exp(0.0))
             #ax1.plot(X, Y, c='gray', label="stdlognorm")
             #Y = stats.lognorm.cdf(X, s=1, scale=np.exp(0.0))
             #ax2.plot(X, Y, c='gray')
           
-        ax1.axvline(x=self.est_domain[0], c=color)
-        ax1.axvline(x=self.est_domain[1], c=color)
+        #ax1.axvline(x=self.est_domain[0], c=color)
+        #ax1.axvline(x=self.est_domain[1], c=color)
           
         
         
@@ -447,19 +457,28 @@ class ProcessMLMC:
         self.est_domain = self.mc.estimate_domain()       
         moments_fn = self.set_moments(n_moments, log=True)       
 
+        #####
+        # Compute global characteristics of full sample set
         t_var = 1e-5
-        self.ref_diff_vars, _ = self.mc.estimate_diff_vars(moments_fn)
+        self.ref_diff_vars, ns = self.mc.estimate_diff_vars(moments_fn)
+
+        # std how it may be if we are able to keep all diff vars at minimal contributor value
+
+        self.ref_n_samples = ns
+        self.ref_diff_vars /= ns[:, None]
+        self.ref_std_min = np.sqrt( len(ns) * self.ref_diff_vars[0])
+        self.max_var_level = np.argmax(self.ref_diff_vars, axis=0)
         self.ref_moments, self.ref_vars = self.mc.estimate_moments(moments_fn)
 
         self.ref_std = np.sqrt(self.ref_vars)
         self.ref_diff_vars_max = np.max(self.ref_diff_vars, axis =1)
-        ref_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=self.ref_diff_vars)
-        self.ref_n_samples = np.max(ref_n_samples, axis=1)
-        self.ref_cost = self.mc.estimate_cost(n_samples = self.ref_n_samples)
-        self.ref_total_std = np.sqrt(np.sum(self.ref_diff_vars / self.ref_n_samples[:, None])/n_moments)
+        ref_n_samples = self.mc.set_target_variance(t_var, moments_fn)
+        self.ref_est_n_samples = np.max(ref_n_samples, axis=1)
+        self.ref_cost = self.mc.estimate_cost(n_samples = self.ref_est_n_samples)
+        self.ref_total_std = np.sqrt(np.mean(np.sum(self.ref_diff_vars, axis=0)))
         self.ref_total_std_x = np.sqrt(np.mean(self.ref_vars))
 
-            
+
 
         print("\nLevels : ", self.mc.n_levels, "---------")
         print("moments:  ", self.align_array(self.ref_moments))
@@ -468,9 +487,27 @@ class ProcessMLMC:
         print("domain:   ", self.est_domain)
         print("cost:     ", self.ref_cost)
         print("tot. std: ", self.ref_total_std, self.ref_total_std_x)
-        print("dif_vars: ", self.align_array(self.ref_diff_vars_max)) 
-        print("ns :      ", self.align_array(self.ref_n_samples))
+        print("dif_vars: ", self.align_array(self.ref_diff_vars_max), )
+        print("ns :      ", self.align_array(self.ref_est_n_samples))
         print("")
+
+        diff = self.ref_moments - mlmc_0.ref_moments
+        str_moments = ["{:8.3f}".format(m) for m in self.ref_moments]
+        str_err = ["{:8.2f}".format(m) for m in np.abs(100*diff)]
+        str_std = ["{:8.2f}".format(m) for m in np.abs(100*self.ref_std)]
+        #mm_line = np.stack([self.ref_moments, diff, self.ref_std], axis=1).ravel()
+        print(" & ".join([" & ".join(triple) for triple in zip(str_moments, str_err, str_std)]))
+
+        steps = np.array([ l.fine_simulation.step for l in self.mc.levels])
+
+        table = np.stack([np.arange(self.n_levels),
+                          steps,
+                          self.ref_diff_vars_max,
+                          self.ref_est_n_samples], axis=0)
+        print(" \\\\\n".join([" & ".join(map(str, line)) for line in table]))
+        print("")
+
+
         print("SUBSAMPLES")
         
               
@@ -478,8 +515,17 @@ class ProcessMLMC:
         #distr_mean = self.distr_mean = moments_fn.inv_linear(ref_means[1])
         #distr_var  = ((2*ref_means[2] + 1)/3 - ref_means[1]**2) / 4 * ((b-a)**2)        
         #self.distr_std  = np.sqrt(distr_var)
-        
-        n_loops = 10
+
+        #####
+        # Distribution approximation
+
+        moments_data = np.stack( (self.ref_moments, self.ref_vars), axis=1)
+        self.distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data)
+        self.distr_obj.domain = self.domain
+        result = self.distr_obj.estimate_density(tol=0.00001)
+        #print(result)
+
+        n_loops = 0
 
         # use subsampling to:
         # - simulate moments estimation without appriori knowledge about n_samples (but still on fixed domain)
@@ -526,16 +572,16 @@ class ProcessMLMC:
             #print("em:", est_moments)
             #print("rm:", self.ref_moments)
             
-            n_samples_err = np.min( (n_samples - self.ref_n_samples) /self.ref_n_samples )
-            est_total_std = np.sqrt(np.sum(est_diff_vars / n_samples[:, None])/n_moments)
+            n_samples_err = np.min((n_samples - self.ref_est_n_samples) / self.ref_est_n_samples)
+            est_total_std = np.sqrt(np.mean(np.sum(est_diff_vars / n_samples[:, None], axis=0)))
             # est_total_std = np.sqrt(np.mean(est_vars))
             total_std_err =  np.log2(est_total_std/self.ref_total_std)
             est_cost = self.mc.estimate_cost(n_samples = n_samples)
             cost_err = (est_cost - self.ref_cost)/self.ref_cost
             
-            print("MM: ", (est_moments[1:] - self.ref_moments[1:]), "\n    ",  est_vars[1:])
+            #print("MM: ", (est_moments[1:] - self.ref_moments[1:]), "\n    ",  np.sqrt(est_vars[1:]))
             
-            relative_moments_err = np.linalg.norm((est_moments[1:] - self.ref_moments[1:]) / est_vars[1:])
+            relative_moments_err = np.linalg.norm((est_moments[1:] - self.ref_moments[1:]) / np.sqrt(est_vars[1:]))
             #print("est cost: {} ref cost: {}".format(est_cost, ref_cost))
             #print(n_samples)
             #print(np.maximum( n_samples, (max_est_n_samples).astype(int)))
@@ -551,27 +597,27 @@ class ProcessMLMC:
         l_n_samples_err.sort()
         l_rel_mom_err.sort()
         
-        def describe(arr):
-            q1, q3 = np.percentile(arr, [25,75])
-            return "{:f8.2} < {:f8.2} | {:f8.2} | {:f8.2} < {:f8.2}".format(
-                np.min(arr), q1, np.mean(arr), q3, np.max(arr))
-          
-        print("Cost err:       ", describe(l_cost_err))
-        print("Total std err:  ", describe(l_total_std_err))
-        print("N. samples err: ", describe(l_n_samples_err))
-        print("Rel. Mom. err:  ", describe(l_rel_mom_err))
-        
-        #print(l_rel_mom_err)
-        title = "N levels = {}".format(self.mc.n_levels)
-        self.plot_n_sample_est_distributions(title, l_cost_err, l_total_std_err, l_n_samples_err, l_rel_mom_err)
-      
-        
-        moments_data = np.stack( (est_moments, est_vars), axis=1)    
-        self.distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data)
-        self.distr_obj.domain = self.domain
-        result = self.distr_obj.estimate_density(tol=0.01)
-        #print(result)
+        # def describe(arr):
+        #     q1, q3 = np.percentile(arr, [25,75])
+        #     print(np.min(arr), q1, np.mean(arr), q3, np.max(arr))
+        #     return "{:8.2f} < {:8.2f} | {:8.2f} | {:8.2f} < {:8.2f}".format(
+        #         np.min(arr), q1, np.mean(arr), q3, np.max(arr))
+        #
+        # print("Cost err:       ", describe(l_cost_err))
+        # print("Total std err:  ", describe(l_total_std_err))
+        # print("N. samples err: ", describe(l_n_samples_err))
+        # print("Rel. Mom. err:  ", describe(l_rel_mom_err))
+        #
+        # #print(l_rel_mom_err)
+        # self.plot_n_sample_est_distributions(l_cost_err, l_total_std_err, l_n_samples_err, l_rel_mom_err)
 
+
+        # moments_data = np.stack( (est_moments, est_vars), axis=1)
+        # self.distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data)
+        # self.distr_obj.domain = self.domain
+        # result = self.distr_obj.estimate_density(tol=0.001)
+        #print(result)
+        self.mc.subsample(None)
         
         
 
@@ -580,25 +626,119 @@ class ProcessMLMC:
 
 def all_results(mlmc_list):
         import matplotlib.pyplot as plt
-
-        fig = plt.figure(figsize=(30,10))
-        ax1 = fig.add_subplot(1, 2, 1)
-        ax2 = fig.add_subplot(1, 2, 2)
-        ax1.set_xscale('log')
-        ax1.set_xlim(0.02, 10)
-        ax2.set_xscale('log')
-        
-        n_moments = 5
+        n_moments = 9
         mc0_samples = mlmc_list[0].mc.levels[0].sample_values[:, 0]
-        mlmc_list[0].ref_domain = (np.min(mc0_samples), np.max(mc0_samples) )         
-        
+        center = np.mean(np.log(mc0_samples))
+        err = 5*np.std(np.log(mc0_samples))
+        q_min, q_max = np.percentile(mc0_samples, [0.01, 99.99])
+        #mlmc_list[0].ref_domain = (q_min, q_max-1)
+        mlmc_list[0].ref_domain = (np.exp(center - err), np.exp(center + err))
+        #mlmc_list[0].ref_domain = (np.min(mc0_samples), np.max(mc0_samples) )
+
+        # Plot density
+        fig = plt.figure(figsize=(15,10))
+        ax1 = fig.add_subplot(1, 1, 1)
+        ax1.set_xscale('log')
+        ax1.set_ylim([0, 2])
+        ax1.set_xlim([0.1, 10])
+
+        # Plot distribution
+        fig2 = plt.figure(figsize=(15, 10))
+        ax2 = fig2.add_subplot(1, 1, 1)
+        ax2.set_xscale('log')
+        ax2.set_ylim(-0.1, 1.1)
+        ax2.set_xlim(0.1, 10)
+
+
         for prmc in mlmc_list:
             prmc.compute_results(mlmc_list[0], n_moments)
             prmc.plot_pdf_approx(ax1, ax2, mc0_samples)
+
+
+
         ax1.legend()
         ax2.legend()
-        fig.savefig('compare_distributions.pdf')
-        plt.show()
+
+        fig.savefig('compare_density.pdf')
+        fig2.savefig('compare_distribution.pdf')
+
+        # Plot estimated moments and their error
+        space = 2*  len(mlmc_list)
+        fig = plt.figure(figsize=(10, 5))
+        ax = fig.add_subplot(1, 1, 1)
+        for prmc in mlmc_list:
+            X = len(prmc.mc.levels) + space*np.arange(1,n_moments)
+            Y = prmc.ref_diff_vars
+
+            # std corresponding to the first level
+            # Obervation:
+            # - 2 level is bad since V1 is usualy same as V0
+            # - so at least 4 level MLMC should be used
+            #ax.errorbar(X, prmc.ref_moments[1:], yerr=3 * prmc.ref_std_min[1:], fmt='o', capsize=5, ecolor='grey')
+            ax.errorbar(X, prmc.ref_moments[1:], yerr=3 * prmc.ref_std[1:], fmt='o', capsize=3, label=str(len(prmc.mc.levels)))
+
+
+        x_ticks = space*np.arange(1,n_moments) + 0.7*(len(mlmc_list) +1)
+        x_ticks_labels = [str(m) for m in np.arange(1,n_moments)]
+
+        ax.set_xticks(x_ticks)
+        ax.set_xticklabels(x_ticks_labels)
+        ax.set_xlabel("Legendere polynomial moments")
+        ax.legend(title="Num. of levels")
+
+        fig.suptitle("Estimating moments of log(Q) using different number of levels.")
+        fig.savefig('compare_moments.pdf')
+
+
+        # Plot diff var and n_samples estimates
+        # X - mesh_step (0.0 for V_l); log
+        # Y - V_l resp n_l; log
+        # color - moment
+        # shape - N levels
+        # error bars - from number of samples
+        cmap = plt.get_cmap('viridis')
+        fig = plt.figure(figsize=(10, 5))
+        ax = fig.add_subplot(1, 1, 1)
+        #markers = ['*', 'o', 'h', '+', 'v', 's', 'd']
+        for i, prmc in enumerate(mlmc_list[-1:]):
+            steps = np.array([l.fine_simulation.step for l in prmc.mc.levels])
+            #X = len(prmc.mc.levels) + space*np.arange(1,n_moments)
+
+
+            # std corresponding to the first level
+            # Obervation:
+            # - 2 level is bad since V1 is usualy same as V0
+            # - so at least 4 level MLMC should be used
+            #ax.errorbar(X, prmc.ref_moments[1:], yerr=3 * prmc.ref_std_min[1:], fmt='o', capsize=5, ecolor='grey')
+            for m in range(1, n_moments):
+                Y = prmc.ref_diff_vars[:, m] * prmc.ref_n_samples
+                Y_err = 1/prmc.ref_n_samples
+                #s = markers[i]
+                c = cmap(m/n_moments)
+                ax.errorbar(steps, Y,  fmt='o', color=c ,marker='o'  , label=str(m))
+            #ax.plot(steps, steps**2)
+            ax.plot(steps, 100*steps ** 4, c='orange', label="$h^4$")
+
+            Y_min = np.min(prmc.ref_diff_vars[:, 1:] * prmc.ref_n_samples[:,None], axis=1)
+            for i, (x, y) in enumerate(zip(steps, Y_min)):
+                #samples_label = "$n_{}$={}".format(i, int(prmc.ref_est_n_samples[i]))
+                samples_label = "{}".format(int(prmc.ref_est_n_samples[i]))
+                ax.text(x, y*0.1, samples_label)
+
+        #x_ticks = space*np.arange(1, n_moments) + 0.7*(len(mlmc_list) +1)
+        #x_ticks_labels = [str(m) for m in np.arange(1,n_moments)]
+
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        #ax.set_xticks(x_ticks)
+        #ax.set_xticklabels(x_ticks_labels)
+        ax.set_ylim(1e-10, 1)
+        ax.set_xlabel("$h$ - mesh step")
+        ax.set_ylabel("$V_l$")
+        ax.legend(title="Moments", loc=4, ncol=2)
+
+        #fig.suptitle("Estimating moments of log(Q) using different number of levels.")
+        fig.savefig('est_vars.pdf')
 
 
 
@@ -608,7 +748,7 @@ def all_collect(mlmc_list):
         running = 0
         for mc in mlmc_list:
             running += mc.collect()
-        print("N running: ", running)    
+        print("N running: ", running)
 
 
 def main():
@@ -667,8 +807,8 @@ def main():
     elif command == 'process':
         assert os.path.isdir(work_dir)
         mlmc_list = []
-        #for nl in [ 1,2,3,4,5,7,9]:
-        for nl in [ 1,3]:
+        for nl in [ 1,2,3,4,5, 7,9]: #[ 1,2,3,4,5,7,9]:
+        #for nl in [ 1,2]:
             prmc = ProcessMLMC(work_dir)
             prmc.load(nl)
             mlmc_list.append(prmc)  
