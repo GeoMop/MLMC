@@ -29,7 +29,7 @@ class Simulation:
         pass
 
     def simulation_sample(self, tag):
-        # Forward simulatino for generated input.
+        # Forward simulation for generated input.
         pass
 
     def n_ops_estimate(self):
@@ -67,6 +67,4 @@ class Simulation:
         :param t_level: Simulation parameter of particular simulation
         :return: Particular simulation object
         """
-
-
         return lambda t_level, kw=kwargs : cls(Simulation.log_interpolation(step_range, t_level), **kw)

@@ -8,8 +8,9 @@ class Moments:
     def __init__(self, size, domain, log=False, safe_eval=True):
         assert size > 0
         self.size = size
-        self.n_outlayers = 0
+        self.n_outliers = 0
         self.domain = domain
+        self.log = log
 
         if log:
             lin_domain = (np.log(domain[0]), np.log(domain[1]))
@@ -36,12 +37,17 @@ class Moments:
             self.inv_transform = lambda ref: self.inv_linear(ref)
 
     def clip(self, value):
+        # Reduce outliers
+        # Get positions of smaller values than minimum
         mask = np.where(value < self.ref_domain[0])
-        self.n_outlayers += len(mask)
+        # Number of outliers
+        self.n_outliers += len(mask)
+        # Set outliers as minimal allowed value
         value[mask] = self.ref_domain[0]
 
+        # Get positions of greater values than maximum
         mask = np.where(value > self.ref_domain[1])
-        self.n_outlayers += len(mask)
+        self.n_outliers += len(mask)
         value[mask] = self.ref_domain[1]
         return value
 
@@ -80,7 +86,9 @@ class Monomial(Moments):
         super().__init__(size, domain, log=log, safe_eval=safe_eval)
 
     def __call__(self, value):
+        # Create array from values and transform values outside the ref domain
         t = self.transform(np.atleast_1d(value))
+        # Vandermonde matrix
         return np.polynomial.polynomial.polyvander(t, deg = self.size - 1)
 
 
@@ -103,7 +111,9 @@ class Fourier(Moments):
         super().__init__(size, domain, log=log, safe_eval=safe_eval)
 
     def __call__(self, value):
+        # Transform values
         t = self.transform(np.atleast_1d(value))
+        # Half the number of moments
         R = int(self.size / 2)
         shorter_sin = 1 - int(self.size % 2)
         k = np.arange(1, R + 1)
@@ -111,7 +121,10 @@ class Fourier(Moments):
 
         res = np.empty((len(t), self.size))
         res[:, 0] = 1
+
+        # Odd column index
         res[:, 1::2] = np.cos(kx[:, :])
+        # Even column index
         res[:, 2::2] = np.sin(kx[:, : R - shorter_sin])
         return res
 
@@ -164,15 +177,10 @@ class Fourier(Moments):
             #print("N outlayers: ", n_out)
     #return np.polynomial.legendre.legvander(transformed, deg = size - 1)
 
-
-
-
-
 class Legendre(Moments):
     def __init__(self, size, domain, log=False, safe_eval=True):
         self.ref_domain = (-1, 1)
         super().__init__(size, domain, log, safe_eval)
-
 
     def __call__(self, value):
         t = self.transform(np.atleast_1d(value))

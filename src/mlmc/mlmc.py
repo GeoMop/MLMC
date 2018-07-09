@@ -4,30 +4,35 @@ import time
 
 class MLMC:
     """
-    Multi level monte carlo method
+    Multilevel Monte Carlo method
     """
     def __init__(self, n_levels, sim_factory, pbs=None):
         """
-        :param number_of_levels:    Number of levels
-        :param sim:                 Instance of object Simulation
+        :param number_of_levels: Number of levels
+        :param sim_factory: Object of simulation
+        :param pbs: System interaction object
         """
         # System interaction object (FlowPBS)
         self._pbs = pbs
         # Object of simulation
         self.simulation_factory = sim_factory
         # Array of level objects
+        self.levels = []
         self.create_levels(n_levels)
         if pbs.collected_log_content is not None:
             self.load_levels(pbs.collected_log_content, pbs.running_log_content)
 
-        # Time of all mlmc
+        # Number of simulation steps through whole mlmc
         self.target_time = None
-        # Variance of all mlmc
+        # Total variance
         self.target_variance = None
-        # The fines simulation step
 
     def create_levels(self, n_levels):
-        self.levels = []
+        """
+        Create level objects
+        :param n_levels: Number of levels
+        :return: None
+        """
         for i_level in range(n_levels):
             previous = self.levels[-1].fine_simulation if i_level else None
             if n_levels == 1:
@@ -38,25 +43,31 @@ class MLMC:
             self.levels.append(level)
 
     def load_levels(self, finished_list, running_list):
+        """
+        
+        :param finished_list: Finished simulations
+        :param running_list:  Running simulations
+        """
         # recover finished
         self.clean_levels()
         finished = set()
+
         for sim in finished_list:
             i_level, i, fine, coarse, value = sim
-            self.levels[i_level].finished_simulations.append( sim )
+            self.levels[i_level].finished_simulations.append(sim)
             self.levels[i_level].add_sample(i, value)
             finished.add((i_level, i))
         for level in self.levels:
             level.target_n_samples = level._n_valid_samples
 
-
         # recover running
         for sim in running_list:
-            if len(sim) !=5:
+            if len(sim) != 5:
                 continue
             i_level, i, fine, coarse, _ = sim
             if (i_level, i) not in finished:
-                self.levels[i_level].running_simulations.append( sim )
+                self.levels[i_level].running_simulations.append(sim)
+
         for level in self.levels:
             level.collect_samples(self._pbs)
 
@@ -71,14 +82,31 @@ class MLMC:
 
     @property
     def n_levels(self):
+        """
+        Number of levels
+        """
         return len(self.levels)
 
     @property
     def n_samples(self):
-        return np.array([ l.n_samples for l in self.levels ])
+        """
+        Level samples
+        """
+        return np.array([l.n_samples for l in self.levels])
 
+    @property
+    def n_nan_samples(self):
+        """
+        Level nan samples
+        """
+        return np.array([len(l.nan_samples) for l in self.levels])
 
     def estimate_diff_vars(self, moments_fn):
+        """
+        
+        :param moments_fn: Moment evaluation functions
+        :return: tuple of np.array
+        """
         vars = []
         n_samples = []
         for level in self.levels:
@@ -96,7 +124,7 @@ class MLMC:
         S = 1 / (n_samples - 1)  # shape L
         W = np.sqrt(2 * S + 3 * S ** 2 + 2 * S ** 3)  # shape L
 
-        # Use linear regresion to improve esimtae of variances V1, ...
+        # Use linear regresion to improve estimate of variances V1, ...
         # model log var_{r,l} = a_r  + b * log step_l
         # X_(r,l), j = dirac_{r,j}
 
@@ -121,17 +149,32 @@ class MLMC:
         return new_vars
 
     def estimate_diff_vars_regression(self, moments_fn):
+        """
+        
+        :param moments_fn: Moment evaluation function
+        :return: array of variances
+        """
         vars, n_samples = self.estimate_diff_vars(moments_fn)
         sim_steps = np.array([lvl.fine_simulation.step for lvl in self.levels])
         vars[1:] = self._varinace_regresion(vars[1:], n_samples, sim_steps)
         return vars
 
     def set_initial_n_samples(self, n_samples=None):
+        """
+        Set target number of samples for each level
+        :param n_samples: array of number of samples
+        :return: None
+        """
         if n_samples is None:
             n_samples = [100, 3]
+        # Num of samples to ndarray
         n_samples = np.atleast_1d(n_samples)
+
+        # Just maximal number of samples is set
         if len(n_samples) == 1:
-            n_samples = np.array([n_samples, 3])
+            n_samples = np.array([n_samples[0], 3])
+
+        # Create number of samples for all levels
         if len(n_samples) == 2:
             L = max(2, self.n_levels)
             factor = (n_samples[-1] / n_samples[0])**(1 / (L-1))
@@ -139,7 +182,6 @@ class MLMC:
 
         for i, level in enumerate(self.levels):
             level.set_target_n_samples(int(n_samples[i]))
-
 
     # def set_target_time(self, target_time):
     #     """
@@ -160,18 +202,19 @@ class MLMC:
     #     for level in self.levels:
     #         level.reset_moment_fn(moments_fn)
 
-    def set_target_variance(self, target_variance, moments_fn=None, fraction = 1.0, prescribe_vars=None):
+    def set_target_variance(self, target_variance, moments_fn=None, fraction=1.0, prescribe_vars=None):
         """
         Estimate optimal number of samples for individual levels that should provide a target variance of
         resulting moment estimate. Number of samples are directly set to levels.
         This also set given moment functions to be used for further estimates if not specified otherwise.
         TODO: separate target_variance per moment
-        :param target_variance: Constrain to achive this variance.
+        :param target_variance: Constrain to achieve this variance.
         :param moments_fn: moment evaluation functions
         :param fraction: Plan only this fraction of computed counts.
         :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
         :return: np.array with number of optimal samples
         """
+
         if prescribe_vars is None:
             vars = self.estimate_diff_vars_regression(moments_fn)
         else:
@@ -185,9 +228,9 @@ class MLMC:
 
         #n_samples_estimate_max= np.array([30, 3, 0.3])/target_variance
         #print(n_samples_estimate_max)
-        for level, n  in zip(self.levels, n_samples_estimate_max):
-            level.set_target_n_samples( int(n*fraction) )
-        return  n_samples_estimate_safe
+        for level, n in zip(self.levels, n_samples_estimate_max):
+            level.set_target_n_samples(int(n*fraction))
+        return n_samples_estimate_safe
 
     # @property
     # def number_of_samples(self):
@@ -213,16 +256,23 @@ class MLMC:
 
     def refill_samples(self):
         """
-        For each level counts further number of simulations by appropriate N
+        For each level run simulations
+        :return: None
         """
 
-        for level in (self.levels):
-            print("   mlmc fill level: ", level.level_idx)
+        for level in self.levels:
+            #print("   mlmc fill level: ", level.level_idx)
             level.fill_samples(self._pbs)
 
         self._pbs.execute()
 
-    def wait_for_simulations(self, sleep = 0, timeout=None):
+    def wait_for_simulations(self, sleep=0, timeout=None):
+        """
+        Waiting for running simulations
+        :param sleep: 
+        :param timeout: 
+        :return: 
+        """
         if timeout is None:
             timeout = 0
         elif timeout <= 0:
@@ -230,11 +280,13 @@ class MLMC:
         n_running = 1
         t0 = time.clock()
         while n_running > 0:
-            n_running=0
+            n_running = 0
             for level in self.levels:
                 n_running += level.collect_samples(self._pbs)
+
             time.sleep(sleep)
             if timeout > 0 and (time.clock() - t0) > timeout:
+
                 break
         return n_running
 
@@ -245,27 +297,13 @@ class MLMC:
         :return:
         """
         ranges = np.array([l.sample_range() for l in self.levels])
-        return (np.min(ranges[:,0]), np.max(ranges[:,1]))
-
-
-    # def save_data(self):
-    #     """
-    #     Save results for future use
-    #     """
-    #     with open("data", "w") as fout:
-    #         for index, level in enumerate(self.levels):
-    #             fout.write("LEVEL" + "\n")
-    #             fout.write(str(level.number_of_simulations) + "\n")
-    #             fout.write(str(level.n_ops_estimate()) + "\n")
-    #             for tup in level.data:
-    #                 fout.write(str(tup[0])+ " " + str(tup[1]))
-    #                 fout.write("\n")
+        return np.min(ranges[:,0]), np.max(ranges[:,1])
 
     def subsample(self, sub_samples=None):
         """
         :param sub_samples: None - use all generated samples
                     array of ints, shape = n_levels; choose given number of sub samples from computed samples
-        :return:
+        :return: None
         """
         assert len(sub_samples) == self.n_levels
         if sub_samples is None:
@@ -295,13 +333,23 @@ class MLMC:
 
 
     def estimate_cost(self, level_times=None, n_samples=None):
+        """
+        Estimate total cost of mlmc
+        :param level_times: Number of level executions
+        :param n_samples: Number of samples on each level
+        :return: total cost
+        """
         if level_times is None:
-            level_times = [ lvl.n_ops_estimate() for lvl in self.levels]
+            level_times = [lvl.n_ops_estimate() for lvl in self.levels]
         if n_samples is None:
-           n_samples = self.n_samples
+            n_samples = self.n_samples
         return np.sum(level_times * n_samples)
 
     def clean_levels(self):
+        """
+        Reset all levels
+        :return: None
+        """
         for level in self.levels:
             level.reset()
 

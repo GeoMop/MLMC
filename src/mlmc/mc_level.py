@@ -26,10 +26,6 @@ class Level:
         # Reference to all created simulations.
         #self.simulations = []
 
-
-
-
-
         self.is_zero_level = (level_idx == 0)
         self.level_idx = level_idx
         # Instance of object Simulation
@@ -38,8 +34,14 @@ class Level:
         self.coarse_simulation = previous_level_sim
         self.fine_simulation.set_coarse_sim(self.coarse_simulation)
 
-        self.reset()
+        # Target number of samples for the level
+        self.target_n_samples = None
+        # Last moments function
+        self._last_moments_fn = None
+        # Moments from coarse and fine samples
+        self.last_moments_eval = None
 
+        self.reset()
 
     def reset(self):
         # Currently running simulations
@@ -47,10 +49,10 @@ class Level:
         # Collected simulations, all results of simulations. Including Nans and None ...
         self.finished_simulations = []
         # Target number of samples.
-        self.target_n_samples=5
+        self.target_n_samples = 5
         # Collected samples (array may be partly filled)
         # Without any order, without Nans and inf. Only this is used for estimates.
-        self._sample_values = np.empty( (self.target_n_samples, 2) )
+        self._sample_values = np.empty((self.target_n_samples, 2))
         # Number of valid samples in _sample_values.
         self._n_valid_samples = 0
         # Possible subsample indices.
@@ -60,40 +62,59 @@ class Level:
         # Cache evaluated moments.
         self._last_moments_fn = None
 
-
-
     def set_target_n_samples(self, n_samples):
         """
-        Set new target number of samples for the level.
-        :param n_samples:
-        :return:
+        Set target number of samples for the level.
+        :param n_samples: Number of samples
+        :return: None
         """
         self.target_n_samples = max(self.target_n_samples, n_samples)
 
     @property
     def sample_values(self):
+        """
+        Get valid level samples
+        :return: array
+        """
         return self._sample_values[:self._n_valid_samples]
 
     def add_sample(self, id, sample_pair):
+        """
+        Add samples pair to rest of samples
+        :param id: sample id
+        :param sample_pair: Fine and coarse result
+        :return: None
+        """
         fine, coarse = sample_pair
+        # Samples are not finite
         if not np.isfinite(fine) or not np.isfinite(coarse):
             self.nan_samples.append(id)
             return
-
+        # Enlarge matrix of samples
         if self._n_valid_samples == self._sample_values.shape[0]:
             self.enlarge_samples(2*self._n_valid_samples)
-        self._sample_values[self._n_valid_samples, : ] = (fine, coarse)
-        self._n_valid_samples+=1
+        # Add fine and coarse sample
+        self._sample_values[self._n_valid_samples, :] = (fine, coarse)
+        self._n_valid_samples += 1
+
 
     def enlarge_samples(self, size):
-        # Enlarge array for sample values.
-        values = self.sample_values
+        """
+        Enlarge matrix of samples
+        :param size: New sample matrix size
+        :return: None
+        """
+        # Enlarge sample matrix
         new_values = np.empty((size, 2))
         new_values[:self._n_valid_samples] = self._sample_values[:self._n_valid_samples]
         self._sample_values = new_values
 
     @property
     def n_total_samples(self):
+        """
+        Number of all level samples
+        :return: int
+        """
         return len(self.running_simulations) + len(self.finished_simulations)
 
     # @property
@@ -110,7 +131,6 @@ class Level:
 
     def _get_sample_tag(self, char):
         return "L{:02d}_{}_S{:07d}".format(self.level_idx, char, self.n_total_samples)
-
 
     def n_ops_estimate(self):
         """
@@ -135,14 +155,13 @@ class Level:
         else:
             # Zero level have no coarse simulation.
             coarse_sample = None
-        print("Sample: ", idx)
         return [self.level_idx, idx, fine_sample, coarse_sample, None]
-
 
     def fill_samples(self, logger):
         """
         Generate samples up to target number set through 'set_target_n_samples'.
         Simulations are planed for execution, but sample values are collected in
+        :param logger: FlowPbs instance
         :return: None
         """
 
@@ -155,7 +174,6 @@ class Level:
                 self.running_simulations.append(self.make_sample_pair())
         # log new simulation pairs
         logger.log_simulations(self.running_simulations[orig_n_running:])
-
 
     def collect_samples(self, logger):
         """
@@ -173,10 +191,9 @@ class Level:
                 fine_result = self.fine_simulation.extract_result(fine_sim)
                 fine_done = fine_result is not None
                 
-                
                 if self.is_zero_level:
-                   coarse_result = 0.0
-                   coarse_done = True
+                    coarse_result = 0.0
+                    coarse_done = True
                 else:
                     coarse_result = self.coarse_simulation.extract_result(coarse_sim)
                     coarse_done = coarse_result is not None
@@ -188,12 +205,13 @@ class Level:
                         coarse_result = np.inf
                     # collect values
                     self.finished_simulations.append([self.level_idx, idx, fine_sim, coarse_sim, [fine_result, coarse_result]])
-                    self.add_sample( idx, (fine_result, coarse_result) )
+                    self.add_sample(idx, (fine_result, coarse_result))
                 else:
-                    new_running.append( [level, idx, fine_sim, coarse_sim, value] )
+                    new_running.append([level, idx, fine_sim, coarse_sim, value])
 
             except ExpWrongResult as e:
                 print(e.message)
+
         self.running_simulations = new_running
 
         # log new collected simulation pairs
@@ -212,16 +230,24 @@ class Level:
             self.sample_indices = np.random.choice(np.arange(self._n_valid_samples, dtype=int), size=size)
 
     def evaluate_moments(self,  moments_fn):
-
+        """
+        
+        :param moments_fn: Moment evaluation functions
+        :return: 
+        """
+        # Current moment functions are different from last moment functions
         if moments_fn != self._last_moments_fn:
             samples = self.sample_values
-
+            # Moments from fine samples
             moments_fine = moments_fn(samples[:, 0])
+            # For first level moments from coarse samples are zeroes
             if self.is_zero_level:
                 moments_coarse = np.zeros_like(moments_fine)
             else:
                 moments_coarse = moments_fn(samples[:, 1])
+                # Set last moments function
                 self._last_moments_fn = moments_fn
+            # Moments from fine and coarse samples
             self.last_moments_eval = moments_fine, moments_coarse
 
         if self.sample_indices is None:
@@ -230,14 +256,17 @@ class Level:
             m_fine, m_coarse = self.last_moments_eval
             return m_fine[self.sample_indices, :], m_coarse[self.sample_indices, :]
 
-
     def estimate_diff_var(self, moments_fn):
+        """
+        
+        :param moments_fn: Moments evaluation function
+        :return: tuple 
+        """
         # n_samples = n_dofs + 1 >= 7 leads to probability 0.9 that estimate is whithin range of 10% error from true variance
         assert self.n_samples > 1
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
-        var_vec = np.var( mom_fine - mom_coarse, axis=0, ddof=1)
+        var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
         return var_vec, len(mom_fine)
-
 
     def estimate_diff_mean(self, moments_fn):
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
@@ -255,8 +284,6 @@ class Level:
         r = max( np.max(fine_sample), q3+iqr)
 
         return l,r
-
-
 
 
 class ExpWrongResult(Exception):
