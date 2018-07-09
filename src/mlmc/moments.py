@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.ma as ma
 
 
 class Moments:
@@ -36,14 +37,9 @@ class Moments:
             self.inv_transform = lambda ref: self.inv_linear(ref)
 
     def clip(self, value):
-        mask = np.where(value < self.ref_domain[0])
-        self.n_outlayers += len(mask)
-        value[mask] = self.ref_domain[0]
-
-        mask = np.where(value > self.ref_domain[1])
-        self.n_outlayers += len(mask)
-        value[mask] = self.ref_domain[1]
-        return value
+        out = ma.masked_outside(value, self.ref_domain[0], self.ref_domain[1])
+        self.n_outlayers += ma.count_masked(out)
+        return out
 
     # def mean(moment_values):
     # return self.inv_transform(moment_values[1])
