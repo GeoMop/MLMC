@@ -217,7 +217,7 @@ class MLMC:
         """
 
         for level in (self.levels):
-            print("   mlmc fill level: ", level.level_idx)
+            #print("   mlmc fill level: ", level.level_idx)
             level.fill_samples(self._pbs)
 
         self._pbs.execute()
@@ -293,6 +293,12 @@ class MLMC:
 
         return np.array(means), np.array(vars)
 
+    def estimate_norm_approx(self):
+        mean_fn = lambda x: x
+        mean = self.estimate_moments(mean_fn)[0]
+        var_fn = lambda x, mean=mean: (x-mean)**2
+        var = self.estimate_moments(var_fn)[0]
+        return mean, np.sqrt(var)
 
     def estimate_cost(self, level_times=None, n_samples=None):
         if level_times is None:
