@@ -135,7 +135,7 @@ class Level:
         else:
             # Zero level have no coarse simulation.
             coarse_sample = None
-
+        print("Sample: ", idx)
         return [self.level_idx, idx, fine_sample, coarse_sample, None]
 
 

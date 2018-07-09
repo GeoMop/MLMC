@@ -119,6 +119,7 @@ class Field:
         if self.const is not None:
             self._sample = self.const * np.ones(len(points))
         elif self.correlated_field is not None:
+            print("Set crr field, ", self.name, self.regions)
             self.correlated_field.set_points(points)
             self.correlated_field.svd_dcmp(n_terms_range=(10, 100))
         else:

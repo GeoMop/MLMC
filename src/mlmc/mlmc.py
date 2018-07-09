@@ -217,6 +217,7 @@ class MLMC:
         """
 
         for level in (self.levels):
+            print("   mlmc fill level: ", level.level_idx)
             level.fill_samples(self._pbs)
 
         self._pbs.execute()
