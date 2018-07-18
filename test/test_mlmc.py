@@ -1,7 +1,9 @@
 import os
-#import statprof
-import scipy.stats as stats
+import sys
+
 import scipy.integrate as integrate
+# import statprof
+import scipy.stats as stats
 
 import mlmc.mlmc
 import mlmc.simulation
@@ -9,14 +11,14 @@ import mlmc.moments
 import mlmc.distribution
 import numpy as np
 import flow_pbs
-
-
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 
 
 def aux_sim(x,  h):
-    return x +  h*np.sqrt(x)
+    return x + h*np.sqrt(x)
 
 
 class SimulationTest(mlmc.simulation.Simulation):
@@ -25,7 +27,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         """
         :param config: Dict:
             'distr' scipy.stats.XYZ freezed distribution
-            'complexity' numer of FLOPS as function of step
+            'complexity' number of FLOPS as function of step
         :param step:
         """
         super().__init__()
@@ -45,7 +47,9 @@ class SimulationTest(mlmc.simulation.Simulation):
         :param sim_id:    Simulation id
         """
         x = self._input_sample
+
         h = self.step
+
         y = self._sample_fn(x, h)
         if (self.n_nans/(1e-10 + len(self._result_dict)) < self.nan_fraction) :
             self.n_nans += 1
@@ -82,10 +86,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         return self._result_dict[sim_id]
 
 
-
-
 def impl_var_estimate(n_levels, n_moments, target_var, distr, is_log=False):
-
     print("\n")
     print("L: {} R: {} var: {} distr: {}".format(n_levels, n_moments, target_var, distr.dist.__class__.__name__))
     # if is_log:
@@ -143,27 +144,36 @@ def err_tuple(x):
     return (np.min(x), np.median(x), np.max(x))
 
 
-
 class TestMLMC:
     def __init__(self, n_levels, n_moments, distr, is_log=False):
+        # Not work for one level method
         print("\n")
         print("L: {} R: {} distr: {}".format(n_levels, n_moments, distr.dist.__class__.__name__))
 
         self.distr = distr
         self.n_levels = n_levels
         self.n_moments = n_moments
+        self.is_log = is_log
 
         # print("var: ", distr.var())
         step_range = (0.8, 0.01)
-        coef = (step_range[1]/step_range[0])**(1.0/(self.n_levels - 1))
-        self.steps = step_range[0] * coef**np.arange(self.n_levels)
+
+        if self.n_levels == 1:
+            self.steps = step_range[1]
+        else:
+            coef = (step_range[1]/step_range[0])**(1.0/(self.n_levels - 1))
+            self.steps = step_range[0] * coef**np.arange(self.n_levels)
+
+        # All levels simulations objects and MLMC object
         self.mc, self.sims = self.make_simulation_mc(step_range)
 
         # reference variance
         true_domain = distr.ppf([0.001, 0.999])
-        self.moments_fn = mlmc.moments.Legendre(n_moments, true_domain)
+
+        self.moments_fn = mlmc.moments.Legendre(n_moments, true_domain, is_log)
 
         sample_size = 10000
+        # Exact mean estimation from distribution
         self.exact_mean = self.mc_estimate_exact_mean(self.moments_fn, 5*sample_size)
         means, vars = self.mc_estimate_diff_var(self.moments_fn, sample_size)
         self.ref_diff_vars = np.array(vars)[:, :]
@@ -174,7 +184,7 @@ class TestMLMC:
 
     def make_simulation_mc(self, step_range):
         pbs = flow_pbs.FlowPbs()
-        simulation_config = dict(distr=self.distr, complexity=2, nan_fraction=0.2)
+        simulation_config = dict(distr=self.distr, complexity=2, nan_fraction=0)
         simultion_factory = SimulationTest.factory(step_range, config=simulation_config)
 
         mc = mlmc.mlmc.MLMC(self.n_levels, simultion_factory, pbs)
@@ -211,9 +221,13 @@ class TestMLMC:
         means = []
         vars = []
         sim_l = None
+        # Loop through levels simulation objects
         for l in range(len(self.sims)):
+            # Previous level simulations
             sim_0 = sim_l
+            # Current level simulations
             sim_l = lambda x, h=self.sims[l].step: self.sims[l]._sample_fn(x, h)
+            # Samples from distribution
             X = self.distr.rvs(size=size)
             if l == 0:
                 MD = moments_fn(sim_l(X))
@@ -226,10 +240,10 @@ class TestMLMC:
             vars.append(moment_vars)
         return np.array(means), np.array(vars)
 
-    def mc_estimate_exact_mean(self, moments_fn, size= 20000):
+    def mc_estimate_exact_mean(self, moments_fn, size=200000):
         X = self.distr.rvs(size=size)
-        return np.mean(moments_fn(X), axis=0)
 
+        return np.mean([mom for mom in moments_fn(X) if mom is not None], axis=0)
 
     def generate_samples(self, size):
         # generate samples
@@ -247,7 +261,6 @@ class TestMLMC:
     #         plot(x, y, 'r.', alpha=0.2)
 
     def plot_mlmc_conv(self, target_var):
-        import matplotlib.pyplot as plt
 
         fig = plt.figure(figsize=(10,20))
 
@@ -274,11 +287,30 @@ class TestMLMC:
 
         plt.show()
 
+    def plot_error(self, arr, ax, label):
+        ax.hist(arr, normed=1)
+        ax.set_xlabel(label)
+        prc = np.percentile(arr, [99])
+        ax.axvline(x=prc, label=str(prc), c='red')
+        ax.legend()
 
+    def plot_n_sample_est_distributions(self, title, cost, total_std, n_samples, rel_moments):
+        import matplotlib.pyplot as plt
 
+        fig = plt.figure(figsize=(30,10))
+        ax1 = fig.add_subplot(2, 2, 1)
+        self.plot_error(cost, ax1, "cost err")
 
+        ax2 = fig.add_subplot(2, 2, 2)
+        self.plot_error(total_std, ax2, "total std err")
 
+        ax3 = fig.add_subplot(2, 2, 3)
+        self.plot_error(n_samples, ax3, "n. samples err")
 
+        ax4 = fig.add_subplot(2, 2, 4)
+        self.plot_error(rel_moments, ax4, "moments err")
+        fig.suptitle(title)
+        plt.show()
 
     def check_lindep(self, x, y, slope):
         fit = np.polyfit(np.log(x), np.log(y), deg=1)
@@ -286,8 +318,6 @@ class TestMLMC:
         assert np.isclose(fit[0], slope, rtol=0.2), (fit, slope)
 
     def convergence_test(self):
-
-
         # subsamples
         var_exp = np.linspace(-1, -4, 10)
         target_var = 10**var_exp
@@ -298,7 +328,7 @@ class TestMLMC:
             n_samples = self.mc.set_target_variance(t_var, prescribe_vars=self.ref_diff_vars)
             n_samples = np.max(n_samples, axis=1).astype(int)
 
-            print( t_var, n_samples)
+            print(t_var, n_samples)
             n_samples = np.minimum(n_samples, (self.mc.n_samples*0.9).astype(int))
             n_samples = np.maximum(n_samples, 1)
             for i in range(n_loops):
@@ -322,28 +352,30 @@ class TestMLMC:
             self.check_lindep(target_var, Y,  1.0)
 
     def plot_diff_var(self):
-        import matplotlib.pyplot as plt
-        fig = plt.figure(figsize=(10,20))
+        fig = plt.figure(figsize=(10, 20))
         ax = fig.add_subplot(1, 1, 1)
+
+        print(self.ref_diff_vars)
 
         error_power = 2.0
         for m in range(1, self.n_moments):
             color = 'C' + str(m)
+            print(self.ref_diff_vars)
+
             Y = self.ref_diff_vars[:,m]/(self.steps**error_power)
 
             ax.plot(self.steps[1:], Y[1:], c=color, label=str(m))
             ax.plot(self.steps[0], Y[0], 'o', c=color)
-        #
-        #
-        #     Y = np.percentile(self.vars_est[:, :, m],  [10, 50, 90], axis=1)
-        #     ax.plot(target_var, Y[1,:], c=color)
-        #     ax.plot(target_var, Y[0,:], c=color, ls='--')
-        #     ax.plot(target_var, Y[2, :], c=color, ls ='--')
-        #     Y = (self.exact_mean[m] - self.means_est[:, :, m])**2
-        #     Y = np.percentile(Y, [10, 50, 90], axis=1)
-        #     ax.plot(target_var, Y[1,:], c='gray')
-        #     ax.plot(target_var, Y[0,:], c='gray', ls='--')
-        #     ax.plot(target_var, Y[2, :], c='gray', ls ='--')
+
+            # Y = np.percentile(self.vars_est[:, :, m],  [10, 50, 90], axis=1)
+            # ax.plot(target_var, Y[1,:], c=color)
+            # ax.plot(target_var, Y[0,:], c=color, ls='--')
+            # ax.plot(target_var, Y[2, :], c=color, ls ='--')
+            # Y = (self.exact_mean[m] - self.means_est[:, :, m])**2
+            # Y = np.percentile(Y, [10, 50, 90], axis=1)
+            # ax.plot(target_var, Y[1,:], c='gray')
+            # ax.plot(target_var, Y[0,:], c='gray', ls='--')
+            # ax.plot(target_var, Y[2, :], c='gray', ls ='--')
         ax.set_yscale('log')
         ax.set_xscale('log')
         ax.legend()
@@ -352,7 +384,9 @@ class TestMLMC:
         plt.show()
 
     def plot_n_sample_est_distributions(self, cost, total_std, n_samples):
-        import matplotlib.pyplot as plt
+        print(cost)
+        print(total_std)
+        print(n_samples)
 
         fig = plt.figure(figsize=(30,10))
         ax1 = fig.add_subplot(1, 3, 1)
@@ -430,60 +464,230 @@ class TestMLMC:
             print(np.maximum( n_samples, (max_est_n_samples).astype(int)))
             print(ref_n_samples.astype(int))
             print("\n")
-            #l_n_samples_err.append(n_samples_err)
-            #l_total_std_err.append( )
-            #l_cost_err.append((ref_cost - est_cost)/ref_cost)
+            l_n_samples_err.append(n_samples_err)
+            l_total_std_err.append(total_std_err )
+            l_cost_err.append((ref_cost - est_cost)/ref_cost)
 
-        # l_cost_err.sort()
-        # l_total_std_err.sort()
-        # l_n_samples_err.sort()
-        # self.plot_n_sample_est_distributions(l_cost_err, l_total_std_err, l_n_samples_err)
+        l_cost_err.sort()
+        l_total_std_err.sort()
+        l_n_samples_err.sort()
+        self.plot_n_sample_est_distributions(l_cost_err, l_total_std_err, l_n_samples_err)
 
+    def clear_subsamples(self):
+        for level in self.mc.levels:
+            level.sample_indices = None
 
-def test_var_estimate():
-    #np.random.seed(3)
-    n_levels=[9] #, 2, 3] #, 4, 5, 7, 9]
-    n_moments=[8] #,4,5] #,7, 10,14,19]
+def test_var_subsample_regresion():
+    var_exp = -5
+
+    # n_levels = [1, 2, 3, 4, 5, 7, 9]
+    n_levels = [8]
+    n_moments = [20]  # ,4,5] #,7, 10,14,19]
     distr = [
-        (stats.norm(loc=42.0, scale=5), False)
-        #,(stats.lognorm(scale=np.exp(-5), s=1), True)            # worse conv of higher moments
-        #, (stats.lognorm(scale=np.exp(-5), s=0.5), True)         # worse conv of higher moments
-        #,(stats.chi2(df=10), True)
-        #,(stats.weibull_min(c=1), True)    # Exponential
-        #,(stats.weibull_min(c=1.5), True)  # Infinite derivative at zero
-        #,(stats.weibull_min(c=3), True)    # Close to normal
-        #,(stats.alpha(a=0.5), True),  # infinite mean, distribution of 1/Y if Y is Norm(mu, sig); a=mu/sig
-        ]
-    #statprof.start()
+        # (stats.norm(loc=42.0, scale=5), False)
+        (stats.lognorm(scale=np.exp(5), s=1), True)  # worse conv of higher moments
+        # (stats.lognorm(scale=np.exp(-5), s=0.5), True)         # worse conv of higher moments
+        # (stats.chi2(df=10), True)
+        # (stats.weibull_min(c=1), True)    # Exponential
+        # (stats.weibull_min(c=1.5), True)  # Infinite derivative at zero
+        # (stats.weibull_min(c=3), True)    # Close to normal
+    ]
 
-    # import cProfile, pstats, io
-    # pr = cProfile.Profile()
-    # pr.enable()
+    level_moments_mean = []
+    level_moments_var = []
 
     for nl in n_levels:
         for nm in n_moments:
             for d, il in distr:
-                mc = TestMLMC(nl, nm, d, il)
-                mc.generate_samples(10000)
-                #impl_var_estimate(nl, nm, tv, d, il)
-                mc.test_min_samples()
-                #mc.convergence_test()
+                mc_test = TestMLMC(nl, nm, d, il)
 
-    # pr.disable()
-    # s = io.StringIO()
-    # sortby = 'cumulative'
-    # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-    # ps.print_stats()
-    # print(s.getvalue())
+                n_samples = mc_test.mc.set_target_variance(10 - 4)
 
-    #statprof.stop()
-    #statprof.display()
+                print("n of samples ", n_samples)
+
+
+
+    target_var = 10 ** var_exp
+    means_el = []
+    vars_el = []
+    n_loops = 30
+    for t_var in target_var:
+        n_samples = mc.set_target_variance(t_var, prescribe_vars=self.ref_diff_vars)
+        n_samples = np.max(n_samples, axis=1).astype(int)
+
+    pass
+
+def variance_level(mlmc_test):
+
+    x = np.arange(0, mlmc_test.n_moments, 1)
+
+    for level in mlmc_test.mc.levels:
+        print(level.level_idx)
+        print(level.estimate_diff_var(mlmc_test.moments_fn)[0])
+        #print("len vars ", len(level.estimate_diff_var(mlmc_test.moments_fn)[0]))
+        plt.plot(x, level.estimate_diff_var(mlmc_test.moments_fn)[0], label="%d level" % (level.level_idx + 1))
+
+    plt.legend()
+    plt.show()
+
+
+def var_subsample(moments, mlmc_test, n_subsamples=1000):
+    """
+    Compare moments variance from whole mlmc and from subsamples
+    :param moments: moments from mlmc
+    :param mlmc_test: mlmc object
+    :param n_subsamples: number of subsamples (J in theory)
+    :return: array, absolute difference between samples variance and mlmc moments variance
+    """
+    assert len(moments) == 2
+    tolerance = 1
+
+    # Variance from subsamples
+    subsample_variance = np.zeros(len(moments[0]))
+
+    # Number of subsamples (J from theory)
+    for _ in range(n_subsamples):
+        subsamples = []
+        # Clear number of subsamples
+        mlmc_test.clear_subsamples()
+
+        # Generate subsamples for all levels
+        for _ in mlmc_test.mc.n_samples:
+            subsamples.append(5000)
+
+        # Process mlmc with new number of level samples
+        if subsamples is not None:
+            mlmc_test.mc.subsample(subsamples)
+        mlmc_test.mc.refill_samples()
+        mlmc_test.mc.wait_for_simulations()
+
+        # Moments estimation from subsamples
+        moments_mean_subsample = (mlmc_test.mc.estimate_moments(mlmc_test.moments_fn)[0])
+
+        # SUM[(EX - X)**2]
+        subsample_variance = np.add(subsample_variance, (np.subtract(np.array(moments[0]), np.array(moments_mean_subsample))) ** 2)
+
+    # Sample variance
+    variance = subsample_variance/(n_subsamples-1)
+
+    # Difference between arrays
+    variance_abs_diff = np.abs(np.subtract(variance, moments[1]))
+
+    result = np.sqrt([a/b if b != 0 else a for a, b in zip(moments[1], variance)])
+    print(result)
+
+    # Difference between variances must be in tolerance
+    assert all(var_diff < tolerance for var_diff in result)
+    return result
+
+
+def test_var_estimate():
+    """
+    Test if mlmc moments correspond to exact moments from distribution
+    :return: None
+    """
+    #np.random.seed(3)
+    n_levels = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    n_moments = [10]
+    distr = [
+        #(stats.norm(loc=5, scale=1), False),
+        (stats.lognorm(scale=np.exp(5), s=1), True),            # worse conv of higher moments
+        #(stats.lognorm(scale=np.exp(-5), s=0.5), True)         # worse conv of higher moments
+        (stats.chi2(df=10), True)
+        #(stats.weibull_min(c=20), True)    # Exponential
+        #(stats.weibull_min(c=1.5), True)  # Infinite derivative at zero
+        #(stats.weibull_min(c=3), True)    # Close to normal
+        ]
+
+    level_moments_mean = []
+    level_moments_var = []
+    level_variance_diff = []
+
+    for nl in n_levels:
+        for nm in n_moments:
+            for d, il in distr:
+                mc_test = TestMLMC(nl, nm, d, il)
+                # 10 000 samples on each level
+                mc_test.generate_samples(10000)
+                # Moments as tuple (means, vars)
+                moments = mc_test.mc.estimate_moments(mc_test.moments_fn)
+                #level_variance_diff.append(var_subsample(moments, mc_test))
+
+                # Variances
+                variances = np.sqrt(moments[1]) * 4
+
+                # Exact moments from distribution
+                exact_moments = mlmc.distribution.compute_exact_moments(mc_test.moments_fn, d.pdf, 1e-10)[1:]
+
+                assert all(moments[0][index] + variances[index] >= exact_mom >= moments[0][index] - variances[index]
+                           for index, exact_mom in enumerate(exact_moments))
+
+            level_moments_mean.append(moments[0])
+            level_moments_var.append(variances)
+
+    #plot_diff_var(level_variance_diff, n_levels)
+    # Plot moment values
+    #plot_vars(level_moments_mean, level_moments_var, n_levels, exact_moments)
+
+
+def plot_diff_var(level_variance_diff, n_levels):
+    """
+    Plot diff between V* and V
+    :param level_variance_diff: array of each moments sqrt(V/V*)
+    :param n_levels: array, number of levels
+    :return: None
+    """
+    if len(level_variance_diff) > 0:
+        colors = iter(cm.rainbow(np.linspace(0, 1, len(level_variance_diff) + 1)))
+        x = np.arange(1, len(level_variance_diff[0]) +1)
+        [plt.plot(x, var_diff, 'o', label="%dLMC" % n_levels[index], color=next(colors)) for index, var_diff in enumerate(level_variance_diff)]
+        plt.legend()
+        plt.show()
+
+
+def plot_vars(moments_mean, moments_var, n_levels, exact_moments=None, ex_moments=None):
+    """
+    Plot means with variance whiskers
+    :param moments_mean: array, moments mean
+    :param moments_var: array, moments variance
+    :param n_levels: array, number of levels
+    :param exact_moments: array, moments from distribution
+    :param ex_moments: array, moments from distribution samples
+    :return: 
+    """
+    colors = iter(cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
+
+    x = np.arange(1, len(moments_mean[0]) + 1)
+    x = x - 0.3
+    default_x = x
+
+    for index, means in enumerate(moments_mean):
+        if index == int(len(moments_mean)/2):
+            if exact_moments is not None:
+                plt.plot(default_x, exact_moments, 'ro', label="Exact moments")
+        else:
+            x = x + (1 / (len(moments_mean)*1.5))
+            plt.errorbar(x, means, yerr=moments_var[index], fmt='o', capsize=3, color=next(colors), label="%dLMC" % n_levels[index])
+
+    if ex_moments is not None:
+        plt.plot(default_x-0.125, ex_moments, 'ko', label="Exact moments")
+
+    plt.legend()
+    plt.show()
+
+
+def plot_distribution(distr, size=20000):
+    x = distr.rvs(size=size)
+    plt.hist(x, bins=50, normed=1)
+    plt.show()
+    exit()
+
 
 def check_estimates_for_nans(mc, distr):
     # test that estimates work even with nans
     n_moments = 4
     true_domain = distr.ppf([0.001, 0.999])
-    moments_fn = mlmc.moments.Legendre(n_moments, true_domain)
+    moments_fn = mlmc.moments.Fourier(n_moments, true_domain)
     moments, vars = mc.estimate_moments(moments_fn)
     assert not np.any(np.isnan(moments))
     assert not np.any(np.isnan(vars))
@@ -500,7 +704,6 @@ def test_save_load_samples():
     #print("var: ", distr.var())
     work_dir = '_test_tmp'
     work_dir = os.path.join( os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
-
 
     n_levels = 5
     distr = stats.norm()
@@ -570,3 +773,8 @@ def test_save_load_samples():
 #         moments_fn = lambda x, n=n_moments, a=domain[0], b=domain[1]: mlmc.moments.legendre_moments(x, n, a, b)
 #
 #         self.set_target_variance(0.01, moments_fn)
+if __name__ == '__main__':
+    #test_var_subsample_regresion()
+
+    test_var_estimate()
+

@@ -1,18 +1,27 @@
 """
 Test class monomials
 """
+# REMOVE !!!
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 import numpy as np
 import mlmc.moments
 
 
 def test_monomials():
     # Natural domain (0,1).
-    size = 5
+    size = 5  # Number of moments
     values = np.array([-2, -1, -0.5, 0, 0.5, 1, 2])
+    # Reference values of moments
     ref = [values**r for r in range(size)]
 
+    # Monomials moments object
     moments_fn  = mlmc.moments.Monomial(size, safe_eval=False)
+
+    # Calculated moments
     moments = moments_fn(values)
+    print("moments from call method", moments)
+    print("np array ref T", np.array(ref).T)
     assert np.allclose(np.array(ref).T, moments)
 
 
@@ -20,13 +29,15 @@ def test_monomials():
     a, b = (-1, 3)
     moments_fn = mlmc.moments.Monomial(size, (a,b), safe_eval=False )
     moments = moments_fn((b - a)*values + a)
+    print("moments size 5 different domain ", moments)
     assert np.allclose(np.array(ref).T, moments)
 
     # Approximate mean.
     values = np.random.randn(1000)
     moments_fn = mlmc.moments.Monomial(2, safe_eval=False)
     moments = moments_fn(values)
-    assert np.abs( np.mean(moments[:, 1]) ) < 0.1
+    print("moments size 2 ", moments)
+    assert np.abs(np.mean(moments[:, 1])) < 0.1
 
 
 
@@ -62,3 +73,7 @@ def test_legendere():
     moments = moments_fn(values)
     ref = [ np.ones_like(values), values, (3*values**2 - 1.0) / 2.0, (5*values**3 - 3 * values) / 2.0]
     assert np.allclose(np.array(ref).T, moments)
+
+test_monomials()
+exit()
+test_fourier()

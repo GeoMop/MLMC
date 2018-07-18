@@ -1,7 +1,5 @@
 import time as t
 import sys, os
-myPath = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, myPath + '/../src/')
 import shutil
 import math
 from test.simulations.simulation_test import SimulationTest as TestSim

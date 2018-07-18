@@ -10,6 +10,9 @@ import sys
 #libdir = os.path.join(os.path.split(
 #         os.path.dirname(os.path.realpath(__file__)))[0],"C:\\Users\\Clara\\Documents\\Intec\\MLMC_Python\\src\\mlmc")
 #sys.path.insert(1,libdir)
+# REMOVE !!!
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 
 #import correlated_field
 from mlmc.correlated_field import SpatialCorrelatedField
@@ -96,7 +99,14 @@ class TestSpatialCorrelatedField:
         :return:
         """
         means = np.mean(data, axis=1)
+        print(means)
+
         devs = np.std(data, axis=1)
+        print(devs)
+        print(n_samples)
+        print(means)
+        print(devs)
+        exit()
         plt.errorbar(n_samples, means, yerr=devs, fmt='-o', capsize=3, ecolor="lightblue")
         m1, m0 = np.polyfit(np.log(n_samples), np.log(means), 1)
 

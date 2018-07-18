@@ -1,8 +1,6 @@
 import numpy as np
-import scipy as sc
-import scipy.stats
-import uuid
-import os
+import numpy.ma as ma
+
 
 class Level:
     """
@@ -93,10 +91,10 @@ class Level:
         # Enlarge matrix of samples
         if self._n_valid_samples == self._sample_values.shape[0]:
             self.enlarge_samples(2*self._n_valid_samples)
+
         # Add fine and coarse sample
         self._sample_values[self._n_valid_samples, :] = (fine, coarse)
         self._n_valid_samples += 1
-
 
     def enlarge_samples(self, size):
         """
@@ -116,10 +114,6 @@ class Level:
         :return: int
         """
         return len(self.running_simulations) + len(self.finished_simulations)
-
-    # @property
-    # def n_collected_samples(self):
-    #     return len(self.finished_simulations)
 
     @property
     def n_samples(self):
@@ -187,7 +181,6 @@ class Level:
         new_running = []
         for (level, idx, fine_sim, coarse_sim, value) in self.running_simulations:
             try:
-                #print( fine_sim, coarse_sim)
                 fine_result = self.fine_simulation.extract_result(fine_sim)
                 fine_done = fine_result is not None
                 
@@ -226,29 +219,33 @@ class Level:
             self.sample_indices = None
         else:
             assert 0 < size < self._n_valid_samples, "0 < {} < {}".format(size, self._n_valid_samples)
-
             self.sample_indices = np.random.choice(np.arange(self._n_valid_samples, dtype=int), size=size)
 
-    def evaluate_moments(self,  moments_fn):
+    def evaluate_moments(self, moments_fn):
         """
-        
+        Evaluating moments from moments function
         :param moments_fn: Moment evaluation functions
-        :return: 
+        :return: tuple
         """
+
         # Current moment functions are different from last moment functions
         if moments_fn != self._last_moments_fn:
             samples = self.sample_values
             # Moments from fine samples
             moments_fine = moments_fn(samples[:, 0])
+
             # For first level moments from coarse samples are zeroes
             if self.is_zero_level:
-                moments_coarse = np.zeros_like(moments_fine)
+                moments_coarse = np.zeros_like(np.eye(len(moments_fine), moments_fn.size))
             else:
                 moments_coarse = moments_fn(samples[:, 1])
-                # Set last moments function
-                self._last_moments_fn = moments_fn
+            # Set last moments function
+            self._last_moments_fn = moments_fn
             # Moments from fine and coarse samples
             self.last_moments_eval = moments_fine, moments_coarse
+
+        # Remove outliers
+        self.remove_outliers_moments()
 
         if self.sample_indices is None:
             return self.last_moments_eval
@@ -256,11 +253,29 @@ class Level:
             m_fine, m_coarse = self.last_moments_eval
             return m_fine[self.sample_indices, :], m_coarse[self.sample_indices, :]
 
+    def remove_outliers_moments(self):
+        """
+        Remove moments from outliers from fine and course moments
+        :return: None
+        """
+        # Fine and coarse moments mask
+        mask_fine = ma.masked_invalid(self.last_moments_eval[0]).mask
+        mask_coarse = ma.masked_invalid(self.last_moments_eval[1]).mask
+
+        # Common mask for coarse and fine
+        mask_fine_or_coarse = np.logical_or(mask_fine, mask_coarse)[:, -1]
+
+        # New moments without outliers
+        self.last_moments_eval = self.last_moments_eval[0][~mask_fine_or_coarse], self.last_moments_eval[1][~mask_fine_or_coarse]
+
+        # Set new number of valid samples
+        self._n_valid_samples = len(self.last_moments_eval[0])
+
     def estimate_diff_var(self, moments_fn):
         """
-        
+        Estimate moments variance
         :param moments_fn: Moments evaluation function
-        :return: tuple 
+        :return: tuple (variance vector, length of moments)
         """
         # n_samples = n_dofs + 1 >= 7 leads to probability 0.9 that estimate is whithin range of 10% error from true variance
         assert self.n_samples > 1
@@ -269,6 +284,11 @@ class Level:
         return var_vec, len(mom_fine)
 
     def estimate_diff_mean(self, moments_fn):
+        """
+        Estimate moments mean
+        :param moments_fn: 
+        :return: np.array, moments mean vector
+        """
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
         mean_vec = np.mean(mom_fine - mom_coarse, axis=0)
         return mean_vec
@@ -278,12 +298,12 @@ class Level:
         q1, q3 = np.percentile(fine_sample, [25, 75])
         iqr = 3*(q3 - q1)
         min_sample = np.min(fine_sample)
-        l = min( min_sample , q1-iqr )
+        l = min(min_sample, q1-iqr)
         if min_sample > 0.0:    # guess that we have positive distribution
             l = min_sample
-        r = max( np.max(fine_sample), q3+iqr)
+        r = max(np.max(fine_sample), q3+iqr)
 
-        return l,r
+        return l, r
 
 
 class ExpWrongResult(Exception):

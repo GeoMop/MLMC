@@ -117,7 +117,7 @@ class Distribution:
         TODO:
         """
         moments = self.moments_fn(value)
-        return np.exp( - np.sum(moments * self.multipliers, axis=1))
+        return np.exp(- np.sum(moments * self.multipliers, axis=1))
 
     def cdf(self, values):
         values = np.atleast_1d(values)
@@ -149,10 +149,8 @@ class Distribution:
             density = np.exp( - np.sum(moments * lg, axis=1))
             return moments.T * density
 
-
-        integral = sc.integrate.fixed_quad(integrand, self.domain[0], self.domain[1],
-                                                n=self._n_quad_points)
-        return (integral[0] - self.moment_means)
+        integral = sc.integrate.fixed_quad(integrand, self.domain[0], self.domain[1], n=self._n_quad_points)
+        return integral[0] - self.moment_means
 
     def _calculate_jacobian_matrix(self, lagrangians):
         """
@@ -171,15 +169,12 @@ class Distribution:
             return triu_outer * density
 
         # Initialization of matrix
-
-
         integral = sc.integrate.fixed_quad(integrand, self.domain[0], self.domain[1],
                                            n=self._n_quad_points)
         jacobian_matrix = np.empty(shape=(self.approx_size, self.approx_size))
         jacobian_matrix[triu_idx[0], triu_idx[1]] = -integral[0]
         jacobian_matrix[triu_idx[1], triu_idx[0]] = -integral[0]
         return jacobian_matrix
-
 
 
 def compute_exact_moments(moments_fn, density,  tol=1e-4):
@@ -192,12 +187,16 @@ def compute_exact_moments(moments_fn, density,  tol=1e-4):
     :param tol: Tolerance of integration.
     :return: np.array, moment values
     """
-    integrand = lambda x: moments_fn(x).T * density(x)
+
+    def integrand(x):
+        return moments_fn(x).T * density(x)
+
     a, b = moments_fn.domain
     last_integral = integrate.fixed_quad(integrand, a, b, n=moments_fn.size)[0]
 
     n_points = 2*moments_fn.size
     integral = integrate.fixed_quad(integrand, a, b, n=n_points)[0]
+
     while np.linalg.norm(integral - last_integral) > tol:
         last_integral = integral
         n_points *= 2
@@ -215,7 +214,7 @@ def KL_divergence(prior_density, posterior_density, a, b):
     integrand = lambda x: posterior_density(x) * np.log( posterior_density(x) / prior_density(x) )
     return integrate.quad(integrand, a, b)
 
-def L2_distance(prior_density, posterior_density, a, b):
-    integrand = lambda x: (posterior_density(x) -  prior_density(x))**2
-    return np.sqrt( integrate.quad(integrand, a, b) )
 
+def L2_distance(prior_density, posterior_density, a, b):
+    integrand = lambda x: (posterior_density(x) - prior_density(x))**2
+    return np.sqrt(integrate.quad(integrand, a, b))
