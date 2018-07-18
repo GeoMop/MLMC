@@ -5,6 +5,7 @@ import scipy.integrate as integrate
 # import statprof
 import scipy.stats as stats
 
+
 import mlmc.mlmc
 import mlmc.simulation
 import mlmc.moments
@@ -39,6 +40,13 @@ class SimulationTest(mlmc.simulation.Simulation):
         self._coarse_simulation = None
 
     def _sample_fn(self, x, h):
+        """
+        Calculates the simulation sample
+        :param x: Distribution sample
+        :param h: Simluation step
+        :return: sample
+        """
+        # This function can cause many outliers depending on chosen domain of moments function
         return x + h * np.sqrt(1e-4 + np.abs(x))
 
     def simulation_sample(self, tag):
@@ -589,6 +597,7 @@ def test_var_estimate():
     #np.random.seed(3)
     n_levels = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     n_moments = [10]
+
     distr = [
         #(stats.norm(loc=5, scale=1), False),
         (stats.lognorm(scale=np.exp(5), s=1), True),            # worse conv of higher moments
