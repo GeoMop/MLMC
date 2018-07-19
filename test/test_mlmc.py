@@ -5,16 +5,14 @@ import scipy.integrate as integrate
 # import statprof
 import scipy.stats as stats
 
-import os, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 import mlmc.mlmc
 import mlmc.simulation
 import mlmc.moments
 import mlmc.distribution
 import numpy as np
 import flow_pbs
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+# import matplotlib.pyplot as plt
+# import matplotlib.cm as cm
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -622,6 +620,9 @@ def test_var_estimate():
                 moments = mc_test.mc.estimate_moments(mc_test.moments_fn)
                 #level_variance_diff.append(var_subsample(moments, mc_test))
 
+                # Remove first moment
+                moments = moments[0][1:], moments[1][1:]
+
                 # Variances
                 variances = np.sqrt(moments[1]) * 4
 
@@ -648,7 +649,7 @@ def plot_diff_var(level_variance_diff, n_levels):
     """
     if len(level_variance_diff) > 0:
         colors = iter(cm.rainbow(np.linspace(0, 1, len(level_variance_diff) + 1)))
-        x = np.arange(1, len(level_variance_diff[0]) +1)
+        x = np.arange(0, len(level_variance_diff[0]))
         [plt.plot(x, var_diff, 'o', label="%dLMC" % n_levels[index], color=next(colors)) for index, var_diff in enumerate(level_variance_diff)]
         plt.legend()
         plt.show()
@@ -666,7 +667,7 @@ def plot_vars(moments_mean, moments_var, n_levels, exact_moments=None, ex_moment
     """
     colors = iter(cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
 
-    x = np.arange(1, len(moments_mean[0]) + 1)
+    x = np.arange(0, len(moments_mean[0]))
     x = x - 0.3
     default_x = x
 
@@ -786,6 +787,6 @@ def test_save_load_samples():
 #
 #         self.set_target_variance(0.01, moments_fn)
 if __name__ == '__main__':
-    test_save_load_samples()
-    #test_var_estimate()
+    #test_save_load_samples()
+    test_var_estimate()
 

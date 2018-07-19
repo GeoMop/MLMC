@@ -11,7 +11,7 @@ from mlmc.correlated_field import SpatialCorrelatedField
 #import statprof
 #import matplotlib
 #matplotlib.use("agg")
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 #plt.switch_backend('agg')
 
 #import scipy.interpolate as sc_inter

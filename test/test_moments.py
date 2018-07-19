@@ -3,13 +3,13 @@ Test class monomials
 """
 # REMOVE !!!
 import os, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
+
 import numpy as np
 import mlmc.moments
 import mlmc.distribution
 import scipy.integrate as integrate
 import scipy.stats as stats
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 
 def test_monomials():
