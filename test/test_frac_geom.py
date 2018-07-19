@@ -1,7 +1,8 @@
 import frac_geom as fg
 import numpy as np
 
-def test_frac_geom():
+
+def _test_frac_geom():
     np.random.seed(1)
     box = np.array( [[ 0.0, 0.0],
                      [ 2.0, 3.0]])

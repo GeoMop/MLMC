@@ -624,7 +624,7 @@ def test_var_estimate():
                 moments = moments[0][1:], moments[1][1:]
 
                 # Variances
-                variances = np.sqrt(moments[1]) * 4
+                variances = np.sqrt(moments[1]) * 5
 
                 # Exact moments from distribution
                 exact_moments = mlmc.distribution.compute_exact_moments(mc_test.moments_fn, d.pdf, 1e-10)[1:]
@@ -789,4 +789,5 @@ def test_save_load_samples():
 if __name__ == '__main__':
     #test_save_load_samples()
     test_var_estimate()
+
 
