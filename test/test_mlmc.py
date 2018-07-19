@@ -4,7 +4,6 @@ import sys
 import scipy.integrate as integrate
 # import statprof
 import scipy.stats as stats
-
 import mlmc.mlmc
 import mlmc.simulation
 import mlmc.moments
@@ -593,8 +592,8 @@ def test_var_estimate():
     :return: None
     """
     #np.random.seed(3)
-    n_levels = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    n_moments = [10]
+    n_levels = [1, 2, 3, 5, 7, 9]
+    n_moments = [8]
 
     distr = [
         #(stats.norm(loc=5, scale=1), False),
@@ -624,7 +623,7 @@ def test_var_estimate():
                 moments = moments[0][1:], moments[1][1:]
 
                 # Variances
-                variances = np.sqrt(moments[1]) * 5
+                variances = np.sqrt(moments[1]) * 4
 
                 # Exact moments from distribution
                 exact_moments = mlmc.distribution.compute_exact_moments(mc_test.moments_fn, d.pdf, 1e-10)[1:]
@@ -789,5 +788,3 @@ def test_save_load_samples():
 if __name__ == '__main__':
     #test_save_load_samples()
     test_var_estimate()
-
-
