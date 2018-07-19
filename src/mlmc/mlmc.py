@@ -44,9 +44,10 @@ class MLMC:
 
     def load_levels(self, finished_list, running_list):
         """
-        
+        Load levels from 
         :param finished_list: Finished simulations
         :param running_list:  Running simulations
+        :return: None
         """
         # recover finished
         self.clean_levels()
@@ -103,7 +104,7 @@ class MLMC:
 
     def estimate_diff_vars(self, moments_fn):
         """
-        
+        Estimate moments variance from samples
         :param moments_fn: Moment evaluation functions
         :return: tuple of np.array
         """
@@ -136,8 +137,6 @@ class MLMC:
         X.shape = (-1, R)
         # solve X.T * X = X.T * V
 
-
-
         log_vars = np.log(raw_vars[:, 1:])     # omit first moment that is constant 1.0
         #log_vars = W[:, None] * log_vars    # scale
         params, res, rank, sing_vals = np.linalg.lstsq(X, log_vars.ravel())
@@ -145,7 +144,6 @@ class MLMC:
         new_vars[:, 0] = raw_vars[:, 0]
         assert np.allclose(raw_vars[:, 0], 0.0)
         new_vars[:, 1:] = np.exp(np.dot(X, params)).reshape(L, -1)
-        #print(raw_vars - new_vars)
         return new_vars
 
     def estimate_diff_vars_regression(self, moments_fn):
@@ -227,9 +225,10 @@ class MLMC:
         n_samples_estimate_max = np.max(n_samples_estimate_safe, axis=1)
 
         #n_samples_estimate_max= np.array([30, 3, 0.3])/target_variance
-        #print(n_samples_estimate_max)
+
         for level, n in zip(self.levels, n_samples_estimate_max):
             level.set_target_n_samples(int(n*fraction))
+
         return n_samples_estimate_safe
 
     # @property
@@ -327,10 +326,10 @@ class MLMC:
             n_samples.append(ns)
         means = np.sum(np.array(means), axis=0)
         n_samples = np.array(n_samples, dtype=int)
+
         vars = np.sum(np.array(vars) / n_samples[:, None], axis=0)
 
-        return np.array(means), np.array(vars)
-
+        return np.array(means)[1:], np.array(vars)[1:]
 
     def estimate_cost(self, level_times=None, n_samples=None):
         """
@@ -352,4 +351,3 @@ class MLMC:
         """
         for level in self.levels:
             level.reset()
-

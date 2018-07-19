@@ -5,7 +5,8 @@ import scipy.integrate as integrate
 # import statprof
 import scipy.stats as stats
 
-
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 import mlmc.mlmc
 import mlmc.simulation
 import mlmc.moments
@@ -155,8 +156,8 @@ def err_tuple(x):
 class TestMLMC:
     def __init__(self, n_levels, n_moments, distr, is_log=False):
         # Not work for one level method
-        print("\n")
-        print("L: {} R: {} distr: {}".format(n_levels, n_moments, distr.dist.__class__.__name__))
+        #print("\n")
+        #print("L: {} R: {} distr: {}".format(n_levels, n_moments, distr.dist.__class__.__name__))
 
         self.distr = distr
         self.n_levels = n_levels
@@ -420,7 +421,7 @@ class TestMLMC:
 
         plt.show()
 
-    def test_min_samples(self):
+    def _test_min_samples(self):
         """
         How many samples we need on every level to get same Nl or higher but
         with at most 10% cost increase in 99%
@@ -484,46 +485,46 @@ class TestMLMC:
     def clear_subsamples(self):
         for level in self.mc.levels:
             level.sample_indices = None
-
-def test_var_subsample_regresion():
-    var_exp = -5
-
-    # n_levels = [1, 2, 3, 4, 5, 7, 9]
-    n_levels = [8]
-    n_moments = [20]  # ,4,5] #,7, 10,14,19]
-    distr = [
-        # (stats.norm(loc=42.0, scale=5), False)
-        (stats.lognorm(scale=np.exp(5), s=1), True)  # worse conv of higher moments
-        # (stats.lognorm(scale=np.exp(-5), s=0.5), True)         # worse conv of higher moments
-        # (stats.chi2(df=10), True)
-        # (stats.weibull_min(c=1), True)    # Exponential
-        # (stats.weibull_min(c=1.5), True)  # Infinite derivative at zero
-        # (stats.weibull_min(c=3), True)    # Close to normal
-    ]
-
-    level_moments_mean = []
-    level_moments_var = []
-
-    for nl in n_levels:
-        for nm in n_moments:
-            for d, il in distr:
-                mc_test = TestMLMC(nl, nm, d, il)
-
-                n_samples = mc_test.mc.set_target_variance(10 - 4)
-
-                print("n of samples ", n_samples)
-
-
-
-    target_var = 10 ** var_exp
-    means_el = []
-    vars_el = []
-    n_loops = 30
-    for t_var in target_var:
-        n_samples = mc.set_target_variance(t_var, prescribe_vars=self.ref_diff_vars)
-        n_samples = np.max(n_samples, axis=1).astype(int)
-
-    pass
+#
+# def test_var_subsample_regresion():
+#     var_exp = -5
+#
+#     # n_levels = [1, 2, 3, 4, 5, 7, 9]
+#     n_levels = [8]
+#     n_moments = [20]  # ,4,5] #,7, 10,14,19]
+#     distr = [
+#         # (stats.norm(loc=42.0, scale=5), False)
+#         (stats.lognorm(scale=np.exp(5), s=1), True)  # worse conv of higher moments
+#         # (stats.lognorm(scale=np.exp(-5), s=0.5), True)         # worse conv of higher moments
+#         # (stats.chi2(df=10), True)
+#         # (stats.weibull_min(c=1), True)    # Exponential
+#         # (stats.weibull_min(c=1.5), True)  # Infinite derivative at zero
+#         # (stats.weibull_min(c=3), True)    # Close to normal
+#     ]
+#
+#     level_moments_mean = []
+#     level_moments_var = []
+#
+#     for nl in n_levels:
+#         for nm in n_moments:
+#             for d, il in distr:
+#                 mc_test = TestMLMC(nl, nm, d, il)
+#
+#                 n_samples = mc_test.mc.set_target_variance(10 - 4)
+#
+#                 print("n of samples ", n_samples)
+#
+#
+#
+#     target_var = 10 ** var_exp
+#     means_el = []
+#     vars_el = []
+#     n_loops = 30
+#     for t_var in target_var:
+#         n_samples = mc.set_target_variance(t_var, prescribe_vars=self.ref_diff_vars)
+#         n_samples = np.max(n_samples, axis=1).astype(int)
+#
+#     pass
 
 def variance_level(mlmc_test):
 
@@ -582,7 +583,6 @@ def var_subsample(moments, mlmc_test, n_subsamples=1000):
     variance_abs_diff = np.abs(np.subtract(variance, moments[1]))
 
     result = np.sqrt([a/b if b != 0 else a for a, b in zip(moments[1], variance)])
-    print(result)
 
     # Difference between variances must be in tolerance
     assert all(var_diff < tolerance for var_diff in result)
@@ -617,7 +617,7 @@ def test_var_estimate():
             for d, il in distr:
                 mc_test = TestMLMC(nl, nm, d, il)
                 # 10 000 samples on each level
-                mc_test.generate_samples(10000)
+                mc_test.generate_samples(1000)
                 # Moments as tuple (means, vars)
                 moments = mc_test.mc.estimate_moments(mc_test.moments_fn)
                 #level_variance_diff.append(var_subsample(moments, mc_test))
@@ -703,7 +703,7 @@ def check_estimates_for_nans(mc, distr):
 
 
 def test_save_load_samples():
-    # 1. make some somples in levels
+    # 1. make some samples in levels
     # 2. copy key data from levels
     # 3. clean levels
     # 4. create new mlmc object
@@ -712,7 +712,7 @@ def test_save_load_samples():
 
     #print("var: ", distr.var())
     work_dir = '_test_tmp'
-    work_dir = os.path.join( os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+    work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
 
     n_levels = 5
     distr = stats.norm()
@@ -720,8 +720,8 @@ def test_save_load_samples():
     pbs = flow_pbs.FlowPbs(work_dir=work_dir, clean=True)
     simulation_config = dict(
         distr= distr, complexity=2, nan_fraction=0.1)
-    simultion_factory = SimulationTest.factory(step_range, config = simulation_config)
-    mc = mlmc.mlmc.MLMC(n_levels, simultion_factory, pbs)
+    simulation_factory = SimulationTest.factory(step_range, config=simulation_config)
+    mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, pbs)
     mc.set_initial_n_samples()
     mc.refill_samples()
     mc.wait_for_simulations()
@@ -731,27 +731,30 @@ def test_save_load_samples():
     # Copy level data
     level_data = []
     for level in mc.levels:
-        l_data  = (level.running_simulations.copy(),
+        l_data = (level.running_simulations.copy(),
                    level.finished_simulations.copy(),
                    level.sample_values)
         assert not np.isnan(level.sample_values).any()
         level_data.append(l_data)
+
 
     mc.clean_levels()
     pbs.close()
     # New mlmc
     pbs = flow_pbs.FlowPbs(work_dir=work_dir)
     pbs.reload_logs()
-    mc = mlmc.mlmc.MLMC(n_levels, simultion_factory, pbs)
+    mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, pbs)
+
+    check_estimates_for_nans(mc, distr)
 
     # Test
     for level, data in zip(mc.levels, level_data):
         run, fin, values = data
+
         assert run == level.running_simulations
         assert fin == level.finished_simulations
         assert np.allclose(values, level.sample_values)
 
-    check_estimates_for_nans(mc, distr)
 
 # class TestMLMC(mlmc.mlmc.MLMC):
 #     def __init__(self):
@@ -783,7 +786,6 @@ def test_save_load_samples():
 #
 #         self.set_target_variance(0.01, moments_fn)
 if __name__ == '__main__':
-    #test_var_subsample_regresion()
-
-    test_var_estimate()
+    test_save_load_samples()
+    #test_var_estimate()
 

@@ -263,13 +263,16 @@ class Level:
         mask_coarse = ma.masked_invalid(self.last_moments_eval[1]).mask
 
         # Common mask for coarse and fine
-        mask_fine_or_coarse = np.logical_or(mask_fine, mask_coarse)[:, -1]
+        mask_fine_coarse = np.logical_or(mask_fine, mask_coarse)[:, -1]
 
         # New moments without outliers
-        self.last_moments_eval = self.last_moments_eval[0][~mask_fine_or_coarse], self.last_moments_eval[1][~mask_fine_or_coarse]
+        self.last_moments_eval = self.last_moments_eval[0][~mask_fine_coarse], self.last_moments_eval[1][~mask_fine_coarse]
+
+        # Remove outliers also from sample values
+        self._sample_values = self._sample_values[:self._n_valid_samples][~mask_fine_coarse]
 
         # Set new number of valid samples
-        self._n_valid_samples = len(self.last_moments_eval[0])
+        self._n_valid_samples = len(self._sample_values)
 
     def estimate_diff_var(self, moments_fn):
         """

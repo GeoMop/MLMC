@@ -100,6 +100,7 @@ class TstFlowPbs:
                       qsub=None)
         other_pbs.reload_logs()
         flow_mc.FlowSim.total_sim_id = 0
+
         other_mc = mlmc.mlmc.MLMC(self.mc.n_levels, self.simulation_factory, other_pbs)
         #other_mc.subsample(self.n_levels * [4])
 
@@ -109,7 +110,7 @@ class TstFlowPbs:
         assert np.allclose(means, means_full)
 
 
-def test_flow_pbs_base():
+def _test_flow_pbs_base():
     pbs_test = TstFlowPbs()
     pbs_test.test_load_levels()
 

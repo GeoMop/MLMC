@@ -39,7 +39,9 @@ class FlowPbs:
 
         self.collected_log_ = None
         self.running_log_ = None
+
         if work_dir is not None:
+            # Get log files
             self.log_running_file = os.path.join(self.work_dir, "running_log.json")
             self.log_collected_file = os.path.join(self.work_dir, "collected_log.json")
             if clean:
@@ -62,9 +64,11 @@ class FlowPbs:
             self.open()
         return self.collected_log_
 
-
-
     def reload_logs(self):
+        """
+        Read collected and running simulations data from log file
+        :return: None
+        """
         self.close()
         try:
             with open(self.log_collected_file, 'r') as f:
@@ -218,8 +222,14 @@ class FlowPbs:
         """
         self.pbs_script = self.pbs_script_heading.copy()
 
-
     def log_simulations(self, simulations, collected=False):
+        """
+        Log simulations
+        :param simulations: array of simulations
+        :param collected: bool, save collected simulations
+        :return: None
+        """
+
         if self.work_dir is None or not simulations:
             return
         if collected:
