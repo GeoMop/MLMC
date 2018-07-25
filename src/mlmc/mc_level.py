@@ -135,7 +135,7 @@ class Level:
     def make_sample_pair(self):
         """
         Generate new random samples for fine and coarse simulation objects
-        :return: (fine_sample, coarse_sample); identificaion tuples for the related fine and coarse sample
+        :return: (fine_sample, coarse_sample); identification tuples for the related fine and coarse sample
         """
 
         # All levels have fine simulation
@@ -229,23 +229,25 @@ class Level:
         """
 
         # Current moment functions are different from last moment functions
-        if moments_fn != self._last_moments_fn:
-            samples = self.sample_values
-            # Moments from fine samples
-            moments_fine = moments_fn(samples[:, 0])
+        #if moments_fn != self._last_moments_fn:
+        samples = self.sample_values
 
-            # For first level moments from coarse samples are zeroes
-            if self.is_zero_level:
-                moments_coarse = np.zeros_like(np.eye(len(moments_fine), moments_fn.size))
-            else:
-                moments_coarse = moments_fn(samples[:, 1])
-            # Set last moments function
-            self._last_moments_fn = moments_fn
-            # Moments from fine and coarse samples
-            self.last_moments_eval = moments_fine, moments_coarse
+        # Moments from fine samples
+        moments_fine = moments_fn(samples[:, 0])
+
+        # For first level moments from coarse samples are zeroes
+        if self.is_zero_level:
+            moments_coarse = np.zeros_like(np.eye(len(moments_fine), moments_fn.size))
+        else:
+            moments_coarse = moments_fn(samples[:, 1])
+        # Set last moments function
+        self._last_moments_fn = moments_fn
+        # Moments from fine and coarse samples
+        self.last_moments_eval = moments_fine, moments_coarse
 
         # Remove outliers
-        self.remove_outliers_moments()
+        if self.last_moments_eval is not None:
+            self.remove_outliers_moments()
 
         if self.sample_indices is None:
             return self.last_moments_eval

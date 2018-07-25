@@ -2,6 +2,7 @@ import numpy as np
 import scipy as sc
 import scipy.integrate as integrate
 
+
 class Distribution:
     """
     Calculation of the distribution
@@ -9,7 +10,7 @@ class Distribution:
     def __init__(self, moments_obj, moment_data, is_positive = False):
         """
         :param moments_fn: Function for calculating moments
-        :param moment_data: Array  of moments or tuple (moments, variance).
+        :param moment_data: Array  of moments
         :param positive_distr: Indication of distribution for a positive variable.
         """
         # Family of moments basis functions.
@@ -25,7 +26,6 @@ class Distribution:
         self.moment_means = moment_data[:, 0]
         self.moment_vars = moment_data[:, 1]
 
-
         # Force density with positive support.
         self.is_positive = is_positive
 
@@ -36,7 +36,6 @@ class Distribution:
         self.approx_size = len(self.moment_means)
         assert moments_obj.size == self.approx_size
         self.moments_fn = moments_obj
-
 
     def choose_parameters_from_samples(self, samples):
         """
@@ -66,10 +65,8 @@ class Distribution:
         else:
             self.domain = tuple(sc.stats.norm.ppf([1.0 - quantile, quantile], loc=mean, scale=np.sqrt(variance)))
 
-
     def choose_parameters_from_approximation(self):
         pass
-
 
     def estimate_density(self, tol=None):
         """
@@ -88,8 +85,6 @@ class Distribution:
         if self.multipliers is None:
             self.multipliers = np.ones(self.approx_size)
 
-
-
         result = sc.optimize.root(
             fun=self._calculate_moments_approximation,
             x0=self.multipliers,
@@ -107,7 +102,6 @@ class Distribution:
 
     def _iteration_monitor(self, x, f):
         print("Norm: {} x: {}".format(np.linalg.norm(f), x))
-
 
     def density(self, value):
         """
@@ -218,3 +212,4 @@ def KL_divergence(prior_density, posterior_density, a, b):
 def L2_distance(prior_density, posterior_density, a, b):
     integrand = lambda x: (posterior_density(x) - prior_density(x))**2
     return np.sqrt(integrate.quad(integrand, a, b))
+

@@ -2,6 +2,7 @@ import numpy as np
 from mlmc.mc_level import Level
 import time
 
+
 class MLMC:
     """
     Multilevel Monte Carlo method
@@ -40,7 +41,10 @@ class MLMC:
             else:
                 level_param = i_level / (n_levels - 1)
             level = Level(i_level, self.simulation_factory, previous, level_param)
+
             self.levels.append(level)
+
+
 
     def load_levels(self, finished_list, running_list):
         """
@@ -148,11 +152,12 @@ class MLMC:
 
     def estimate_diff_vars_regression(self, moments_fn):
         """
-        
+        Estimate variances
         :param moments_fn: Moment evaluation function
         :return: array of variances
         """
         vars, n_samples = self.estimate_diff_vars(moments_fn)
+        print("n samples for regresion var ", n_samples)
         sim_steps = np.array([lvl.fine_simulation.step for lvl in self.levels])
         vars[1:] = self._varinace_regresion(vars[1:], n_samples, sim_steps)
         return vars
@@ -212,7 +217,6 @@ class MLMC:
         :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
         :return: np.array with number of optimal samples
         """
-
         if prescribe_vars is None:
             vars = self.estimate_diff_vars_regression(moments_fn)
         else:
@@ -260,7 +264,6 @@ class MLMC:
         """
 
         for level in self.levels:
-            #print("   mlmc fill level: ", level.level_idx)
             level.fill_samples(self._pbs)
 
         self._pbs.execute()
@@ -285,8 +288,8 @@ class MLMC:
 
             time.sleep(sleep)
             if timeout > 0 and (time.clock() - t0) > timeout:
-
                 break
+
         return n_running
 
     def estimate_domain(self):
@@ -329,7 +332,7 @@ class MLMC:
 
         vars = np.sum(np.array(vars) / n_samples[:, None], axis=0)
 
-        return np.array(means)[1:], np.array(vars)[1:]
+        return np.array(means), np.array(vars)
 
     def estimate_cost(self, level_times=None, n_samples=None):
         """

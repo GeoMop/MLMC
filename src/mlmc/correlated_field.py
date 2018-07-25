@@ -67,7 +67,7 @@ def kozeny_carman(porosity, m, factor, viscosity):
     :param viscosity: [Pa . s], water: 8.90e-4
     :return:
     """
-    assert np.all( viscosity > 1e-10 )
+    assert np.all(viscosity > 1e-10)
     porosity = np.minimum(porosity, 1-1e-10)
     porosity = np.maximum(porosity, 1e-10)
     cond = factor * porosity ** (2 + m) / (1 - porosity) ** 2 / viscosity
@@ -119,7 +119,7 @@ class Field:
         if self.const is not None:
             self._sample = self.const * np.ones(len(points))
         elif self.correlated_field is not None:
-            print("Set crr field, ", self.name, self.regions)
+            #print("Set crr field, ", self.name, self.regions)
             self.correlated_field.set_points(points)
             self.correlated_field.svd_dcmp(n_terms_range=(10, 100))
         else:
@@ -166,7 +166,7 @@ class Fields:
         for field in self.fields_orig:
             new_field = copy.copy(field)
             if new_field.param_fields:
-                new_field.param_fields = [ self._get_field_obj(field, new_field.regions) for field in new_field.param_fields]
+                new_field.param_fields = [self._get_field_obj(field, new_field.regions) for field in new_field.param_fields]
             self.fields_dict[new_field.name] = new_field
             self.fields.append(new_field)
 
@@ -234,9 +234,6 @@ class Fields:
                 field.set_points(points)
                 field.full_sample_ids = np.arange(self.n_elements)
 
-
-
-
     def sample(self):
         """
         Return dictionary of sampled fields.
@@ -249,7 +246,6 @@ class Fields:
                 result[field.name] = np.zeros(self.n_elements)
                 result[field.name][field.full_sample_ids] = sample
         return result
-
 
 
 class SpatialCorrelatedField:
@@ -342,11 +338,11 @@ class SpatialCorrelatedField:
         :return: None
         """
         points = np.array(points, dtype=float)
-        assert len(points.shape) == 2
+
+        assert len(points.shape) >= 1
         assert points.shape[1] == self.dim
         self.n_points, self.dimension = points.shape
         self.points = points
-
 
         if mu is not None:
             self.mu = mu
@@ -357,7 +353,6 @@ class SpatialCorrelatedField:
             self.sigma = sigma
         self.sigma = np.array(self.sigma, dtype=float)
         assert self.sigma.shape == () or sigma.shape == (len(points),)
-
 
         self.cov_mat = None
         self._cov_l_factor = None
@@ -449,7 +444,7 @@ class SpatialCorrelatedField:
             threshold = 2 * precision
             # TODO: Test if we should cut eigen values by relative (like now) or absolute value
             while threshold >= precision and m <= range[1]:
-                print("treshold: {} m: {} precision: {} max_m: {}".format(threshold,  m, precision, range[1]))
+                #print("treshold: {} m: {} precision: {} max_m: {}".format(threshold,  m, precision, range[1]))
                 U, ev, VT = randomized_svd(self.cov_mat, n_components=m, n_iter=3, random_state=None)
                 threshold = ev[-1] / ev[0]
                 m = int(np.ceil(1.5 * m))
@@ -457,7 +452,7 @@ class SpatialCorrelatedField:
             m = len(ev)
             m = min(m, range[1])
 
-        print("KL approximation: {} for {} points.".format(m, self.n_points))
+        #print("KL approximation: {} for {} points.".format(m, self.n_points))
         self.n_approx_terms = m
         self._sqrt_ev = np.sqrt(ev[0:m])
         self._cov_l_factor = U[:, 0:m].dot(sp.diag(self._sqrt_ev))
