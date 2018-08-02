@@ -32,28 +32,17 @@ class SimulationShooting(simulation.Simulation):
         """
         Simulation of 2D shooting
         :param sim_id:    simulation id
-
         """
         x, y, time, n = 0, 0, 0, 0
         X = self.X
         V = self.V
 
-        # print("self X ", self.X)
-        # print("self V ", self.V)
-        #
-        # print("sim param ", self.sim_param)
-        # print("sim step ", self.step)
-        #
-        # print("input samples ", self._input_sample)
-        # print("delka input samples ", len(self._input_sample))
-
         # Time step
         if self.sim_param != 0:
-            self.dt = 10 / self.sim_param
+            self.dt = self.time / self.sim_param
 
         # Loop through random array F
         for i in range(self.sim_param):
-
             # New coordinates
             X = X + self.dt * V
 
@@ -64,7 +53,6 @@ class SimulationShooting(simulation.Simulation):
             y = X[1]
 
             if x > self.extremes[1] or x < self.extremes[0] or y > self.extremes[3] or y < self.extremes[2]:
-                print("X ", X)
                 y = np.nan
                 break
 
@@ -72,7 +60,7 @@ class SimulationShooting(simulation.Simulation):
 
             # End simulation if time is bigger then maximum time
             if time >= self.time:
-                break;
+                break
 
         # Set simulation data
         self._result_dict[sim_id] = y
@@ -109,11 +97,12 @@ class SimulationShooting(simulation.Simulation):
     def create_points(self):
         if self._coarse_simulation is None:
             self.points = np.empty((self.sim_param, 1))
-            self.points[:, 0] = np.arange(self.sim_param)
+            self.points[:, 0] = np.linspace(0, self.V[0]*self.time, self.sim_param) #np.arange(self.sim_param)#
 
         else:
             self.points = np.empty((self.sim_param + self._coarse_simulation.sim_param, 1))
-            self.points[:, 0] = np.arange(self._coarse_simulation.sim_param + self.sim_param)
+            self.points[:, 0] = np.concatenate((np.linspace(0, self.V[0]*self.time, self.sim_param),
+                                                   np.linspace(0, self.V[0]*self.time, self._coarse_simulation.sim_param)))
 
     def _make_fields(self):
         self.create_points()
@@ -132,12 +121,11 @@ class SimulationShooting(simulation.Simulation):
         self._input_sample = fields_sample[:self.sim_param]
         #self._input_sample = self.generate_rnd_sample()
         if self._coarse_simulation is not None:
-            self._coarse_simulation._input_sample = fields_sample[self.sim_param:]
-            #self._coarse_simulation._input_sample = self.averaging(self.sim_param, self._coarse_simulation.sim_param, self._input_sample)
+            self._coarse_simulation._input_sample = avg = fields_sample[self.sim_param:]
+            #self._coarse_simulation._input_sample = avg = self.averaging(self.sim_param, self._coarse_simulation.sim_param, self._input_sample)
 
     def extract_result(self, sim_id):
         return self._result_dict[sim_id]
-
 
     def averaging(self, n_coarse, n_fine, F):
         """

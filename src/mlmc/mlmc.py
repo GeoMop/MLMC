@@ -157,7 +157,6 @@ class MLMC:
         :return: array of variances
         """
         vars, n_samples = self.estimate_diff_vars(moments_fn)
-        print("n samples for regresion var ", n_samples)
         sim_steps = np.array([lvl.fine_simulation.step for lvl in self.levels])
         vars[1:] = self._varinace_regresion(vars[1:], n_samples, sim_steps)
         return vars
@@ -221,16 +220,18 @@ class MLMC:
             vars = self.estimate_diff_vars_regression(moments_fn)
         else:
             vars = prescribe_vars
+
         n_ops = np.array([lvl.n_ops_estimate() for lvl in self.levels])
+
         sqrt_var_n = np.sqrt(vars.T * n_ops)    # moments in rows, levels in cols
         total = np.sum(sqrt_var_n, axis=1)      # sum over levels
         n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int) # moments in cols
         n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars*self.n_levels/target_variance), 2)
+
         n_samples_estimate_max = np.max(n_samples_estimate_safe, axis=1)
 
-        #n_samples_estimate_max= np.array([30, 3, 0.3])/target_variance
-
         for level, n in zip(self.levels, n_samples_estimate_max):
+
             level.set_target_n_samples(int(n*fraction))
 
         return n_samples_estimate_safe
@@ -354,3 +355,11 @@ class MLMC:
         """
         for level in self.levels:
             level.reset()
+
+    def clear_subsamples(self):
+        """
+        Clear level subsamples
+        :return: None
+        """
+        for level in self.levels:
+            level.sample_indices = None

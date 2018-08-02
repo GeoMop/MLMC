@@ -7,7 +7,8 @@ class Distribution:
     """
     Calculation of the distribution
     """
-    def __init__(self, moments_obj, moment_data, is_positive = False):
+
+    def __init__(self, moments_obj, moment_data, is_positive=False):
         """
         :param moments_fn: Function for calculating moments
         :param moment_data: Array  of moments
@@ -56,11 +57,11 @@ class Distribution:
         if self.is_positive:
             # approximate by log normal
             # compute mu, sigma parameters from observed mean and variance
-            sigma_sq = np.log( np.exp(np.log(variance) - 2.0 * np.log(mean)) + 1.0)
+            sigma_sq = np.log(np.exp(np.log(variance) - 2.0 * np.log(mean)) + 1.0)
             mu = np.log(mean) - sigma_sq / 2.0
             sigma = np.sqrt(sigma_sq)
-            self.domain = tuple(sc.stats.lognorm.ppf([1.0 - quantile, quantile], s=sigma, scale = np.exp(mu)))
-            assert np.isclose(mean, sc.stats.lognorm.mean(s=sigma, scale = np.exp(mu)))
+            self.domain = tuple(sc.stats.lognorm.ppf([1.0 - quantile, quantile], s=sigma, scale=np.exp(mu)))
+            assert np.isclose(mean, sc.stats.lognorm.mean(s=sigma, scale=np.exp(mu)))
             assert np.isclose(variance, sc.stats.lognorm.var(s=sigma, scale=np.exp(mu)))
         else:
             self.domain = tuple(sc.stats.norm.ppf([1.0 - quantile, quantile], loc=mean, scale=np.sqrt(variance)))
@@ -68,29 +69,50 @@ class Distribution:
     def choose_parameters_from_approximation(self):
         pass
 
+    def functional(self, multipliers):
+        """
+        Maximized functional 
+        :param multipliers: current multipliers
+        :return: float
+        """
+
+        def integrand(x):
+            return -np.exp(-np.sum(self.moments_fn(x) * multipliers, axis=1))
+
+        integral = sc.integrate.fixed_quad(integrand, self.domain[0], self.domain[1], n=self._n_quad_points)[0]
+        sum = np.sum(self.moment_means * multipliers)
+
+        return -(integral - sum)
+
+    def estimate_density_minimize(self, tol=1e-5):
+        """
+        Optimize density estimation
+        :return: None
+        """
+        # Initialize domain, multipliers, ...
+        self._initialize_params(tol)
+
+        result = sc.optimize.minimize(self.functional, self.multipliers, method='Newton-CG',
+                                      jac=self._calculate_gradient,
+                                      hess=self._calculate_jacobian_matrix,
+                                      options={'xtol': tol, 'disp': True})
+
+        self.multipliers = result.x
+
     def estimate_density(self, tol=None):
         """
         Run nonlinear iterative solver to estimate density, use previous solution as initial guess.
         :return: None
         """
-        assert self.domain is not None
-        if self.is_positive:
-            self.domain = (max(0.0, self.domain[0]), self.domain[1])
-
-        #self.moments_fn = lambda x, size=self.approx_size, a=self.domain[0], b=self.domain[1] : self.moments_basis(x, size, a, b)
-        self._n_quad_points = 20 * self.approx_size
-
-
-        assert tol is not None
-        if self.multipliers is None:
-            self.multipliers = np.ones(self.approx_size)
+        # Initialize domain, multipliers, ...
+        self._initialize_params(tol)
 
         result = sc.optimize.root(
             fun=self._calculate_moments_approximation,
             x0=self.multipliers,
             jac=self._calculate_jacobian_matrix,
             tol=tol,
-            callback = self._iteration_monitor
+            callback=self._iteration_monitor
         )
 
         if result.success:
@@ -100,6 +122,21 @@ class Distribution:
             print(result.message)
         return result
 
+    def _initialize_params(self, tol=None):
+        """
+        Initialize parameters for density estimation
+        :return: None
+        """
+        assert self.domain is not None
+        if self.is_positive:
+            self.domain = (max(0.0, self.domain[0]), self.domain[1])
+
+        self._n_quad_points = 20 * self.approx_size
+
+        assert tol is not None
+        if self.multipliers is None:
+            self.multipliers = np.ones(self.approx_size)
+
     def _iteration_monitor(self, x, f):
         print("Norm: {} x: {}".format(np.linalg.norm(f), x))
 
@@ -107,7 +144,6 @@ class Distribution:
         """
         :param value: float or np.array
         :return: density for passed value
-
         TODO:
         """
         moments = self.moments_fn(value)
@@ -119,45 +155,47 @@ class Distribution:
         last_x = self.domain[0]
         last_y = 0
         cdf_y = np.empty(len(values))
-        
+
         for i, val in enumerate(values):
             if val <= self.domain[0]:
                 last_y = 0
             elif val >= self.domain[1]:
                 last_y = 1
-            else:    
+            else:
                 dy = integrate.fixed_quad(self.density, last_x, val, n=10)[0]
                 last_x = val
                 last_y = last_y + dy
-            cdf_y[i] = last_y    
-        return cdf_y    
+            cdf_y[i] = last_y
+        return cdf_y
 
-    def _calculate_moments_approximation(self, approx):
+    def _calculate_moments_approximation(self, multipliers):
         """
         :param lagrangians: array, lagrangians parameters
         :return: array, moments approximation
         """
 
-        def integrand(value, lg=approx):
-            moments =  self.moments_fn(value)
-            density = np.exp( - np.sum(moments * lg, axis=1))
+        def integrand(value, lg=multipliers):
+            moments = self.moments_fn(value)
+            density = np.exp(- np.sum(moments * lg, axis=1))
             return moments.T * density
 
         integral = sc.integrate.fixed_quad(integrand, self.domain[0], self.domain[1], n=self._n_quad_points)
+
         return integral[0] - self.moment_means
 
-    def _calculate_jacobian_matrix(self, lagrangians):
+    def _calculate_jacobian_matrix(self, multipliers):
         """
-        :param lagrangians: np.array, lambda
+        :param multipliers: np.array, lambda
         :return: jacobian matrix, symmetric,
         """
         triu_idx = np.triu_indices(self.approx_size)
-        def integrand(value, lg=lagrangians, triu_idx = triu_idx):
+
+        def integrand(value, lg=multipliers, triu_idx=triu_idx):
             """
             Upper triangle of the matrix, flatten.
             """
-            moments =  self.moments_fn(value)
-            density = np.exp( - np.sum(moments * lg, axis=1))
+            moments = self.moments_fn(value)
+            density = np.exp(- np.sum(moments * lg, axis=1))
             moment_outer = np.einsum('ki,kj->ijk', moments, moments)
             triu_outer = moment_outer[triu_idx[0], triu_idx[1], :]
             return triu_outer * density
@@ -168,10 +206,22 @@ class Distribution:
         jacobian_matrix = np.empty(shape=(self.approx_size, self.approx_size))
         jacobian_matrix[triu_idx[0], triu_idx[1]] = -integral[0]
         jacobian_matrix[triu_idx[1], triu_idx[0]] = -integral[0]
+
         return jacobian_matrix
 
+    def _calculate_gradient(self, multipliers):
+        """
+        Estimate gradient for current multipliers
+        :param multipliers: array
+        :return: array
+        """
+        epsilon = np.ones(len(multipliers)) * 1e-5
+        approx_gradient = sc.optimize.approx_fprime(multipliers, self.functional, epsilon)
 
-def compute_exact_moments(moments_fn, density,  tol=1e-4):
+        return approx_gradient
+
+
+def compute_exact_moments(moments_fn, density, tol=1e-4):
     """
     Compute approximation of moments using exact density.
     :param moments_fn: Moments function.
@@ -188,7 +238,7 @@ def compute_exact_moments(moments_fn, density,  tol=1e-4):
     a, b = moments_fn.domain
     last_integral = integrate.fixed_quad(integrand, a, b, n=moments_fn.size)[0]
 
-    n_points = 2*moments_fn.size
+    n_points = 2 * moments_fn.size
     integral = integrate.fixed_quad(integrand, a, b, n=n_points)[0]
 
     while np.linalg.norm(integral - last_integral) > tol:
@@ -205,11 +255,10 @@ def KL_divergence(prior_density, posterior_density, a, b):
     :param posterior_density: P
     :return: KL divergence value
     """
-    integrand = lambda x: posterior_density(x) * np.log( posterior_density(x) / prior_density(x) )
+    integrand = lambda x: posterior_density(x) * np.log(posterior_density(x) / prior_density(x))
     return integrate.quad(integrand, a, b)
 
 
 def L2_distance(prior_density, posterior_density, a, b):
-    integrand = lambda x: (posterior_density(x) - prior_density(x))**2
+    integrand = lambda x: (posterior_density(x) - prior_density(x)) ** 2
     return np.sqrt(integrate.quad(integrand, a, b))
-
