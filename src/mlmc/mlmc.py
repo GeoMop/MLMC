@@ -1,96 +1,118 @@
 import numpy as np
+import os.path
+import json
 from mlmc.mc_level import Level
 import time
+from mlmc.logger import Logger
 
 
 class MLMC:
     """
     Multilevel Monte Carlo method
     """
-    def __init__(self, n_levels, sim_factory, pbs=None):
+    def __init__(self, n_levels, sim_factory, step_range, output_dir=None):
         """
         :param number_of_levels: Number of levels
         :param sim_factory: Object of simulation
-        :param pbs: System interaction object
+        :param output_dir: Output dir for mlmc results
         """
-        # System interaction object (FlowPBS)
-        self._pbs = pbs
+
         # Object of simulation
         self.simulation_factory = sim_factory
         # Array of level objects
         self.levels = []
-        self.create_levels(n_levels)
-        if pbs.collected_log_content is not None:
-            self.load_levels(pbs.collected_log_content, pbs.running_log_content)
+        self._n_levels = None
+        # Set n_levels property
+        self.n_levels = n_levels
+        self.step_range = step_range
 
         # Number of simulation steps through whole mlmc
         self.target_time = None
         # Total variance
         self.target_variance = None
+        # Directory for mlmc outputs
+        self.output_dir = output_dir
+        # Setup file params
+        self._setup_params = ['output_dir', 'n_levels', 'step_range']
+        # Create setup file with params
+        self._setup()
+        # Create mlmc levels
+        self.create_levels(n_levels)
+
+    def _setup(self):
+        """
+        Processing MLMC setup
+        :return: None
+        """
+        setup_file = os.path.join(self.output_dir, "mlmc_setup.json")
+
+        if not os.path.isdir(self.output_dir):
+            # Create output dir
+            os.makedirs(self.output_dir, mode=0o775, exist_ok=True)
+
+        if os.path.isfile(setup_file):
+            self._load_setup(setup_file)
+        else:
+            self._save_setup(setup_file)
+
+    def _load_setup(self, setup_file):
+        """
+        Load setup file
+        :return: None
+        """
+        with open(setup_file, 'r') as f:
+            setup = json.load(f)
+
+        for key in self._setup_params:
+            if key == 'n_levels':
+                self.n_levels = setup.get(key, None)
+            else:
+                self.__dict__[key] = setup.get(key, None)
+
+    def _save_setup(self, setup_file):
+        """
+        Save to setup file
+        :return: None
+        """
+        setup = {}
+        for key in self._setup_params:
+            if key == 'n_levels':
+                setup[key] = self.n_levels
+            else:
+                setup[key] = self.__dict__.get(key, None)
+
+        with open(setup_file, 'w+') as f:
+            json.dump(setup, f)
 
     def create_levels(self, n_levels):
         """
-        Create level objects
+        Create level objects, each level has own level logger object
         :param n_levels: Number of levels
         :return: None
         """
+
         for i_level in range(n_levels):
-            previous = self.levels[-1].fine_simulation if i_level else None
+            previous_level = self.levels[-1] if i_level else None
             if n_levels == 1:
                 level_param = 1
             else:
                 level_param = i_level / (n_levels - 1)
-            level = Level(i_level, self.simulation_factory, previous, level_param)
 
+            level = Level(self.simulation_factory, previous_level, level_param, Logger(i_level, self.output_dir))
             self.levels.append(level)
-
-
-
-    def load_levels(self, finished_list, running_list):
-        """
-        Load levels from 
-        :param finished_list: Finished simulations
-        :param running_list:  Running simulations
-        :return: None
-        """
-        # recover finished
-        self.clean_levels()
-        finished = set()
-
-        for sim in finished_list:
-            i_level, i, fine, coarse, value = sim
-            self.levels[i_level].finished_simulations.append(sim)
-            self.levels[i_level].add_sample(i, value)
-            finished.add((i_level, i))
-        for level in self.levels:
-            level.target_n_samples = level._n_valid_samples
-
-        # recover running
-        for sim in running_list:
-            if len(sim) != 5:
-                continue
-            i_level, i, fine, coarse, _ = sim
-            if (i_level, i) not in finished:
-                self.levels[i_level].running_simulations.append(sim)
-
-        for level in self.levels:
-            level.collect_samples(self._pbs)
-
-
-    # def update_collected(self):
-    #     """
-    #     Re-create collected sample values from simulation sample directories.
-    #     :return:
-    #     """
-    #     for l in self.levels:
-    #         l.update_collected()
 
     @property
     def n_levels(self):
         """
         Number of levels
         """
-        return len(self.levels)
+        if len(self.levels) > 0:
+            return len(self.levels)
+        return self._n_levels
+
+    @n_levels.setter
+    def n_levels(self, nl):
+        self._n_levels = nl
 
     @property
     def n_samples(self):
@@ -114,6 +136,7 @@ class MLMC:
         """
         vars = []
         n_samples = []
+
         for level in self.levels:
             v, n = level.estimate_diff_var(moments_fn)
             vars.append(v)
@@ -221,7 +244,7 @@ class MLMC:
         else:
             vars = prescribe_vars
 
-        n_ops = np.array([lvl.n_ops_estimate() for lvl in self.levels])
+        n_ops = np.array([lvl.n_ops_estimate for lvl in self.levels])
 
         sqrt_var_n = np.sqrt(vars.T * n_ops)    # moments in rows, levels in cols
         total = np.sum(sqrt_var_n, axis=1)      # sum over levels
@@ -231,7 +254,6 @@ class MLMC:
         n_samples_estimate_max = np.max(n_samples_estimate_safe, axis=1)
 
         for level, n in zip(self.levels, n_samples_estimate_max):
-
             level.set_target_n_samples(int(n*fraction))
 
         return n_samples_estimate_safe
@@ -263,11 +285,12 @@ class MLMC:
         For each level run simulations
         :return: None
         """
-
         for level in self.levels:
-            level.fill_samples(self._pbs)
+            level.set_coarse_sim()
 
-        self._pbs.execute()
+        for level in reversed(self.levels):
+            level.fill_samples()
+
 
     def wait_for_simulations(self, sleep=0, timeout=None):
         """
@@ -276,6 +299,8 @@ class MLMC:
         :param timeout: 
         :return: 
         """
+
+        print("wait for simulations")
         if timeout is None:
             timeout = 0
         elif timeout <= 0:
@@ -285,7 +310,7 @@ class MLMC:
         while n_running > 0:
             n_running = 0
             for level in self.levels:
-                n_running += level.collect_samples(self._pbs)
+                n_running += level.collect_samples()
 
             time.sleep(sleep)
             if timeout > 0 and (time.clock() - t0) > timeout:
@@ -300,6 +325,8 @@ class MLMC:
         :return:
         """
         ranges = np.array([l.sample_range() for l in self.levels])
+        #print("ranges ", ranges)
+
         return np.min(ranges[:,0]), np.max(ranges[:,1])
 
     def subsample(self, sub_samples=None):
@@ -320,6 +347,7 @@ class MLMC:
         :param moments_fn: Vector moment function, gives vector of moments for given sample or sample vector.
         :return: estimate_of_moment_means, estimate_of_variance_of_estimate ; arrays of length n_moments
         """
+
         means = []
         vars = []
         n_samples = []
@@ -343,7 +371,7 @@ class MLMC:
         :return: total cost
         """
         if level_times is None:
-            level_times = [lvl.n_ops_estimate() for lvl in self.levels]
+            level_times = [lvl.n_ops_estimate for lvl in self.levels]
         if n_samples is None:
             n_samples = self.n_samples
         return np.sum(level_times * n_samples)
@@ -363,3 +391,7 @@ class MLMC:
         """
         for level in self.levels:
             level.sample_indices = None
+
+    def load_level_log(self):
+        for level in self.levels:
+            level.load_simulations()

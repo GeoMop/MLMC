@@ -9,6 +9,7 @@ import shutil
 import mlmc.simulation as simulation
 import mlmc.correlated_field as correlated_field
 
+
 # from unipath import Path
 
 class Environment:
@@ -48,6 +49,7 @@ def substitute_placeholders(file_in, file_out, params):
         dst.write(text)
     return used_params
 
+
 def force_mkdir(path, force=False):
     """
     Make directory 'path' with all parents,
@@ -79,7 +81,7 @@ class FlowSim(simulation.Simulation):
     Gather data for single flow call (coarse/fine)
     """
 
-    def __init__(self, mesh_step, config = None, clean=False, parent_fine_sim=None):
+    def __init__(self, mesh_step, level_id=None, config=None, clean=False, parent_fine_sim=None):
         """
 
         :param config: configuration of the simulation, processed keys:
@@ -96,17 +98,23 @@ class FlowSim(simulation.Simulation):
         to 'self' (Sim_c_l+1) as a coarse simulation. Usually Sim_f_l and Sim_c_l+1 are same simulations, but
         these need to be different for advanced generation of samples (zero-mean control and antithetic).
         """
-        self.sim_id = FlowSim.total_sim_id
-        FlowSim.total_sim_id += 1
+        if level_id is not None:
+            self.sim_id = level_id
+        else:
+            self.sim_id = FlowSim.total_sim_id
+            FlowSim.total_sim_id += 1
+
         self.env = config['env']
-        #self.field_config = config['field_name']
+
+        # self.field_config = config['field_name']
         self._fields_inititialied = False
         self._fields = config['fields']
         self.time_factor = config.get('time_factor', 1.0)
         self.base_yaml_file = config['yaml_file']
         self.base_geo_file = config['geo_file']
         self.field_template = config.get('field_template',
-                                            "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}")
+                                         "!FieldElementwise {mesh_data_file: \"$INPUT_DIR$/%s\", field_name: %s}")
+
         self.step = mesh_step
         # Pbs script creater
         self.pbs_creater = self.env["pbs"]
@@ -127,11 +135,15 @@ class FlowSim(simulation.Simulation):
         force_mkdir(self.work_dir, clean)
 
         self.mesh_file = os.path.join(self.work_dir, self.MESH_FILE)
+
+        self.coarse_sim = None
+        self.coarse_sim_set = False
+
         if clean:
             # Prepare mesh
             geo_file = os.path.join(self.work_dir, self.GEO_FILE)
             shutil.copy(self.base_geo_file, geo_file)
-            
+
             # Common computational mesh for all samples.
             self._make_mesh(geo_file, self.mesh_file)
 
@@ -141,7 +153,7 @@ class FlowSim(simulation.Simulation):
             self.yaml_file = os.path.join(self.work_dir, self.YAML_FILE)
             self._substitute_yaml(yaml_template, self.yaml_file)
         self._extract_mesh(self.mesh_file)
-            
+
         super(simulation.Simulation, self).__init__()
 
     def n_ops_estimate(self):
@@ -157,7 +169,7 @@ class FlowSim(simulation.Simulation):
         subprocess.call([self.env['gmsh'], "-2", '-clscale', str(self.step), '-o', mesh_file, geo_file])
 
     def _extract_mesh(self, mesh_file):
-    
+
         mesh = gmsh_io.GmshIO(mesh_file)
         is_bc_region = {}
         self.region_map = {}
@@ -165,7 +177,6 @@ class FlowSim(simulation.Simulation):
             unquoted_name = name.strip("\"'")
             is_bc_region[id] = (unquoted_name[0] == '.')
             self.region_map[unquoted_name] = id
-         
 
         bulk_elements = []
         for id, el in mesh.elements.items():
@@ -202,8 +213,8 @@ class FlowSim(simulation.Simulation):
         :return:
         """
         param_dict = {}
-        #field_tmpl = "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
         field_tmpl = self.field_template
+
         for field_name in self._fields.names:
             param_dict[field_name] = field_tmpl % (self.FIELDS_FILE, field_name)
         param_dict[self.MESH_FILE_VAR] = self.mesh_file
@@ -221,26 +232,22 @@ class FlowSim(simulation.Simulation):
         :param coarse_sim
         """
         self.coarse_sim = coarse_sim
+        self.coarse_sim_set = True
         self.n_fine_elements = len(self.points)
 
-
-      
     def _make_fields(self):
 
-
-
-        if self.coarse_sim is  None:
+        if self.coarse_sim is None:
             self._fields.set_points(self.points, self.point_region_ids, self.region_map)
         else:
             coarse_centers = self.coarse_sim.points
             both_centers = np.concatenate((self.points, coarse_centers), axis=0)
-            both_regions_ids = np.concatenate( (self.point_region_ids, self.coarse_sim.point_region_ids) )
+            both_regions_ids = np.concatenate((self.point_region_ids, self.coarse_sim.point_region_ids))
             assert self.region_map == self.coarse_sim.region_map
             self._fields.set_points(both_centers, both_regions_ids, self.region_map)
-        
 
-            
-            
+        self._fields_inititialied = True
+
     # Needed by Level
     def generate_random_sample(self):
         """
@@ -254,14 +261,8 @@ class FlowSim(simulation.Simulation):
         fields_sample = self._fields.sample()
         self._input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
         if self.coarse_sim is not None:
-            self.coarse_sim._input_sample = {name: values[self.n_fine_elements:, None] for name, values in fields_sample.items()}
-
-    # def get_coarse_sample(self):
-    #     """
-    #     Return coarse part of generated field.
-    #     :return:
-    #     """
-    #     return self._coarse_sample
+            self.coarse_sim._input_sample = {name: values[self.n_fine_elements:, None] for name, values in
+                                             fields_sample.items()}
 
     def simulation_sample(self, sample_tag):
         """
@@ -280,15 +281,17 @@ class FlowSim(simulation.Simulation):
         """
         out_subdir = os.path.join("samples", str(sample_tag))
         sample_dir = os.path.join(self.work_dir, out_subdir)
-        force_mkdir(sample_dir)
+        if not os.path.isdir(sample_dir):
+            force_mkdir(sample_dir)
         fields_file = os.path.join(sample_dir, self.FIELDS_FILE)
-                
+
         gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
 
         # Add flow123d realization to pbs script
         self.pbs_creater.add_realization(self.n_fine_elements, output_subdir=out_subdir,
                                          work_dir=self.work_dir,
                                          flow123d=self.env['flow123d'])
+
         return sample_tag, sample_dir
 
     def extract_result(self, sample_tuple):
@@ -302,7 +305,9 @@ class FlowSim(simulation.Simulation):
         balance data and retun observed values.
         """
         sample_dir = sample_tuple[1]
-        if os.path.exists(os.path.join(sample_dir, "FINISHED")):
+        if os.path.exists(os.path.join(sample_dir, "FINISHED")) \
+                and os.path.exists(os.path.join(sample_dir, "water_balance.yaml")) \
+                and os.stat(os.path.join(sample_dir, "water_balance.yaml")).st_size > 1:
 
             # extract the flux
             balance_file = os.path.join(sample_dir, "water_balance.yaml")

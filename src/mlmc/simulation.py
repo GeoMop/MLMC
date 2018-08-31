@@ -40,10 +40,6 @@ class Simulation:
         # Create new correlated random input for both fine and (related) coarse simulation
         pass
 
-    # def get_coarse_sample(self):
-    #     pass
-
-
     def extract_result(self):
         return self._simulation_result
 
@@ -62,9 +58,8 @@ class Simulation:
     def factory(cls, step_range, **kwargs):
         """
         Create specific simulation
-        :param config: Simulation configuration
-        :param sim_par_range: Tuple or list of two elements, number of
-        :param t_level: Simulation parameter of particular simulation
+        :param step_range: Simulation configuration
+        :param **kwargs: Configuration of simulation
         :return: Particular simulation object
         """
-        return lambda t_level, kw=kwargs : cls(Simulation.log_interpolation(step_range, t_level), **kw)
+        return lambda t_level, level_id, kw=kwargs: cls(Simulation.log_interpolation(step_range, t_level), level_id, **kw)

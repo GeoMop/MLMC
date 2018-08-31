@@ -14,23 +14,25 @@ class Level:
     .. have to reconsider in context of Analysis
     """
 
-    def __init__(self, level_idx, sim_factory, previous_level_sim, precision):
+    def __init__(self, sim_factory, previous_level, precision, logger):
         """
         :param sim_factory: method that create instance of particular simulation class
-        :param previous_level_sim: fine simulation on previous level
-        :param moments_object: object for calculating statistical moments
+        :param previous_level: previous level object
         :param precision: current level number / total number of all levels
+        :param logger: Logger object
         """
-        # Reference to all created simulations.
-        #self.simulations = []
+        self._sim_factory = sim_factory
+        self._precision = precision
+        self._logger = logger
+        self.is_zero_level = (self._logger.level_idx == 0)
+        self._previous_level = previous_level
 
-        self.is_zero_level = (level_idx == 0)
-        self.level_idx = level_idx
-        # Instance of object Simulation
-        self.fine_simulation = sim_factory(precision)
+        self._fine_simulation = None
+        self._coarse_simulation = None
+        self._n_ops_estimate = None
+
+        self.running_from_log = False
         # TODO: coarse_simulation can be different to previous_level_sim if they have same mean value
-        self.coarse_simulation = previous_level_sim
-        self.fine_simulation.set_coarse_sim(self.coarse_simulation)
 
         # Target number of samples for the level
         self.target_n_samples = None
@@ -40,6 +42,7 @@ class Level:
         self.last_moments_eval = None
 
         self.reset()
+        self.load_simulations()
 
     def reset(self):
         # Currently running simulations
@@ -47,7 +50,7 @@ class Level:
         # Collected simulations, all results of simulations. Including Nans and None ...
         self.finished_simulations = []
         # Target number of samples.
-        self.target_n_samples = 5
+        self.target_n_samples = 1
         # Collected samples (array may be partly filled)
         # Without any order, without Nans and inf. Only this is used for estimates.
         self._sample_values = np.empty((self.target_n_samples, 2))
@@ -59,6 +62,54 @@ class Level:
         self.nan_samples = []
         # Cache evaluated moments.
         self._last_moments_fn = None
+
+    @property
+    def fine_simulation(self):
+        if self._fine_simulation is None:
+            self._fine_simulation = self._sim_factory(self._precision, self._logger.level_idx)
+        return self._fine_simulation
+
+    @property
+    def coarse_simulation(self):
+        if self._previous_level is not None and self._coarse_simulation is None:
+            self._coarse_simulation = self._previous_level.fine_simulation
+        return self._coarse_simulation
+
+    def load_simulations(self):
+        """
+        Load finished and running simulations from logs
+        :return: None
+        """
+        finished = set()
+
+        for sim in self._logger.collected_log_content:
+            i_level, i, fine, coarse, value = sim
+            self.finished_simulations.append(sim)
+            self.add_sample(i, value)
+            finished.add((i_level, i))
+
+        # recover running
+        for index, sim in enumerate(self._logger.running_log_content):
+            if len(sim) != 5:
+                # First line contains fine sim n ops estimate
+                if index == 0:
+                    self.n_ops_estimate = sim[0]
+                    # Means that n_ops_estimate is already in log file
+                    self._logger.n_ops_estimate = -1
+                continue
+            i_level, i, fine, coarse, _ = sim
+            if (i_level, i) not in finished:
+                self.running_simulations.append(sim)
+
+        if self.n_ops_estimate is None:
+            self.set_coarse_sim()
+
+        # Running simulations
+        if len(self.running_simulations) > 0:
+            self.collect_samples()
+
+            if len(self.running_simulations) > 0:
+                self.running_from_log = True
 
     def set_target_n_samples(self, n_samples):
         """
@@ -90,7 +141,7 @@ class Level:
             return
         # Enlarge matrix of samples
         if self._n_valid_samples == self._sample_values.shape[0]:
-            self.enlarge_samples(2*self._n_valid_samples)
+            self.enlarge_samples(2 * self._n_valid_samples)
 
         # Add fine and coarse sample
         self._sample_values[self._n_valid_samples, :] = (fine, coarse)
@@ -124,20 +175,46 @@ class Level:
             return len(self.sample_indices)
 
     def _get_sample_tag(self, char):
-        return "L{:02d}_{}_S{:07d}".format(self.level_idx, char, self.n_total_samples)
+        """
+        Create sample tag
+        :param char: 'C' or 'F' depending on the type of simulation
+        :return: str
+        """
+        return "L{:02d}_{}_S{:07d}".format(self._logger.level_idx, char, self.n_total_samples)
 
+    @property
     def n_ops_estimate(self):
         """
-        :return: fine simulation n
+        :return: number of fine sim operations
         """
-        return self.fine_simulation.n_ops_estimate()
+        return self._n_ops_estimate
+
+    @n_ops_estimate.setter
+    def n_ops_estimate(self, n_ops):
+        """
+        Set n ops estimate
+        :param n_ops: number of operations
+        :return: None
+        """
+        if self._logger.n_ops_estimate is None or self._logger.n_ops_estimate > 0:
+            self._n_ops_estimate = n_ops
+            self._logger.n_ops_estimate = n_ops
+
+    def set_coarse_sim(self):
+        """
+        Set coarse sim to fine simulation
+        :return: None
+        """
+        if not self.fine_simulation.coarse_sim_set:
+            self.fine_simulation.set_coarse_sim(self.coarse_simulation)
+            self.n_ops_estimate = self.fine_simulation.n_ops_estimate()
 
     def make_sample_pair(self):
         """
         Generate new random samples for fine and coarse simulation objects
         :return: (fine_sample, coarse_sample); identification tuples for the related fine and coarse sample
         """
-
+        self.set_coarse_sim()
         # All levels have fine simulation
         idx = self.n_total_samples
         self.fine_simulation.generate_random_sample()
@@ -149,15 +226,33 @@ class Level:
         else:
             # Zero level have no coarse simulation.
             coarse_sample = None
-        return [self.level_idx, idx, fine_sample, coarse_sample, None]
+        return [self._logger.level_idx, idx, fine_sample, coarse_sample, None]
 
-    def fill_samples(self, logger):
+    def run_simulations(self):
+        """
+        Run simulations with existing sample directories
+        :return: None
+        """
+        for (_, _, fine_sim, coarse_sim, _) in self.running_simulations:
+            self.set_coarse_sim()
+            # All levels have fine simulation
+            self.fine_simulation.generate_random_sample()
+
+            if self.coarse_simulation is not None:
+                self.coarse_simulation.simulation_sample(coarse_sim[0])
+
+            self.fine_simulation.simulation_sample(fine_sim[0])
+        self.collect_samples()
+
+    def fill_samples(self):
         """
         Generate samples up to target number set through 'set_target_n_samples'.
         Simulations are planed for execution, but sample values are collected in
         :param logger: FlowPbs instance
         :return: None
         """
+        if self.running_from_log:
+            self.run_simulations()
 
         orig_n_running = len(self.running_simulations)
         if self.target_n_samples > self.n_total_samples:
@@ -166,24 +261,23 @@ class Level:
             # Create pair of fine and coarse simulations and add them to list of all running simulations
             while self.n_total_samples < self.target_n_samples:
                 self.running_simulations.append(self.make_sample_pair())
-        # log new simulation pairs
-        logger.log_simulations(self.running_simulations[orig_n_running:])
+                self._logger.log_simulations(self.running_simulations[orig_n_running:])
+                orig_n_running += 1
 
-    def collect_samples(self, logger):
+    def collect_samples(self):
         """
         Extract values for finished simulations.
         :return: Number of simulations to finish yet.
         """
-        # Still running some simulations
-        #logger.check_finished()
         # Loop through pair of running simulations
         orig_n_finised = len(self.finished_simulations)
         new_running = []
+
         for (level, idx, fine_sim, coarse_sim, value) in self.running_simulations:
             try:
                 fine_result = self.fine_simulation.extract_result(fine_sim)
                 fine_done = fine_result is not None
-                
+
                 if self.is_zero_level:
                     coarse_result = 0.0
                     coarse_done = True
@@ -197,7 +291,8 @@ class Level:
                     if np.isnan(coarse_result):
                         coarse_result = np.inf
                     # collect values
-                    self.finished_simulations.append([self.level_idx, idx, fine_sim, coarse_sim, [fine_result, coarse_result]])
+                    self.finished_simulations.append(
+                        [self._logger.level_idx, idx, fine_sim, coarse_sim, [fine_result, coarse_result]])
                     self.add_sample(idx, (fine_result, coarse_result))
                 else:
                     new_running.append([level, idx, fine_sim, coarse_sim, value])
@@ -209,9 +304,8 @@ class Level:
 
         # log new collected simulation pairs
         new_finished = self.finished_simulations[orig_n_finised:]
-        #new_values = self.sample_values[orig_n_finised:, :]
-        #assert len(new_values) >= len(new_finished)
-        logger.log_simulations(new_finished, collected=True)
+
+        self._logger.log_simulations(new_finished, collected=True)
         return len(self.running_simulations)
 
     def subsample(self, size):
@@ -229,7 +323,7 @@ class Level:
         """
 
         # Current moment functions are different from last moment functions
-        #if moments_fn != self._last_moments_fn:
+        # if moments_fn != self._last_moments_fn:
         samples = self.sample_values
 
         # Moments from fine samples
@@ -267,8 +361,11 @@ class Level:
         # Common mask for coarse and fine
         mask_fine_coarse = np.logical_or(mask_fine, mask_coarse)[:, -1]
 
+        self.mask = mask_fine_coarse
+
         # New moments without outliers
-        self.last_moments_eval = self.last_moments_eval[0][~mask_fine_coarse], self.last_moments_eval[1][~mask_fine_coarse]
+        self.last_moments_eval = self.last_moments_eval[0][~mask_fine_coarse], self.last_moments_eval[1][
+            ~mask_fine_coarse]
 
         # Remove outliers also from sample values
         self._sample_values = self._sample_values[:self._n_valid_samples][~mask_fine_coarse]
@@ -282,7 +379,6 @@ class Level:
         :param moments_fn: Moments evaluation function
         :return: tuple (variance vector, length of moments)
         """
-        # n_samples = n_dofs + 1 >= 7 leads to probability 0.9 that estimate is whithin range of 10% error from true variance
         assert self.n_samples > 1
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
@@ -301,12 +397,15 @@ class Level:
     def sample_range(self):
         fine_sample = self.sample_values[:, 0]
         q1, q3 = np.percentile(fine_sample, [25, 75])
-        iqr = 3*(q3 - q1)
+        iqr = q3 - q1
         min_sample = np.min(fine_sample)
-        l = min(min_sample, q1-iqr)
-        if min_sample > 0.0:    # guess that we have positive distribution
+        l = max(min_sample, q1 - 1.5 * iqr)
+        if min_sample > 0.0:  # guess that we have positive distribution
             l = min_sample
-        r = max(np.max(fine_sample), q3+iqr)
+        r = min(np.max(fine_sample), q3 + 1.5 * iqr)
+
+        if l <= 0:
+            l = 1e-15
 
         return l, r
 
