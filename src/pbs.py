@@ -3,7 +3,6 @@ import os.path
 import shutil
 import subprocess
 import glob
-import json
 import numpy as np
 
 
@@ -13,6 +12,7 @@ class Pbs:
         :param work_dir: if None, means no logging and just direct execution.
         :param package_weight:
         :param qsub: string with qsub command.
+        :param clean: bool, if True, create new scripts directory
         """
         # Weight of the single PBS script (putting more small jobs into single PBS job).
         self.package_weight = package_weight
@@ -36,9 +36,10 @@ class Pbs:
                     shutil.rmtree(self.work_dir)
                 os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
 
-    def pbs_common_setting(self, **kwargs):
+    def pbs_common_setting(self, flow_3=False, **kwargs):
         """
         Values for common header of script
+        :param flow_3: use flow123d version 3.0.0
         :param kwargs: dict with params vales
         :return: None
         """
@@ -59,10 +60,10 @@ class Pbs:
                                '#PBS -j oe',
                                '#PBS -o {pbs_output_dir}',
                                '#PBS -e {pbs_output_dir}',
-                               '',
-                               'module use /storage/praha1/home/jan-hybs/modules',
-                               'module load flow123d',
                                '']
+        if flow_3:
+            pbs_header_template.extend(('module use /storage/praha1/home/jan-hybs/modules',
+                                        'module load flow123d', ''))
 
         self.pbs_script_heading = [line.format(**kwargs) for line in pbs_header_template]
         self.clean_script()
@@ -76,8 +77,6 @@ class Pbs:
         """
         assert self.pbs_script is not None
 
-        print("add realization")
-
         lines = [
             'cd {work_dir}',
             'date +%y.%m.%d_%H:%M:%S',
@@ -86,10 +85,6 @@ class Pbs:
             'touch {output_subdir}/FINISHED',
             'rm -f {output_subdir}/flow.out',
             'rm -f {output_subdir}/profiler_info*',
-            'rm -f {output_subdir}/flow_fields*',
-            #'rm -f {output_subdir}/flow123.0.log',
-            #'rm -f {output_subdir}/fields_sample.msh',
-            'rm -f {output_subdir}/water_balance*',
             'echo \\"Finished simulation:\\" \\"{flow123d}\\" \\"{work_dir}\\" \\"{output_subdir}\\"',
             '']
         lines = [line.format(**kwargs) for line in lines]
@@ -102,7 +97,7 @@ class Pbs:
 
     def execute(self):
         """
-        Execute script
+        Execute pbs script
         :return: None
         """
         if self.pbs_script is None:
@@ -111,8 +106,8 @@ class Pbs:
         script_content = "\n".join(self.pbs_script)
         pbs_file = os.path.join(self.work_dir, "package_{:04d}.sh".format(self._package_count))
         self._package_count += 1
-        with open(pbs_file, "w") as f_writer:
-            f_writer.write(script_content)
+        with open(pbs_file, "w") as f:
+            f.write(script_content)
         os.chmod(pbs_file, 0o774)  # Make executable to allow direct call.
         if self.qsub_cmd is None:
             subprocess.call(pbs_file)
@@ -126,7 +121,7 @@ class Pbs:
 
     def clean_script(self):
         """
-        Clean script keep just header
+        Clean script and keep header
         :return: None
         """
         self.pbs_script = self.pbs_script_heading.copy()
@@ -148,6 +143,7 @@ class Pbs:
 
                 for sample_entry in selected_samples:
                     sample_dir = sample_entry.path
+                    print("   ", sample_dir)
                     prof_files = list(glob.iglob(os.path.join(sample_dir, "profiler_*.json")))
                     # assert len(prof_files) == 1, "N: " + str(prof_files)
                     with open(prof_files[-1], 'r') as f:
@@ -158,4 +154,3 @@ class Pbs:
                         break
                 level_times.append(np.mean(np.array(times)))
         return level_times
-

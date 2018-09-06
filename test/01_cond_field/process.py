@@ -20,15 +20,16 @@ import mlmc.simulation
 import mlmc.moments
 import mlmc.distribution
 import pbs
-import src.flow_mc as flow_mc
+import flow_mc as flow_mc
 import mlmc.correlated_field as cf
-import test.test_mlmc
+import test_mlmc
 import scipy as sc
 
 
 class ProcessMLMC:
-    def __init__(self, work_dir):
+    def __init__(self, work_dir, options):
         self.work_dir = os.path.abspath(work_dir)
+        self.mlmc_options = options
         self._serialize = ['work_dir', 'output_dir', 'n_levels', 'step_range']
 
     def get_root_dir(self):
@@ -85,10 +86,10 @@ class ProcessMLMC:
         self.setup_environment()
 
         fields = cf.Fields([
-            cf.Field('conductivity', cf.SpatialCorrelatedField('gauss', dim=2, corr_length=0.125, log=True)),
+            cf.Field('conductivity', cf.FourierSpatialCorrelatedField('gauss', dim=2, corr_length=0.125, log=True)),
         ])
 
-        self.step_range = (1, 0.9)
+        self.step_range = (1, 0.95)
 
         yaml_path = os.path.join(self.work_dir, '01_conductivity.yaml')
         geo_path = os.path.join(self.work_dir, 'square_1x1.geo')
@@ -124,7 +125,7 @@ class ProcessMLMC:
         self.pbs = pbs.Pbs(self.pbs_work_dir,
                            qsub=self.pbs_config['qsub'],
                            clean=clean)
-        self.pbs.pbs_common_setting(**self.pbs_config)
+        self.pbs.pbs_common_setting(flow_3=True, **self.pbs_config)
         # if not clean:
         #     print('read logs')
         #     self.pbs.reload_logs()
@@ -133,12 +134,12 @@ class ProcessMLMC:
 
         flow_mc.FlowSim.total_sim_id = 0
 
-        self.simulation_factory = flow_mc.FlowSim.factory(self.step_range,
+        self.simultion_factory = flow_mc.FlowSim.factory(self.step_range,
                                                          config=self.simulation_config, clean=clean)
 
-        #print("sim factory ", self.simulation_factory(0, 0)
+        self.mlmc_options['output_dir'] = self.output_dir
 
-        self.mc = mlmc.mlmc.MLMC(self.n_levels, self.simulation_factory, self.step_range, self.output_dir)
+        self.mc = mlmc.mlmc.MLMC(self.n_levels, self.simultion_factory, self.step_range, self.mlmc_options)
         if clean:
             # assert ProcessMLMC.is_exe(self.env['flow123d'])
             assert ProcessMLMC.is_exe(self.env['gmsh'])
@@ -164,7 +165,7 @@ class ProcessMLMC:
     def generate_jobs(self, n_samples=None, target_variance=None):
         if n_samples is not None:
             self.mc.set_initial_n_samples(n_samples)
-        self.mc.load_level_log()
+        #self.mc.load_level_log()
         self.mc.refill_samples()
         self.pbs.execute()
         self.mc.wait_for_simulations(sleep=self.sample_sleep, timeout=self.sample_timeout)
@@ -182,15 +183,11 @@ class ProcessMLMC:
 
         pass
 
-
-
     def save(self):
         setup = {}
         for key in self._serialize:
             setup[key] = self.__dict__.get(key, None)
 
-        print("setup", setup)
-        exit()
         with open(self._setup_file, 'w') as f:
             json.dump(setup, f)
 
@@ -464,10 +461,35 @@ def all_collect(mlmc_list):
         print("N running: ", running)
 
 
+def get_arguments(arguments):
+    """
+    Getting arguments from console
+    :param arguments: list of arguments
+    :return: None
+    """
+    import argparse
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('command', choices=['run', 'collect', 'process'], help='Run, collect or process')
+    parser.add_argument('work_dir', help='Work directory')
+    parser.add_argument("-r", "--regen-failed", default=False, action='store_true', help="Regenerate failed samples",)
+    parser.add_argument("-k", "--keep-collected", default=False, action='store_true',
+                        help="Keep sample dirs")
+
+    args = parser.parse_args(arguments)
+
+    return args
+
+
 def main():
+    args = get_arguments(sys.argv[1:])
+
     level_list = [9]
-    command = sys.argv[1]
-    work_dir = os.path.abspath(sys.argv[2])
+    command = args.command
+    work_dir = args.work_dir
+
+    options = {'keep_collected': args.keep_collected,
+               'regen_failed': args.regen_failed}
 
     if command == 'run':
         os.makedirs(work_dir, mode=0o775, exist_ok=True)
@@ -479,10 +501,10 @@ def main():
                 # shutil.copy(file_res.path, work_dir)
 
         mlmc_list = []
-        for nl in [3]:  # , 2, 3, 4,5, 7, 9]:
-            mlmc = ProcessMLMC(work_dir)
+        for nl in [1]:  # , 2, 3, 4,5, 7, 9]:
+            mlmc = ProcessMLMC(work_dir, options)
             mlmc.setup(nl)
-            mlmc.initialize(clean=True)
+            mlmc.initialize(clean=False)
             ns = {
                 1: [7087],
                 2: [14209, 332],
@@ -497,13 +519,13 @@ def main():
             # mlmc.generate_jobs(n_samples=n_samples)
             # mlmc.generate_jobs(n_samples=[10000, 100])
             # mlmc.mc.levels[0].target_n_samples = 1
-            mlmc.generate_jobs(n_samples=[3, 3, 3])#, 1, 1])
+            mlmc.generate_jobs(n_samples=[4])#, 1, 1])
             mlmc_list.append(mlmc)
 
             # for nl in [3,4]:
             # mlmc = ProcessMLMC(work_dir)
             # mlmc.load(nl)
-            # mlmc_list.append(mlmc)
+            # mlmc_list.append(mlmc)  
 
         all_collect(mlmc_list)
 
@@ -511,7 +533,7 @@ def main():
         assert os.path.isdir(work_dir)
         mlmc_list = []
 
-        for nl in [2]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
+        for nl in [4]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
             mlmc = ProcessMLMC(work_dir)
             mlmc.load(nl)
             # mlmc.initialize(clean=False)
@@ -542,6 +564,7 @@ def calculate_var(mlmc_list):
     level_moments = []
     level_moments_var = []
     level_variance_diff = []
+    var_mlmc = []
     n_moments = 5
 
     # get_var_diff(mlmc_list)
@@ -554,16 +577,39 @@ def calculate_var(mlmc_list):
     all_means = []
     var_mlmc_pom = []
     n_levels = []
+    first_level_samples = []
 
     for proc_mlmc in mlmc_list:
         print("mlmc samples ", proc_mlmc.mc.n_samples)
         print("mlmc estimate cost ", proc_mlmc.mc.estimate_cost())
+    exit()
+
+    # for proc_mlmc in mlmc_list[0:2]:
+    #     proc_mlmc.domain = proc_mlmc.mc.estimate_domain()
+    #     moments_fn = proc_mlmc.set_moments(n_moments)
+    #
+    #     proc_mlmc.mc.estimate_moments(moments_fn)
+    #     proc_mlmc.mc.set_target_variance(1e-4, moments_fn)
+    #
+    #     #proc_mlmc.mc.refill_samples()
+    #
+    #     print("n samples ", proc_mlmc.mc.n_samples)
+    #
+    #     for level in proc_mlmc.mc.levels:
+    #         print("level target n samples ", level.target_n_samples)
+    #
+    # exit()
 
     moments = None
     all_results(mlmc_list)
     densities_x = []
     densities = []
 
+    # for proc_mlmc in mlmc_list:
+    #     first_level_samples.append(proc_mlmc.mc.levels[0].sample_values)
+    #
+    #     print("n samples ", proc_mlmc.mc.n_samples)
+    # exit()
     for proc_mlmc in mlmc_list[0:3]:
         level_var_diff = []
 
@@ -658,13 +704,42 @@ def get_var_diff(mlmc_list):
     level_moments = []
     level_moments_var = []
     level_variance_diff = []
+    var_mlmc = []
     n_moments = 8
     number = 10
+
+    level_var_diff = []
+    # all_results(mlmc_list)
+
+    all_variances = []
+    all_means = []
+    var_mlmc_pom = []
     n_levels = []
+
+    first_level_samples = []
+
+    #     proc_mlmc.domain = proc_mlmc.mc.estimate_domain()
+    #     moments_fn = proc_mlmc.set_moments(10)
+    #     proc_mlmc.mc.estimate_moments(moments_fn)
+    #     proc_mlmc.mc.set_target_variance(1e-5, moments_fn)
+    #
+    #     for level in proc_mlmc.mc.levels:
+    #         print("level target n samples ", level.target_n_samples)
+    #
+    # exit()
+
     moments = None
+    # all_results(mlmc_list)
+
     densities_x = []
     densities = []
 
+    # for proc_mlmc in mlmc_list:
+    #     first_level_samples.append(proc_mlmc.mc.levels[0].sample_values)
+    #
+    #     print("n samples ", proc_mlmc.mc.n_samples)
+    # exit()
+    # mlmc_list = mlmc_list[0:2]
     for proc_mlmc in mlmc_list:
         n_levels.append(len(proc_mlmc.mc.levels))
         level_var_diff = []
@@ -742,6 +817,7 @@ def get_var_diff(mlmc_list):
 
     if len(level_moments) > 0:
         level_moments = np.array(level_moments)
+        print("level_moments ", level_moments)
 
         # normality_test(level_moments)
 
@@ -750,6 +826,9 @@ def get_var_diff(mlmc_list):
 
         for l_mom in level_moments:
             test_mlmc.anova(l_mom)
+
+    # print("level variance diff ", level_variance_diff)
+    # print("n levels ", n_levels)
 
     if len(level_variance_diff) > 0:
         test_mlmc.plot_diff_var(level_variance_diff, n_levels)

@@ -113,7 +113,9 @@ class FlowSim(simulation.Simulation):
         self.base_yaml_file = config['yaml_file']
         self.base_geo_file = config['geo_file']
         self.field_template = config.get('field_template',
-                                         "!FieldElementwise {mesh_data_file: \"$INPUT_DIR$/%s\", field_name: %s}")
+                                         "!FieldElementwise {mesh_data_file: $INPUT_DIR$/%s, field_name: %s}")
+
+        # print("init fields template ", self.field_template)
 
         self.step = mesh_step
         # Pbs script creater
@@ -213,10 +215,14 @@ class FlowSim(simulation.Simulation):
         :return:
         """
         param_dict = {}
+        # field_tmpl = "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
         field_tmpl = self.field_template
 
+        # print("field tmpl ", field_tmpl)
+
         for field_name in self._fields.names:
-            param_dict[field_name] = field_tmpl % (self.FIELDS_FILE, field_name)
+            param_dict[field_name] = repl = field_tmpl % (self.FIELDS_FILE, field_name)
+        # param_dict[field_name] = L00_F_S0000000
         param_dict[self.MESH_FILE_VAR] = self.mesh_file
         param_dict[self.TIMESTEP_H1_VAR] = self.time_step_h1
         param_dict[self.TIMESTEP_H2_VAR] = self.time_step_h2
@@ -259,6 +265,7 @@ class FlowSim(simulation.Simulation):
         if not self._fields_inititialied:
             self._make_fields()
         fields_sample = self._fields.sample()
+
         self._input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
         if self.coarse_sim is not None:
             self.coarse_sim._input_sample = {name: values[self.n_fine_elements:, None] for name, values in
@@ -294,47 +301,44 @@ class FlowSim(simulation.Simulation):
 
         return sample_tag, sample_dir
 
-    def extract_result(self, sample_tuple):
+    def _extract_result(self, sample_dir):
         """
         Extract the observed value from the Flow123d output.
         Get sample from the field restriction, write to the GMSH file, call flow.
-        :param fields:
-        :return:
+        :param sample_dir: Sample directory
+        :return: 
 
         TODO: Pass an extraction function as other FlowSim parameter. This function will take the
         balance data and retun observed values.
         """
-        sample_dir = sample_tuple[1]
-        if os.path.exists(os.path.join(sample_dir, "FINISHED")) \
-                and os.path.exists(os.path.join(sample_dir, "water_balance.yaml")) \
-                and os.stat(os.path.join(sample_dir, "water_balance.yaml")).st_size > 1:
+        if os.path.exists(os.path.join(sample_dir, "FINISHED")):
+            try:
+                # extract the flux
+                balance_file = os.path.join(sample_dir, "water_balance.yaml")
+                with open(balance_file, "r") as f:
+                    balance = yaml.load(f)
 
-            # extract the flux
-            balance_file = os.path.join(sample_dir, "water_balance.yaml")
-            with open(balance_file, "r") as f:
-                balance = yaml.load(f)
+                # TODO: we need to move this part out of the library as soon as possible
+                # it has to be changed for every new input file or different observation.
+                # However in Analysis it is already done in general way.
+                flux_regions = ['.bc_outflow']
+                total_flux = 0.0
+                found = False
+                for flux_item in balance['data']:
+                    if flux_item['time'] > 0:
+                        break
 
-            # TODO: we need to move this part out of the library as soon as possible
-            # it has to be changed for every new input file or different observation.
-            # However in Analysis it is already done in general way.
-            flux_regions = ['.bc_outflow']
-            total_flux = 0.0
-            found = False
-            for flux_item in balance['data']:
-                if flux_item['time'] > 0:
-                    break
-
-                if flux_item['region'] in flux_regions:
-                    flux = float(flux_item['data'][0])
-                    flux_in = float(flux_item['data'][1])
-                    if flux_in > 1e-10:
-                        raise Exception("Possitive inflow at outlet region.")
-                    total_flux += flux  # flux field
-                    found = True
-
+                    if flux_item['region'] in flux_regions:
+                        flux = float(flux_item['data'][0])
+                        flux_in = float(flux_item['data'][1])
+                        if flux_in > 1e-10:
+                            raise Exception("Possitive inflow at outlet region.")
+                        total_flux += flux  # flux field
+                        found = True
+            except:
+                return np.inf
             if not found:
-                raise Exception("Observation region not found.")
+                raise np.inf
             return -total_flux
-
         else:
             return None

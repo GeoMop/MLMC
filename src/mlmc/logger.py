@@ -4,7 +4,7 @@ import json
 
 
 class Logger:
-    def __init__(self, level_idx, output_dir=None):
+    def __init__(self, level_idx, output_dir=None, keep_collected=False):
         """
         Level logger
         :param level_idx: int, Level id
@@ -14,6 +14,7 @@ class Logger:
         # Work dir for scripts and PBS files.
         self.output_dir = output_dir
         self.level_idx = level_idx
+        self.keep_collected = keep_collected
 
         # Number of operation for fine simulations
         self.n_ops_estimate = None
@@ -86,11 +87,12 @@ class Logger:
         :param collected: bool, save collected simulations
         :return: None
         """
-
         if self.output_dir is None or not simulations:
             return
         if collected:
             log_file = self.collected_log
+            if not self.keep_collected:
+                self._rm_samples(simulations)
         else:
             log_file = self.running_log
             # n_ops_estimate is already in log file
@@ -103,3 +105,26 @@ class Logger:
             log_file.write(json.dumps(sim))
             log_file.write("\n")
         log_file.flush()
+        
+    def rewrite_collected_log(self, simulations):
+        """
+        Create new collected log 
+        :param simulations: list of simulations
+        :return: None
+        """
+        self.collected_log_ = open(self.log_collected_file, "w")
+        self.log_simulations(simulations, True)
+        
+    def _rm_samples(self, simulations):
+        """
+        Remove collected samples dirs
+        :param simulations: 
+        :return: None
+        """
+        for sim in simulations:
+            _, _, fine, coarse, _ = sim
+            if coarse is not None and os.path.isdir(coarse[1]):
+                shutil.rmtree(coarse[1], ignore_errors=True)
+            if os.path.isdir(fine[1]):
+                shutil.rmtree(fine[1], ignore_errors=True)
+

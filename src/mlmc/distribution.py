@@ -120,6 +120,7 @@ class Distribution:
         else:
             print("Res: {}", np.linalg.norm(result.fun))
             print(result.message)
+
         return result
 
     def _initialize_params(self, tol=None):
@@ -140,14 +141,17 @@ class Distribution:
     def _iteration_monitor(self, x, f):
         print("Norm: {} x: {}".format(np.linalg.norm(f), x))
 
-    def density(self, value):
+    def density(self, value, moments_fn=None):
         """
         :param value: float or np.array
+        :param moments_fn: counting moments function
         :return: density for passed value
-        TODO:
         """
-        moments = self.moments_fn(value)
-        return np.exp(- np.sum(moments * self.multipliers, axis=1))
+        if moments_fn is None:
+            moments = self.moments_fn(value)
+        else:
+            moments = moments_fn(value)
+        return np.exp(-np.sum(moments * self.multipliers, axis=1))
 
     def cdf(self, values):
         values = np.atleast_1d(values)
