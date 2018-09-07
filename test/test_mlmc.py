@@ -283,25 +283,9 @@ class TestMLMC:
 
     def generate_samples(self, size):
         # generate samples
-        n_samples = []
-        # for _ in range(20):
-        self.mc.clean_levels()
-
         self.mc.set_initial_n_samples(self.n_levels*[size])
         self.mc.refill_samples()
         self.mc.wait_for_simulations()
-
-            # print("initial N ", self.mc.n_samples)
-            # #print("estimate moments ", self.mc.estimate_moments(self.moments_fn))
-            #
-            # self.mc.set_target_variance(1e-5, self.moments_fn)
-            # self.mc.refill_samples()
-            # self.mc.wait_for_simulations()
-            #
-            # print("N ", self.mc.n_samples)
-            # print("estimate moments ", self.mc.estimate_moments(self.moments_fn))
-            #
-            # n_samples.append(self.mc.n_samples)
 
 
     # @staticmethod
@@ -986,16 +970,16 @@ def test_var_estimate():
     """
     #np.random.seed(3)
     n_levels = [1, 2, 3, 5, 7]
-    n_moments = [8]
+    n_moments = [5]
 
     distr = [
         (stats.norm(loc=1, scale=2), False, '_sample_fn'),
         (stats.lognorm(scale=np.exp(5), s=1), True, '_sample_fn'),            # worse conv of higher moments
-         (stats.lognorm(scale=np.exp(-5), s=1), True, '_sample_fn_basic'),
+        (stats.lognorm(scale=np.exp(-5), s=1), True, '_sample_fn_basic'),
         (stats.chi2(df=10), True, '_sample_fn'),
-         (stats.weibull_min(c=20), True, '_sample_fn_basic'),   # Exponential
-         (stats.weibull_min(c=1.5), True, '_sample_fn'),  # Infinite derivative at zero
-         (stats.weibull_min(c=3), True, '_sample_fn_basic')    # Close to normal
+        (stats.weibull_min(c=20), True, '_sample_fn_basic'),   # Exponential
+        (stats.weibull_min(c=1.5), True, '_sample_fn'),  # Infinite derivative at zero
+        (stats.weibull_min(c=3), True, '_sample_fn_basic')    # Close to normal
         ]
 
     level_moments_mean = []
@@ -1013,31 +997,16 @@ def test_var_estimate():
                 all_means = []
                 var_mlmc_pom = []
                 for i in range(number):
-                    moments = []
-                    for k in range(10):
-                        mc_test = TestMLMC(nl, nm, d, il, sim)
-                        # number of samples on each level
-                        mc_test.generate_samples(1000)
-
-                        #mc_test.mc.clean_levels()
-                        # mc_test.mc.set_initial_n_samples()
-                        # mc_test.mc.refill_samples()
-                        # mc_test.mc.wait_for_simulations()
-                        #
-                        # # print("estimate moments ", self.mc.estimate_moments(self.moments_fn))
-                        #
-                        # mc_test.mc.set_target_variance(1e-5, mc_test.moments_fn)
-                        # mc_test.mc.refill_samples()
-                        # mc_test.mc.wait_for_simulations()
-
-                        # Moments as tuple (means, vars)
-                        moments.append(mc_test.mc.estimate_moments(mc_test.moments_fn))
-
-                    moments = np.mean(moments, axis=0)
+                    mc_test = TestMLMC(nl, nm, d, il, sim)
+                    # number of samples on each level
+                    mc_test.generate_samples(1000)
+                    # Moments as tuple (means, vars)
+                    moments = mc_test.mc.estimate_moments(mc_test.moments_fn)
 
                     # Remove first moment
                     moments = moments[0][1:], moments[1][1:]
 
+                    # level_var_diff.append(var_subsample(moments, mc_test))
                     # mc_test = TestMLMC(nl, nm, d, il, sim)
                     # # number of samples on each level
                     # mc_test.mc.set_initial_n_samples(nl * [1000])
