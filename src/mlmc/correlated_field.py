@@ -1,3 +1,5 @@
+from __future__ import division, absolute_import, print_function
+
 import numpy as np
 import numpy.linalg as la
 import scipy as sp
@@ -98,7 +100,7 @@ class Field:
         if type(field) in [float, int]:
             self.const = field
             assert len(param_fields) == 0
-        elif type(field) is SpatialCorrelatedField:
+        elif type(field) in [SpatialCorrelatedField, FourierSpatialCorrelatedField]:
             self.correlated_field = field
             assert len(param_fields) == 0
         else:
@@ -106,7 +108,7 @@ class Field:
 
             # check callable
             try:
-                params = [ np.ones(2) for i in range(len(param_fields))]
+                params = [np.ones(2) for i in range(len(param_fields))]
                 field(*params)
             except:
                 raise Exception("Invalid field function for field: {}".format(name))
@@ -365,6 +367,7 @@ class SpatialCorrelatedField:
         :return: None.
         """
         assert self.points is not None, "Points not set, call set_points."
+
         self._points_bbox = box = (np.min(self.points, axis=0), np.max(self.points, axis=0))
         diameter = np.max(np.abs(box[1] - box[0]))
         self._relative_corr_length = self._max_corr_length / diameter
@@ -372,7 +375,7 @@ class SpatialCorrelatedField:
         # sigma_sqr_mat = np.outer(self.sigma, self.sigma.T)
         self._sigma_sqr_max = np.max(self.sigma) ** 2
         n_pt = len(self.points)
-        self.cov_mat = np.empty( (n_pt, n_pt))
+        self.cov_mat = np.empty((n_pt, n_pt))
         corr_exp = self.correlation_exponent / 2.0
         exp_scale = - 1.0 / self.correlation_exponent
 
@@ -477,8 +480,243 @@ class SpatialCorrelatedField:
         return np.exp(field)
 
 
-# =====================================================================
-# Example:
-"""
-"""
+class FourierSpatialCorrelatedField(SpatialCorrelatedField):
+    """
+    Generate spatial random fields
+    """
 
+    def __init__(self, corr_exp='gauss', dim=2, corr_length=1.0,
+                 aniso_correlation=None, mu=0.0, sigma=1.0, log=False, len_scale=4):
+        """
+        :param corr_exp: 'gauss', 'exp' or a float (should be >= 1)
+        :param dim: dimension of the domain (size of point coords)
+        :param corr_length: scalar, correlation length L > machine epsilon; tensor K = (1/L)^2
+        :param aniso_correlation: 3x3 array; K tensor, overrides correlation length
+        :param mu - mu field (currently just a constant)
+        :param sigma - sigma field (currently just a constant)
+        """
+        self.dim = dim
+        self.log = log
+
+        self.len_scale = len_scale
+
+        if corr_exp == 'gauss':
+            self.correlation_exponent = 2.0
+        elif corr_exp == 'exp':
+            self.correlation_exponent = 1.0
+        else:
+            self.correlation_exponent = float(corr_exp)
+
+        if aniso_correlation is None:
+            assert corr_length > np.finfo(float).eps
+            self.correlation_tensor = np.eye(dim, dim) * (1 / (corr_length ** 2))
+            self._max_corr_length = corr_length
+        else:
+            self.correlation_tensor = aniso_correlation
+            self._max_corr_length = la.norm(aniso_correlation, ord=2)  # largest eigen value
+
+        #### Attributes set through `set_points`.
+        self.points = None
+        # Evaluation points of the field.
+        self.mu = mu
+        # Mean in points. Or scalar.
+        self.sigma = sigma
+        # Standard deviance in points. Or scalar.
+
+    def set_points(self, points, mu=None, sigma=None):
+        """
+        :param points: N x d array. Points X_i where the field will be evaluated. d is the dimension.
+        :param mu: Scalar or N array. Mean value of uncorrelated field: E( F(X_i)).
+        :param sigma: Scalar or N array. Standard deviance of uncorrelated field: sqrt( E ( F(X_i) - mu_i )^2 )
+        :return: None
+        """
+        points = np.array(points, dtype=float)
+
+        assert len(points.shape) >= 1
+        assert points.shape[1] == self.dim
+        self.n_points, self.dimension = points.shape
+        self.points = points
+
+        self.mode_no = len(self.points)
+
+        if mu is not None:
+            self.mu = mu
+        self.mu = np.array(self.mu, dtype=float)
+        assert self.mu.shape == () or self.mu.shape == (len(points),)
+
+        if sigma is not None:
+            self.sigma = sigma
+        self.sigma = np.array(self.sigma, dtype=float)
+        assert self.sigma.shape == () or sigma.shape == (len(points),)
+
+    def get_Z(self):
+        """
+        Normal distributed arrays
+        :return: np.ndarray
+        """
+        Z = np.empty((2, self.mode_no))
+        rng = self._get_random_stream()
+        for i in range(2):
+            Z[i] = rng.normal(size=self.mode_no)
+
+        return Z
+
+    def gau(self):
+        """
+        the Fourier samples from gaussian distribution
+        :return: np.ndarray
+        """
+
+        if self.mode_no is None:
+            k = np.empty(self.dim)
+        else:
+            k = np.empty((self.dim, self.mode_no))
+
+        for d in range(self.dim):
+            rng = self._get_random_stream()
+            k[d] = rng.normal(0., 1. / self.len_scale, self.mode_no)
+        return k
+
+    def _get_random_stream(self, seed=2):
+        return rand.RandomState(rand.RandomState(seed).random_integers(2 ** 16 - 1))
+
+    def random_field(self):
+        """
+        Calculates the random modes for the randomization method.
+        """
+        y, z = None, None
+        if self.dim == 1:
+            x = self.points
+            x.reshape(len(x), 1)
+        elif self.dim == 2:
+            x, y = self.points.T
+            x = x.reshape(len(x), 1)
+            y = y.reshape(len(y), 1)
+        else:
+            x, y, z = self.points.T
+            x = x.reshape(len(x), 1)
+            y = y.reshape(len(y), 1)
+            z = z.reshape(len(z), 1)
+
+        Z = self.get_Z()
+        k = self.gau()
+
+        # reshape for unstructured grid
+        for dim_i in range(self.dim):
+            k[dim_i] = np.squeeze(k[dim_i])
+            k[dim_i] = np.reshape(k[dim_i], (1, len(k[dim_i])))
+
+        summed_modes = np.broadcast(x, y, z)
+        summed_modes = np.squeeze(np.zeros(summed_modes.shape))
+        # Test to see if enough memory is available.
+        # In case there isn't, divide Fourier modes into smaller chunks
+        chunk_no = 1
+        chunk_no_exp = 0
+
+        while True:
+            try:
+                chunk_len = int(np.ceil(self.mode_no / chunk_no))
+
+                for chunk in range(chunk_no):
+                    a = chunk * chunk_len
+                    # In case k[d,a:e] with e >= len(k[d,:]) causes errors in
+                    # numpy, use the commented min-function below
+                    # e = min((chunk + 1) * chunk_len, self.mode_no-1)
+                    e = (chunk + 1) * chunk_len
+
+                    if self.dim == 1:
+                        phase = k[0, a:e]*x
+                    elif self.dim == 2:
+                        phase = k[0, a:e]*x + k[1, a:e]*y
+                    else:
+                        phase = (k[0, a:e]*x + k[1, a:e]*y +
+                                 k[2, a:e]*z)
+
+                    summed_modes += np.squeeze(
+                        np.sum(Z[0, a:e] * np.cos(2.*np.pi*phase) +
+                               Z[1, a:e] * np.sin(2.*np.pi*phase),
+                               axis=-1))
+            except MemoryError:
+                chunk_no += 2**chunk_no_exp
+                chunk_no_exp += 1
+                print('Not enough memory. Dividing Fourier modes into {} '
+                      'chunks.'.format(chunk_no))
+            else:
+                break
+
+        #field = np.sqrt(1. / self.mode_no) * summed_modes
+        field = np.sqrt(2*self.sigma) * summed_modes
+        return self.mu + np.sqrt(self.sigma) * field
+
+    def svd_dcmp(self, precision=0.01, n_terms_range=(1, np.inf)):
+        """
+        Does decomposition of covariance matrix defined by set of points
+        :param precision: Desired accuracy of the KL approximation, smaller eigen values are dropped.
+        :param n_terms_range: (min, max) number of terms in KL expansion to use. The number of terms estimated from
+        given precision is snapped to the given interval.
+
+        truncated SVD:
+         cov_mat = U*diag(ev) * V,
+         cov_l_factor = U[:,0:m]*sqrt(ev[0:m])
+
+        Note on number of terms:
+        According to: C. Schwab and R. A. Todor: KL Approximation of Random Fields by Generalized Fast Multiploe Method
+        the eigen values should decay as (Proposition 2.18):
+            lambda_m ~ sigma^2 * ( 1/gamma ) **( m**(1/d) + alpha ) / Gamma(0.5 * m**(1/d) )
+        where gamma = correlation length / domain diameter
+        ans alpha is the correlation exponent. Gamma is the gamma function.
+        ... should be checked experimantaly and generalized for sigma(X)
+
+        :return:
+        """
+
+        return None
+        # if self.cov_mat is None:
+        #     self.cov_matrix()
+        #
+        # if n_terms_range[0] >= self.n_points:
+        #     U, ev, VT = np.linalg.svd(self.cov_mat)
+        #     m = self.n_points
+        # else:
+        #     range = list(n_terms_range)
+        #     range[0] = max(1, range[0])
+        #     range[1] = min(self.n_points, range[1])
+        #
+        #     prec_range = (self._eigen_value_estimate(range[0]), self._eigen_value_estimate(range[1]))
+        #     if precision < prec_range[0]:
+        #         m = range[0]
+        #     elif precision > prec_range[1]:
+        #         m = range[1]
+        #     else:
+        #         f = lambda m: self._eigen_value_estimate(m) - precision
+        #         m = sp.optmize.bisect(f, range[0], range[1], xtol=0.5, )
+        #
+        #     m = max(m, range[0])
+        #     threshold = 2 * precision
+        #     # TODO: Test if we should cut eigen values by relative (like now) or absolute value
+        #     while threshold >= precision and m <= range[1]:
+        #         # print("treshold: {} m: {} precision: {} max_m: {}".format(threshold,  m, precision, range[1]))
+        #         U, ev, VT = randomized_svd(self.cov_mat, n_components=m, n_iter=3, random_state=None)
+        #         threshold = ev[-1] / ev[0]
+        #         m = int(np.ceil(1.5 * m))
+        #
+        #     m = len(ev)
+        #     m = min(m, range[1])
+        #
+        # # print("KL approximation: {} for {} points.".format(m, self.n_points))
+        # self.n_approx_terms = m
+        # self._sqrt_ev = np.sqrt(ev[0:m])
+        # self._cov_l_factor = U[:, 0:m].dot(sp.diag(self._sqrt_ev))
+        # self.cov_mat = None
+        # return self._cov_l_factor, ev[0:m]
+
+    def sample(self):
+        """
+        :return: Random field evaluated in points given by 'set_points'.
+        """
+
+        field = self.random_field()
+
+        if not self.log:
+            return field
+        return np.exp(field)
