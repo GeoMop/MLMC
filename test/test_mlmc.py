@@ -985,7 +985,7 @@ def test_var_estimate():
     :return: None
     """
     #np.random.seed(3)
-    n_levels = [1, 2, 3, 5, 7, 9]
+    n_levels = [1, 2, 3, 5, 7]
     n_moments = [8]
 
     distr = [
@@ -1061,7 +1061,7 @@ def test_var_estimate():
                 vars = np.mean(all_variances, axis=0)
                 var_mlmc.append(np.mean(var_mlmc_pom, axis=0))
 
-                all(means[index] + vars[index] >= exact_mom >= means[index] - vars[index]
+                assert all(means[index] + vars[index] >= exact_mom >= means[index] - vars[index]
                            for index, exact_mom in enumerate(exact_moments))
 
                 if len(level_var_diff) > 0:
