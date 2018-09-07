@@ -31,7 +31,7 @@ class Logger:
             self.log_running_file = os.path.join(self.output_dir, "running_log_{:d}.json".format(self.level_idx))
             self.log_collected_file = os.path.join(self.output_dir, "collected_log_{:d}.json".format(self.level_idx))
 
-        self.reload_logs()
+            self.reload_logs()
 
     @property
     def running_log(self):

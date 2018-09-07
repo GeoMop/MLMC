@@ -293,14 +293,14 @@ class Level:
         # Loop through pair of running simulations
         for (level, idx, fine_sim, coarse_sim, value) in self.running_simulations:
 
-            fine_result = self.fine_simulation.extract_result(fine_sim[1])
+            fine_result = self.fine_simulation.extract_result(fine_sim if isinstance(fine_sim, str) else fine_sim[1])
             fine_done = fine_result is not None
 
             if self.is_zero_level:
                 coarse_result = 0.0
                 coarse_done = True
             else:
-                coarse_result = self.coarse_simulation.extract_result(coarse_sim[1])
+                coarse_result = self.coarse_simulation.extract_result(coarse_sim if isinstance(coarse_sim, str) else coarse_sim[1])
                 coarse_done = coarse_result is not None
 
             if fine_done and coarse_done:

@@ -40,6 +40,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         self.step = step
         self._result_dict = {}
         self._coarse_simulation = None
+        self.coarse_sim_set = False
 
     def _sample_fn(self, x, h):
         """
@@ -102,6 +103,7 @@ class SimulationTest(mlmc.simulation.Simulation):
 
     def set_coarse_sim(self, coarse_simulation=None):
         self._coarse_simulation = coarse_simulation
+        self.coarse_sim_set = True
 
     def extract_result(self, sim_id):
         return self._result_dict[sim_id]
@@ -118,6 +120,7 @@ def impl_var_estimate(n_levels, n_moments, target_var, distr, is_log=False):
     #     q1,q3 = distr.ppf([0.25, 0.75])
     #     iqr = 2*(q3-q1)
     #     domain = [q1 - iqr, q3 + iqr ]
+
 
     step_range = (0.8, 0.01)
     mc, sims = make_simulation_mc(step_range, distr, n_levels)
@@ -209,7 +212,10 @@ class TestMLMC:
         simulation_config = dict(distr=self.distr, complexity=2, nan_fraction=0, sim_method=sim_method)
         simultion_factory = SimulationTest.factory(step_range, config=simulation_config)
 
-        mc = mlmc.mlmc.MLMC(self.n_levels, simultion_factory, step_range)
+        mlmc_options = {'output_dir': None,
+                        'keep_collected': True,
+                        'regen_failed': False}
+        mc = mlmc.mlmc.MLMC(self.n_levels, simultion_factory, step_range, mlmc_options)
         sims = [level.fine_simulation for level in mc.levels]
         return mc, sims
 
@@ -796,7 +802,7 @@ def _test_shooting():
             all_means = []
             var_mlmc_pom = []
             for i in range(number):
-                pbs = pbs.Pbs()
+                pbs = pb.Pbs()
                 simulation_factory = SimulationShooting.factory(step_range, config=config)
                 mc = mlmc.mlmc.MLMC(nl, simulation_factory, pbs)
                 moments_fn = mlmc.moments.Legendre(nm, true_domain, False)
@@ -1220,7 +1226,7 @@ def test_save_load_samples():
     n_levels = 5
     distr = stats.norm()
     step_range = (0.8, 0.01)
-    pbs = pbs.Pbs(work_dir=work_dir, clean=True)
+    pbs = pb.Pbs(work_dir=work_dir, clean=True)
     simulation_config = dict(
         distr= distr, complexity=2, nan_fraction=0.1, sim_method='_sample_fn')
     simulation_factory = SimulationTest.factory(step_range, config=simulation_config)
@@ -1244,7 +1250,7 @@ def test_save_load_samples():
     mc.clean_levels()
     pbs.close()
     # New mlmc
-    pbs = pbs.Pbs(work_dir=work_dir)
+    pbs = pb.Pbs(work_dir=work_dir)
     #pbs.reload_logs()
     mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, pbs)
 

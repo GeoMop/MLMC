@@ -1,6 +1,7 @@
 import numpy as np
 import os.path
 import json
+import shutil
 from mlmc.mc_level import Level
 import time
 from mlmc.logger import Logger
@@ -37,7 +38,8 @@ class MLMC:
         # Setup file params
         self._setup_params = ['output_dir', 'n_levels', 'step_range']
         # Create setup file with params
-        self._setup()
+        if process_options['output_dir'] is not None:
+            self._setup()
         # Create mlmc levels
         self.create_levels(n_levels)
 
