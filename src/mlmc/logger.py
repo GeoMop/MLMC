@@ -59,7 +59,6 @@ class Logger:
                 if len(lines) > 0:
 
                     for line in lines:
-                        print(line)
                         json.loads(line)
                     self.collected_log_content = [json.loads(line) for line in lines]
         except FileNotFoundError:

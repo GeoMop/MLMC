@@ -1187,19 +1187,19 @@ def test_save_load_samples():
     # 4. create new mlmc object
     # 5. read stored data
     # 6. check that they match the reference copy
-
-    #print("var: ", distr.var())
-    work_dir = '_test_tmp'
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
 
     n_levels = 5
     distr = stats.norm()
     step_range = (0.8, 0.01)
-    pbs = pb.Pbs(work_dir=work_dir, clean=True)
     simulation_config = dict(
         distr= distr, complexity=2, nan_fraction=0.1, sim_method='_sample_fn')
     simulation_factory = SimulationTest.factory(step_range, config=simulation_config)
-    mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, pbs)
+
+    mlmc_options = {'output_dir': work_dir,
+                    'keep_collected': True,
+                    'regen_failed': False}
+    mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
     mc.set_initial_n_samples()
     mc.refill_samples()
     mc.wait_for_simulations()
@@ -1214,14 +1214,10 @@ def test_save_load_samples():
                    level.sample_values)
         assert not np.isnan(level.sample_values).any()
         level_data.append(l_data)
-
-
     mc.clean_levels()
-    pbs.close()
+
     # New mlmc
-    pbs = pb.Pbs(work_dir=work_dir)
-    #pbs.reload_logs()
-    mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, pbs)
+    mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
 
     check_estimates_for_nans(mc, distr)
 
@@ -1267,6 +1263,7 @@ if __name__ == '__main__':
     #test_save_load_samples()
     #var_subsample_independent()
     # exit()
-    test_var_estimate()
+    test_save_load_samples()
+    #test_var_estimate()
     #_test_shooting()
 
