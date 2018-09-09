@@ -2,6 +2,7 @@ from __future__ import division, absolute_import, print_function
 
 import numpy as np
 import numpy.linalg as la
+import numpy.random as rand
 import scipy as sp
 import copy
 from sklearn.utils.extmath import randomized_svd
@@ -537,7 +538,7 @@ class FourierSpatialCorrelatedField(SpatialCorrelatedField):
         self.n_points, self.dimension = points.shape
         self.points = points
 
-        self.mode_no = len(self.points)
+        self.mode_no = 100
 
         if mu is not None:
             self.mu = mu
@@ -577,7 +578,7 @@ class FourierSpatialCorrelatedField(SpatialCorrelatedField):
             k[d] = rng.normal(0., 1. / self.len_scale, self.mode_no)
         return k
 
-    def _get_random_stream(self, seed=2):
+    def _get_random_stream(self, seed=None):
         return rand.RandomState(rand.RandomState(seed).random_integers(2 ** 16 - 1))
 
     def random_field(self):
@@ -600,6 +601,7 @@ class FourierSpatialCorrelatedField(SpatialCorrelatedField):
 
         Z = self.get_Z()
         k = self.gau()
+
 
         # reshape for unstructured grid
         for dim_i in range(self.dim):
@@ -644,9 +646,8 @@ class FourierSpatialCorrelatedField(SpatialCorrelatedField):
             else:
                 break
 
-        #field = np.sqrt(1. / self.mode_no) * summed_modes
-        field = np.sqrt(2*self.sigma) * summed_modes
-        return self.mu + np.sqrt(self.sigma) * field
+        field = np.sqrt(1. / self.mode_no) * summed_modes
+        return self.mu + np.sqrt(self.sigma**2) * field
 
     def svd_dcmp(self, precision=0.01, n_terms_range=(1, np.inf)):
         """
@@ -714,7 +715,6 @@ class FourierSpatialCorrelatedField(SpatialCorrelatedField):
         """
         :return: Random field evaluated in points given by 'set_points'.
         """
-
         field = self.random_field()
 
         if not self.log:
