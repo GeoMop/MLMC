@@ -67,7 +67,9 @@ class FlowSim(simulation.Simulation):
     # placeholders in YAML
     total_sim_id = 0
     MESH_FILE_VAR = 'mesh_file'
+    # Timestep placeholder given as O(h), h = mesh step
     TIMESTEP_H1_VAR = 'timestep_h1'
+    # Timestep placeholder given as O(h^2), h = mesh step
     TIMESTEP_H2_VAR = 'timestep_h2'
 
     # files
