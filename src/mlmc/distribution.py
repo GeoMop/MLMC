@@ -1,12 +1,17 @@
 import numpy as np
 import scipy as sc
 import scipy.integrate as integrate
+import scipy.stats as stats
 
 class Distribution:
     """
     Calculation of the distribution
+    TODO:
+    - moments estimates must ignore outlayers, just count fraction of them
+    - use mean and variance estimate (Monomials), to estimate the domain
+    - 
     """
-    def __init__(self, moments_obj, moment_data, is_positive = False):
+    def __init__(self, moments_obj, moment_data, mean, std, is_positive = False):
         """
         :param moments_fn: Function for calculating moments
         :param moment_data: Array  of moments or tuple (moments, variance).
@@ -25,6 +30,7 @@ class Distribution:
         self.moment_means = moment_data[:, 0]
         self.moment_vars = moment_data[:, 1]
 
+        self.ref_norm_distr = stats.norm(loc=mean, scale= std)
 
         # Force density with positive support.
         self.is_positive = is_positive
@@ -71,6 +77,7 @@ class Distribution:
         pass
 
 
+
     def estimate_density(self, tol=None):
         """
         Run nonlinear iterative solver to estimate density, use previous solution as initial guess.
@@ -81,9 +88,10 @@ class Distribution:
             self.domain = (max(0.0, self.domain[0]), self.domain[1])
 
         #self.moments_fn = lambda x, size=self.approx_size, a=self.domain[0], b=self.domain[1] : self.moments_basis(x, size, a, b)
-        self._n_quad_points = 20 * self.approx_size
+        # tODO: How to choose number of QP, solution is quite sensitive to it
+        self._n_quad_points = 200 * self.approx_size
 
-
+        self.restricted_moments = self.approx_size
         assert tol is not None
         if self.multipliers is None:
             self.multipliers = np.ones(self.approx_size)
@@ -91,18 +99,29 @@ class Distribution:
 
 
         result = sc.optimize.root(
+            # Seems that system may have more inexact solutions as different methods
+            method='hybr', # Best method of the package. Still need to introduce kind of regularisation to prevent oscilatory solutions.
+            #method='lm', # better but when osciation appears it become even worse, posibly need some stabilization term,
+            #method='broyden1', # Fails
+            #method='broyden2',  # Fails
+            #method='anderson', # Severe oscilations.
+
             fun=self._calculate_moments_approximation,
             x0=self.multipliers,
             jac=self._calculate_jacobian_matrix,
             tol=tol,
             callback = self._iteration_monitor
         )
+        #result = sc.optimize.minimize
 
+            #print(result)
         if result.success:
             self.multipliers = result.x
         else:
+            print("Failed to converge.")
             print("Res: {}", np.linalg.norm(result.fun))
             print(result.message)
+
         return result
 
     def _iteration_monitor(self, x, f):
@@ -138,6 +157,11 @@ class Distribution:
             cdf_y[i] = last_y    
         return cdf_y    
 
+    def _calculate_cost_functional(self, approx):
+        cost = np.sum(0.5 * self._calculate_moments_approximation(approx)**2 / self.moment_vars[:self.restricted_moments])
+        + 0.01 * KL_divergence(self.ref_norm_distr, self.density, self.domain[0], self.domain[1])
+        return cost
+
     def _calculate_moments_approximation(self, approx):
         """
         :param lagrangians: array, lagrangians parameters
@@ -145,26 +169,27 @@ class Distribution:
         """
 
         def integrand(value, lg=approx):
-            moments =  self.moments_fn(value)
+            moments =  self.moments_fn(value)[:, :self.restricted_moments]
             density = np.exp( - np.sum(moments * lg, axis=1))
             return moments.T * density
 
 
         integral = sc.integrate.fixed_quad(integrand, self.domain[0], self.domain[1],
                                                 n=self._n_quad_points)
-        return (integral[0] - self.moment_means)
+
+        return (integral[0] - self.moment_means[:self.restricted_moments])
 
     def _calculate_jacobian_matrix(self, lagrangians):
         """
         :param lagrangians: np.array, lambda
         :return: jacobian matrix, symmetric,
         """
-        triu_idx = np.triu_indices(self.approx_size)
+        triu_idx = np.triu_indices(self.restricted_moments)
         def integrand(value, lg=lagrangians, triu_idx = triu_idx):
             """
             Upper triangle of the matrix, flatten.
             """
-            moments =  self.moments_fn(value)
+            moments =  self.moments_fn(value)[:, :self.restricted_moments]
             density = np.exp( - np.sum(moments * lg, axis=1))
             moment_outer = np.einsum('ki,kj->ijk', moments, moments)
             triu_outer = moment_outer[triu_idx[0], triu_idx[1], :]
@@ -175,7 +200,7 @@ class Distribution:
 
         integral = sc.integrate.fixed_quad(integrand, self.domain[0], self.domain[1],
                                            n=self._n_quad_points)
-        jacobian_matrix = np.empty(shape=(self.approx_size, self.approx_size))
+        jacobian_matrix = np.empty(shape=(self.restricted_moments, self.restricted_moments))
         jacobian_matrix[triu_idx[0], triu_idx[1]] = -integral[0]
         jacobian_matrix[triu_idx[1], triu_idx[0]] = -integral[0]
         return jacobian_matrix

@@ -520,10 +520,12 @@ class ProcessMLMC:
         # Distribution approximation
 
         moments_data = np.stack( (self.ref_moments, self.ref_vars), axis=1)
-        self.distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data)
+        ref_mean, ref_var = self.mc.estimate_norm_approx()
+
+        self.distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data, ref_mean, ref_var)
         self.distr_obj.domain = self.domain
-        result = self.distr_obj.estimate_density(tol=0.00001)
-        #print(result)
+        result = self.distr_obj.estimate_density(tol=0.001)
+        print(result)
 
         n_loops = 0
 

@@ -452,7 +452,6 @@ def test_var_estimate():
         #,(stats.weibull_min(c=1), True)    # Exponential
         #,(stats.weibull_min(c=1.5), True)  # Infinite derivative at zero
         #,(stats.weibull_min(c=3), True)    # Close to normal
-        #,(stats.alpha(a=0.5), True),  # infinite mean, distribution of 1/Y if Y is Norm(mu, sig); a=mu/sig
         ]
     #statprof.start()
 
