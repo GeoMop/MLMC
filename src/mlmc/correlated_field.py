@@ -5,59 +5,12 @@ import copy
 from sklearn.utils.extmath import randomized_svd
 
 
-# class FieldSet:
-#     """
-#     A set of cross correlated named correlated fields.
-#     Currently just a wrapper of a single named field.
-#     TODO, questions:
-#     - mu, and sigma for individual fields can not be set via set_points method
-#       as we need the field set to be shared for different meshes. We have to introduce a kind of continuous
-#       field that can be evaluated at any point.
-#     - we can not make hard wired model for any field set so this should be a base class that
-#       defines an interface and common methods but evaluation of the feild set is case dependent
-#     """
-#
-#     def __init__(self, name, field):
-#         self._back_fields = [field]
-#         # List of backend fields that are independent. We always have to
-#         # decompose resulting fields as functions of the independent fields.
-#
-#         self.field_names = [name]
-#         self.length = 0
-#
-#     def names(self):
-#         """
-#         Generator for field names.
-#         :return:
-#         """
-#         return self.field_names
-#
-#     def set_points(self, points):
-#         #self.other_level(len(points))
-#         for field in self._back_fields:
-#             field.set_points(points)
-#             field.svd_dcmp(n_terms_range=(10, 100))
-#
-#
-#     # def other_level(self, length):
-#     #     self._back_fields[0]._cov_l_factor = None
-#     #     self._back_fields[0].length = length
-#     #     self.length = length
-#
-#     def sample(self):
-#         """
-#         Return dictionary of sampled fields.
-#         :return: { 'field_name': sample, ...}
-#         """
-#         result = dict()
-#         result[self.field_names[0]] = self._back_fields[0].sample()
-#         return result
 
 def kozeny_carman(porosity, m, factor, viscosity):
     """
-    Kozeny-Carman law,  but any other relation can be implemented in derived class.
-    :param porosity:
-    :param m: Suitable values are 1 < m < 4
+    Kozeny-Carman law. Empirical relationship between porosity and conductivity.
+    :param porosity: Porosity value.
+    :param m: Power. Suitable values are 1 < m < 4
     :param factor: [m^2]
         E.g. 1e-7 ,   m = 3.48;  juta fibers
              2.2e-8 ,     1.46;  glass fibers
@@ -74,8 +27,14 @@ def kozeny_carman(porosity, m, factor, viscosity):
     cond = np.maximum(cond, 1e-15)
     return cond
 
-def lognorm_to_porosity(ln, a, b):
-    return  b * (1 - (b - a) / (b + (b - a) * ln))
+def positive_to_range(exp, a, b):
+    """
+    Mapping a positive parameter 'exp' from the interval <0, \infty) to the interval <a,b).
+    Suitable e.g. to generate meaningful porosity from a variable with lognormal distribution.
+    :param exp: A positive parameter. (LogNormal distribution.)
+    :param a, b: Range interval.
+    """
+    return  b * (1 - (b - a) / (b + (b - a) * exp))
 
 class Field:
     def __init__(self, name, field=None, param_fields=[], regions=[]):
@@ -116,6 +75,9 @@ class Field:
         self.param_fields = param_fields
 
     def set_points(self, points):
+        """
+        Internal method to set evaluation points. See Fields.set_points.
+        """
         if self.const is not None:
             self._sample = self.const * np.ones(len(points))
         elif self.correlated_field is not None:
@@ -126,6 +88,10 @@ class Field:
             pass
 
     def sample(self):
+        """
+        Internal method to generate/compute new sample.
+        :return:
+        """
         if self.const is not None:
             return self._sample
         elif self.correlated_field is not None:
@@ -140,29 +106,33 @@ class Fields:
 
     def __init__(self, fields):
         """
-         Assume list is already topologicaly sorted so that dependet fields are after its parameter fields.
-         fields_dict = [
-            cond_1 : {
-                law: (kozeny, por_1, )
-                regions: [top_bulk]
-                }
-            cond_2 : {
-                law: (kozeny, por_2)
-                region: [bot_bulk]
-                }
-            por_1 : {
-                law: (basic, field)
-                regions: [top_bulk]
-                }
-            por_2 : {
-                law: (basic, field)
-                region: [bot_bulk]
-                }
-        :param fields_dict:
+        Creates a new set of cross dependent random fields.
+        Currently no support for cross-correlated random fields.
+        A set of independent basic random fields must exist
+        other fields can be dependent in deterministic way.
+
+        :param fields: A list of dependent fields.
+
+        Example:
+        rf = SpatialCorrelatedField(log=True)
+        Fields([
+            Field('por_top', rf, regions='ground_0'),
+            Field('porosity_top', positive_to_range, ['por_top', 0.02, 0.1], regions='ground_0'),
+            Field('por_bot', rf, regions='ground_1'),
+            Field('porosity_bot', positive_to_range, ['por_bot', 0.01, 0.05], regions='ground_1'),
+            Field('conductivity_top', cf.kozeny_carman, ['porosity_top', 1, 1e-8, water_viscosity], regions='ground_0'),
+            Field('conductivity_bot', cf.kozeny_carman, ['porosity_bot', 1, 1e-10, water_viscosity],regions='ground_1')
+            ])
+
+        TODO: use topological sort to fix order of 'fields'
+        TODO: syntactic sugar for calculating with fields (like with np.arrays).
         """
         self.fields_orig = fields
         self.fields_dict = {}
         self.fields = []
+
+        # Have to make a copy of the fields since we want to generate the samples in them
+        # and the given instances of Field can be used by an independent FieldSet instance.
         for field in self.fields_orig:
             new_field = copy.copy(field)
             if new_field.param_fields:
@@ -171,6 +141,9 @@ class Fields:
             self.fields.append(new_field)
 
     def _get_field_obj(self, field_name, regions):
+        """
+        Get fields by name, replace constants by constant fields for unification.
+        """
         if type(field_name) in [float, int]:
             const_field = Field("const_{}".format(field_name), field_name, regions=regions)
             self.fields.insert(0, const_field)
@@ -195,6 +168,11 @@ class Fields:
     #     return path
 
     def set_outer_fields(self, outer):
+        """
+        Set fields that will be in a dictionary produced by FieldSet.sample() call.
+        :param outer: A list of names of fields that are sampled.
+        :return:
+        """
         outer_set = set(outer)
         for f in self.fields:
             if f.name in outer_set:
@@ -477,8 +455,5 @@ class SpatialCorrelatedField:
         return np.exp(field)
 
 
-# =====================================================================
-# Example:
-"""
-"""
+
 

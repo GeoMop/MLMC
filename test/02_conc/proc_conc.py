@@ -189,9 +189,9 @@ class ProcessMLMC:
         fields = cf.Fields([
 
             cf.Field('por_top', por_top, regions='ground_0'),
-            cf.Field('porosity_top', cf.lognorm_to_porosity, ['por_top', 0.02, 0.1], regions='ground_0'),
+            cf.Field('porosity_top', cf.positive_to_range, ['por_top', 0.02, 0.1], regions='ground_0'),
             cf.Field('por_bot', por_bot, regions='ground_1'),
-            cf.Field('porosity_bot', cf.lognorm_to_porosity, ['por_bot', 0.01, 0.05], regions='ground_1'),
+            cf.Field('porosity_bot', cf.positive_to_range, ['por_bot', 0.01, 0.05], regions='ground_1'),
             cf.Field('porosity_repo', 0.5, regions='repo'),
             cf.Field('factor_top', cf.SpatialCorrelatedField('gauss', mu=1e-8, sigma=1, log=True), regions='ground_0'),
             # conductivity about
