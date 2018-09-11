@@ -232,6 +232,8 @@ class MLMC:
     #     """
     #     For each level counts new N according to target_time
     #     :return: array
+    #     TODO: Have a linear model to estimate true time per sample as a function of level step.
+    #           This needs some test sampling... that is same as with variance estimates.
     #     """
     #     vars =
     #     amount = self._count_sum()
@@ -387,6 +389,8 @@ class MLMC:
         :param level_times: Number of level executions
         :param n_samples: Number of samples on each level
         :return: total cost
+        TODO: Have cost expressed as a time estimate. This requires
+        estimate of relation ship to the  task size and complexity.
         """
         if level_times is None:
             level_times = [lvl.n_ops_estimate for lvl in self.levels]
