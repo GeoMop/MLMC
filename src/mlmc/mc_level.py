@@ -96,7 +96,11 @@ class Level:
         for sim in self._logger.collected_log_content:
             i_level, i, fine, coarse, value = sim
             # Don't add failed simulations, they will be generated again
-            if not self.regen_failed and value[0] is not np.inf and value[1] is not np.inf:
+            if not self.regen_failed:
+                self.finished_simulations.append(sim)
+                self.add_sample(i, value)
+                finished.add((i_level, i))
+            elif value[0] is not np.inf and value[1] is not np.inf:
                 self.finished_simulations.append(sim)
                 self.add_sample(i, value)
                 finished.add((i_level, i))
@@ -159,7 +163,7 @@ class Level:
             return
         # Enlarge matrix of samples
         if self._n_valid_samples == self._sample_values.shape[0]:
-            self.enlarge_samples(2*self._n_valid_samples)
+            self.enlarge_samples(2 * self._n_valid_samples)
 
         # Add fine and coarse sample
         self._sample_values[self._n_valid_samples, :] = (fine, coarse)
@@ -217,7 +221,7 @@ class Level:
         if self._logger.n_ops_estimate is None or self._logger.n_ops_estimate > 0:
             self._n_ops_estimate = n_ops
             self._logger.n_ops_estimate = n_ops
-        
+
     def set_coarse_sim(self):
         """
         Set coarse sim to fine simulation
@@ -300,7 +304,8 @@ class Level:
                 coarse_result = 0.0
                 coarse_done = True
             else:
-                coarse_result = self.coarse_simulation.extract_result(coarse_sim if isinstance(coarse_sim, str) else coarse_sim[1])
+                coarse_result = self.coarse_simulation.extract_result(
+                    coarse_sim if isinstance(coarse_sim, str) else coarse_sim[1])
                 coarse_done = coarse_result is not None
 
             if fine_done and coarse_done:
@@ -308,7 +313,8 @@ class Level:
                     coarse_result = fine_result = np.inf
 
                 # collect values
-                self.finished_simulations.append([self._logger.level_idx, idx, fine_sim, coarse_sim, [fine_result, coarse_result]])
+                self.finished_simulations.append(
+                    [self._logger.level_idx, idx, fine_sim, coarse_sim, [fine_result, coarse_result]])
                 self.add_sample(idx, (fine_result, coarse_result))
             else:
                 new_running.append([level, idx, fine_sim, coarse_sim, value])
@@ -380,7 +386,8 @@ class Level:
         self.mask = mask_fine_coarse
 
         # New moments without outliers
-        self.last_moments_eval = self.last_moments_eval[0][~mask_fine_coarse], self.last_moments_eval[1][~mask_fine_coarse]
+        self.last_moments_eval = self.last_moments_eval[0][~mask_fine_coarse], self.last_moments_eval[1][
+            ~mask_fine_coarse]
 
         # Remove outliers also from sample values
         self._sample_values = self._sample_values[:self._n_valid_samples][~mask_fine_coarse]
@@ -420,10 +427,10 @@ class Level:
         iqr = q3 - q1
         min_sample = np.min(fine_sample)
 
-        l = max(min_sample, q1 - 1.5*iqr)
-        if min_sample > 0.0:    # guess that we have positive distribution
+        l = max(min_sample, q1 - 1.5 * iqr)
+        if min_sample > 0.0:  # guess that we have positive distribution
             l = min_sample
-        r = min(np.max(fine_sample), q3 + 1.5*iqr)
+        r = min(np.max(fine_sample), q3 + 1.5 * iqr)
 
         if l <= 0:
             l = 1e-15
