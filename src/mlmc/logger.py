@@ -61,7 +61,6 @@ class Logger:
     def reload_logs(self, log_collected_file=None):
         """
         Read collected and running simulations data from log file
-        :return: None
         :param log_collected_file: Collected file abs path
         :return: None
         """
