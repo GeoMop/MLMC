@@ -31,8 +31,8 @@ class SimulationTest(Simulation):
 
     def generate_random_sample(self):
         self._input_sample = np.random.lognormal(0, 0.5)
-        #self._input_sample = scipy.stats.lognorm.rvs(0.8)
-        #self._input_sample = lognorm.rvs(s=0.5, loc=1, scale=1000)
+        #self.input_sample = scipy.stats.lognorm.rvs(0.8)
+        #self.input_sample = lognorm.rvs(s=0.5, loc=1, scale=1000)
 
     def get_coarse_sample(self):
         return self._input_sample

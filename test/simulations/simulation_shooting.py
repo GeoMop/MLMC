@@ -119,10 +119,10 @@ class SimulationShooting(simulation.Simulation):
         fields_sample = self._fields.sample()
 
         self._input_sample = fields_sample[:self.sim_param]
-        #self._input_sample = self.generate_rnd_sample()
+        #self.input_sample = self.generate_rnd_sample()
         if self._coarse_simulation is not None:
             self._coarse_simulation._input_sample = avg = fields_sample[self.sim_param:]
-            #self._coarse_simulation._input_sample = avg = self.averaging(self.sim_param, self._coarse_simulation.sim_param, self._input_sample)
+            #self._coarse_simulation.input_sample = avg = self.averaging(self.sim_param, self._coarse_simulation.sim_param, self.input_sample)
 
     def extract_result(self, sim_id):
         return self._result_dict[sim_id]

@@ -4,15 +4,15 @@ import json
 import shutil
 import copy
 import glob
+import yaml
 # import statprof
 import numpy as np
 import scipy.stats as stats
 import scipy.integrate as integrate
 
+
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
-
-import os, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 import mlmc.mlmc
@@ -26,19 +26,75 @@ import test_mlmc
 import scipy as sc
 
 
+class FlowProcSim(flow_mc.FlowSim):
+    """
+    Child from FlowSimulation that defines extract method
+    """
+
+    def _extract_result(self, sample_dir):
+        """
+        Extract the observed value from the Flow123d output.
+        :param sample_dir: Sample directory path
+        :return: None, inf or water balance result (float)
+        """
+        if os.path.exists(os.path.join(sample_dir, "FINISHED")):
+            try:
+                # extract the flux
+                balance_file = os.path.join(sample_dir, "water_balance.yaml")
+
+                with open(balance_file, "r") as f:
+                    balance = yaml.load(f)
+
+                flux_regions = ['.bc_outflow']
+                total_flux = 0.0
+                found = False
+                for flux_item in balance['data']:
+                    if flux_item['time'] > 0:
+                        break
+
+                    if flux_item['region'] in flux_regions:
+                        flux = float(flux_item['data'][0])
+                        flux_in = float(flux_item['data'][1])
+                        if flux_in > 1e-10:
+                            raise Exception("Possitive inflow at outlet region.")
+                        total_flux += flux  # flux field
+                        found = True
+            except Exception as e:
+                print(str(e))
+                return np.inf
+            if not found:
+                raise np.inf
+            return -total_flux
+        else:
+            return None
+
+
 class ProcessMLMC:
     def __init__(self, work_dir, options):
+        """
+        :param work_dir: Work directory (there will be dir with samples)
+        :param options: MLMC options, currently regen_failed (failed realizations will be regenerated)
+                                      and keep_collected (keep collected samples dirs)
+        """
         self.work_dir = os.path.abspath(work_dir)
         self.mlmc_options = options
         self._serialize = ['work_dir', 'output_dir', 'n_levels', 'step_range']
 
     def get_root_dir(self):
+        """
+        Get root directory
+        :return: Last pathname component
+        """
         root_dir = os.path.abspath(self.work_dir)
         while root_dir != '/':
             root_dir, tail = os.path.split(root_dir)
         return tail
 
     def setup_environment(self):
+        """
+        Setup pbs configuration, set flow123d and gmsh commands
+        :return: None
+        """
         self.pbs_config = dict(
             package_weight=250000,  # max number of elements per package
             n_cores=1,
@@ -72,15 +128,13 @@ class ProcessMLMC:
             gmsh=gmsh,
         )
 
-    def _set_n_levels(self, nl):
-        self.n_levels = nl
-        print("self.work_dir ", self.work_dir)
-        # self.output_dir = os.path.join(self.work_dir, "output_{}".format(nl))
-
-        # self._setup_file = os.path.join(self.output_dir, "setup.json")
-
     def setup(self, n_levels):
-        self._set_n_levels(n_levels)
+        """
+        Set simulation configuration
+        :param n_levels: Number of levels
+        :return: None
+        """
+        self.n_levels = n_levels
         self.output_dir = os.path.join(self.work_dir, "output_{}".format(n_levels))
 
         self.setup_environment()
@@ -109,6 +163,11 @@ class ProcessMLMC:
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
     def initialize(self, clean):
+        """
+        Initialize output directory and pbs script creater 
+        :param clean: bool, if true then remove current directory and create new one
+        :return: None
+        """
         # Remove log files
         if clean:
             if os.path.isdir(self.output_dir):
@@ -126,75 +185,64 @@ class ProcessMLMC:
                            qsub=self.pbs_config['qsub'],
                            clean=clean)
         self.pbs.pbs_common_setting(flow_3=True, **self.pbs_config)
-        # if not clean:
-        #     print('read logs')
-        #     self.pbs.reload_logs()
-        #     print('done')
         self.env['pbs'] = self.pbs
 
-        flow_mc.FlowSim.total_sim_id = 0
+        FlowProcSim.total_sim_id = 0
 
-        self.simultion_factory = flow_mc.FlowSim.factory(self.step_range,
+        self.simultion_factory = FlowProcSim.factory(self.step_range,
                                                          config=self.simulation_config, clean=clean)
 
         self.mlmc_options['output_dir'] = self.output_dir
 
         self.mc = mlmc.mlmc.MLMC(self.n_levels, self.simultion_factory, self.step_range, self.mlmc_options)
+        self.mc.create_levels()
         if clean:
             # assert ProcessMLMC.is_exe(self.env['flow123d'])
             assert ProcessMLMC.is_exe(self.env['gmsh'])
             # assert ProcessMLMC.is_exe(self.pbs_config['qsub'])
-            # self.save()
 
     def collect(self):
+        """
+        Collect simulation samples
+        :return: Number of running simulations
+        """
         return self.mc.wait_for_simulations(sleep=self.sample_sleep, timeout=0.1)
 
     def set_moments(self, n_moments, log=False):
+        """
+        Create moments function instance
+        :param n_moments: int, number of moments
+        :param log: bool, If true then apply log transform
+        :return: 
+        """
         self.moments_fn = mlmc.moments.Legendre(n_moments, self.domain, safe_eval=True, log=log)
         return self.moments_fn
 
-    def n_sample_estimate(self, target_variance):
+    def n_sample_estimate(self, target_variance=0.001):
+        """
+        Estimate number of level samples considering target variance
+        :param target_variance: float, target variance of moments 
+        :return: None
+        """
         self.n_samples = self.mc.set_initial_n_samples([30, 3])
         self.mc.refill_samples()
         self.pbs.execute()
         self.mc.wait_for_simulations(sleep=self.sample_sleep, timeout=self.init_sample_timeout)
 
         self.domain = self.mc.estimate_domain()
-        self.mc.set_target_variance(0.001, self.moments_fn, 2.0)
+        self.mc.set_target_variance(target_variance, self.moments_fn, 2.0)
 
-    def generate_jobs(self, n_samples=None, target_variance=None):
+    def generate_jobs(self, n_samples=None):
+        """
+        Generate level samples
+        :param n_samples: None or list, number of samples for each level
+        :return: None
+        """
         if n_samples is not None:
             self.mc.set_initial_n_samples(n_samples)
-        #self.mc.load_level_log()
         self.mc.refill_samples()
         self.pbs.execute()
         self.mc.wait_for_simulations(sleep=self.sample_sleep, timeout=self.sample_timeout)
-
-        self.mv_failed_realizations()
-
-    def mv_failed_realizations(self):
-        # sim_dirs = glob.glob(self.output_dir + "/sim_*")
-        # destination = os.path.join(self.output_dir, "failed_realizations")
-        # files_list = os.listdir(source)
-        #
-        # for sim_dir in sim_dirs:
-        #     if len(os.listdir(sim_dir)) != 0:
-        #         shutil.move(sim_dir, destination)
-
-        pass
-
-    def save(self):
-        setup = {}
-        for key in self._serialize:
-            setup[key] = self.__dict__.get(key, None)
-
-        with open(self._setup_file, 'w') as f:
-            json.dump(setup, f)
-
-    def load(self, n_levels):
-        self._set_n_levels(n_levels)
-        self.setup(n_levels)
-        self.initialize(clean=False)
 
     def plot_diff_var(self):
         import matplotlib.pyplot as plt
@@ -465,7 +513,7 @@ def get_arguments(arguments):
     """
     Getting arguments from console
     :param arguments: list of arguments
-    :return: None
+    :return: namespace
     """
     import argparse
     parser = argparse.ArgumentParser()
@@ -477,7 +525,6 @@ def get_arguments(arguments):
                         help="Keep sample dirs")
 
     args = parser.parse_args(arguments)
-
     return args
 
 
@@ -493,12 +540,6 @@ def main():
 
     if command == 'run':
         os.makedirs(work_dir, mode=0o775, exist_ok=True)
-
-        # copy
-        for file_res in os.scandir(src_path):
-            if (os.path.isfile(file_res.path)):
-                pass
-                # shutil.copy(file_res.path, work_dir)
 
         mlmc_list = []
         for nl in [1]:  # , 2, 3, 4,5, 7, 9]:
@@ -519,13 +560,13 @@ def main():
             # mlmc.generate_jobs(n_samples=n_samples)
             # mlmc.generate_jobs(n_samples=[10000, 100])
             # mlmc.mc.levels[0].target_n_samples = 1
-            mlmc.generate_jobs(n_samples=[4])#, 1, 1])
+            mlmc.generate_jobs(n_samples=[8])#, 1, 1])
             mlmc_list.append(mlmc)
 
             # for nl in [3,4]:
             # mlmc = ProcessMLMC(work_dir)
             # mlmc.load(nl)
-            # mlmc_list.append(mlmc)  
+            # mlmc_list.append(mlmc)
 
         all_collect(mlmc_list)
 
@@ -696,7 +737,7 @@ def calculate_var(mlmc_list):
 
 def get_var_diff(mlmc_list):
     """
-    V/V* plot 
+    V/V* plot
     :param mlmc_list: list of ProcessMLMC
     :return: None
     """
@@ -875,7 +916,7 @@ def estimate_density(moments_fn, moments):
     Estimate density
     :param moments_fn: moments function
     :param moments: moments data
-    :return: 
+    :return: tuple, density in x points
     """
     # print("moments data ", moments_data)
     distr_obj = mlmc.distribution.Distribution(moments_fn, moments)
@@ -885,8 +926,6 @@ def estimate_density(moments_fn, moments):
     distr_obj.estimate_density_minimize(tol=1e-8)
 
     x = np.linspace(distr_obj.domain[0], distr_obj.domain[1], 1e5)
-
-    density = distr_obj.density(x)
     density = distr_obj.density(x)
 
     return density, x
@@ -895,10 +934,10 @@ def estimate_density(moments_fn, moments):
 def plot_densities(densities, x, n_levels, mlmc_list=None):
     """
     Plot densities
-    :param densities: 
-    :param x: 
-    :param n_levels: 
-    :return: 
+    :param densities: density values
+    :param x: x coords
+    :param n_levels: number of levels
+    :return: None
     """
     import matplotlib.cm as cm
     import matplotlib.pyplot as plt
