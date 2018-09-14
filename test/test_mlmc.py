@@ -1169,7 +1169,11 @@ def test_save_load_samples():
     # 4. create new mlmc object
     # 5. read stored data
     # 6. check that they match the reference copy
+
+    # Create work directory
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+    if not os.path.exists(work_dir):
+        os.makedirs(work_dir)
 
     n_levels = 5
     distr = stats.norm()
@@ -1246,7 +1250,7 @@ def test_save_load_samples():
 #
 #         self.set_target_variance(0.01, moments_fn)
 if __name__ == '__main__':
-    #test_save_load_samples()
-    test_var_estimate()
+    test_save_load_samples()
+    #test_var_estimate()
     #_test_shooting()
 
