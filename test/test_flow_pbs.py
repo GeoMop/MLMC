@@ -1,6 +1,5 @@
 import os
 import sys
-import shutil
 import numpy as np
 import scipy.stats as stat
 
@@ -9,12 +8,11 @@ sys.path.append(os.path.join(src_path, '..', 'src'))
 
 import flow_mc as flow_mc
 import mlmc.correlated_field as correlated_field
-
 import mlmc.moments
 import mlmc.mlmc
 # from result import Result
 import mlmc.distribution
-from flow_pbs import FlowPbs
+from pbs import Pbs
 
 
 class TstFlowPbs:
@@ -38,37 +36,26 @@ class TstFlowPbs:
         # gmsh = "/storage/liberec1-tul/home/martin_spetlik/astra/gmsh/bin/gmsh"
         gmsh = "/home/jb/local/gmsh-3.0.5-git-Linux/bin/gmsh"
         # Charon setting:
-        self.pbs = FlowPbs(self.scripts_dir,
-                      qsub=os.path.join(src_path, 'mocks', 'qsub'),
-                      clean=True)
-        # pbs = FlowPbs(scripts_dir,
-        #               package_weight=25000,  # max number of elements per package
-        #               qsub=None)
-        self.pbs.pbs_common_setting(n_cores=1,
-                               n_nodes=1,
-                               mem='4gb',
-                               queue='charon')
+        self.pbs = Pbs(self.scripts_dir, qsub=os.path.join(src_path, 'mocks', 'qsub'), clean=True)
+        self.pbs.pbs_common_setting(n_cores=1, n_nodes=1, mem='4gb', queue='charon')
 
         env = dict(
             flow123d=flow123d,
             gmsh=gmsh,
             pbs=self.pbs
         )
-        conductivity=dict(
-                mu = 0.0,
-                sigma = 1.0,
-                corr_exp='gauss',
-                dim=2,
-                corr_length=0.5,
-                log=True
+        conductivity = dict(
+            mu=0.0,
+            sigma=1.0,
+            corr_exp='gauss',
+            dim=2,
+            corr_length=0.5,
+            log=True
             )
         cond_field = correlated_field.SpatialCorrelatedField(**conductivity)
-        fields = correlated_field.Fields([
-            correlated_field.Field("conductivity", cond_field)])
-
+        fields = correlated_field.Fields([correlated_field.Field("conductivity", cond_field)])
         yaml_path = os.path.join(file_dir, '01_cond_field', '01_conductivity.yaml')
         geo_path = os.path.join(file_dir, '01_cond_field', 'square_1x1.geo')
-
 
         step_range = (1, 0.1)
         simulation_config = {
@@ -85,7 +72,10 @@ class TstFlowPbs:
         self.simulation_factory = flow_mc.FlowSim.factory(step_range, config=simulation_config)
 
         self.n_levels = 3
-        mc = mlmc.mlmc.MLMC(self.n_levels, self.simulation_factory, self.pbs)
+        mlmc_options = {'output_dir': None,
+                        'keep_collected': True,
+                        'regen_failed': False}
+        mc = mlmc.mlmc.MLMC(self.n_levels, self.simulation_factory, self.pbs, mlmc_options)
         mc.set_initial_n_samples(self.n_levels * [6])
         mc.refill_samples()
         mc.wait_for_simulations()
@@ -96,16 +86,18 @@ class TstFlowPbs:
 
 
     def test_load_levels(self):
-        other_pbs = FlowPbs(self.scripts_dir,
-                      qsub=None)
-        other_pbs.reload_logs()
+        other_pbs = Pbs(self.scripts_dir,
+                        qsub=None)
         flow_mc.FlowSim.total_sim_id = 0
 
-        other_mc = mlmc.mlmc.MLMC(self.mc.n_levels, self.simulation_factory, other_pbs)
+        mlmc_options = {'output_dir': None,
+                        'keep_collected': True,
+                        'regen_failed': False}
+        other_mc = mlmc.mlmc.MLMC(self.mc.n_levels, self.simulation_factory, other_pbs, mlmc_options)
         #other_mc.subsample(self.n_levels * [4])
 
-        means_full, vars_full = self.mc.estimate_moments(self.moments_fn)
-        means, vars = other_mc.estimate_moments(self.moments_fn)
+        means_full, _ = self.mc.estimate_moments(self.moments_fn)
+        means, _ = other_mc.estimate_moments(self.moments_fn)
 
         assert np.allclose(means, means_full)
 
@@ -113,4 +105,3 @@ class TstFlowPbs:
 def _test_flow_pbs_base():
     pbs_test = TstFlowPbs()
     pbs_test.test_load_levels()
-
