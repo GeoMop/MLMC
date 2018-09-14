@@ -487,7 +487,7 @@ class FourierSpatialCorrelatedField(SpatialCorrelatedField):
     """
 
     def __init__(self, corr_exp='gauss', dim=2, corr_length=1.0,
-                 aniso_correlation=None, mu=0.0, sigma=1.0, log=False, len_scale=4):
+                 aniso_correlation=None, mu=0.0, sigma=1.0, log=False, len_scale=4, mode_no=100):
         """
         :param corr_exp: 'gauss', 'exp' or a float (should be >= 1)
         :param dim: dimension of the domain (size of point coords)
@@ -499,14 +499,14 @@ class FourierSpatialCorrelatedField(SpatialCorrelatedField):
         self.dim = dim
         self.log = log
 
+        self._k = []
         self.len_scale = len_scale
+        self.mode_no = mode_no
 
         if corr_exp == 'gauss':
-            self.correlation_exponent = 2.0
-        elif corr_exp == 'exp':
-            self.correlation_exponent = 1.0
+            self.gau()
         else:
-            self.correlation_exponent = float(corr_exp)
+            self.exp()
 
         if aniso_correlation is None:
             assert corr_length > np.finfo(float).eps
@@ -538,8 +538,6 @@ class FourierSpatialCorrelatedField(SpatialCorrelatedField):
         self.n_points, self.dimension = points.shape
         self.points = points
 
-        self.mode_no = 100
-
         if mu is not None:
             self.mu = mu
         self.mu = np.array(self.mu, dtype=float)
@@ -562,21 +560,28 @@ class FourierSpatialCorrelatedField(SpatialCorrelatedField):
 
         return Z
 
-    def gau(self):
+    def gau(self, n_samples=1000):
         """
         the Fourier samples from gaussian distribution
-        :return: np.ndarray
+        :param n_samples: Number of samples for future subsampling
+        :return: None
         """
+        # if n_samples <= self.mode_no:
+        #     n_samples = self.mode_no * 2
 
         if self.mode_no is None:
             k = np.empty(self.dim)
         else:
-            k = np.empty((self.dim, self.mode_no))
+            k = np.empty((self.dim, n_samples))
 
         for d in range(self.dim):
             rng = self._get_random_stream()
-            k[d] = rng.normal(0., 1. / self.len_scale, self.mode_no)
-        return k
+            k[d] = rng.normal(0., 1. / self.len_scale, n_samples)
+
+        self._k = k
+
+    def exp(self):
+        raise NotImplementedError("Exp is not implemented yet")
 
     def _get_random_stream(self, seed=None):
         return rand.RandomState(rand.RandomState(seed).random_integers(2 ** 16 - 1))
@@ -600,8 +605,15 @@ class FourierSpatialCorrelatedField(SpatialCorrelatedField):
             z = z.reshape(len(z), 1)
 
         Z = self.get_Z()
-        k = self.gau()
 
+        k = np.empty((self.dim, self.mode_no))
+        idx = np.random.choice(np.arange(len(k[0])), self.mode_no, replace=False)
+        k[0] = self._k[0][idx]
+        k[1] = self._k[0][idx]
+
+        self.gau(100)
+
+        k = self._k
 
         # reshape for unstructured grid
         for dim_i in range(self.dim):
