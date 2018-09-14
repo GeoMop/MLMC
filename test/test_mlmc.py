@@ -995,8 +995,6 @@ def test_var_estimate():
                     # Remove first moment
                     moments = moments[0][1:], moments[1][1:]
 
-                    print("moments ", moments)
-
                     # level_var_diff.append(var_subsample(moments, mc_test))
                     # mc_test = TestMLMC(nl, nm, d, il, sim)
                     # # number of samples on each level
@@ -1037,8 +1035,6 @@ def test_var_estimate():
             level_moments.append(moments)
             level_moments_mean.append(means)
             level_moments_var.append(vars)
-
-    print("test var estimate")
 
     # if len(level_moments) > 0:
     #     level_moments = np.array(level_moments)
