@@ -1,32 +1,10 @@
 import os
 import os.path
-import yaml
 import subprocess
-import gmsh_io
-import numpy as np
 import shutil
-# from operator import add
+import numpy as np
+import gmsh_io
 import mlmc.simulation as simulation
-import mlmc.correlated_field as correlated_field
-
-
-# from unipath import Path
-
-class Environment:
-    def __init__(self, flow123d, gmsh, pbs=None):
-        """
-
-        :param flow123d: Flow123d executable path.
-        :param gmsh: Gmsh executable path.
-        :param pbs: None or dictionary with pbs options :
-            n_nodes = 1
-            n_cores = 1
-            mem - reserved memory for single flow run = 2GB
-            queue = 'charon'
-        """
-        self.flow123d = flow123d
-        self.gmsh = gmsh
-        self.pbs = pbs
 
 
 def substitute_placeholders(file_in, file_out, params):
@@ -53,9 +31,10 @@ def substitute_placeholders(file_in, file_out, params):
 def force_mkdir(path, force=False):
     """
     Make directory 'path' with all parents,
-    remove the leaf dir recoursively if it already exists.
-    :param path:
-    :return:
+    remove the leaf dir recursively if it already exists.
+    :param path: path to directory
+    :param force: if dir already exists then remove it and create new one
+    :return: None
     """
     if force:
         if os.path.isdir(path):
@@ -67,7 +46,9 @@ class FlowSim(simulation.Simulation):
     # placeholders in YAML
     total_sim_id = 0
     MESH_FILE_VAR = 'mesh_file'
+    # Timestep placeholder given as O(h), h = mesh step
     TIMESTEP_H1_VAR = 'timestep_h1'
+    # Timestep placeholder given as O(h^2), h = mesh step
     TIMESTEP_H2_VAR = 'timestep_h2'
 
     # files
@@ -140,6 +121,8 @@ class FlowSim(simulation.Simulation):
 
         self.coarse_sim = None
         self.coarse_sim_set = False
+        self.n_fine_elements = 0
+        self.input_sample = []
 
         if clean:
             # Prepare mesh
@@ -159,6 +142,10 @@ class FlowSim(simulation.Simulation):
         super(simulation.Simulation, self).__init__()
 
     def n_ops_estimate(self):
+        """
+        Number of operations
+        :return: int
+        """
         return self.n_fine_elements
 
     def _make_mesh(self, geo_file, mesh_file):
@@ -171,18 +158,23 @@ class FlowSim(simulation.Simulation):
         subprocess.call([self.env['gmsh'], "-2", '-clscale', str(self.step), '-o', mesh_file, geo_file])
 
     def _extract_mesh(self, mesh_file):
+        """
+        Extract mesh from file
+        :param mesh_file: Mesh file path
+        :return: None
+        """
 
         mesh = gmsh_io.GmshIO(mesh_file)
         is_bc_region = {}
         self.region_map = {}
-        for name, (id, dim) in mesh.physical.items():
+        for name, (id, _) in mesh.physical.items():
             unquoted_name = name.strip("\"'")
             is_bc_region[id] = (unquoted_name[0] == '.')
             self.region_map[unquoted_name] = id
 
         bulk_elements = []
         for id, el in mesh.elements.items():
-            type, tags, i_nodes = el
+            _, tags, i_nodes = el
             region_id = tags[0]
             if not is_bc_region[region_id]:
                 bulk_elements.append(id)
@@ -193,7 +185,7 @@ class FlowSim(simulation.Simulation):
         self.point_region_ids = np.zeros(n_bulk, dtype=int)
 
         for i, id_bulk in enumerate(bulk_elements):
-            type, tags, i_nodes = mesh.elements[id_bulk]
+            _, tags, i_nodes = mesh.elements[id_bulk]
             region_id = tags[0]
             centers[i] = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)
             self.point_region_ids[i] = region_id
@@ -215,14 +207,10 @@ class FlowSim(simulation.Simulation):
         :return:
         """
         param_dict = {}
-        # field_tmpl = "!FieldElementwise {gmsh_file: \"${INPUT}/%s\", field_name: %s}"
         field_tmpl = self.field_template
 
-        # print("field tmpl ", field_tmpl)
-
         for field_name in self._fields.names:
-            param_dict[field_name] = repl = field_tmpl % (self.FIELDS_FILE, field_name)
-        # param_dict[field_name] = L00_F_S0000000
+            param_dict[field_name] = field_tmpl % (self.FIELDS_FILE, field_name)
         param_dict[self.MESH_FILE_VAR] = self.mesh_file
         param_dict[self.TIMESTEP_H1_VAR] = self.time_step_h1
         param_dict[self.TIMESTEP_H2_VAR] = self.time_step_h2
@@ -242,7 +230,6 @@ class FlowSim(simulation.Simulation):
         self.n_fine_elements = len(self.points)
 
     def _make_fields(self):
-
         if self.coarse_sim is None:
             self._fields.set_points(self.points, self.point_region_ids, self.region_map)
         else:
@@ -266,18 +253,16 @@ class FlowSim(simulation.Simulation):
             self._make_fields()
         fields_sample = self._fields.sample()
 
-        self._input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
+        self.input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
         if self.coarse_sim is not None:
-            self.coarse_sim._input_sample = {name: values[self.n_fine_elements:, None] for name, values in
-                                             fields_sample.items()}
+            self.coarse_sim.input_sample = {name: values[self.n_fine_elements:, None] for name, values in
+                                            fields_sample.items()}
 
     def simulation_sample(self, sample_tag):
         """
         Evaluate model using generated or set input data sample.
         :param sample_tag: A unique ID used as work directory of the single simulation run.
-        :param last_sim: No further simulation will be performed at current level
-        :return: run_token, a dict representing executed simulation. This is passed to extract_result
-        to get the result or None if simulation is not finished yet.
+        :return: tuple (sample tag, sample directory path)
         TODO:
         - different mesh and yaml files for individual levels/fine/coarse
         - reuse fine mesh from previous level as coarse mesh
@@ -292,53 +277,10 @@ class FlowSim(simulation.Simulation):
             force_mkdir(sample_dir)
         fields_file = os.path.join(sample_dir, self.FIELDS_FILE)
 
-        gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
+        gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self.input_sample)
 
         # Add flow123d realization to pbs script
         self.pbs_creater.add_realization(self.n_fine_elements, output_subdir=out_subdir,
                                          work_dir=self.work_dir,
                                          flow123d=self.env['flow123d'])
-
         return sample_tag, sample_dir
-
-    def _extract_result(self, sample_dir):
-        """
-        Extract the observed value from the Flow123d output.
-        Get sample from the field restriction, write to the GMSH file, call flow.
-        :param sample_dir: Sample directory
-        :return: 
-
-        TODO: Pass an extraction function as other FlowSim parameter. This function will take the
-        balance data and retun observed values.
-        """
-        if os.path.exists(os.path.join(sample_dir, "FINISHED")):
-            try:
-                # extract the flux
-                balance_file = os.path.join(sample_dir, "water_balance.yaml")
-                with open(balance_file, "r") as f:
-                    balance = yaml.load(f)
-
-                # TODO: we need to move this part out of the library as soon as possible
-                # it has to be changed for every new input file or different observation.
-                # However in Analysis it is already done in general way.
-                flux_regions = ['.bc_outflow']
-                total_flux = 0.0
-                found = False
-                for flux_item in balance['data']:
-                    if flux_item['time'] > 0:
-                        break
-
-                    if flux_item['region'] in flux_regions:
-                        flux = float(flux_item['data'][0])
-                        flux_in = float(flux_item['data'][1])
-                        if flux_in > 1e-10:
-                            raise Exception("Possitive inflow at outlet region.")
-                        total_flux += flux  # flux field
-                        found = True
-            except:
-                return np.inf
-            if not found:
-                raise np.inf
-            return -total_flux
-        else:
-            return None

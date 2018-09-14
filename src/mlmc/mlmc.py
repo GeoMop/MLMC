@@ -1,9 +1,8 @@
-import numpy as np
 import os.path
 import json
-import shutil
-from mlmc.mc_level import Level
 import time
+import numpy as np
+from mlmc.mc_level import Level
 from mlmc.logger import Logger
 
 
@@ -16,103 +15,75 @@ class MLMC:
         :param n_levels: Number of levels
         :param sim_factory: Object of simulation
         :param step_range: Simulations step range
-        :param process_options: Options for processing mlmc samples - output directory, 
-                                two options - generate failed simulations again and keep collected samples directories
+        :param process_options: Options for processing mlmc samples
+                                'output_dir' - directory with sample logs
+                                'regen_failed' - bool, if True then failed simulations are generated again
+                                'keep_collected' - bool, if True then dirs with finished simulations aren't removed
         """
         # Object of simulation
         self.simulation_factory = sim_factory
         # Array of level objects
         self.levels = []
-        self._n_levels = None
-        # Set n_levels property
-        self.n_levels = n_levels
+        self._n_levels = n_levels
         self.step_range = step_range
 
         self._process_options = process_options
-        self.output_dir = process_options['output_dir']
-
         # Number of simulation steps through whole mlmc
         self.target_time = None
         # Total variance
         self.target_variance = None
-        # Setup file params
-        self._setup_params = ['output_dir', 'n_levels', 'step_range']
-        # Create setup file with params
-        if process_options['output_dir'] is not None:
-            self._setup()
+
+    def load_from_setup(self):
+        """
+        Run mlmc according to setup parameters, load setup {n_levels, step_range} and create levels
+        :return: None
+        """
+        # Load mlmc params from file
+        self._load_setup()
+
         # Create mlmc levels
-        self.create_levels(n_levels)
+        self.create_levels()
 
-    def _setup(self):
+    def _load_setup(self):
         """
-        Processing MLMC setup file
+        Load mlmc setup file {n_levels, step_range}
         :return: None
         """
-        setup_file = os.path.join(self.output_dir, "mlmc_setup.json")
+        if self._process_options['output_dir'] is not None:
+            setup_file = os.path.join(self._process_options['output_dir'], "mlmc_setup.json")
+            with open(setup_file, 'r') as f_reader:
+                setup = json.load(f_reader)
+                self._n_levels = setup.get('n_levels', None)
+                self.step_range = setup.get('step_range', None)
 
-        # Check output dir
-        if not os.path.isdir(self.output_dir):
-            # Create output dir
-            if os.path.isdir(self.output_dir):
-                shutil.rmtree(self.output_dir)
-            os.makedirs(self.output_dir, mode=0o775, exist_ok=True)
-
-        # Load setup file
-        if os.path.isfile(setup_file):
-            self._load_setup(setup_file)
-        # Save setup file
-        else:
-            self._save_setup(setup_file)
-
-    def _load_setup(self, setup_file):
+    def _save_setup(self):
         """
-        Load setup file
-        :param setup_file: mlmc setup file name
+        Save mlmc setup file {n_levels, step_range}
         :return: None
         """
-        with open(setup_file, 'r') as f:
-            setup = json.load(f)
+        if self._process_options['output_dir'] is not None:
+            setup_file = os.path.join(self._process_options['output_dir'], "mlmc_setup.json")
+            setup = {'n_levels': self.n_levels, 'step_range': self.step_range}
+            with open(setup_file, 'w+') as f_writer:
+                json.dump(setup, f_writer)
 
-        for key in self._setup_params:
-            if key == 'n_levels':
-                self.n_levels = setup.get(key, None)
-            else:
-                self.__dict__[key] = setup.get(key, None)
-
-    def _save_setup(self, setup_file):
-        """
-        Save to setup file
-        :param setup_file: mlmc setup file name
-        :return: None
-        """
-        setup = {}
-        for key in self._setup_params:
-            if key == 'n_levels':
-                setup[key] = self.n_levels
-            else:
-                setup[key] = self.__dict__.get(key, None)
-
-        with open(setup_file, 'w+') as f:
-            json.dump(setup, f)
-
-    def create_levels(self, n_levels):
+    def create_levels(self):
         """
         Create level objects, each level has own level logger object
-        :param n_levels: Number of levels
         :return: None
         """
-
-        for i_level in range(n_levels):
+        for i_level in range(self._n_levels):
             previous_level = self.levels[-1] if i_level else None
-            if n_levels == 1:
+            if self._n_levels == 1:
                 level_param = 1
             else:
-                level_param = i_level / (n_levels - 1)
+                level_param = i_level / (self._n_levels - 1)
 
-            level = Level(self.simulation_factory, previous_level, level_param,
-                          Logger(i_level, self.output_dir, self._process_options['keep_collected']),
-                          self._process_options['regen_failed'])
+            logger = Logger(i_level, self._process_options['output_dir'], self._process_options['keep_collected'])
+            level = Level(self.simulation_factory, previous_level, level_param, logger, self._process_options['regen_failed'])
             self.levels.append(level)
+
+        self._save_setup()
 
     @property
     def n_levels(self):
@@ -121,11 +92,6 @@ class MLMC:
         """
         if len(self.levels) > 0:
             return len(self.levels)
-        return self._n_levels
-
-    @n_levels.setter
-    def n_levels(self, nl):
-        self._n_levels = nl
 
     @property
     def n_samples(self):
@@ -176,7 +142,7 @@ class MLMC:
         # model log var_{r,l} = a_r  + b * log step_l
         # X_(r,l), j = dirac_{r,j}
 
-        X = np.zeros(( L, R-1, R))
+        X = np.zeros((L, R-1, R))
         X[:, :, :-1] = np.eye(R-1)
         X[:, :, -1] = np.repeat(np.log(sim_steps[1:]), R-1).reshape((L, R-1))
 
@@ -232,6 +198,8 @@ class MLMC:
     #     """
     #     For each level counts new N according to target_time
     #     :return: array
+    #     TODO: Have a linear model to estimate true time per sample as a function of level step.
+    #           This needs some test sampling... that is same as with variance estimates.
     #     """
     #     vars =
     #     amount = self._count_sum()
@@ -278,34 +246,12 @@ class MLMC:
 
         return n_samples_estimate_safe
 
-    # @property
-    # def number_of_samples(self):
-    #     """
-    #     List of samples in each level
-    #     :return: array
-    #     """
-    #     return self._number_of_samples
-
-    # @number_of_samples.setter
-    # def number_of_samples(self, num_of_sim):
-    #     if len(num_of_sim) < self.number_of_levels:
-    #         raise ValueError("Number of simulations must be list")
-    #
-    #     self._number_of_samples = num_of_sim
-
-    #def estimate_n_samples(self):
-    #    # Count new number of simulations according to variance of time
-    #    if self.target_variance is not None:
-    #        self._num_of_samples = self.estimate_n_samples_from_variance()
-    #    elif self.target_time is not None:
-    #        self._num_of_samples = self.estimate_n_samples_from_time()
-
     def refill_samples(self):
         """
-        For each level run simulations
+        For each level set fine and coarse simulations and generate samples in reverse order (from the finest sim)
         :return: None
         """
-        # Set level coarse sim
+        # Set level coarse sim, it creates also fine simulations if its None
         for level in self.levels:
             level.set_coarse_sim()
 
@@ -316,9 +262,9 @@ class MLMC:
     def wait_for_simulations(self, sleep=0, timeout=None):
         """
         Waiting for running simulations
-        :param sleep: 
-        :param timeout: 
-        :return: 
+        :param sleep: time for doing nothing
+        :param timeout: maximum time for waiting on running simulations
+        :return: int, number of running simulations
         """
         if timeout is None:
             timeout = 0
@@ -345,7 +291,7 @@ class MLMC:
         """
         ranges = np.array([l.sample_range() for l in self.levels])
 
-        return np.min(ranges[:,0]), np.max(ranges[:,1])
+        return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
     def subsample(self, sub_samples=None):
         """
@@ -387,6 +333,8 @@ class MLMC:
         :param level_times: Number of level executions
         :param n_samples: Number of samples on each level
         :return: total cost
+        TODO: Have cost expressed as a time estimate. This requires
+        estimate of relation ship to the  task size and complexity.
         """
         if level_times is None:
             level_times = [lvl.n_ops_estimate for lvl in self.levels]
@@ -402,9 +350,9 @@ class MLMC:
         for level in self.levels:
             level.reset()
 
-    def clear_subsamples(self):
+    def clean_subsamples(self):
         """
-        Clear level subsamples
+        Clean level subsamples
         :return: None
         """
         for level in self.levels:

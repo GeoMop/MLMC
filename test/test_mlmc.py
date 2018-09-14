@@ -67,9 +67,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         :param sim_id:    Simulation id
         """
         x = self._input_sample
-
         h = self.step
-
         # Specific method is called according to pass parameters
         y = getattr(self, self.config['sim_method'])(x, h) #self._sample_fn(x, h)
 
@@ -78,7 +76,6 @@ class SimulationTest(mlmc.simulation.Simulation):
             y = np.nan
 
         self._result_dict[tag] = float(y)
-
         return tag
 
     def generate_random_sample(self):
@@ -87,25 +84,14 @@ class SimulationTest(mlmc.simulation.Simulation):
         if self._coarse_simulation is not None:
             self._coarse_simulation._input_sample = self._input_sample
 
-    # def get_coarse_sample(self):
-    #     return self._input_sample
-
     def n_ops_estimate(self):
         return (1/self.step)**self.config['complexity']*np.log(max(1/self.step, 2.0))
-
-    # @property
-    # def mesh_step(self):
-    #     return self.sim_param
-    #
-    # @mesh_step.setter
-    # def mesh_step(self, step):
-    #     self.sim_param = step
 
     def set_coarse_sim(self, coarse_simulation=None):
         self._coarse_simulation = coarse_simulation
         self.coarse_sim_set = True
 
-    def extract_result(self, sim_id):
+    def _extract_result(self, sim_id):
         return self._result_dict[sim_id]
 
 
@@ -216,6 +202,7 @@ class TestMLMC:
                         'keep_collected': True,
                         'regen_failed': False}
         mc = mlmc.mlmc.MLMC(self.n_levels, simultion_factory, step_range, mlmc_options)
+        mc.create_levels()
         sims = [level.fine_simulation for level in mc.levels]
         return mc, sims
 
@@ -225,6 +212,7 @@ class TestMLMC:
         simultion_factory = SimulationTest.factory(step_range, config=simulation_config)
 
         mc = mlmc.mlmc.MLMC(self.n_levels, simultion_factory, pbs)
+        mc.create_levels()
         sims = [level.fine_simulation for level in mc.levels]
         return mc, sims
 
@@ -283,25 +271,9 @@ class TestMLMC:
 
     def generate_samples(self, size):
         # generate samples
-        n_samples = []
-        # for _ in range(20):
-        self.mc.clean_levels()
-
         self.mc.set_initial_n_samples(self.n_levels*[size])
         self.mc.refill_samples()
         self.mc.wait_for_simulations()
-
-            # print("initial N ", self.mc.n_samples)
-            # #print("estimate moments ", self.mc.estimate_moments(self.moments_fn))
-            #
-            # self.mc.set_target_variance(1e-5, self.moments_fn)
-            # self.mc.refill_samples()
-            # self.mc.wait_for_simulations()
-            #
-            # print("N ", self.mc.n_samples)
-            # print("estimate moments ", self.mc.estimate_moments(self.moments_fn))
-            #
-            # n_samples.append(self.mc.n_samples)
 
 
     # @staticmethod
@@ -570,8 +542,8 @@ class TestMLMC:
 #
 #     pass
 
-def variance_level(mlmc_test):
 
+def variance_level(mlmc_test):
     x = np.arange(0, mlmc_test.n_moments, 1)
 
     for level in mlmc_test.mc.levels:
@@ -771,7 +743,7 @@ def _test_shooting():
     :return: None
     """
     #np.random.seed(3)
-    n_levels = [1, 1]#, 2, 3, 5, 7]
+    n_levels = [1, 2, 3, 5, 7]
     n_moments = [8]
 
     level_moments_mean = []
@@ -805,6 +777,7 @@ def _test_shooting():
                 pbs = pb.Pbs()
                 simulation_factory = SimulationShooting.factory(step_range, config=config)
                 mc = mlmc.mlmc.MLMC(nl, simulation_factory, pbs)
+                mc.create_levels()
                 moments_fn = mlmc.moments.Legendre(nm, true_domain, False)
 
                 mc.clean_levels()
@@ -986,16 +959,17 @@ def test_var_estimate():
     """
     #np.random.seed(3)
     n_levels = [1, 2, 3, 5, 7]
-    n_moments = [8]
+    n_moments = [5]
+
 
     distr = [
         (stats.norm(loc=1, scale=2), False, '_sample_fn'),
         (stats.lognorm(scale=np.exp(5), s=1), True, '_sample_fn'),            # worse conv of higher moments
-         (stats.lognorm(scale=np.exp(-5), s=1), True, '_sample_fn_basic'),
+        (stats.lognorm(scale=np.exp(-5), s=1), True, '_sample_fn_basic'),
         (stats.chi2(df=10), True, '_sample_fn'),
-         (stats.weibull_min(c=20), True, '_sample_fn_basic'),   # Exponential
-         (stats.weibull_min(c=1.5), True, '_sample_fn'),  # Infinite derivative at zero
-         (stats.weibull_min(c=3), True, '_sample_fn_basic')    # Close to normal
+        (stats.weibull_min(c=20), True, '_sample_fn_basic'),   # Exponential
+        (stats.weibull_min(c=1.5), True, '_sample_fn'),  # Infinite derivative at zero
+        (stats.weibull_min(c=3), True, '_sample_fn_basic')    # Close to normal
         ]
 
     level_moments_mean = []
@@ -1013,31 +987,16 @@ def test_var_estimate():
                 all_means = []
                 var_mlmc_pom = []
                 for i in range(number):
-                    moments = []
-                    for k in range(10):
-                        mc_test = TestMLMC(nl, nm, d, il, sim)
-                        # number of samples on each level
-                        mc_test.generate_samples(1000)
-
-                        #mc_test.mc.clean_levels()
-                        # mc_test.mc.set_initial_n_samples()
-                        # mc_test.mc.refill_samples()
-                        # mc_test.mc.wait_for_simulations()
-                        #
-                        # # print("estimate moments ", self.mc.estimate_moments(self.moments_fn))
-                        #
-                        # mc_test.mc.set_target_variance(1e-5, mc_test.moments_fn)
-                        # mc_test.mc.refill_samples()
-                        # mc_test.mc.wait_for_simulations()
-
-                        # Moments as tuple (means, vars)
-                        moments.append(mc_test.mc.estimate_moments(mc_test.moments_fn))
-
-                    moments = np.mean(moments, axis=0)
+                    mc_test = TestMLMC(nl, nm, d, il, sim)
+                    # number of samples on each level
+                    mc_test.generate_samples(1000)
+                    # Moments as tuple (means, vars)
+                    moments = mc_test.mc.estimate_moments(mc_test.moments_fn)
 
                     # Remove first moment
                     moments = moments[0][1:], moments[1][1:]
 
+                    # level_var_diff.append(var_subsample(moments, mc_test))
                     # mc_test = TestMLMC(nl, nm, d, il, sim)
                     # # number of samples on each level
                     # mc_test.mc.set_initial_n_samples(nl * [1000])
@@ -1086,14 +1045,12 @@ def test_var_estimate():
     #     for index in range(len(level_moments[0])):
     #         anova(level_moments[:, index])
     #
-    #     print("LEVEL MOMENTS ANOVA")
     #     for l_mom in level_moments:
     #         anova(l_mom)
     #
     # if len(level_variance_diff) > 0:
     #     plot_diff_var(level_variance_diff, n_levels)
     #
-    # print("var mlmc ", var_mlmc)
     # Plot moment values
     #plot_vars(level_moments_mean, level_moments_var, n_levels, exact_moments)
 
@@ -1101,27 +1058,22 @@ def test_var_estimate():
 def anova(level_moments):
     """
     Analysis of variance
-    :param level_variance_diff: 
-    :return: bool,  
+    :param level_moments: moments values per level
+    :return: bool 
     """
-
-    print("anova level moments ", level_moments)
     # H0: all levels moments have same mean value
     f_value, p_value = st.f_oneway(*level_moments)
 
     # Significance level
     alpha = 0.05
     # Same means, can not be rejected H0
-    # print("p value ", p_value)
-    # print("f value ", f_value)
-    # print("k -1", len(level_moments)-1)
-    # print("N - k", np.array(level_moments.shape)[0] * np.array(level_moments.shape)[1])
     if p_value > alpha:
         print("Same means, cannot be rejected H0")
         return True
     # Different means (reject H0)
     print("Different means, reject H0")
     return False
+
 
 def plot_diff_var(level_variance_diff, n_levels):
     """
@@ -1158,9 +1110,6 @@ def plot_diff_var(level_variance_diff, n_levels):
         plt.legend(title="moments")
         plt.show()
 
-        # plt.hist(level_variance_diff, normed=1)
-        # plt.show()
-
 
 def plot_vars(moments_mean, moments_var, n_levels, exact_moments=None, ex_moments=None):
     """
@@ -1190,7 +1139,6 @@ def plot_vars(moments_mean, moments_var, n_levels, exact_moments=None, ex_moment
 
     plt.legend()
     plt.show()
-
     exit()
 
 
@@ -1219,22 +1167,27 @@ def test_save_load_samples():
     # 5. read stored data
     # 6. check that they match the reference copy
 
-    #print("var: ", distr.var())
-    work_dir = '_test_tmp'
+    # Create work directory
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+    if not os.path.exists(work_dir):
+        os.makedirs(work_dir)
 
     n_levels = 5
     distr = stats.norm()
     step_range = (0.8, 0.01)
-    pbs = pb.Pbs(work_dir=work_dir, clean=True)
     simulation_config = dict(
-        distr= distr, complexity=2, nan_fraction=0.1, sim_method='_sample_fn')
+        distr=distr, complexity=2, nan_fraction=0.1, sim_method='_sample_fn')
     simulation_factory = SimulationTest.factory(step_range, config=simulation_config)
-    mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, pbs)
+
+    mlmc_options = {'output_dir': work_dir,
+                    'keep_collected': True,
+                    'regen_failed': False}
+
+    mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
+    mc.create_levels()
     mc.set_initial_n_samples()
     mc.refill_samples()
     mc.wait_for_simulations()
-
     check_estimates_for_nans(mc, distr)
 
     # Copy level data
@@ -1245,14 +1198,11 @@ def test_save_load_samples():
                    level.sample_values)
         assert not np.isnan(level.sample_values).any()
         level_data.append(l_data)
-
-
     mc.clean_levels()
-    pbs.close()
+
     # New mlmc
-    pbs = pb.Pbs(work_dir=work_dir)
-    #pbs.reload_logs()
-    mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, pbs)
+    mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
+    mc.load_from_setup()
 
     check_estimates_for_nans(mc, distr)
 
@@ -1263,6 +1213,8 @@ def test_save_load_samples():
         assert run == level.running_simulations
         assert fin == level.finished_simulations
         assert np.allclose(values, level.sample_values)
+
+
 
 
 # class TestMLMC(mlmc.mlmc.MLMC):
@@ -1295,9 +1247,7 @@ def test_save_load_samples():
 #
 #         self.set_target_variance(0.01, moments_fn)
 if __name__ == '__main__':
-    #test_save_load_samples()
-    #var_subsample_independent()
-    # exit()
-    test_var_estimate()
+    test_save_load_samples()
+    #test_var_estimate()
     #_test_shooting()
 

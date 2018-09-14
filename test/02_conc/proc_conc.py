@@ -23,44 +23,9 @@ import mlmc.correlated_field as cf
 
 
 class FlowConcSim(flow_mc.FlowSim):
-    # Extract
-    # def extract_result(self, sample_tuple):
-    #     """
-    #     Extract the observed value from the Flow123d output.
-    #     Get sample from the field restriction, write to the GMSH file, call flow.
-    #     :param fields:
-    #     :return:
-    #
-    #     TODO: Pass an extraction function as other FlowSim parameter. This function will take the
-    #     balance data and retun observed values.
-    #     """
-    #     sample_dir = sample_tuple[1]
-    #     if os.path.exists(os.path.join(sample_dir, "FINISHED")):
-    #
-    #         # extract the flux
-    #         obs_file = os.path.join(sample_dir, "solute_observe.yaml")
-    #         with open(obs_file, "r") as f:
-    #             observe = yaml.load(f)
-    #
-    #         # TODO: we need to move this part out of the library as soon as possible
-    #         # it has to be changed for every new input file or different observation.
-    #         # However in Analysis it is already done in general way.
-    #         flux_regions = ['.bc_outflow']
-    #         total_flux = 0.0
-    #         found = False
-    #
-    #         max_conc = 0
-    #         for snapshot in observe['data']:
-    #             arr = np.array(snapshot['X_conc'])
-    #             if np.all(np.isfinite(arr)):
-    #                 time_max = np.max(arr[arr>0.0])
-    #                 max_conc = max(max_conc, time_max)
-    #             else:
-    #                 return np.inf
-    #         return max_conc
-    #
-    #     else:
-    #         return None
+    """
+    Child from FlowSimulation that defines extract method
+    """
 
     def _extract_result(self, sample_dir):
         """
@@ -112,17 +77,31 @@ class FlowConcSim(flow_mc.FlowSim):
 
 class ProcessMLMC:
     def __init__(self, work_dir, options):
+        """
+        :param work_dir: Work directory (there will be dir with samples)
+        :param options: MLMC options, currently regen_failed (failed realizations will be regenerated)
+                                      and keep_collected (keep collected samples dirs)
+        """
         self.work_dir = os.path.abspath(work_dir)
         self.mlmc_options = options
         self._serialize = ['work_dir', 'output_dir', 'n_levels', 'step_range']
 
     def get_root_dir(self):
+        """
+        Get root directory
+        :return: Last pathname component
+        """
         root_dir = os.path.abspath(self.work_dir)
         while root_dir != '/':
             root_dir, tail = os.path.split(root_dir)
         return tail
 
     def setup_environment(self):
+        """
+        Setup pbs configuration, set flow123d and gmsh commands, 
+        different settings for desktop and cluster
+        :return: None
+        """
         self.pbs_config = dict(
             n_cores=1,
             n_nodes=1,
@@ -155,13 +134,13 @@ class ProcessMLMC:
             gmsh=gmsh,
         )
 
-    def _set_n_levels(self, nl):
-        self.n_levels = nl
-        self.output_dir = os.path.join(self.work_dir, "output_{}".format(nl))
-        # self._setup_file = os.path.join(self.output_dir, "setup.json")
-
     def setup(self, n_levels):
-        self._set_n_levels(n_levels)
+        """
+        Set simulation configuration, object for generating correlated fields ...
+        :param n_levels: Number of levels
+        :return: None
+        """
+        self.n_levels = n_levels
         self.output_dir = os.path.join(self.work_dir, "output_{}".format(n_levels))
 
         self.setup_environment()
@@ -225,6 +204,11 @@ class ProcessMLMC:
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
     def initialize(self, clean):
+        """
+        Initialize output directory and pbs script creater 
+        :param clean: bool, if true then remove current directory and create new one
+        :return: None
+        """
         if clean:
             try:
                 for log in glob.glob(self.output_dir + "/*_log_*"):
@@ -247,6 +231,7 @@ class ProcessMLMC:
 
         self.mlmc_options['output_dir'] = self.output_dir
         self.mc = mlmc.mlmc.MLMC(self.n_levels, self.simultion_factory, self.step_range, self.mlmc_options)
+        self.mc.create_levels()
         if clean:
             # assert ProcessMLMC.is_exe(self.env['flow123d'])
             assert ProcessMLMC.is_exe(self.env['gmsh'])
@@ -254,39 +239,47 @@ class ProcessMLMC:
             # self.save()
 
     def collect(self):
+        """
+        Collect simulation samples
+        :return: Number of running simulations
+        """
         return self.mc.wait_for_simulations(sleep=self.sample_sleep, timeout=0.1)
 
     def set_moments(self, n_moments, log=False):
+        """
+        Create moments function instance
+        :param n_moments: int, number of moments
+        :param log: bool, If true then apply log transform
+        :return: 
+        """
         self.moments_fn = mlmc.moments.Legendre(n_moments, self.domain, safe_eval=True, log=log)
         return self.moments_fn
 
-    def n_sample_estimate(self, target_variance):
+    def n_sample_estimate(self, target_variance=0.001):
+        """
+        Estimate number of level samples considering target variance
+        :param target_variance: float, target variance of moments 
+        :return: None
+        """
         self.n_samples = self.mc.set_initial_n_samples([30, 3])
         self.mc.refill_samples()
         self.pbs.execute()
         self.mc.wait_for_simulations(sleep=self.sample_sleep, timeout=self.init_sample_timeout)
 
         self.domain = self.mc.estimate_domain()
-        self.mc.set_target_variance(0.001, self.moments_fn, 2.0)
+        self.mc.set_target_variance(target_variance, self.moments_fn, 2.0)
 
-    def generate_jobs(self, n_samples=None, target_variance=None):
+    def generate_jobs(self, n_samples=None):
+        """
+        Generate level samples
+        :param n_samples: None or list, number of samples for each level
+        :return: None
+        """
         if n_samples is not None:
             self.mc.set_initial_n_samples(n_samples)
         self.mc.refill_samples()
         self.pbs.execute()
         self.mc.wait_for_simulations(sleep=self.sample_sleep, timeout=self.sample_timeout)
-
-    def save(self):
-        setup = {}
-        for key in self._serialize:
-            setup[key] = self.__dict__.get(key, None)
-        with open(self._setup_file, 'w') as f:
-            json.dump(setup, f)
-
-    def load(self, n_levels):
-        self._set_n_levels(n_levels)
-        self.setup(n_levels)
-        self.initialize(clean=False)
 
     #     self.distr = distr
     #     self.n_levels = n_levels
@@ -711,7 +704,7 @@ def get_arguments(arguments):
     """
     Getting arguments from console
     :param arguments: list of arguments
-    :return: None
+    :return: Namespace
     """
     import argparse
     parser = argparse.ArgumentParser()
@@ -721,16 +714,13 @@ def get_arguments(arguments):
     parser.add_argument("-r", "--regen-failed", default=False, action='store_true', help="Regenerate failed samples",)
     parser.add_argument("-k", "--keep-collected", default=False, action='store_true',
                         help="Keep sample dirs")
-
     args = parser.parse_args(arguments)
-
     return args
 
 
 def main():
     level_list = [9]
     args = get_arguments(sys.argv[1:])
-    print('main')
     command = args.command
     work_dir = args.work_dir
 
@@ -740,11 +730,6 @@ def main():
     if command == 'run':
         os.makedirs(work_dir, mode=0o775, exist_ok=True)
 
-        # copy
-        for file_res in os.scandir(src_path):
-            if (os.path.isfile(file_res.path)):
-                # shutil.copy(file_res.path, work_dir)
-                pass
         mlmc_list = []
         for nl in [1]:  # , 3, 4,5, 7, 9]:
             mlmc = ProcessMLMC(work_dir, options)
