@@ -2,11 +2,15 @@ import os
 import os.path
 import shutil
 import subprocess
+import json
 import glob
 import numpy as np
 
 
 class Pbs:
+    """
+    Create and execute scripts with simulations
+    """
     def __init__(self, work_dir=None, package_weight=200000, qsub=None, clean=False):
         """
         :param work_dir: if None, means no logging and just direct execution.
@@ -106,8 +110,8 @@ class Pbs:
         script_content = "\n".join(self.pbs_script)
         pbs_file = os.path.join(self.work_dir, "package_{:04d}.sh".format(self._package_count))
         self._package_count += 1
-        with open(pbs_file, "w") as f:
-            f.write(script_content)
+        with open(pbs_file, "w") as file_writer:
+            file_writer.write(script_content)
         os.chmod(pbs_file, 0o774)  # Make executable to allow direct call.
         if self.qsub_cmd is None:
             subprocess.call(pbs_file)
@@ -127,6 +131,11 @@ class Pbs:
         self.pbs_script = self.pbs_script_heading.copy()
 
     def estimate_level_times(self, n_samples=20):
+        """
+        Estimate average simulation time for each level
+        :param n_samples: Number of samples
+        :return: list
+        """
         output_dir = os.path.join(self.work_dir, "..")
         level_times = []
         for dir_entry in os.scandir(output_dir):
@@ -143,11 +152,10 @@ class Pbs:
 
                 for sample_entry in selected_samples:
                     sample_dir = sample_entry.path
-                    print("   ", sample_dir)
                     prof_files = list(glob.iglob(os.path.join(sample_dir, "profiler_*.json")))
                     # assert len(prof_files) == 1, "N: " + str(prof_files)
-                    with open(prof_files[-1], 'r') as f:
-                        prof_data = json.load(f)
+                    with open(prof_files[-1], 'r') as file_reader:
+                        prof_data = json.load(file_reader)
                     total_time = float(prof_data['children'][0]['cumul-time-max'])
                     times.append(total_time)
                     if len(times) > 100:

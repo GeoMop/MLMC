@@ -1,9 +1,6 @@
 """
 Test class monomials
 """
-# REMOVE !!!
-import os, sys
-
 import numpy as np
 import mlmc.moments
 import mlmc.distribution
@@ -92,14 +89,12 @@ def test_moments():
     a, b = (-1, 3)
     moments_fn = mlmc.moments.Monomial(size, (a, b), safe_eval=False)
     moments = moments_fn((b - a) * values + a)
-    #print("moments size 5 different domain ", moments)
     assert np.allclose(np.array(ref).T, moments)
 
     # Approximate mean.
     values = np.random.randn(1000)
     moments_fn = mlmc.moments.Monomial(2, safe_eval=False)
     moments = moments_fn(values)
-    #print("moments size 2 ", moments)
     assert np.abs(np.mean(moments[:, 1])) < 0.1
 
 
@@ -170,15 +165,14 @@ def get_moments(distr, size, domain, log=False, safe_eval=True, samples_size=100
 def get_exact_moments(distribution, moments_fn):
     """
     Get exact moments from given distribution
-    :param distribution: 
-    :return: None
+    :param distribution: Distribution object
+    :param moments_fn: Function for generating moments
+    :return: Exact moments
     """
     integrand = lambda x: moments_fn(x).T * distribution.pdf(x)
 
     a, b = moments_fn.domain
     integral = integrate.fixed_quad(integrand, a, b, n=moments_fn.size*5)[0]
-    print("integral ", integral)
-
     return integral[1:]
 
 
@@ -192,7 +186,6 @@ def _test_one_level():
     all_moments = []
     samples = []
     for i in range(mc_samples):
-        # print(moments_fn_lognorm(lognorm.rvs(size=1)))
         s = lognorm.rvs(size=1)
         samples.append(s)
         all_moments.append(moments_fn_lognorm(s))
@@ -258,6 +251,7 @@ def plot_distribution():
     plt.show()
     exit()
 
+
 def test_transform():
     distr = stats.norm(loc=-5, scale=1)
     #distr = stats.lognorm(scale=np.exp(-5), s=1)
@@ -270,21 +264,4 @@ def test_transform():
         t = moments_fn(distr.rvs(size=100000))
         transform_means.append(np.mean(t))
 
-
-
-#test_legendre()
-#exit()
-
-# test_one_level()
-
 test_legendre()
-#exit()
-#plot_distribution()
-#exit()
-# test_transform()
-# compare_norm_lognorm()
-
-
-#test_monomials()
-
-#test_fourier()
