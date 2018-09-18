@@ -81,7 +81,7 @@ class Logger:
 
     def log_simulations(self, simulations, collected=False):
         """
-        Log simulations
+        Log simulations, append to collected or running simulations log.
         :param simulations: array of simulations
         :param collected: bool, save collected simulations
         :return: None
