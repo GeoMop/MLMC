@@ -39,8 +39,6 @@ class Level:
         self._coarse_simulation = None
         # Estimate of operations number
         self._n_ops_estimate = None
-        # Generate failed samples again or not
-        self.regen_failed = regen_failed
         # Running unfinished simulations that were generated in last whole mlmc run
         self.running_from_log = False
         # Target number of samples for the level
@@ -70,7 +68,7 @@ class Level:
         self._last_moments_fn = None
 
         # Load simulations from log
-        self.load_simulations()
+        self.load_simulations(regen_failed)
 
     def reset(self):
         """
@@ -106,9 +104,10 @@ class Level:
             self._coarse_simulation = self._previous_level.fine_simulation
         return self._coarse_simulation
 
-    def load_simulations(self):
+    def load_simulations(self, regen_failed):
         """
         Load finished and running simulations from logs
+        :param regen_failed: bool, if True then regenerate failed simulations
         :return: None
         """
         finished = set()
@@ -118,7 +117,7 @@ class Level:
         for sim in self._logger.collected_log_content:
             i_level, i, _, _, value = sim
             # Don't add failed simulations, they will be generated again
-            if not self.regen_failed:
+            if not regen_failed:
                 self.finished_simulations.append(sim)
                 self._add_sample(i, value)
                 finished.add((i_level, i))
@@ -128,7 +127,7 @@ class Level:
                 finished.add((i_level, i))
 
         # Save simulations without those that failed
-        if self.regen_failed:
+        if regen_failed:
             self._logger.rewrite_collected_log(self.finished_simulations)
 
         # Recover running

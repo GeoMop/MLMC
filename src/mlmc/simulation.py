@@ -29,13 +29,15 @@ class Simulation(metaclass=ABCMeta):
     @abstractmethod
     def set_coarse_sim(self, coarse_sim=None):
         """
-        Set coarse simulations
+        Set coarse simulations, it must be call before generate_random_sample method and simulation_sample method
+        :param coarse_sim: Simulation object, default None - for first level simulations, which has just fine sim
         """
 
     @abstractmethod
     def simulation_sample(self, tag):
         """
         Forward simulation for generated input.
+        :param tag: Simulation sample identifier
         """
 
     @abstractmethod
