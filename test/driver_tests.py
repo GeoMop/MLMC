@@ -1,12 +1,11 @@
 import numpy as np
 import importlib
-import correlated_field 
-import test_convergence 
-from test_convergence import TestSpatialCorrelatedField, make_points_grid
 
+from _test_convergence import TestSpatialCorrelatedField, make_points_grid
 
-importlib.import_module('test_convergence')
-importlib.import_module('correlated_field')
+#
+importlib.import_module('_test_convergence')
+#importlib.import_module('correlated_field')
 ncells = (32,32)
 bounds = (32,32)
 points = make_points_grid(bounds, ncells)

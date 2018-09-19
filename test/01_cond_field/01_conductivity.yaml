@@ -21,12 +21,12 @@ problem: !Coupling_Sequential
         bc_pressure: 0
     output:
       fields:
+        - conductivity
         - pressure_p0
         - velocity_p0
     balance: {}
     output_stream:
-      format: !gmsh
-        variant: ascii
+      format: !vtk
 
 #  solute_equation: !Coupling_OperatorSplitting
 #    transport: !Solute_Advection_FV

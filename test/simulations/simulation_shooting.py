@@ -1,14 +1,15 @@
-from src.mlmc.simulation import Simulation
+import src.mlmc.simulation as simulation
 import random as rn
 import numpy as np
 
-class SimulationShooting(Simulation):
+
+class SimulationShooting(simulation.Simulation):
     """
     Class for 'shooting' simulation 
     Inherits from Simulation
     """
 
-    def __init__(self, coord, v, extremes, time, F0, sim_param):
+    def __init__(self, step, config):
         """
         :param coord:       starting position
         :param v:           starting speed
@@ -16,20 +17,21 @@ class SimulationShooting(Simulation):
         :param time:        maximum time
         :param F0:          starting power
         """
-        self.X = coord
-        self.V = v
+        self.X = config['coord']
+        self.V = config['speed']
         self._input_sample = None
-        self.extremes = extremes
-        self.time = time
-        self.sim_param = sim_param
+        self.extremes = config['extremes']
+        self.time = config['time']
+        self._fields = config['fields']
+        self.sim_param = int(2/step)
+        self.step = step
+        self._coarse_simulation = None
+        self._result_dict = {}
 
-        super(SimulationShooting, self).__init__()
-
-    def cycle(self, sim_id):
+    def simulation_sample(self, sim_id):
         """
-        Simulation of 2D shooting 
+        Simulation of 2D shooting
         :param sim_id:    simulation id
-
         """
         x, y, time, n = 0, 0, 0, 0
         X = self.X
@@ -37,11 +39,10 @@ class SimulationShooting(Simulation):
 
         # Time step
         if self.sim_param != 0:
-            self.dt = 10 / self.sim_param
+            self.dt = self.time / self.sim_param
 
         # Loop through random array F
         for i in range(self.sim_param):
-
             # New coordinates
             X = X + self.dt * V
 
@@ -51,30 +52,22 @@ class SimulationShooting(Simulation):
             x = X[0]
             y = X[1]
 
-            if x > self.extremes[1]:
-                print("x is too big")
-                break
-            if x < self.extremes[0]:
-                print("x is too small")
-                break
-            if y > self.extremes[3]:
-                print("y is too big")
-                break
-            if y < self.extremes[2]:
-                print("y is too small")
+            if x > self.extremes[1] or x < self.extremes[0] or y > self.extremes[3] or y < self.extremes[2]:
+                y = np.nan
                 break
 
             time = self.dt * (i + 1)
 
             # End simulation if time is bigger then maximum time
             if time >= self.time:
-                break;
+                break
 
         # Set simulation data
-        self.simulation_result = y
-        return y
+        self._result_dict[sim_id] = y
 
-    def random_array(self):
+        return sim_id
+
+    def generate_rnd_sample(self):
         # -1 for shooting simulation
         # 0 for water simulation
         F_average = -1
@@ -99,13 +92,40 @@ class SimulationShooting(Simulation):
             del new_F[self.sim_param:]  # drop remaining items
         else:
             new_F = F
-        self._input_sample = new_F
+        return new_F
 
-    def get_random_array(self):
-        return self._coarse_sample
+    def create_points(self):
+        if self._coarse_simulation is None:
+            self.points = np.empty((self.sim_param, 1))
+            self.points[:, 0] = np.linspace(0, self.V[0]*self.time, self.sim_param) #np.arange(self.sim_param)#
 
-    def set_random_array(self, F):
-        self._input_sample = F
+        else:
+            self.points = np.empty((self.sim_param + self._coarse_simulation.sim_param, 1))
+            self.points[:, 0] = np.concatenate((np.linspace(0, self.V[0]*self.time, self.sim_param),
+                                                   np.linspace(0, self.V[0]*self.time, self._coarse_simulation.sim_param)))
+
+    def _make_fields(self):
+        self.create_points()
+        self._fields.set_points(self.points)
+
+    def generate_random_sample(self):
+        """
+        Generate random field, both fine and coarse part.
+        Store them separeted.
+        :return:
+        """
+        # assert self._is_fine_sim
+        self._make_fields()
+        fields_sample = self._fields.sample()
+
+        self._input_sample = fields_sample[:self.sim_param]
+        #self.input_sample = self.generate_rnd_sample()
+        if self._coarse_simulation is not None:
+            self._coarse_simulation._input_sample = avg = fields_sample[self.sim_param:]
+            #self._coarse_simulation.input_sample = avg = self.averaging(self.sim_param, self._coarse_simulation.sim_param, self.input_sample)
+
+    def extract_result(self, sim_id):
+        return self._result_dict[sim_id]
 
     def averaging(self, n_coarse, n_fine, F):
         """
@@ -134,7 +154,12 @@ class SimulationShooting(Simulation):
             v = v / (1 / n_coarse)
 
             G.append(v)
-        self._coarse_sample = G
+        return G
 
     def set_coarse_sim(self, coarse_simulation):
-        self.averaging(coarse_simulation.sim_param, self.sim_param, self._input_sample)
+        """
+        Set coarse simulations
+        :param coarse_simulation: Simulation object
+        :return: None
+        """
+        self._coarse_simulation = coarse_simulation

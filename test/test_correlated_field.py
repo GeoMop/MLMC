@@ -1,14 +1,19 @@
 # TEST OF CONSISTENCY in the field values generated
 
+
 import pytest
 import numpy as np
 import numpy.linalg as la
-import matplotlib
-#matplotlib.use("agg")
-import matplotlib.pyplot as plt
-#plt.switch_backend('agg')
 
 from mlmc.correlated_field import SpatialCorrelatedField
+
+# Only for debugging
+#import statprof
+#import matplotlib
+#matplotlib.use("agg")
+#import matplotlib.pyplot as plt
+#plt.switch_backend('agg')
+
 #import scipy.interpolate as sc_inter
 #import scipy.stats as sc_stat
 
@@ -204,7 +209,7 @@ def impl_test_mu_sigma(corr_exp, points, n_terms_range):
     assert -s1 > 0.38    # convergence rate close to 0.5 (optimal for MC)
     #assert s0 < 0.05     # small absolute error
     log_sigma = np.average(np.log(sigmas))
-    print("Mean fit: {} {} {}".format( s1, log_sigma, np.exp(log_sigma)))
+    print("Sigma fit: {} {} {}".format( s1, log_sigma, np.exp(log_sigma)))
     assert np.exp(log_sigma) < 0.1     # should be about 0.7
 
 
@@ -221,16 +226,28 @@ def test_field_mean_std_convergence(seed):
     np.random.rand(1000)
     # ===========  A structured grid of points: =====================================
     bounds = ([13, 3], [40, 32])
-    grid_size = [20, 30]
+    grid_size = [10, 15]
     grid_points = PointSet(bounds, grid_size)
     random_points = PointSet(bounds, grid_size[0] * grid_size[1])
     exponential = 1.0
     gauss = 2.0
     n_terms = (np.inf, np.inf)  # Use full expansion to avoid error in approximation.
-    impl_test_mu_sigma(exponential, grid_points, n_terms_range = n_terms)
-    impl_test_mu_sigma(gauss, grid_points, n_terms_range=n_terms)
-    impl_test_mu_sigma(exponential, random_points, n_terms_range=n_terms)
-    impl_test_mu_sigma(gauss, random_points, n_terms_range=n_terms)
+
+
+    #statprof.start()
+    try:
+        print("Test exponential, grid points.")
+        impl_test_mu_sigma(exponential, grid_points, n_terms_range = n_terms)
+        print("Test Gauss, grid points.")
+        impl_test_mu_sigma(gauss, grid_points, n_terms_range=n_terms)
+        print("Test exponential, random points.")
+        impl_test_mu_sigma(exponential, random_points, n_terms_range=n_terms)
+        print("Test Gauss, random points.")
+        impl_test_mu_sigma(gauss, random_points, n_terms_range=n_terms)
+    finally:
+        #statprof.stop()
+        #statprof.display()
+        pass
 
 
 

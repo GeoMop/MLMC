@@ -1,13 +1,17 @@
+import os
+import glob
+import shutil
+from abc import ABCMeta
+from abc import abstractmethod
 import numpy as np
 
 
-class Simulation:
+class Simulation(metaclass=ABCMeta):
     """
-    Parent class for simulations
+    Parent class for simulations. Particular simulations always inherits from this one.
     """
-
     def __init__(self, config=None, sim_param=0):
-        """    
+        """
         :param config: Simulation configuration
         :param sim_param: Number of simulation steps
         """
@@ -16,51 +20,123 @@ class Simulation:
         self._config = config
         # Fine simulation step
         self._simulation_step = 0
-        self.sim_param = sim_param
+        # Precision of simulation
+        self.step = sim_param
+        # Simulation random input
         self._input_sample = []
         self._coarse_simulation = None
 
-    def cycle(self):
-        pass
+    @abstractmethod
+    def set_coarse_sim(self, coarse_sim=None):
+        """
+        Set coarse simulations, it must be call before generate_random_sample method and simulation_sample method
+        :param coarse_sim: Simulation object, default None - for first level simulations, which has just fine sim
+        """
 
+    @abstractmethod
+    def simulation_sample(self, tag):
+        """
+        Forward simulation for generated input.
+        :param tag: Simulation sample identifier
+        """
+
+    @abstractmethod
     def n_ops_estimate(self):
-        pass
+        """
+        Estimate of the number of computational operations
+        """
 
+    @abstractmethod
     def generate_random_sample(self):
-        pass
+        """
+        Create new correlated random input for both fine and (related) coarse simulation
+        """
 
-    def get_coarse_sample(self):
-        pass
+    def extract_result(self, sample_dir):
+        """
+        Extract simulation result
+        :param sample_dir: Simulation sample directory
+        :return: simulation result
+        """
+        try:
+            result = self._extract_result(sample_dir)
+            if result is np.nan:
+                raise
+        except:
+            result = np.inf
 
-    def set_previous_fine_sim(self, coarse_sim):
-        pass
+        if result is np.inf:
+            Simulation._move_sample_dir(sample_dir)
 
-    def get_result(self):
-        return self._simulation_result
+        return result
+
+    @abstractmethod
+    def _extract_result(self):
+        """
+        Get simulation sample result
+        """
 
     @staticmethod
-    def log_interpolation(sim_param_range, t_level=None):
+    def log_interpolation(sim_param_range, t_level):
         """
         Calculate particular simulation parameter
         :param sim_param_range: Tuple or list of two items, range of simulation parameters
         :param t_level: current level / total number of levels, it means 'precision' of current level fine simulation
         :return: int
         """
-        if t_level is None:
-            return 0
-        else:
-            assert 0 <= t_level <= 1
-            return np.round(sim_param_range[0] ** (1 - t_level) * sim_param_range[1] ** t_level).astype(int)
+        assert 0 <= t_level <= 1
+        return sim_param_range[0] ** (1 - t_level) * sim_param_range[1] ** t_level
 
     @classmethod
-    def make_sim(cls, config, sim_par_range, t_level=None):
+    def factory(cls, step_range, **kwargs):
         """
         Create specific simulation
-        :param config: Simulation configuration
-        :param sim_par_range: Tuple or list of two elements, number of  
-        :param t_level: Simulation parameter of particular simulation
+        :param step_range: Simulations step range
+        :param **kwargs: Configuration of simulation
         :return: Particular simulation object
         """
-        sim_par = Simulation.log_interpolation(sim_par_range, t_level)
+        return lambda l_precision, l_id, kw=kwargs: cls(Simulation.log_interpolation(step_range, l_precision), l_id, **kw)
 
-        return cls(config, sim_par)
+    @staticmethod
+    def _move_sample_dir(sample_dir):
+        """
+        Move directory with failed simulation directory
+        :param sample_dir: Sample directory
+        :return: None
+        """
+        output_dir = os.path.abspath(sample_dir + "/../../..")
+        sample_sub_dir = os.path.basename(os.path.normpath(sample_dir))
+
+        target_directory = os.path.join(output_dir, "failed_realizations")
+
+        # Make destination dir if not exists
+        if not os.path.isdir(output_dir):
+            os.mkdir(target_directory)
+
+        if os.path.isdir(sample_dir):
+            # Sample dir already exists in 'failed_realizations'
+            if os.path.isdir(os.path.join(target_directory, sample_sub_dir)):
+                similar_sample_dirs = glob.glob(os.path.join(target_directory, sample_sub_dir) + '_*')
+                # Directory has more than one occurrence
+                if len(similar_sample_dirs) > 0:
+                    # Increment number of directory presents in dir name
+                    sample_extension = os.path.basename(os.path.normpath(similar_sample_dirs[-1]))
+                    sample_name = sample_extension.split("_")
+                    sample_name[-1] = str(int(sample_name[-1]) + 1)
+                    sample_extension = "_".join(sample_name)
+                # Directory has just one occurrence
+                else:
+                    sample_extension = os.path.basename(os.path.normpath(sample_dir)) + "_1"
+            else:
+                sample_extension = sample_sub_dir
+
+            # Copy sample directory to failed realizations dir
+            shutil.copytree(sample_dir, target_directory + "/" + sample_extension)
+
+            # Remove files in sample directory
+            for file in os.listdir(sample_dir):
+                file = os.path.abspath(os.path.join(sample_dir, file))
+                if os.path.isdir(file):
+                    shutil.rmtree(file)
+                else:
+                    os.remove(file)
