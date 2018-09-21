@@ -10,8 +10,8 @@ import mlmc.moments
 import mlmc.distribution
 import numpy as np
 import pbs as pb
-# import matplotlib.pyplot as plt
-# import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import mlmc.correlated_field as cf
 
 import scipy.stats as st

@@ -22,7 +22,8 @@ import mlmc.distribution
 import pbs
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
-import test_mlmc
+import test.test_mlmc as test_mlmc
+import test.mlmc_postprocess as mlmc_post_processing
 import scipy as sc
 
 
@@ -299,181 +300,184 @@ class ProcessMLMC:
         fig.savefig(title + ".pdf")
         plt.show()
 
-    @staticmethod
-    def ecdf(x):
-        xs = np.sort(x)
-        ys = np.arange(1, len(xs) + 1) / float(len(xs))
-        return xs, ys
+    # @staticmethod
+    # def ecdf(x):
+    #     xs = np.sort(x)
+    #     ys = np.arange(1, len(xs) + 1) / float(len(xs))
+    #     return xs, ys
+    #
+    # def plot_pdf_approx(self, ax1, ax2, mc0_samples):
+    #     import matplotlib.pyplot as plt
+    #     X = np.exp(np.linspace(np.log(self.domain[0]), np.log(self.domain[1]), 1000))
+    #     bins = np.exp(np.linspace(np.log(self.domain[0]), np.log(self.domain[1]), 60))
+    #
+    #     X = np.linspace(self.domain[0], self.domain[1], 1000)
+    #     bins = np.linspace(self.domain[0], self.domain[1], 1000)
+    #
+    #     n_levels = self.mc.n_levels
+    #     color = "C{}".format(n_levels)
+    #     label = "l {}".format(n_levels)
+    #     Y = self.distr_obj.density(X)
+    #     ax1.plot(X, Y, c=color, label=label)
+    #     density_integral = integrate.simps(Y, X)
+    #
+    #     Y = self.distr_obj.cdf(X)
+    #     ax2.plot(X, Y, c=color, label=label)
+    #
+    #     if n_levels == 1:
+    #         ax1.hist(mc0_samples, normed=True, bins=bins, alpha=0.3, label='full MC', color=color)
+    #         X, Y = ProcessMLMC.ecdf(mc0_samples)
+    #         ax2.plot(X, Y, 'red')
+    #
+    #         # Y = stats.lognorm.pdf(X, s=1, scale=np.exp(0.0))
+    #         # ax1.plot(X, Y, c='gray', label="stdlognorm")
+    #         # Y = stats.lognorm.cdf(X, s=1, scale=np.exp(0.0))
+    #         # ax2.plot(X, Y, c='gray')
+    #     print("self.estimate domain ", self.est_domain)
+    #
+    #     ax1.axvline(x=self.est_domain[0], c=color)
+    #     ax1.axvline(x=self.est_domain[1], c=color)
 
-    def plot_pdf_approx(self, ax1, ax2, mc0_samples):
-        import matplotlib.pyplot as plt
-        X = np.exp(np.linspace(np.log(self.domain[0]), np.log(self.domain[1]), 1000))
-        bins = np.exp(np.linspace(np.log(self.domain[0]), np.log(10), 60))
+    # @staticmethod
+    # def align_array(arr):
+    #     return "[" + ", ".join(["{:10.5f}".format(x) for x in arr]) + "]"
 
-        n_levels = self.mc.n_levels
-        color = "C{}".format(n_levels)
-        label = "l {}".format(n_levels)
-        Y = self.distr_obj.density(X)
-        ax1.plot(X, Y, c=color, label=label)
-        density_integral = integrate.simps(Y, X)
-
-        Y = self.distr_obj.cdf(X)
-        ax2.plot(X, Y, c=color, label=label)
-
-        if n_levels == 1:
-            ax1.hist(mc0_samples, normed=True, bins=bins, alpha=0.3, label='full MC', color=color)
-            X, Y = ProcessMLMC.ecdf(mc0_samples)
-            ax2.plot(X, Y, 'red')
-
-            # Y = stats.lognorm.pdf(X, s=1, scale=np.exp(0.0))
-            # ax1.plot(X, Y, c='gray', label="stdlognorm")
-            # Y = stats.lognorm.cdf(X, s=1, scale=np.exp(0.0))
-            # ax2.plot(X, Y, c='gray')
-        print("self.estimate domain ", self.est_domain)
-
-        ax1.axvline(x=self.est_domain[0], c=color)
-        ax1.axvline(x=self.est_domain[1], c=color)
-
-    @staticmethod
-    def align_array(arr):
-        return "[" + ", ".join(["{:10.5f}".format(x) for x in arr]) + "]"
-
-    def compute_results(self, mlmc_l0, n_moments):
-        self.domain = mlmc_l0.ref_domain
-        self.est_domain = self.domain  # self.mc.estimate_domain()
-
-        moments_fn = self.set_moments(n_moments, log=True)
-
-        t_var = 1e-5
-        self.ref_diff_vars, _ = self.mc.estimate_diff_vars(moments_fn)
-        self.ref_moments, self.ref_vars = self.mc.estimate_moments(moments_fn)
-
-        self.ref_std = np.sqrt(self.ref_vars)
-        self.ref_diff_vars_max = np.max(self.ref_diff_vars, axis=1)
-        ref_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=self.ref_diff_vars)
-        self.ref_n_samples = np.max(ref_n_samples, axis=1)
-        self.ref_cost = self.mc.estimate_cost(n_samples=self.ref_n_samples)
-        self.ref_total_std = np.sqrt(np.sum(self.ref_diff_vars / self.ref_n_samples[:, None]) / n_moments)
-        self.ref_total_std_x = np.sqrt(np.mean(self.ref_vars))
-
-        # print("\nLevels : ", self.mc.n_levels, "---------")
-        # print("moments:  ", self.align_array(self.ref_moments))
-        # print("std:      ", self.align_array(self.ref_std ))
-        # print("err:      ", self.align_array(self.ref_moments - mlmc_0.ref_moments ))
-        # print("domain:   ", self.est_domain)
-        # print("cost:     ", self.ref_cost)
-        # print("tot. std: ", self.ref_total_std, self.ref_total_std_x)
-        # print("dif_vars: ", self.align_array(self.ref_diff_vars_max))
-        # print("ns :      ", self.align_array(self.ref_n_samples))
-        # print("")
-        # print("SUBSAMPLES")
-        #
-        #
-        # #a, b = self.domain
-        # #distr_mean = self.distr_mean = moments_fn.inv_linear(ref_means[1])
-        # #distr_var  = ((2*ref_means[2] + 1)/3 - ref_means[1]**2) / 4 * ((b-a)**2)
-        # #self.distr_std  = np.sqrt(distr_var)
-        #
-        # n_loops = 10
-        #
-        # # use subsampling to:
-        # # - simulate moments estimation without appriori knowledge about n_samples (but still on fixed domain)
-        # # - estimate error in final number of samples
-        # # - estimate error of estimated varinace of moments
-        # # - estimate cost error (due to n_sample error)
-        # # - estimate average error against reference momemnts
-        # l_cost_err = []
-        # l_total_std_err = []
-        # l_n_samples_err = []
-        # l_rel_mom_err = []
-        # for i in range(n_loops):
-        #     fractions = [0, 0.001, 0.01, 0.1]
-        #     for fr in fractions:
-        #         if fr == 0:
-        #             nL, n0 = 3, 30
-        #             if self.mc.n_levels > 1:
-        #                 L = self.n_levels
-        #                 factor = (nL / n0) ** (1 / (L - 1))
-        #                 n_samples = (n0 * factor ** np.arange(L)).astype(int)
-        #             else:
-        #                 n_samples = [ n0]
-        #         else:
-        #             n_samples = np.maximum(n_samples, (fr*max_est_n_samples).astype(int))
-        #         # n_samples = np.maximum(n_samples, 1)
-        #
-        #         print("n samples ", n_samples)
-        #         exit()
-        #         self.mc.subsample(n_samples)
-        #         est_diff_vars, _ = self.mc.estimate_diff_vars(self.moments_fn)
-        #         est_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=est_diff_vars)
-        #         max_est_n_samples = np.max(est_n_samples, axis=1)
-        #
-        #         #est_cost = self.mc.estimate_cost(n_samples=max_est_n_samples.astype(int))
-        #         #est_total_var = np.sum(self.ref_diff_vars / max_est_n_samples[:, None])/self.n_moments
-        #
-        #         #n_samples_err = np.min( (max_est_n_samples - ref_n_samples) /ref_n_samples)
-        #         ##total_std_err =  np.log2(est_total_var/ref_total_var)/2
-        #         #total_std_err = (np.sqrt(est_total_var) - np.sqrt(ref_total_var)) / np.sqrt(ref_total_var)
-        #         #cost_err = (est_cost - ref_cost)/ref_cost
-        #         #print("Fr: {:6f} NSerr: {} Tstderr: {} cost_err: {}".format(fr, n_samples_err, total_std_err, cost_err))
-        #
-        #     est_diff_vars, _ = self.mc.estimate_diff_vars(self.moments_fn)
-        #     est_moments, est_vars = self.mc.estimate_moments(self.moments_fn)
-        #     #print("Vars:", est_vars)
-        #     #print("em:", est_moments)
-        #     #print("rm:", self.ref_moments)
-        #
-        #     n_samples_err = np.min( (n_samples - self.ref_n_samples) /self.ref_n_samples )
-        #     est_total_std = np.sqrt(np.sum(est_diff_vars / n_samples[:, None])/n_moments)
-        #     # est_total_std = np.sqrt(np.mean(est_vars))
-        #     total_std_err =  np.log2(est_total_std/self.ref_total_std)
-        #     est_cost = self.mc.estimate_cost(n_samples = n_samples)
-        #     cost_err = (est_cost - self.ref_cost)/self.ref_cost
-        #
-        #     print("MM: ", (est_moments[1:] - self.ref_moments[1:]), "\n    ",  est_vars[1:])
-        #
-        #     relative_moments_err = np.linalg.norm((est_moments[1:] - self.ref_moments[1:]) / est_vars[1:])
-        #     #print("est cost: {} ref cost: {}".format(est_cost, ref_cost))
-        #     #print(n_samples)
-        #     #print(np.maximum( n_samples, (max_est_n_samples).astype(int)))
-        #     #print(ref_n_samples.astype(int))
-        #     #print("\n")
-        #     l_n_samples_err.append(n_samples_err)
-        #     l_total_std_err.append(total_std_err)
-        #     l_cost_err.append(cost_err)
-        #     l_rel_mom_err.append(relative_moments_err)
-        #
-        # l_cost_err.sort()
-        # l_total_std_err.sort()
-        # l_n_samples_err.sort()
-        # l_rel_mom_err.sort()
-
-
-        est_moments, est_vars = self.mc.estimate_moments(self.moments_fn)
-
-        def describe(arr):
-            print("arr ", arr)
-            q1, q3 = np.percentile(arr, [25, 75])
-            print("q1 ", q1)
-            print("q2 ", q3)
-            return "{:f8.2} < {:f8.2} | {:f8.2} | {:f8.2} < {:f8.2}".format(
-                np.min(arr), q1, np.mean(arr), q3, np.max(arr))
-
-        # print("Cost err:       ", describe(l_cost_err))
-        # print("Total std err:  ", describe(l_total_std_err))
-        # print("N. samples err: ", describe(l_n_samples_err))
-        # print("Rel. Mom. err:  ", describe(l_rel_mom_err))
-
-        # #print(l_rel_mom_err)
-        # title = "N levels = {}".format(self.mc.n_levels)
-        # self.plot_n_sample_est_distributions(title, l_cost_err, l_total_std_err, l_n_samples_err, l_rel_mom_err)
-
-
-        moments_data = np.stack((est_moments, est_vars), axis=1)
-        self.distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data)
-        self.distr_obj.domain = self.domain
-        result = self.distr_obj.estimate_density_minimize(tol=1e-8)
-        # print(result)
+    # def compute_results(self, mlmc_l0, n_moments):
+    #     self.domain = mlmc_l0.ref_domain
+    #     self.est_domain = self.domain  # self.mc.estimate_domain()
+    #
+    #     moments_fn = self.set_moments(n_moments, log=True)
+    #
+    #     t_var = 1e-5
+    #     self.ref_diff_vars, _ = self.mc.estimate_diff_vars(moments_fn)
+    #     self.ref_moments, self.ref_vars = self.mc.estimate_moments(moments_fn)
+    #
+    #     self.ref_std = np.sqrt(self.ref_vars)
+    #     self.ref_diff_vars_max = np.max(self.ref_diff_vars, axis=1)
+    #     ref_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=self.ref_diff_vars)
+    #     self.ref_n_samples = np.max(ref_n_samples, axis=1)
+    #     self.ref_cost = self.mc.estimate_cost(n_samples=self.ref_n_samples)
+    #     self.ref_total_std = np.sqrt(np.sum(self.ref_diff_vars / self.ref_n_samples[:, None]) / n_moments)
+    #     self.ref_total_std_x = np.sqrt(np.mean(self.ref_vars))
+    #
+    #     # print("\nLevels : ", self.mc.n_levels, "---------")
+    #     # print("moments:  ", self.align_array(self.ref_moments))
+    #     # print("std:      ", self.align_array(self.ref_std ))
+    #     # print("err:      ", self.align_array(self.ref_moments - mlmc_0.ref_moments ))
+    #     # print("domain:   ", self.est_domain)
+    #     # print("cost:     ", self.ref_cost)
+    #     # print("tot. std: ", self.ref_total_std, self.ref_total_std_x)
+    #     # print("dif_vars: ", self.align_array(self.ref_diff_vars_max))
+    #     # print("ns :      ", self.align_array(self.ref_n_samples))
+    #     # print("")
+    #     # print("SUBSAMPLES")
+    #     #
+    #     #
+    #     # #a, b = self.domain
+    #     # #distr_mean = self.distr_mean = moments_fn.inv_linear(ref_means[1])
+    #     # #distr_var  = ((2*ref_means[2] + 1)/3 - ref_means[1]**2) / 4 * ((b-a)**2)
+    #     # #self.distr_std  = np.sqrt(distr_var)
+    #     #
+    #     # n_loops = 10
+    #     #
+    #     # # use subsampling to:
+    #     # # - simulate moments estimation without appriori knowledge about n_samples (but still on fixed domain)
+    #     # # - estimate error in final number of samples
+    #     # # - estimate error of estimated varinace of moments
+    #     # # - estimate cost error (due to n_sample error)
+    #     # # - estimate average error against reference momemnts
+    #     # l_cost_err = []
+    #     # l_total_std_err = []
+    #     # l_n_samples_err = []
+    #     # l_rel_mom_err = []
+    #     # for i in range(n_loops):
+    #     #     fractions = [0, 0.001, 0.01, 0.1]
+    #     #     for fr in fractions:
+    #     #         if fr == 0:
+    #     #             nL, n0 = 3, 30
+    #     #             if self.mc.n_levels > 1:
+    #     #                 L = self.n_levels
+    #     #                 factor = (nL / n0) ** (1 / (L - 1))
+    #     #                 n_samples = (n0 * factor ** np.arange(L)).astype(int)
+    #     #             else:
+    #     #                 n_samples = [ n0]
+    #     #         else:
+    #     #             n_samples = np.maximum(n_samples, (fr*max_est_n_samples).astype(int))
+    #     #         # n_samples = np.maximum(n_samples, 1)
+    #     #
+    #     #         print("n samples ", n_samples)
+    #     #         exit()
+    #     #         self.mc.subsample(n_samples)
+    #     #         est_diff_vars, _ = self.mc.estimate_diff_vars(self.moments_fn)
+    #     #         est_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=est_diff_vars)
+    #     #         max_est_n_samples = np.max(est_n_samples, axis=1)
+    #     #
+    #     #         #est_cost = self.mc.estimate_cost(n_samples=max_est_n_samples.astype(int))
+    #     #         #est_total_var = np.sum(self.ref_diff_vars / max_est_n_samples[:, None])/self.n_moments
+    #     #
+    #     #         #n_samples_err = np.min( (max_est_n_samples - ref_n_samples) /ref_n_samples)
+    #     #         ##total_std_err =  np.log2(est_total_var/ref_total_var)/2
+    #     #         #total_std_err = (np.sqrt(est_total_var) - np.sqrt(ref_total_var)) / np.sqrt(ref_total_var)
+    #     #         #cost_err = (est_cost - ref_cost)/ref_cost
+    #     #         #print("Fr: {:6f} NSerr: {} Tstderr: {} cost_err: {}".format(fr, n_samples_err, total_std_err, cost_err))
+    #     #
+    #     #     est_diff_vars, _ = self.mc.estimate_diff_vars(self.moments_fn)
+    #     #     est_moments, est_vars = self.mc.estimate_moments(self.moments_fn)
+    #     #     #print("Vars:", est_vars)
+    #     #     #print("em:", est_moments)
+    #     #     #print("rm:", self.ref_moments)
+    #     #
+    #     #     n_samples_err = np.min( (n_samples - self.ref_n_samples) /self.ref_n_samples )
+    #     #     est_total_std = np.sqrt(np.sum(est_diff_vars / n_samples[:, None])/n_moments)
+    #     #     # est_total_std = np.sqrt(np.mean(est_vars))
+    #     #     total_std_err =  np.log2(est_total_std/self.ref_total_std)
+    #     #     est_cost = self.mc.estimate_cost(n_samples = n_samples)
+    #     #     cost_err = (est_cost - self.ref_cost)/self.ref_cost
+    #     #
+    #     #     print("MM: ", (est_moments[1:] - self.ref_moments[1:]), "\n    ",  est_vars[1:])
+    #     #
+    #     #     relative_moments_err = np.linalg.norm((est_moments[1:] - self.ref_moments[1:]) / est_vars[1:])
+    #     #     #print("est cost: {} ref cost: {}".format(est_cost, ref_cost))
+    #     #     #print(n_samples)
+    #     #     #print(np.maximum( n_samples, (max_est_n_samples).astype(int)))
+    #     #     #print(ref_n_samples.astype(int))
+    #     #     #print("\n")
+    #     #     l_n_samples_err.append(n_samples_err)
+    #     #     l_total_std_err.append(total_std_err)
+    #     #     l_cost_err.append(cost_err)
+    #     #     l_rel_mom_err.append(relative_moments_err)
+    #     #
+    #     # l_cost_err.sort()
+    #     # l_total_std_err.sort()
+    #     # l_n_samples_err.sort()
+    #     # l_rel_mom_err.sort()
+    #
+    #
+    #     est_moments, est_vars = self.mc.estimate_moments(self.moments_fn)
+    #
+    #     def describe(arr):
+    #         print("arr ", arr)
+    #         q1, q3 = np.percentile(arr, [25, 75])
+    #         print("q1 ", q1)
+    #         print("q2 ", q3)
+    #         return "{:f8.2} < {:f8.2} | {:f8.2} | {:f8.2} < {:f8.2}".format(
+    #             np.min(arr), q1, np.mean(arr), q3, np.max(arr))
+    #
+    #     # print("Cost err:       ", describe(l_cost_err))
+    #     # print("Total std err:  ", describe(l_total_std_err))
+    #     # print("N. samples err: ", describe(l_n_samples_err))
+    #     # print("Rel. Mom. err:  ", describe(l_rel_mom_err))
+    #
+    #     # #print(l_rel_mom_err)
+    #     # title = "N levels = {}".format(self.mc.n_levels)
+    #     # self.plot_n_sample_est_distributions(title, l_cost_err, l_total_std_err, l_n_samples_err, l_rel_mom_err)
+    #
+    #
+    #     moments_data = np.stack((est_moments, est_vars), axis=1)
+    #     self.distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data)
+    #     self.distr_obj.domain = self.domain
+    #     result = self.distr_obj.estimate_density_minimize(tol=1e-8)
+    #     # print(result)
 
 
 def all_results(mlmc_list):
@@ -483,7 +487,6 @@ def all_results(mlmc_list):
     ax1 = fig.add_subplot(1, 2, 1)
     ax2 = fig.add_subplot(1, 2, 2)
     ax1.set_xscale('log')
-    # ax1.set_xlim(0.02, 10)
     ax2.set_xscale('log')
 
     n_moments = 5
@@ -491,13 +494,17 @@ def all_results(mlmc_list):
 
     mlmc_list[0].ref_domain = (np.min(mc0_samples), np.max(mc0_samples))
 
-    # for prmc in mlmc_list:
-    #     prmc.compute_results(mlmc_list[0], n_moments)
-    #     prmc.plot_pdf_approx(ax1, ax2, mc0_samples)
-    # ax1.legend()
-    # ax2.legend()
-    # fig.savefig('compare_distributions.pdf')
-    # plt.show()
+    for prmc in mlmc_list:
+        prmc.domain = mlmc_list[0].ref_domain
+        prmc.set_moments(n_moments, log=True)
+        domain, est_domain, mc_test = mlmc_post_processing.compute_results(mlmc_list[0], n_moments, prmc)
+        mlmc_post_processing.plot_pdf_approx(ax1, ax2, mc0_samples, prmc, domain, est_domain)
+
+    ax1.legend()
+    ax1.legend()
+    ax2.legend()
+    #fig.savefig('compare_distributions.pdf')
+    plt.show()
 
 
 def all_collect(mlmc_list):
@@ -531,7 +538,6 @@ def get_arguments(arguments):
 def main():
     args = get_arguments(sys.argv[1:])
 
-    level_list = [9]
     command = args.command
     work_dir = args.work_dir
 
@@ -574,22 +580,23 @@ def main():
         assert os.path.isdir(work_dir)
         mlmc_list = []
 
-        for nl in [4]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
-            mlmc = ProcessMLMC(work_dir)
-            mlmc.load(nl)
-            # mlmc.initialize(clean=False)
+        for nl in [1, 2, 3, 4, 5, 7]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
+            mlmc = ProcessMLMC(work_dir, options)
+            mlmc.setup(nl)
+            mlmc.initialize(clean=False)
             mlmc_list.append(mlmc)
         all_collect(mlmc_list)
         calculate_var(mlmc_list)
-        show_results(mlmc_list)
+        #show_results(mlmc_list)
 
     elif command == 'process':
         assert os.path.isdir(work_dir)
         mlmc_list = []
         # for nl in [ 1,2,3,4,5,7,9]:
-        for nl in [1, 3]:
-            prmc = ProcessMLMC(work_dir)
-            prmc.load(nl)
+        for nl in [1]:
+            prmc = ProcessMLMC(work_dir, options)
+            prmc.setup(nl)
+            prmc.initialize(clean=False)
             mlmc_list.append(prmc)
 
         all_results(mlmc_list)
@@ -620,10 +627,10 @@ def calculate_var(mlmc_list):
     n_levels = []
     first_level_samples = []
 
-    for proc_mlmc in mlmc_list:
-        print("mlmc samples ", proc_mlmc.mc.n_samples)
-        print("mlmc estimate cost ", proc_mlmc.mc.estimate_cost())
-    exit()
+    # for proc_mlmc in mlmc_list:
+    #     print("mlmc samples ", proc_mlmc.mc.n_samples)
+    #     print("mlmc estimate cost ", proc_mlmc.mc.estimate_cost())
+
 
     # for proc_mlmc in mlmc_list[0:2]:
     #     proc_mlmc.domain = proc_mlmc.mc.estimate_domain()
@@ -646,29 +653,15 @@ def calculate_var(mlmc_list):
     densities_x = []
     densities = []
 
-    # for proc_mlmc in mlmc_list:
-    #     first_level_samples.append(proc_mlmc.mc.levels[0].sample_values)
-    #
-    #     print("n samples ", proc_mlmc.mc.n_samples)
-    # exit()
-    for proc_mlmc in mlmc_list[0:3]:
+    # Post process each mlmc method
+    for proc_mlmc in mlmc_list:
         level_var_diff = []
 
-        proc_mlmc.domain = mlmc_list[0].ref_domain  # proc_mlmc.mc.estimate_domain()
+        proc_mlmc.domain = mlmc_list[0].ref_domain
         n_levels.append(len(proc_mlmc.mc.levels))
 
         # print("proc mlmc domain ", proc_mlmc.domain)
         moments_fn = proc_mlmc.set_moments(n_moments, log=True)
-
-        # Estimate moments because of eliminating outliers
-        # proc_mlmc.mc.estimate_moments(moments_fn)
-
-        # Use subsamples as a substitute for independent observations
-        # subsamples = [int(n_sub) for n_sub in proc_mlmc.mc.n_samples/2]
-        # proc_mlmc.mc.subsample(subsamples)
-
-        # print("moments fn doamin ", moments_fn.domain)
-        # exit()
 
         moments = proc_mlmc.mc.estimate_moments(moments_fn)
         moments_data = np.empty((len(moments[0]), 2))
@@ -678,9 +671,6 @@ def calculate_var(mlmc_list):
 
         # Remove first moment
         moments = moments[0][1:], moments[1][1:]
-
-        # print("moments ", moments)
-        # print("moments data ", moments_data)
 
         # Estimate denstity
         d = estimate_density(moments_fn, moments_data)
@@ -735,149 +725,149 @@ def calculate_var(mlmc_list):
     test_mlmc.plot_vars(level_moments_mean, level_moments_var, n_levels)
 
 
-def get_var_diff(mlmc_list):
-    """
-    V/V* plot
-    :param mlmc_list: list of ProcessMLMC
-    :return: None
-    """
-    level_moments_mean = []
-    level_moments = []
-    level_moments_var = []
-    level_variance_diff = []
-    var_mlmc = []
-    n_moments = 8
-    number = 10
-
-    level_var_diff = []
-    # all_results(mlmc_list)
-
-    all_variances = []
-    all_means = []
-    var_mlmc_pom = []
-    n_levels = []
-
-    first_level_samples = []
-
-    #     proc_mlmc.domain = proc_mlmc.mc.estimate_domain()
-    #     moments_fn = proc_mlmc.set_moments(10)
-    #     proc_mlmc.mc.estimate_moments(moments_fn)
-    #     proc_mlmc.mc.set_target_variance(1e-5, moments_fn)
-    #
-    #     for level in proc_mlmc.mc.levels:
-    #         print("level target n samples ", level.target_n_samples)
-    #
-    # exit()
-
-    moments = None
-    # all_results(mlmc_list)
-
-    densities_x = []
-    densities = []
-
-    # for proc_mlmc in mlmc_list:
-    #     first_level_samples.append(proc_mlmc.mc.levels[0].sample_values)
-    #
-    #     print("n samples ", proc_mlmc.mc.n_samples)
-    # exit()
-    # mlmc_list = mlmc_list[0:2]
-    for proc_mlmc in mlmc_list:
-        n_levels.append(len(proc_mlmc.mc.levels))
-        level_var_diff = []
-        all_variances = []
-        all_means = []
-        var_mlmc_pom = []
-        for n in range(number):
-            moments_all = []
-            proc_mlmc.mc.clear_subsamples()
-            for k in range(12):
-                proc_mlmc.domain = proc_mlmc.mc.estimate_domain()
-                moments_fn = proc_mlmc.set_moments(n_moments, log=True)
-                # Estimate moments because of eliminating outliers
-                proc_mlmc.mc.estimate_moments(moments_fn)
-
-                # Use subsamples as a substitute for independent observations
-                subsamples = [int(n_sub) for n_sub in proc_mlmc.mc.n_samples / 2]
-                proc_mlmc.mc.subsample(subsamples)
-                proc_mlmc.mc.refill_samples()
-                proc_mlmc.pbs.execute()
-                proc_mlmc.mc.wait_for_simulations()
-
-                moments = proc_mlmc.mc.estimate_moments(moments_fn)
-                moments_data = np.empty((len(moments[0]), 2))
-
-                moments_data[:, 0] = moments[0][:]
-                moments_data[:, 1] = moments[1][:]
-
-                # Remove first moment
-                moments_all.append(moments)
-
-                proc_mlmc.mc.clear_subsamples()
-
-            moments = np.mean(moments_all, axis=0)
-            # Remove first moment
-            moments = moments[0][1:], moments[1][1:]
-
-            # Estimate denstity
-            d = estimate_density(moments_fn, moments_data)
-            densities.append(d[0])
-            densities_x.append(d[1])
-
-            level_var_diff.append(test_mlmc.var_subsample(moments, proc_mlmc.mc, moments_fn, n_subsamples=200))
-
-            # Variances
-            variances = np.sqrt(moments[1]) * 3
-            var_mlmc_pom.append(moments[1])
-
-            all_variances.append(variances)
-            all_means.append(moments[0])
-
-            # Exact moments from distribution
-            # exact_moments = mlmc.distribution.compute_exact_moments(mc_test.moments_fn, d.pdf, 1e-10)[1:]
-
-            means = np.mean(all_means, axis=0)
-            vars = np.mean(all_variances, axis=0)
-            # var_mlmc.append(np.mean(var_mlmc_pom, axis=0))
-
-            # print(all(means[index] + vars[index] >= exact_mom >= means[index] - vars[index]
-            #           for index, exact_mom in enumerate(exact_moments)))
-
-        if len(level_var_diff) > 0:
-            # Average from more iteration
-            level_variance_diff.append(np.mean(level_var_diff, axis=0))
-
-        if len(level_var_diff) > 0:
-            moments = []
-            level_var_diff = np.array(level_var_diff)
-            for index in range(len(level_var_diff[0])):
-                moments.append(level_var_diff[:, index])
-
-        level_moments.append(moments)
-        level_moments_mean.append(moments[0])
-        level_moments_var.append(variances)
-
-    if len(level_moments) > 0:
-        level_moments = np.array(level_moments)
-        print("level_moments ", level_moments)
-
-        # normality_test(level_moments)
-
-        for index in range(len(level_moments[0])):
-            test_mlmc.anova(level_moments[:, index])
-
-        for l_mom in level_moments:
-            test_mlmc.anova(l_mom)
-
-    # print("level variance diff ", level_variance_diff)
-    # print("n levels ", n_levels)
-
-    if len(level_variance_diff) > 0:
-        test_mlmc.plot_diff_var(level_variance_diff, n_levels)
-
-    # Plot moment values
-    test_mlmc.plot_vars(level_moments_mean, level_moments_var, n_levels)
-    plot_densities(densities, densities_x, n_levels, mlmc_list)
-    all_results(mlmc_list)
+# def get_var_diff(mlmc_list):
+#     """
+#     V/V* plot
+#     :param mlmc_list: list of ProcessMLMC
+#     :return: None
+#     """
+#     level_moments_mean = []
+#     level_moments = []
+#     level_moments_var = []
+#     level_variance_diff = []
+#     var_mlmc = []
+#     n_moments = 8
+#     number = 10
+#
+#     level_var_diff = []
+#     # all_results(mlmc_list)
+#
+#     all_variances = []
+#     all_means = []
+#     var_mlmc_pom = []
+#     n_levels = []
+#
+#     first_level_samples = []
+#
+#     #     proc_mlmc.domain = proc_mlmc.mc.estimate_domain()
+#     #     moments_fn = proc_mlmc.set_moments(10)
+#     #     proc_mlmc.mc.estimate_moments(moments_fn)
+#     #     proc_mlmc.mc.set_target_variance(1e-5, moments_fn)
+#     #
+#     #     for level in proc_mlmc.mc.levels:
+#     #         print("level target n samples ", level.target_n_samples)
+#     #
+#     # exit()
+#
+#     moments = None
+#     # all_results(mlmc_list)
+#
+#     densities_x = []
+#     densities = []
+#
+#     # for proc_mlmc in mlmc_list:
+#     #     first_level_samples.append(proc_mlmc.mc.levels[0].sample_values)
+#     #
+#     #     print("n samples ", proc_mlmc.mc.n_samples)
+#     # exit()
+#     # mlmc_list = mlmc_list[0:2]
+#     for proc_mlmc in mlmc_list:
+#         n_levels.append(len(proc_mlmc.mc.levels))
+#         level_var_diff = []
+#         all_variances = []
+#         all_means = []
+#         var_mlmc_pom = []
+#         for n in range(number):
+#             moments_all = []
+#             proc_mlmc.mc.clear_subsamples()
+#             for k in range(12):
+#                 proc_mlmc.domain = proc_mlmc.mc.estimate_domain()
+#                 moments_fn = proc_mlmc.set_moments(n_moments, log=True)
+#                 # Estimate moments because of eliminating outliers
+#                 proc_mlmc.mc.estimate_moments(moments_fn)
+#
+#                 # Use subsamples as a substitute for independent observations
+#                 subsamples = [int(n_sub) for n_sub in proc_mlmc.mc.n_samples / 2]
+#                 proc_mlmc.mc.subsample(subsamples)
+#                 proc_mlmc.mc.refill_samples()
+#                 proc_mlmc.pbs.execute()
+#                 proc_mlmc.mc.wait_for_simulations()
+#
+#                 moments = proc_mlmc.mc.estimate_moments(moments_fn)
+#                 moments_data = np.empty((len(moments[0]), 2))
+#
+#                 moments_data[:, 0] = moments[0][:]
+#                 moments_data[:, 1] = moments[1][:]
+#
+#                 # Remove first moment
+#                 moments_all.append(moments)
+#
+#                 proc_mlmc.mc.clear_subsamples()
+#
+#             moments = np.mean(moments_all, axis=0)
+#             # Remove first moment
+#             moments = moments[0][1:], moments[1][1:]
+#
+#             # Estimate denstity
+#             d = estimate_density(moments_fn, moments_data)
+#             densities.append(d[0])
+#             densities_x.append(d[1])
+#
+#             level_var_diff.append(test_mlmc.var_subsample(moments, proc_mlmc.mc, moments_fn, n_subsamples=200))
+#
+#             # Variances
+#             variances = np.sqrt(moments[1]) * 3
+#             var_mlmc_pom.append(moments[1])
+#
+#             all_variances.append(variances)
+#             all_means.append(moments[0])
+#
+#             # Exact moments from distribution
+#             #exact_moments = mlmc.distribution.compute_exact_moments(mc_test.moments_fn, d.pdf, 1e-10)[1:]
+#
+#             means = np.mean(all_means, axis=0)
+#             vars = np.mean(all_variances, axis=0)
+#             # var_mlmc.append(np.mean(var_mlmc_pom, axis=0))
+#
+#             # print(all(means[index] + vars[index] >= exact_mom >= means[index] - vars[index]
+#             #           for index, exact_mom in enumerate(exact_moments)))
+#
+#         if len(level_var_diff) > 0:
+#             # Average from more iteration
+#             level_variance_diff.append(np.mean(level_var_diff, axis=0))
+#
+#         if len(level_var_diff) > 0:
+#             moments = []
+#             level_var_diff = np.array(level_var_diff)
+#             for index in range(len(level_var_diff[0])):
+#                 moments.append(level_var_diff[:, index])
+#
+#         level_moments.append(moments)
+#         level_moments_mean.append(moments[0])
+#         level_moments_var.append(variances)
+#
+#     if len(level_moments) > 0:
+#         level_moments = np.array(level_moments)
+#         print("level_moments ", level_moments)
+#
+#         # normality_test(level_moments)
+#
+#         for index in range(len(level_moments[0])):
+#             test_mlmc.anova(level_moments[:, index])
+#
+#         for l_mom in level_moments:
+#             test_mlmc.anova(l_mom)
+#
+#     # print("level variance diff ", level_variance_diff)
+#     # print("n levels ", n_levels)
+#
+#     if len(level_variance_diff) > 0:
+#         test_mlmc.plot_diff_var(level_variance_diff, n_levels)
+#
+#     # Plot moment values
+#     test_mlmc.plot_vars(level_moments_mean, level_moments_var, n_levels)
+#     plot_densities(densities, densities_x, n_levels, mlmc_list)
+#     all_results(mlmc_list)
 
 
 def normality_test(level_moments):
@@ -957,14 +947,13 @@ def plot_densities(densities, x, n_levels, mlmc_list=None):
     #     plt.hist(mlmc_list[0].mc.levels[0].sample_values, bins=10000, normed=1)
     plt.show()
 
-
-def show_results(mlmc_list):
-    for mlmc in mlmc_list:
-        print("n samples ", mlmc.mc.n_samples)
-
-        for level in mlmc.mc.levels:
-            print("level id ", level.level_idx)
-            print("level smples ", level._sample_values)
+# def show_results(mlmc_list):
+#     for mlmc in mlmc_list:
+#         print("n samples ", mlmc.mc.n_samples)
+#
+#         for level in mlmc.mc.levels:
+#             print("level id ", level._logger.level_idx)
+#             print("level samples ", level._sample_values)
 
 
 main()

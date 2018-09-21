@@ -236,7 +236,7 @@ class MLMC:
 
         sqrt_var_n = np.sqrt(vars.T * n_ops)    # moments in rows, levels in cols
         total = np.sum(sqrt_var_n, axis=1)      # sum over levels
-        n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int) # moments in cols
+        n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)# moments in cols
         n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars*self.n_levels/target_variance), 2)
 
         n_samples_estimate_max = np.max(n_samples_estimate_safe, axis=1)
