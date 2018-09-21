@@ -425,7 +425,8 @@ class Level:
         """
         Estimate moments variance
         :param moments_fn: Moments evaluation function
-        :return: tuple (variance vector, length of moments)
+        :return: (array of variances of moments, number of samples)
+            variances have length R
         """
         assert self.n_samples > 1
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
