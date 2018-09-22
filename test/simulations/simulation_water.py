@@ -32,7 +32,7 @@ class SimulationWater(Simulation):
         self.h = self.length_of_area / n
         self.time_step = self.h
 
-    def cycle(self, n_fine):
+    def simulation_sample(self, n_fine):
         """
         Execution of simulation 
         :param n_coarse: coarse n - number of steps

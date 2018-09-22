@@ -22,4 +22,6 @@ __pycache__/
 doc/Bproject.pdf
 
 # test results
-test/01_*/sim_*
+test/01_*/output*
+test/02_*/output*
+test/_output/*

@@ -1,47 +1,228 @@
 import numpy as np
 import numpy.linalg as la
 import scipy as sp
+import copy
 from sklearn.utils.extmath import randomized_svd
 
 
-class FieldSet:
+
+def kozeny_carman(porosity, m, factor, viscosity):
     """
-    A set of cross correlated named correlated fields.
-    Currently just a wrapper of a single named field.
-    TODO, questions:
-    - mu, and sigma for individual fields can not be set via set_points method
-      as we need the field set to be shared for different meshes. We have to introduce a kind of continuous
-      field that can be evaluated at any point.
-    - we can not make hard wired model for any field set so this should be a base class that
-      defines an interface and common methods but evaluation of the feild set is case dependent
-
+    Kozeny-Carman law. Empirical relationship between porosity and conductivity.
+    :param porosity: Porosity value.
+    :param m: Power. Suitable values are 1 < m < 4
+    :param factor: [m^2]
+        E.g. 1e-7 ,   m = 3.48;  juta fibers
+             2.2e-8 ,     1.46;  glass fibers
+             1.8e-13,     2.89;  erruptive material
+             1e-12        2.76;  erruptive material
+             1.8e-12      1.99;  basalt
+    :param viscosity: [Pa . s], water: 8.90e-4
+    :return:
     """
+    assert np.all(viscosity > 1e-10)
+    porosity = np.minimum(porosity, 1-1e-10)
+    porosity = np.maximum(porosity, 1e-10)
+    cond = factor * porosity ** (2 + m) / (1 - porosity) ** 2 / viscosity
+    cond = np.maximum(cond, 1e-15)
+    return cond
 
-    def __init__(self, name, field):
-        self._back_fields = [field]
-        # List of backend fields that are independent. We always have to
-        # decompose resulting fields as functions of the independent fields.
+def positive_to_range(exp, a, b):
+    """
+    Mapping a positive parameter 'exp' from the interval <0, \infty) to the interval <a,b).
+    Suitable e.g. to generate meaningful porosity from a variable with lognormal distribution.
+    :param exp: A positive parameter. (LogNormal distribution.)
+    :param a, b: Range interval.
+    """
+    return  b * (1 - (b - a) / (b + (b - a) * exp))
 
-        self.field_names = [name]
-
-    def names(self):
+class Field:
+    def __init__(self, name, field=None, param_fields=[], regions=[]):
         """
-        Generator for field names.
-        :return:
+        :param name: Name of the field.
+        :param field: scalar (const field), or instance of SpatialCorrelatedField, or a callable
+               for evaluation of the field from its param_fields.
+        :param regions: Domain where field is sampled.
+        :param param_fields: List of names of parameter fields, dependees.
+        TODO: consider three different derived classes for: const, random and func fields.
         """
-        return self.field_names
+        self.correlated_field = None
+        self.const = None
+        self._func = field
+        self.is_outer = True
+
+        if type(regions) is str:
+            regions = [regions]
+        self.name = name
+        if type(field) in [float, int]:
+            self.const = field
+            assert len(param_fields) == 0
+        elif type(field) is SpatialCorrelatedField:
+            self.correlated_field = field
+            assert len(param_fields) == 0
+        else:
+            assert len(param_fields) > 0, field
+
+            # check callable
+            try:
+                params = [ np.ones(2) for i in range(len(param_fields))]
+                field(*params)
+            except:
+                raise Exception("Invalid field function for field: {}".format(name))
+            self._func = field
+
+        self.regions = regions
+        self.param_fields = param_fields
 
     def set_points(self, points):
-        for field in self._back_fields:
-            field.set_points(points)
+        """
+        Internal method to set evaluation points. See Fields.set_points.
+        """
+        if self.const is not None:
+            self._sample = self.const * np.ones(len(points))
+        elif self.correlated_field is not None:
+            #print("Set crr field, ", self.name, self.regions)
+            self.correlated_field.set_points(points)
+            self.correlated_field.svd_dcmp(n_terms_range=(10, 100))
+        else:
+            pass
+
+    def sample(self):
+        """
+        Internal method to generate/compute new sample.
+        :return:
+        """
+        if self.const is not None:
+            return self._sample
+        elif self.correlated_field is not None:
+            self._sample = self.correlated_field.sample()
+        else:
+            params = [ pf._sample for pf in self.param_fields]
+            self._sample = self._func(*params)
+        return self._sample
+
+
+class Fields:
+
+    def __init__(self, fields):
+        """
+        Creates a new set of cross dependent random fields.
+        Currently no support for cross-correlated random fields.
+        A set of independent basic random fields must exist
+        other fields can be dependent in deterministic way.
+
+        :param fields: A list of dependent fields.
+
+        Example:
+        rf = SpatialCorrelatedField(log=True)
+        Fields([
+            Field('por_top', rf, regions='ground_0'),
+            Field('porosity_top', positive_to_range, ['por_top', 0.02, 0.1], regions='ground_0'),
+            Field('por_bot', rf, regions='ground_1'),
+            Field('porosity_bot', positive_to_range, ['por_bot', 0.01, 0.05], regions='ground_1'),
+            Field('conductivity_top', cf.kozeny_carman, ['porosity_top', 1, 1e-8, water_viscosity], regions='ground_0'),
+            Field('conductivity_bot', cf.kozeny_carman, ['porosity_bot', 1, 1e-10, water_viscosity],regions='ground_1')
+            ])
+
+        TODO: use topological sort to fix order of 'fields'
+        TODO: syntactic sugar for calculating with fields (like with np.arrays).
+        """
+        self.fields_orig = fields
+        self.fields_dict = {}
+        self.fields = []
+
+        # Have to make a copy of the fields since we want to generate the samples in them
+        # and the given instances of Field can be used by an independent FieldSet instance.
+        for field in self.fields_orig:
+            new_field = copy.copy(field)
+            if new_field.param_fields:
+                new_field.param_fields = [self._get_field_obj(field, new_field.regions) for field in new_field.param_fields]
+            self.fields_dict[new_field.name] = new_field
+            self.fields.append(new_field)
+
+    def _get_field_obj(self, field_name, regions):
+        """
+        Get fields by name, replace constants by constant fields for unification.
+        """
+        if type(field_name) in [float, int]:
+            const_field = Field("const_{}".format(field_name), field_name, regions=regions)
+            self.fields.insert(0, const_field)
+            self.fields_dict[const_field.name] = const_field
+            return const_field
+        else:
+            assert field_name in self.fields_dict, "name: {} dict: {}".format(field_name, self.fields_dict)
+            return self.fields_dict[field_name]
+
+    @property
+    def names(self):
+        return self.fields_dict.keys()
+
+    # def iterative_dfs(self, graph, start, path=[]):
+    #     q = [start]
+    #     while q:
+    #         v = q.pop(0)
+    #         if v not in path:
+    #             path = path + [v]
+    #             q = graph[v] + q
+    #
+    #     return path
+
+    def set_outer_fields(self, outer):
+        """
+        Set fields that will be in a dictionary produced by FieldSet.sample() call.
+        :param outer: A list of names of fields that are sampled.
+        :return:
+        """
+        outer_set = set(outer)
+        for f in self.fields:
+            if f.name in outer_set:
+                f.is_outer = True
+            else:
+                f.is_outer = False
+
+
+    def set_points(self, points, region_ids=[], region_map={}):
+        """
+        Set mesh related data to fields.
+        - set points for sample evaluation
+        - translate region names to region ids in fields
+        - create maps from region constraned point sets of fields to full point set
+        :param points: np array of points for field evaluation
+        :param regions: regions of the points;
+               empty means no points for fields restricted to regions and all points for unrestricted fields
+        :return:
+        """
+        self.n_elements = len(points)
+        assert len(points) == len(region_ids)
+        reg_points = {}
+        for i, reg_id in enumerate(region_ids):
+            reg_list = reg_points.get(reg_id, [])
+            reg_list.append(i)
+            reg_points[reg_id] = reg_list
+
+        for field in self.fields:
+            point_ids = []
+            if field.regions:
+                for reg in field.regions:
+                    reg_id = region_map[reg]
+                    point_ids.extend(reg_points.get(reg_id, []))
+                field.set_points(points[point_ids])
+                field.full_sample_ids = point_ids
+            else:
+                field.set_points(points)
+                field.full_sample_ids = np.arange(self.n_elements)
 
     def sample(self):
         """
         Return dictionary of sampled fields.
         :return: { 'field_name': sample, ...}
         """
-        result = dict()
-        result[self.field_names[0]] = self._back_fields[0].sample()
+        result = {}
+        for field in self.fields:
+            sample = field.sample()
+            if field.is_outer:
+                result[field.name] = np.zeros(self.n_elements)
+                result[field.name][field.full_sample_ids] = sample
         return result
 
 
@@ -86,8 +267,8 @@ class SpatialCorrelatedField:
         :param dim: dimension of the domain (size of point coords)
         :param corr_length: scalar, correlation length L > machine epsilon; tensor K = (1/L)^2
         :param aniso_correlation: 3x3 array; K tensor, overrides correlation length
-        :param mu - mu field (currently just a constant), can override by set_points parameters
-        :param sigma - sigma field (currently just a constant), can override by set_points parameters
+        :param mu - mu field (currently just a constant)
+        :param sigma - sigma field (currently just a constant)
 
         TODO: use kwargs and move set_points into constructor
         """
@@ -135,7 +316,8 @@ class SpatialCorrelatedField:
         :return: None
         """
         points = np.array(points, dtype=float)
-        assert len(points.shape) == 2
+
+        assert len(points.shape) >= 1
         assert points.shape[1] == self.dim
         self.n_points, self.dimension = points.shape
         self.points = points
@@ -152,6 +334,8 @@ class SpatialCorrelatedField:
 
         self.cov_mat = None
         self._cov_l_factor = None
+
+        #return self.n_points
 
     def cov_matrix(self):
         """
@@ -237,17 +421,20 @@ class SpatialCorrelatedField:
             m = max(m, range[0])
             threshold = 2 * precision
             # TODO: Test if we should cut eigen values by relative (like now) or absolute value
-            while threshold > precision and m < range[1]:
-                print("t: ", threshold, "m: ", m, precision, range[1])
+            while threshold >= precision and m <= range[1]:
+                #print("treshold: {} m: {} precision: {} max_m: {}".format(threshold,  m, precision, range[1]))
                 U, ev, VT = randomized_svd(self.cov_mat, n_components=m, n_iter=3, random_state=None)
                 threshold = ev[-1] / ev[0]
                 m = int(np.ceil(1.5 * m))
 
             m = len(ev)
             m = min(m, range[1])
+
+        #print("KL approximation: {} for {} points.".format(m, self.n_points))
         self.n_approx_terms = m
         self._sqrt_ev = np.sqrt(ev[0:m])
         self._cov_l_factor = U[:, 0:m].dot(sp.diag(self._sqrt_ev))
+        self.cov_mat = None
         return self._cov_l_factor, ev[0:m]
 
     def sample(self, uncorelated=None):
@@ -255,24 +442,18 @@ class SpatialCorrelatedField:
         :param uncorelated: Random samples from standard normal distribution.
         :return: Random field evaluated in points given by 'set_points'.
         """
-
         if self._cov_l_factor is None:
             self.svd_dcmp()
         if uncorelated is None:
             uncorelated = np.random.normal(0, 1, self.n_approx_terms)
         else:
             assert uncorelated.shape == (self.n_approx_terms,)
-
         field = (self.sigma * self._cov_l_factor.dot(uncorelated)) + self.mu
-        if self.log:
-            return np.exp(field)
-        else:
+
+        if not self.log:
             return field
+        return np.exp(field)
 
 
-# =====================================================================
-# Example:
-"""
-"""
 
 

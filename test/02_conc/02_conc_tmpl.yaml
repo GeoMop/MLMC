@@ -1,0 +1,167 @@
+#
+# Permeability of granite about 1e-9
+# conductivity about 1e-6
+# porosity about 1e-2
+# pressure gradient under 1e-2
+# transport time over 1km, under 1e3/1-8  = 1e11 s = 3000 years
+# 
+flow123d_version: 2.1.0
+problem: !Coupling_Sequential
+  description: Quasi real 2d repository test problem. 
+  mesh:
+    mesh_file: <mesh_file>
+  flow_equation: !Flow_Darcy_MH
+    output_specific:
+    nonlinear_solver:
+      linear_solver: !Petsc
+        a_tol: 1.0e-11
+        r_tol: 1.0e-11
+        #max_it: 1000
+    n_schurs: 2
+    input_fields:
+      - region: ground_0
+        conductivity: <conductivity_top>   
+      
+      - region: ground_1
+        conductivity: <conductivity_bot>   
+
+      - region: repo
+        conductivity: <conductivity_repo>   
+
+      - region: .surface
+        bc_type: seepage
+        bc_pressure: 0
+        bc_flux: 3e-8   # odpovida uhrnu srazek zhruba 1000mm za rok
+        #bc_flux: 1e-10  # Seems that the realistic flow is two high, forcing nearly no outflow
+    output:
+      fields:
+        - piezo_head_p0
+        - velocity_p0
+        - conductivity
+    balance: {}
+    output_stream:
+      format: !vtk
+
+  solute_equation: !Coupling_OperatorSplitting
+    transport: !Solute_AdvectionDiffusion_DG
+    #transport: !Solute_Advection_FV
+      input_fields:
+
+        #- region: repo
+          #sources_conc: !FieldFormula
+            #value: "max(1.0 - 0.001*t, 0.0)"
+          #sources_sigma: 0.001    # CFL time 1000.0
+        
+        #- region: repo
+          #time: 1000
+          #sources_conc: 0            
+          #sources_sigma: 0
+          
+        - region: [ground_0, ground_1]
+          init_conc: 0
+          
+        - region: repo  
+          init_conc: 1
+          
+        - region: ground_0  
+          porosity: <porosity_top>
+        
+        - region: ground_1  
+          porosity: <porosity_bot>
+        
+        - region: repo
+          porosity: <porosity_repo>
+        
+      output:
+        fields:
+          - porosity
+          - conc
+        observe_fields:
+          - conc
+    balance: 
+        times:
+          - step: 1e6
+    output_stream:
+        file: ./transport_test15.msh
+        format: !vtk
+            null
+        name: transport_output_stream
+        times:
+          #- {begin: 0.0, step: 100, end: 1000}
+          #- {begin: 1000, step: 1000, end: 10000}
+          #- {begin: 1000, step: 10000, end: 100000}
+          - step: 10e6
+        observe_points:
+          - point: [0.98,   0,  0.18]
+            dim: 2
+            #n_search_levels: 3
+            #snap_region: .surface            
+          - point: [0.9, 0,  0.15]
+            dim: 2
+            #snap_region: .surface
+          
+          - point: [0.85, 0, 0.13]
+            dim: 2
+            #snap_region: .surface
+          - point: [0.8, 0,  0.12]
+            dim: 2
+            #snap_region: .surface
+          - point: [0.75, 0, 0.10]
+            dim: 2
+            #snap_region: .surface
+          - point: [0.7, 0,  0.09]
+            dim: 2
+            #snap_region: .surface
+          - point: [0.65, 0, 0.08]
+            dim: 2
+            #snap_region: .surface
+          - point: [0.6, 0,  0.08]
+            dim: 2
+            #snap_region: .surface
+          - point: [0.55, 0, 0.08]
+            dim: 2
+            #snap_region: .surface
+          - point: [0.5, 0,  0.08]
+            dim: 2
+            #snap_region: .surface
+          
+          - point: [0.4, 0,  0.09]
+            dim: 2
+            #snap_region: .surface
+          - point: [0.3, 0,  0.14]
+            dim: 2
+            #snap_region: .surface
+          - point: [0.2, 0,  0.21]
+            dim: 2
+            #snap_region: .surface
+          - point: [0.1, 0,  0.29]
+            dim: 2
+            #snap_region: .surface
+          
+          #- [ 1 , 0 , 0.2 ]
+          #- [ 0.9 , 0 , 0.16 ]
+          
+          #- [ 0.85 , 0 , 0.14 ]
+          #- [ 0.799858 , 0 , 0.128338 ]
+          #- [ 0.75 , 0 , 0.11 ]
+          #- [ 0.7 , 0 , 0.1 ]
+          #- [ 0.65 , 0 , 0.09 ]
+          #- [ 0.599976 , 0 , 0.0895959 ]
+          #- [ 0.549931 , 0 , 0.0888147 ]
+          #- [ 0.499885 , 0 , 0.0880335 ]
+          
+          #- [ 0.4 , 0 , 0.1 ]
+          #- [ 0.3 , 0 , 0.15 ]
+          #- [ 0.2 , 0 , 0.22 ]
+          #- [ 0.1 , 0 , 0.3 ]
+          
+  
+          
+          
+    substances:
+        - X
+    time:  
+        min_dt: <timestep_h1>
+        max_dt: <timestep_h1>
+        end_time: 200e6
+        

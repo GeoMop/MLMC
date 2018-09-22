@@ -1,4 +1,4 @@
-ChL=0.05;
+ChL=1.0;
 // Default 2d algo (1) snd MeshAdapt (4) produce nonsymetric mesh
 // Delaunay (5) produce symmetric mesh
 Mesh.Algorithm=5;
