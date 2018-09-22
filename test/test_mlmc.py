@@ -396,8 +396,6 @@ class TestMLMC:
                 # Theoretical std do not match well for log norm distr.
                 assert 0.2 < np.min(fraction) < 3, "{}; {}".format(fraction, std_diff_var/np.mean(std_diff_var))
 
-
-
                 #plt.plot(fraction, label="est_var" + str(i_mom) )
 
             #plt.legend()
@@ -428,32 +426,34 @@ class TestMLMC:
         # compute error
         print( "RMS:", np.linalg.norm(np.array(all_diffs).ravel()))
 
-        # # Plot variance regression for exact level variances
-        # vars[:, 1:] = self.ref_level_vars[:, 1:]
-        # reg_vars = self.mc._varinace_regression(vars, sim_steps)
-        # X = np.outer( np.arange(self.n_levels), np.ones(self.n_moments -1 )) + 0.1 * np.outer( np.ones(self.n_levels), np.arange(self.n_moments -1 ) )
-        # col = np.outer( np.ones(self.n_levels), np.arange(self.n_moments -1 ) )
-        # plt.scatter(X.ravel(), self.ref_level_vars[:, 1:].ravel(), c=col.ravel(), cmap=plt.cm.tab10, norm=plt.Normalize(0, 10), marker='o')
-        # for i_mom in range(self.n_moments - 1):
-        #     col = plt.cm.tab10(plt.Normalize(0, 10)(i_mom))
-        #     plt.plot(X[:, i_mom], reg_vars[:, i_mom + 1], c=col)
-        # plt.legend()
-        # plt.yscale('log')
-        # plt.ylim(1e-10, 1)
-        # plt.show()
+        def plot_var_regression():
+            # Plot variance regression for exact level variances
+            vars[:, 1:] = self.ref_level_vars[:, 1:]
+            reg_vars = self.mc._varinace_regression(vars, sim_steps)
+            X = np.outer( np.arange(self.n_levels), np.ones(self.n_moments -1 )) + 0.1 * np.outer( np.ones(self.n_levels), np.arange(self.n_moments -1 ) )
+            col = np.outer( np.ones(self.n_levels), np.arange(self.n_moments -1 ) )
+            plt.scatter(X.ravel(), self.ref_level_vars[:, 1:].ravel(), c=col.ravel(), cmap=plt.cm.tab10, norm=plt.Normalize(0, 10), marker='o')
+            for i_mom in range(self.n_moments - 1):
+                col = plt.cm.tab10(plt.Normalize(0, 10)(i_mom))
+                plt.plot(X[:, i_mom], reg_vars[:, i_mom + 1], c=col)
+            plt.legend()
+            plt.yscale('log')
+            plt.ylim(1e-10, 1)
+            plt.show()
 
+        def plot_regression_diffs():
+            for i_mom in range(self.n_moments-1):
+                diffs =  [ sample[:, i_mom]  for sample in all_diffs]
+                diffs = np.array(diffs)
+                N, L = diffs.shape
+                X = np.outer( np.ones(N), np.arange(L) ) + i_mom * 0.1
+                col = np.ones_like(diffs) * i_mom
+                plt.scatter(X, diffs, c=col, cmap=plt.cm.tab10, norm=plt.Normalize(0, 10), marker='o', label=str(i_mom))
+            plt.legend()
+            plt.yscale('log')
+            plt.ylim(1e-10, 1)
+            plt.show()
 
-        # for i_mom in range(self.n_moments-1):
-        #     diffs =  [ sample[:, i_mom]  for sample in all_diffs]
-        #     diffs = np.array(diffs)
-        #     N, L = diffs.shape
-        #     X = np.outer( np.ones(N), np.arange(L) ) + i_mom * 0.1
-        #     col = np.ones_like(diffs) * i_mom
-        #     plt.scatter(X, diffs, c=col, cmap=plt.cm.tab10, norm=plt.Normalize(0, 10), marker='o', label=str(i_mom))
-        # plt.legend()
-        # plt.yscale('log')
-        # plt.ylim(1e-10, 1)
-        # plt.show()
 
     def test_mean_var_consistency(self):
         """
