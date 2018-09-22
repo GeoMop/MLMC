@@ -393,7 +393,7 @@ class MLMC:
 
     def update_moments(self, moments_fn):
         for level in self.levels:
-            level.evaluate_moments(moments_fn)
+            level.evaluate_moments(moments_fn, force=True)
 
     def estimate_moments(self, moments_fn):
         """

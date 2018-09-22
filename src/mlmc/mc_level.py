@@ -364,14 +364,14 @@ class Level:
             assert 0 < size < self._n_valid_samples, "0 < {} < {}".format(size, self._n_valid_samples)
             self.sample_indices = np.random.choice(np.arange(self._n_valid_samples, dtype=int), size=size)
 
-    def evaluate_moments(self, moments_fn):
+    def evaluate_moments(self, moments_fn, force=False):
         """
         Evaluating moments from moments function
         :param moments_fn: Moment evaluation functions
         :return: tuple
         """
         # Current moment functions are different from last moment functions
-        if moments_fn != self._last_moments_fn:
+        if force or moments_fn != self._last_moments_fn:
             samples = self.sample_values
 
             # Moments from fine samples
