@@ -372,23 +372,22 @@ class Level:
         :return: tuple
         """
         # Current moment functions are different from last moment functions
-        samples = self.sample_values
+        if moments_fn != self._last_moments_fn:
+            samples = self.sample_values
 
-        # Moments from fine samples
-        moments_fine = moments_fn(samples[:, 0])
+            # Moments from fine samples
+            moments_fine = moments_fn(samples[:, 0])
 
-        # For first level moments from coarse samples are zeroes
-        if self.is_zero_level:
-            moments_coarse = np.zeros_like(np.eye(len(moments_fine), moments_fn.size))
-        else:
-            moments_coarse = moments_fn(samples[:, 1])
-        # Set last moments function
-        self._last_moments_fn = moments_fn
-        # Moments from fine and coarse samples
-        self.last_moments_eval = moments_fine, moments_coarse
+            # For first level moments from coarse samples are zeroes
+            if self.is_zero_level:
+                moments_coarse = np.zeros_like(np.eye(len(moments_fine), moments_fn.size))
+            else:
+                moments_coarse = moments_fn(samples[:, 1])
+            # Set last moments function
+            self._last_moments_fn = moments_fn
+            # Moments from fine and coarse samples
+            self.last_moments_eval = moments_fine, moments_coarse
 
-        # Remove outliers
-        if self.last_moments_eval is not None:
             self._remove_outliers_moments()
 
         if self.sample_indices is None:
