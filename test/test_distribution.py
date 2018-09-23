@@ -293,7 +293,7 @@ def test_distribution():
 # plt.show()
 # """
 
-
+@pytest.mark.skip
 def test_mlmc_distribution(nl, distr):
     """
     Test approximation moments from first estimate and from final number of samples
@@ -409,7 +409,8 @@ def density_from_prior_estimate(distr_obj, mc_test, exact_moments, exact_density
     return density
 
 
-def _test_distributions():
+@pytest.mark.skip
+def test_distributions():
     """
     Plot densities and histogram for chosen distributions
     :return: None
@@ -451,5 +452,3 @@ def _test_distributions():
     plt.show()
 
 
-_test_distributions()
-exit()
