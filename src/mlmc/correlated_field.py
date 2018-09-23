@@ -404,13 +404,12 @@ class SpatialCorrelatedField(RandomFieldBase):
         n_pt = len(self.points)
         self.cov_mat = np.empty((n_pt, n_pt))
         corr_exp = self.correlation_exponent / 2.0
-        exp_scale = - 1.0 / self.correlation_exponent
 
         for i_row in range(n_pt):
             pt = self.points[i_row]
             diff_row = self.points - pt
             len_sqr_row = np.sum(diff_row.dot(self.correlation_tensor) * diff_row, axis=-1)
-            self.cov_mat[i_row, :] = np.exp(exp_scale * len_sqr_row ** corr_exp)
+            self.cov_mat[i_row, :] = np.exp(-len_sqr_row ** corr_exp)
         return self.cov_mat
 
     def _eigen_value_estimate(self, m):
@@ -510,7 +509,7 @@ class FourierSpatialCorrelatedField(RandomFieldBase):
         Own intialization.
         :param mode_no: Number of Fourier modes
         """
-        self.len_scale = self._corr_length * 6.3
+        self.len_scale = self._corr_length * 2*np.pi
         self.mode_no = kwargs.get("mode_no", 1000)
 
 
@@ -558,16 +557,17 @@ class FourierSpatialCorrelatedField(RandomFieldBase):
         :param mode_no: int, Number of Fourier modes
         :return: numpy.ndarray
         """
+        len_scale = self.len_scale * np.sqrt(np.pi / 4)
         if self.dim == 1:
             k = self._create_empty_k(mode_no)
             rng = self._get_random_stream()
-            k[0] = rng.normal(0., np.pi / 2.0 / self.len_scale ** 2, mode_no)
+            k[0] = rng.normal(0., np.pi / 2.0 / len_scale ** 2, mode_no)
         elif self.dim == 2:
             coord = self._sample_sphere(mode_no)
             rng = self._get_random_stream()
             rad_u = rng.random_sample(mode_no)
             # weibull distribution sampling
-            rad = np.sqrt(np.pi) / self.len_scale * np.sqrt(-np.log(rad_u))
+            rad = np.sqrt(np.pi) / len_scale * np.sqrt(-np.log(rad_u))
             k = rad * coord
         elif self.dim == 3:
             raise NotImplementedError("For implementation see "
@@ -686,7 +686,7 @@ class FourierSpatialCorrelatedField(RandomFieldBase):
             else:
                 break
 
-        field = np.sqrt(1. / self.mode_no) * summed_modes
+        field = np.sqrt(1.0 / self.mode_no) * summed_modes
         return  field
 
     def _sample(self):

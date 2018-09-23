@@ -138,7 +138,7 @@ def plot_mc(n_samples, data, title=""):
     plt.show()
 
 
-def impl_test_mu_sigma(corr_exp, points, n_terms_range, fourier=False):
+def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, fourier=False):
     """
     Test rate of convergence for global mu and sigma.
     :param corr_exp: Correlation exponent,
@@ -151,13 +151,11 @@ def impl_test_mu_sigma(corr_exp, points, n_terms_range, fourier=False):
     corr_length = 2
     mu = 3.14
     sigma = 1.5
-    field = SpatialCorrelatedField(corr_exp, dim=points.dim, corr_length=corr_length)
+    field = field_impl(corr_exp, dim=points.dim, corr_length=corr_length)
 
-    if fourier:
-        field = FourierSpatialCorrelatedField(dim=points.dim, corr_length=corr_length, len_scale=corr_length)
 
     field.set_points(points.points, mu, sigma)
-    if not fourier:
+    if isinstance(field, SpatialCorrelatedField):
         field.svd_dcmp(precision=0.01, n_terms_range=n_terms_range)
 
     # # plot single sample
@@ -199,10 +197,9 @@ def impl_test_mu_sigma(corr_exp, points, n_terms_range, fourier=False):
     # avg(X_i,j) = avg(mu) + beta_k * Y_k ; Y_k ~ N(0, 1/N_i)
     # D(avg(X_i,j))  =  sum(beta_k^2) / N_i / N_k^2
 
-    if not fourier:
-        var_field_avg = (sigma * np.sum(field._cov_l_factor) / n_pt) ** 2 / n_samples
-        var_field = sigma ** 2 * np.sum(field._cov_l_factor ** 2, axis=1) / n_samples
-        X = np.full(n_pt, 1.0)
+        # var_field_avg = (sigma * np.sum(field._cov_l_factor) / n_pt) ** 2 / n_samples
+        # var_field = sigma ** 2 * np.sum(field._cov_l_factor ** 2, axis=1) / n_samples
+        # X = np.full(n_pt, 1.0)
         # plt.plot(X, var_field)
         # plt.plot([0.0, 1.0], np.full(2, var_field_avg))
         # plt.show()
@@ -235,24 +232,15 @@ def test_field_mean_std_convergence(seed):
     gauss = 2.0
     n_terms = (np.inf, np.inf)  # Use full expansion to avoid error in approximation.
 
-    print("Test exponential, grid points.")
-    impl_test_mu_sigma(exponential, grid_points, n_terms_range=n_terms)
-    print("Test Gauss, grid points.")
-    impl_test_mu_sigma(gauss, grid_points, n_terms_range=n_terms)
-    print("Test exponential, random points.")
-    impl_test_mu_sigma(exponential, random_points, n_terms_range=n_terms)
-    print("Test Gauss, random points.")
-    impl_test_mu_sigma(gauss, random_points, n_terms_range=n_terms)
-
-    # ================ Randomization method =======================================
-    print("Test exponential, grid points.")
-    impl_test_mu_sigma(exponential, grid_points, n_terms_range=n_terms, fourier=True)
-    print("Test Gauss, grid points.")
-    impl_test_mu_sigma(gauss, grid_points, n_terms_range=n_terms, fourier=True)
-    print("Test exponential, random points.")
-    impl_test_mu_sigma(exponential, random_points, n_terms_range=n_terms, fourier=True)
-    print("Test Gauss, random points.")
-    impl_test_mu_sigma(gauss, random_points, n_terms_range=n_terms, fourier=True)
+    for impl in [SpatialCorrelatedField, FourierSpatialCorrelatedField]:
+        print("Test exponential, grid points.")
+        impl_test_mu_sigma(impl, exponential, grid_points, n_terms_range=n_terms)
+        print("Test Gauss, grid points.")
+        impl_test_mu_sigma(impl, gauss, grid_points, n_terms_range=n_terms)
+        print("Test exponential, random points.")
+        impl_test_mu_sigma(impl, exponential, random_points, n_terms_range=n_terms)
+        print("Test Gauss, random points.")
+        impl_test_mu_sigma(impl, gauss, random_points, n_terms_range=n_terms)
 
 
 def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
@@ -277,49 +265,38 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
     # Select pairs to sample various point distances
     radius = 0.5 * la.norm(points.max_pt - points.min_pt, 2)
     n_cells = 20
-    i_cell = lambda l: (n_cells * np.minimum(l/radius, 1.0)).astype(int)
-    n_fn_samples = 20000
-    samples_per_cell = 10
+    n_fn_samples = 20
 
     # random pairs of points
     pairs = np.random.choice(points.size, (n_cells*n_fn_samples, 2))
-    # a distance cell for every pair
-    cells = i_cell(la.norm(points.points[pairs[:, 0]] - points.points[pairs[:, 1]], axis=1))
-    # Set of pairs for every distance cell.
-    cell_pairs = [set() for _ in range(n_cells+1)]
-    for ij, i_cell in zip(pairs, cells):
-        cell_pairs[i_cell].add(tuple(ij))
+    pair_dists = la.norm(points.points[pairs[:, 0]] - points.points[pairs[:, 1]], axis=1)
+    indices = np.argsort(pair_dists)
+    pair_dists = pair_dists[indices].reshape(n_cells, n_fn_samples)
+    cell_lists = np.transpose(pairs[indices, :].reshape(n_cells, n_fn_samples, 2), axes=(1, 0, 2))
+    lengths = np.mean(pair_dists, axis=1)
 
-    # Merge cells with few samples
-    cell_lists = [[]]
-    for c in cell_pairs:
-        if len(cell_lists[-1]) < samples_per_cell:
-            cell_lists[-1] += list(c)
-        else:
-            cell_lists[-1] = cell_lists[-1][:samples_per_cell]
-            cell_lists.append(list(c))
-    cell_lists.pop(-1)
-    n_cells = len(cell_lists)
 
-    # n_pairs_per_cell  x  n_cells  x  2
-    pairs_array = np.transpose(np.array(cell_lists), axes=(1, 0, 2))
     # Estimate statistics by Monte Carlo
     # correlation function - stationary, isotropic
-    corr_fn = lambda dist: np.exp((-1.0 / corr_exp) * (dist / corr_length) ** corr_exp)
+    corr_fn = lambda dist: np.exp(-(dist / corr_length) ** corr_exp)
 
     errors = Cumul(n_cells)
-    lengths = Cumul(n_cells)
+    #lengths = Cumul(n_cells)
+    field_diffs = Cumul(n_cells)
 
-    n_samples = 100
+    n_samples = 1000
     for _ in range(n_samples):
         sample = field.sample()
-        for pa in pairs_array:
-            dist = la.norm(points.points[pa[:, 0]] - points.points[pa[:, 1]], axis=1)
+        for i_pt, pa in enumerate(cell_lists):
+            dist = pair_dists[:, i_pt]
             err = sample[pa[:, 0]] * sample[pa[:, 1]] - corr_fn(dist)
+            #field_diff = 0.5*(sample[pa[:, 0]] - sample[pa[:, 1]])**2
+            field_diff = sample[pa[:, 0]] * sample[pa[:, 1]]
+            field_diffs += field_diff
             errors += err
-            lengths += dist
+            #lengths += dist
     errors.finalize()
-    lengths.finalize()
+    field_diffs.finalize()
 
     def plot_error_fn():
         X = lengths.avg_array()[-1]
@@ -327,16 +304,15 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
         plt.plot(X, Y)
         plt.show()
 
-    #n_samples = [cumul.n_array() for cumul in cumul_table]
-    #n_levels = max([len(cell_avg) for cell_avg in avg_err])
-    #
-    # #X = lengths.avg_array()[-1, :]
-    #
-    #norm = matplotlib.colors.Normalize(0, n_levels)
-    #color = matplotlib.cm.hot(1.0 - norm(l))
-    #plt.plot(X, Y, c=color, label=str(l))
-    #plot_mc(errors.n_array(), avg_err*avg_err, "Error of covariance function estimate.")
 
+    def plot_variogram():
+        # For sigma == 1 variogram is 1-correlation function
+        # Plot mean of every cell.
+        variogram = field_diffs.avg_array()[-1,:]
+        plt.plot(lengths, variogram)
+        plt.plot(lengths, corr_fn(lengths), c='red')
+        plt.show()
+    #plot_variogram()
 
     # TODO: generalize PlotMC to this case
     Y = np.std(errors.avg_array(), axis=1)
@@ -358,14 +334,13 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
         plt.xscale('log')
         plt.show()
 
-    plot_fit()
+    #plot_fit()
 
     assert -m1 > 0.38    # convergence rate close to 0.5 (optimal for MC)
     print("Mean fit: {} {} {}".format(m1, log_mean, np.exp(log_mean)))
-    #assert np.exp(log_mean) < 0.1     # should be about 0.05 for n_samples = 1000
-    assert np.exp(log_mean) < 0.3     # should be about 0.15 for n_samples = 100
+    assert np.exp(log_mean) < 0.07
 
-@pytest.mark.parametrize('seed', [11])
+@pytest.mark.parametrize('seed', [6, 8])
 def test_cov_func_convergence(seed):
     # TODO:
     # Seems that we have systematic error in covariance function.
@@ -381,7 +356,7 @@ def test_cov_func_convergence(seed):
     np.random.rand(100)
     # ===========  A structured grid of points: =====================================
     bounds = ([0, 0], [40, 30])
-    random_points = PointSet(bounds, 1000)
+    random_points = PointSet(bounds, 100)
     exponential = 1.0
     gauss = 2.0
     n_terms = (np.inf, np.inf)  # Use full expansion to avoid error in approximation.
