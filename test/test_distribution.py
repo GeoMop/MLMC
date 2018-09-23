@@ -29,7 +29,7 @@ import numpy as np
 import scipy.stats as stats
 import os
 import sys
-
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -38,9 +38,9 @@ import mlmc.postprocess
 import mlmc.distribution
 from mlmc.distribution import Distribution
 import mlmc.moments
-import test_mlmc
+#import test_mlmc
 import time
-import copy as cp
+
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
