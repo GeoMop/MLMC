@@ -10,6 +10,7 @@ class MLMC:
     """
     Multilevel Monte Carlo method
     """
+
     def __init__(self, n_levels, sim_factory, step_range, process_options):
         """
         :param n_levels: Number of levels
@@ -80,7 +81,8 @@ class MLMC:
                 level_param = i_level / (self._n_levels - 1)
 
             logger = Logger(i_level, self._process_options['output_dir'], self._process_options['keep_collected'])
-            level = Level(self.simulation_factory, previous_level, level_param, logger, self._process_options['regen_failed'])
+            level = Level(self.simulation_factory, previous_level, level_param, logger,
+                          self._process_options['regen_failed'])
             self.levels.append(level)
 
         self._save_setup()
@@ -142,16 +144,16 @@ class MLMC:
         # model log var_{r,l} = a_r  + b * log step_l
         # X_(r,l), j = dirac_{r,j}
 
-        X = np.zeros((L, R-1, R))
-        X[:, :, :-1] = np.eye(R-1)
-        X[:, :, -1] = np.repeat(np.log(sim_steps[1:]), R-1).reshape((L, R-1))
+        X = np.zeros((L, R - 1, R))
+        X[:, :, :-1] = np.eye(R - 1)
+        X[:, :, -1] = np.repeat(np.log(sim_steps[1:]), R - 1).reshape((L, R - 1))
 
         # X = X*W[:, None, None]    # scale
         X.shape = (-1, R)
         # solve X.T * X = X.T * V
 
-        log_vars = np.log(raw_vars[:, 1:])     # omit first moment that is constant 1.0
-        #log_vars = W[:, None] * log_vars    # scale
+        log_vars = np.log(raw_vars[:, 1:])  # omit first moment that is constant 1.0
+        # log_vars = W[:, None] * log_vars    # scale
         params, res, rank, sing_vals = np.linalg.lstsq(X, log_vars.ravel())
         new_vars = np.empty_like(raw_vars)
         new_vars[:, 0] = raw_vars[:, 0]
@@ -188,7 +190,7 @@ class MLMC:
         # Create number of samples for all levels
         if len(n_samples) == 2:
             L = max(2, self.n_levels)
-            factor = (n_samples[-1] / n_samples[0])**(1 / (L-1))
+            factor = (n_samples[-1] / n_samples[0]) ** (1 / (L - 1))
             n_samples = n_samples[0] * factor ** np.arange(L)
 
         for i, level in enumerate(self.levels):
@@ -215,6 +217,60 @@ class MLMC:
     #     for level in self.levels:
     #         level.reset_moment_fn(moments_fn)
 
+    def iterative_target_var(self, target_var, moments_fn):
+        """
+        Set level target number of samples according to improving estimates.  
+        We assume set_initial_n_samples method was called before.
+        :param target_var: float, whole mlmc target variance
+        :param moments_fn: Object providing calculating moments
+        :return: None
+        """
+        # Get target levels samples
+        ns_target = self.l_target_samples()
+
+        while True:
+            # Set target number of samples, create simulation samples and collect them
+            self.set_target_n_samples(ns_target)
+            self.refill_samples()
+            self.wait_for_simulations()
+
+            # Wait until at least half of the target samples are done
+            while all(self.l_finished_samples()[index] < ns_target[index] * 0.5 for index, ns in enumerate(ns_target)):
+                self.wait_for_simulations()
+
+            # Estimations - new number of samples and variance
+            n_samples = self.set_target_variance(target_var, moments_fn)
+
+            # Break if number of target samples is different by only one percent of the new estimated target values
+            if all((np.abs(n_samples[index] - ns_tar) / ns_tar) < 0.01
+                   if n_samples[index] >= ns_tar else False for index, ns_tar in enumerate(ns_target)):
+                break
+
+            # Create new number of target samples
+            new_ns_target = []
+            for n_sample, ns_tar in zip(n_samples, ns_target):
+                # New estimate is greater than previous one
+                if n_sample > ns_tar:
+                    # Current target n samples is increment by 10 perecntage of difference of new estimate and previous target n
+                    ns_tar += (n_sample - ns_tar) * 0.1
+                new_ns_target.append(ns_tar)
+
+            ns_target = new_ns_target
+
+    def l_target_samples(self):
+        """
+        Get all levels target number of samples
+        :return: list 
+        """
+        return [level.target_n_samples for level in self.levels]
+
+    def l_finished_samples(self):
+        """
+        Get all levels number of sample values
+        :return: list
+        """
+        return [len(level.sample_values) for level in self.levels]
+
     def set_target_variance(self, target_variance, moments_fn=None, fraction=1.0, prescribe_vars=None):
         """
         Estimate optimal number of samples for individual levels that should provide a target variance of
@@ -234,17 +290,23 @@ class MLMC:
 
         n_ops = np.array([lvl.n_ops_estimate for lvl in self.levels])
 
-        sqrt_var_n = np.sqrt(vars.T * n_ops)    # moments in rows, levels in cols
-        total = np.sum(sqrt_var_n, axis=1)      # sum over levels
-        n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)# moments in cols
-        n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars*self.n_levels/target_variance), 2)
+        sqrt_var_n = np.sqrt(vars.T * n_ops)  # moments in rows, levels in cols
+        total = np.sum(sqrt_var_n, axis=1)  # sum over levels
+        n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)  # moments in cols
+        n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars * self.n_levels / target_variance), 2)
 
         n_samples_estimate_max = np.max(n_samples_estimate_safe, axis=1)
 
-        for level, n in zip(self.levels, n_samples_estimate_max):
-            level.set_target_n_samples(int(n*fraction))
+        return n_samples_estimate_max
 
-        return n_samples_estimate_safe
+    def set_target_n_samples(self, n_samples):
+        """
+        Set levels target number of samples
+        :param n_samples: list
+        :return: None
+        """
+        for level, n in zip(self.levels, n_samples):
+            level.set_target_n_samples(int(n))
 
     def refill_samples(self):
         """
@@ -301,7 +363,7 @@ class MLMC:
         """
         assert len(sub_samples) == self.n_levels
         if sub_samples is None:
-            sub_samples = [None]*self.n_levels
+            sub_samples = [None] * self.n_levels
         for ns, level in zip(sub_samples, self.levels):
             level.subsample(ns)
 

@@ -2,10 +2,11 @@
 
 
 Implementation TODO:
-- weight inexact moments by their variance; change in nonlinearity W*F(x) = 0
 - support for possitive distributions
 - compute approximation of more moments then used for approximation, turn problem into
   overdetermined non-linear least square problem
+- Make TestMLMC a production class to test validity of MLMC estimatioon on any sampleset
+  using subsampling.
 
 Tests:
 For given exact distribution with known density.
@@ -28,16 +29,18 @@ import numpy as np
 import scipy.stats as stats
 import os
 import sys
-import mlmc_postprocess
-
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+#import mlmc.postprocess
 import mlmc.distribution
 from mlmc.distribution import Distribution
 import mlmc.moments
 import test_mlmc
 import time
-import copy as cp
+
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -290,7 +293,7 @@ def test_distribution():
 # plt.show()
 # """
 
-
+@pytest.mark.skip
 def test_mlmc_distribution(nl, distr):
     """
     Test approximation moments from first estimate and from final number of samples
@@ -406,7 +409,8 @@ def density_from_prior_estimate(distr_obj, mc_test, exact_moments, exact_density
     return density
 
 
-def _test_distributions():
+@pytest.mark.skip
+def test_distributions():
     """
     Plot densities and histogram for chosen distributions
     :return: None
@@ -439,13 +443,13 @@ def _test_distributions():
 
     # Plot densities according to TestMLMC instances data
     for test_mc in mlmc_list:
-        domain, est_domain, mc_test = mlmc_postprocess.compute_results(mlmc_list[0], n_moments, test_mc)
-        mlmc_postprocess.plot_pdf_approx(ax1, ax2, mc0_samples, mc_test, domain, est_domain)
+        test_mc.mc.update_moments(test_mc.moments_fn)
+        domain, est_domain, mc_test = mlmc.postprocess.compute_results(mlmc_list[0], n_moments, test_mc)
+        mlmc.postprocess.plot_pdf_approx(ax1, ax2, mc0_samples, mc_test, domain, est_domain)
     ax1.legend()
     ax2.legend()
     fig.savefig('compare_distributions.pdf')
     plt.show()
 
 
-_test_distributions()
-exit()
+test_distributions()
