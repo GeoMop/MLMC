@@ -8,6 +8,7 @@ import sys
 import os
 import pytest
 
+from test.fixtures.mlmc_test_run import TestMLMC
 
 # Modify sys.path to have path to the source dir. This allow to run tests from sources
 # without virtual environment and without installation of the package.

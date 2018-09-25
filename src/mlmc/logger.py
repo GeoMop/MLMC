@@ -95,7 +95,7 @@ class Logger:
 
     def log_simulations(self, simulations, collected=False):
         """
-        Log simulations
+        Log simulations, append to collected or running simulations log.
         :param simulations: array of simulations, format according to mc_levels.collect_samples
         :param collected: bool, if true then save collected simulations
         :return: None

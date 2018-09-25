@@ -39,8 +39,6 @@ class Level:
         self._coarse_simulation = None
         # Estimate of operations number
         self._n_ops_estimate = None
-        # Generate failed samples again or not
-        self.regen_failed = regen_failed
         # Running unfinished simulations that were generated in last whole mlmc run
         self.running_from_log = False
         # Target number of samples for the level
@@ -70,7 +68,7 @@ class Level:
         self._last_moments_fn = None
 
         # Load simulations from log
-        self.load_simulations()
+        self.load_simulations(regen_failed)
 
     def reset(self):
         """
@@ -106,9 +104,10 @@ class Level:
             self._coarse_simulation = self._previous_level.fine_simulation
         return self._coarse_simulation
 
-    def load_simulations(self):
+    def load_simulations(self, regen_failed):
         """
         Load finished and running simulations from logs
+        :param regen_failed: bool, if True then regenerate failed simulations
         :return: None
         """
         finished = set()
@@ -118,7 +117,7 @@ class Level:
         for sim in self._logger.collected_log_content:
             i_level, i, _, _, value = sim
             # Don't add failed simulations, they will be generated again
-            if not self.regen_failed:
+            if not regen_failed:
                 self.finished_simulations.append(sim)
                 self._add_sample(i, value)
                 finished.add((i_level, i))
@@ -128,7 +127,7 @@ class Level:
                 finished.add((i_level, i))
 
         # Save simulations without those that failed
-        if self.regen_failed:
+        if regen_failed:
             self._logger.rewrite_collected_log(self.finished_simulations)
 
         # Recover running
@@ -365,30 +364,29 @@ class Level:
             assert 0 < size < self._n_valid_samples, "0 < {} < {}".format(size, self._n_valid_samples)
             self.sample_indices = np.random.choice(np.arange(self._n_valid_samples, dtype=int), size=size)
 
-    def evaluate_moments(self, moments_fn):
+    def evaluate_moments(self, moments_fn, force=False):
         """
         Evaluating moments from moments function
         :param moments_fn: Moment evaluation functions
         :return: tuple
         """
         # Current moment functions are different from last moment functions
-        samples = self.sample_values
+        if force or moments_fn != self._last_moments_fn:
+            samples = self.sample_values
 
-        # Moments from fine samples
-        moments_fine = moments_fn(samples[:, 0])
+            # Moments from fine samples
+            moments_fine = moments_fn(samples[:, 0])
 
-        # For first level moments from coarse samples are zeroes
-        if self.is_zero_level:
-            moments_coarse = np.zeros_like(np.eye(len(moments_fine), moments_fn.size))
-        else:
-            moments_coarse = moments_fn(samples[:, 1])
-        # Set last moments function
-        self._last_moments_fn = moments_fn
-        # Moments from fine and coarse samples
-        self.last_moments_eval = moments_fine, moments_coarse
+            # For first level moments from coarse samples are zeroes
+            if self.is_zero_level:
+                moments_coarse = np.zeros_like(np.eye(len(moments_fine), moments_fn.size))
+            else:
+                moments_coarse = moments_fn(samples[:, 1])
+            # Set last moments function
+            self._last_moments_fn = moments_fn
+            # Moments from fine and coarse samples
+            self.last_moments_eval = moments_fine, moments_coarse
 
-        # Remove outliers
-        if self.last_moments_eval is not None:
             self._remove_outliers_moments()
 
         if self.sample_indices is None:
@@ -425,7 +423,8 @@ class Level:
         """
         Estimate moments variance
         :param moments_fn: Moments evaluation function
-        :return: tuple (variance vector, length of moments)
+        :return: (array of variances of moments, number of samples)
+            variances have length R
         """
         assert self.n_samples > 1
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)

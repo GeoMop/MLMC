@@ -34,7 +34,8 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-#import mlmc.postprocess
+
+import mlmc.postprocess
 import mlmc.distribution
 from mlmc.distribution import Distribution
 import mlmc.moments
@@ -418,15 +419,15 @@ def test_distributions():
     mlmc_list = []
     # List of distributions
     distributions = [
-        (stats.norm(loc=1, scale=2), False, '_sample_fn')
-        #(stats.lognorm(scale=np.exp(5), s=1), True, '_sample_fn'),  # worse conv of higher moments
+        #(stats.norm(loc=1, scale=2), False, '_sample_fn')
+        (stats.lognorm(scale=np.exp(5), s=1), True, '_sample_fn'),  # worse conv of higher moments
         # (stats.lognorm(scale=np.exp(-5), s=1), True, '_sample_fn_basic'),
         #(stats.chi2(df=10), True, '_sample_fn')#,
         # (stats.weibull_min(c=20), True, '_sample_fn'),   # Exponential
         # (stats.weibull_min(c=1.5), True, '_sample_fn_basic'),  # Infinite derivative at zero
         # (stats.weibull_min(c=3), True, '_sample_fn_basic')  # Close to normal
          ]
-    levels = [1, 5]#, 2, 3, 5, 7, 9]
+    levels = [1]#, 2, 3, 5, 7, 9]
     # Loop through distributions and levels
     for distr in distributions:
         for level in levels:
@@ -452,4 +453,4 @@ def test_distributions():
     plt.show()
 
 
-test_distributions()
+

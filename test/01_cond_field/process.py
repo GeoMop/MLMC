@@ -23,7 +23,7 @@ import pbs
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 import test.test_mlmc as test_mlmc
-import test.mlmc_postprocess as mlmc_post_processing
+import mlmc.postprocess as postprocess
 import scipy as sc
 
 
@@ -497,8 +497,8 @@ def all_results(mlmc_list):
     for prmc in mlmc_list:
         prmc.domain = mlmc_list[0].ref_domain
         prmc.set_moments(n_moments, log=True)
-        domain, est_domain, mc_test = mlmc_post_processing.compute_results(mlmc_list[0], n_moments, prmc)
-        mlmc_post_processing.plot_pdf_approx(ax1, ax2, mc0_samples, prmc, domain, est_domain)
+        domain, est_domain, mc_test = postprocess.compute_results(mlmc_list[0], n_moments, prmc)
+        postprocess.plot_pdf_approx(ax1, ax2, mc0_samples, prmc, domain, est_domain)
 
     ax1.legend()
     ax1.legend()
