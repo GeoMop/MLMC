@@ -38,7 +38,7 @@ import mlmc.postprocess
 import mlmc.distribution
 from mlmc.distribution import Distribution
 import mlmc.moments
-#import test_mlmc
+import test_mlmc
 import time
 
 
@@ -294,16 +294,16 @@ def test_distribution():
 # """
 
 @pytest.mark.skip
-def test_mlmc_distribution(nl, distr):
+def test_mlmc_distribution(nl, distr, nm):
     """
     Test approximation moments from first estimate and from final number of samples
     :param nl: int. Number of levels
     :param distr: Distributions as [distr obj, log (bool), simulation function]
     :return: TestMLMC instance
     """
-    n_moments = 20
+    n_moments = nm
     repet_number = 1
-    start_moments_n = 5
+    start_moments_n = nm
     all_variances = []
     all_means = []
     d = distr[0]
@@ -427,10 +427,11 @@ def test_distributions():
         # (stats.weibull_min(c=3), True, '_sample_fn_basic')  # Close to normal
          ]
     levels = [1, 5]#, 2, 3, 5, 7, 9]
+    n_moments = 5
     # Loop through distributions and levels
     for distr in distributions:
         for level in levels:
-            mlmc_list.append(test_mlmc_distribution(level, distr))
+            mlmc_list.append(test_mlmc_distribution(level, distr, n_moments))
 
     fig = plt.figure(figsize=(30, 10))
     ax1 = fig.add_subplot(1, 2, 1)
@@ -452,3 +453,4 @@ def test_distributions():
     plt.show()
 
 
+test_distributions()
