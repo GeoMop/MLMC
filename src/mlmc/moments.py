@@ -52,25 +52,34 @@ class Moments:
     def inv_linear(self, value):
         return (value - self.ref_domain[0]) / self._linear_scale + self._linear_shift
 
+    def __call__(self, value):
+        return self.eval_all(value)
+
+    def eval(self, i, value):
+        return self.eval_all(value)[:, i]
+
 
 class Monomial(Moments):
     def __init__(self, size, domain=(0, 1), log=False, safe_eval=True):
         self.ref_domain = (0, 1)
         super().__init__(size, domain, log=log, safe_eval=safe_eval)
 
-    def __call__(self, value):
+    def eval_all(self, value):
         # Create array from values and transform values outside the ref domain
         t = self.transform(np.atleast_1d(value))
         # Vandermonde matrix
         return np.polynomial.polynomial.polyvander(t, deg = self.size - 1)
 
+    def eval(self, i, value):
+        t = self.transform(np.atleast_1d(value))
+        return t**i
 
 class Fourier(Moments):
     def __init__(self, size, domain=(0, 2*np.pi), log=False, safe_eval=True):
         self.ref_domain = (0, 2*np.pi)
         super().__init__(size, domain, log=log, safe_eval=safe_eval)
 
-    def __call__(self, value):
+    def eval_all(self, value):
         # Transform values
         t = self.transform(np.atleast_1d(value))
 
@@ -89,6 +98,16 @@ class Fourier(Moments):
         res[:, 2::2] = np.sin(kx[:, : R - shorter_sin])
         return res
 
+    def eval(self, i, value):
+        t = self.transform(np.atleast_1d(value))
+        if i == 0:
+            return 1
+        elif i % 2 == 1:
+            return np.sin( (i - 1) / 2 * t)
+        else:
+            return np.cos(i / 2 * t)
+
+
 
 class Legendre(Moments):
 
@@ -96,6 +115,7 @@ class Legendre(Moments):
         self.ref_domain = (-1, 1)
         super().__init__(size, domain, log, safe_eval)
 
-    def __call__(self, value):
+    def eval_all(self, value):
         t = self.transform(np.atleast_1d(value))
         return np.polynomial.legendre.legvander(t, deg=(self.size - 1))
+
