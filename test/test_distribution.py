@@ -63,7 +63,8 @@ class DistrPlot:
 
         domain = approx_obj.domain
         d_size = domain[1] - domain[0]
-        extended_domain = (domain[0] - 0.05*d_size, domain[1] + 0.05*d_size)
+        slack = 0 #0.05
+        extended_domain = (domain[0] - slack*d_size, domain[1] + slack*d_size)
         X = np.linspace(extended_domain[0], extended_domain[1], 1000)
         Y = approx_obj.density(X)
         Y0 = self._exact_distr.pdf(X)
@@ -82,6 +83,7 @@ class DistrPlot:
         ax.set_title("log(PDF)")
         line, = ax.plot(X, -np.log(Y))
         plots.append(line)
+        ax.plot(X, -np.log(Y0), c='black', label="exact PDF")
         plots += self.plot_borders(ax, domain)
 
         ax = self.axes[2]
@@ -105,16 +107,18 @@ class DistrPlot:
 
 @pytest.mark.parametrize("moment_fn, max_n_moments", [
     (moments.Monomial, 10),
-    (moments.Fourier, 31),
-    (moments.Legendre, 31)])
+    #(moments.Fourier, 61),
+    (moments.Legendre, 61)])
 @pytest.mark.parametrize("distribution",[
         (stats.norm(loc=1, scale=2), False),
         (stats.norm(loc=1, scale=10), False),
-        (stats.lognorm(scale=np.exp(5), s=1), True),  # worse conv of higher moments
-        (stats.lognorm(scale=np.exp(-3), s=2), False),  # worse conv of higher moments
-        (stats.chi2(df=10), False),
-        (stats.chi2(df=5), True),
-        (stats.weibull_min(c=0.5), False),  # Exponential
+
+        (stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
+        ##(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
+        (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
+        (stats.chi2(df=10), False), # Monomial: s1=nan, Fourier: s1= -1.6, Legendre: s1=nan
+        (stats.chi2(df=5), True), # Monomial: s1=-10, Fourier: s1=-1.6, Legendre: OK
+        (stats.weibull_min(c=0.5), False),  # Exponential # Monomial stuck, Fourier stuck
         (stats.weibull_min(c=1), False),  # Exponential
         (stats.weibull_min(c=2), False),  # Rayleigh distribution
         (stats.weibull_min(c=5, scale=4), False),   # close to normal
@@ -136,62 +140,97 @@ def test_distribution(moment_fn, max_n_moments, distribution):
     tol_exact_moments = 1e-6
 
     # Approximation for exact moments
-    quantiles = np.array([0.1, 0.01, 0.001, 0.0001, 0])
+    #quantiles = np.array([0.01, 0.001, 0.0001, 0])
+    quantiles = np.array([0.0001, 0])
+    #quantiles = np.array([0.001])
 
-    moment_sizes = np.round(np.exp(np.linspace(np.log(3), np.log(max_n_moments), 10))).astype(int)
+    moment_sizes = np.round(np.exp(np.linspace(np.log(3), np.log(max_n_moments), 5))).astype(int)
+    #moment_sizes = [61]
     kl_collected = np.empty( (len(quantiles), len(moment_sizes)) )
     l2_collected = np.empty_like(kl_collected)
 
+    n_failed = []
+    warn_log = []
     distr_plot = DistrPlot(distr, distr_name + " " + fn_name)
     for i_q, domain_quantile in enumerate(quantiles):
-        if domain_quantile == 0:
-            domain = Distribution.choose_parameters_from_moments(mean, variance, log=log_flag)
-        else:
-            domain = distr.ppf([domain_quantile, 1-domain_quantile])
-
         mean = distr.mean()
         variance = distr.var()
 
+        if domain_quantile == 0:
 
+            #domain = Distribution.choose_parameters_from_moments(mean, variance, log=log_flag)
+            X = distr.rvs(size=1000)
+            err = stats.norm.rvs(size=1000)
+            X = X*(1 + 0.1*err)
+            domain = (np.min(X), np.max(X))
+        else:
+            domain = distr.ppf([domain_quantile, 1-domain_quantile])
+
+        eps=1e-10
+        force_decay = [False, False]
+        for side in [0,1]:
+            diff = (distr.pdf(domain[side]) - distr.pdf(domain[side]-eps))/eps
+            if side:
+                diff = -diff
+            if diff > 0:
+                force_decay[side] = True
+
+        n_failed.append(0)
+        cumtime = 0
+        tot_nit = 0
         for i_m, n_moments in enumerate(moment_sizes):
+            #print(i_m, n_moments, domain, force_decay)
             moments_fn = moment_fn(n_moments, domain, log=log_flag, safe_eval=False )
             exact_moments = mlmc.distribution.compute_exact_moments(moments_fn, density, tol=tol_exact_moments)
             moments_data = np.empty((n_moments, 2))
             moments_data[:, 0] = exact_moments
             moments_data[:, 1] = tol_exact_moments
             is_positive = log_flag
-            distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data, is_positive, domain=domain)
+            distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data,
+                                                       domain=domain, force_decay=force_decay)
+            t0 = time.time()
             #result = distr_obj.estimate_density(tol_exact_moments)
             result = distr_obj.estimate_density_minimize(tol_exact_moments)
+            t1 = time.time()
+            cumtime += (t1 - t0)
             nit = getattr(result, 'nit', result.njev)
+            tot_nit += nit
             fn_norm = result.fun_norm
             if result.success:
-                kl_div = mlmc.distribution.KL_divergence(distr_obj.density, density, domain[0], domain[1])
+                kl_div = mlmc.distribution.KL_divergence(density, distr_obj.density, domain[0], domain[1])
                 l2_dist = mlmc.distribution.L2_distance(distr_obj.density, density, domain[0], domain[1])
                 kl_collected[i_q, i_m] = kl_div
                 l2_collected[i_q, i_m] = l2_dist
-                print("q: {}, m: {} :: nit: {} fn: {} ; kl: {} l2: {}".format(
-                    domain_quantile, n_moments, nit, fn_norm, kl_div, l2_dist))
+                #print("q: {}, m: {} :: nit: {} fn: {} ; kl: {} l2: {}".format(
+                #    domain_quantile, n_moments, nit, fn_norm, kl_div, l2_dist))
                 if i_m + 1 == len(moment_sizes):
                     # plot for last case
                     distr_plot.plot_approximation(distr_obj)
             else:
-                print("q: {}, m: {} :: nit: {} fn:{} ; msg: ".format(
+                n_failed[-1]+=1
+                print("q: {}, m: {} :: nit: {} fn:{} ; msg: {}".format(
                     domain_quantile, n_moments, nit, fn_norm, result.message))
 
                 kl_collected[i_q, i_m] = np.nan
                 l2_collected[i_q, i_m] = np.nan
 
+        # Check convergence
+        s1, s0 = np.polyfit(np.log(moment_sizes), np.log(kl_collected[i_q,:]), 1)
+        max_err = np.max(kl_collected[i_q,:])
+        min_err = np.min(kl_collected[i_q,:])
+        if domain_quantile > 0.01:
+            continue
+        if not (n_failed[-1] == 0 and (max_err < tol_exact_moments or s1 < -1)):
+            warn_log.append((i_q, n_failed[-1],  s1, s0, max_err))
+            fail = 'NQ'
+        else:
+            fail = ' q'
+        print(fail + ": ({:5.3g}, {:5.3g});  failed: {} tavg: {:5.3g};  s1: {:5.3g} s0: {:5.3g} kl: ({:5.3g}, {:5.3g})".format(
+            domain[0], domain[1], n_failed[-1], cumtime/tot_nit, s1, s0, min_err, max_err))
+
     #distr_plot.show()
     distr_plot.clean()
 
-    # Fit convergence rate
-    for iq, q in enumerate(quantiles):
-        s1, s0 = np.polyfit(np.log(moment_sizes), np.log(kl_collected[iq,:]), 1)
-        max_err = np.max(kl_collected[iq,:])
-        if q > 0.01:
-            continue
-        assert max_err < tol_exact_moments or (s1 < -2 and s0 < 10), (iq, s1, s0, max_err)
 
 
     def plot_convergence():
@@ -206,6 +245,7 @@ def test_distribution(moment_fn, max_n_moments, distribution):
 
     #plot_convergence()
 
+    assert len(warn_log) == 0, warn_log
 
 
 
