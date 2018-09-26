@@ -25,11 +25,16 @@ and given moment functions.
 
 """
 
-import numpy as np
-import scipy.stats as stats
 import os
 import sys
+import time
 import pytest
+
+import numpy as np
+import scipy.stats as stats
+import scipy.integrate as integrate
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -37,100 +42,179 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mlmc.postprocess
 import mlmc.distribution
 from mlmc.distribution import Distribution
-import mlmc.moments
-#import test_mlmc
-import time
+from mlmc import moments
+from test.fixtures.mlmc_test_run import TestMLMC
 
 
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import scipy.integrate as integrate
+class DistrPlot:
+    def __init__(self, distr, title):
+        self._exact_distr = distr
+        self.plot_matrix = []
+        self.fig, self.axes = plt.subplots(1, 3, figsize=(15,5))
+        self.fig.suptitle(title)
+
+    def plot_borders(self, ax, domain):
+        l1 = ax.axvline(x=domain[0], ymin=0, ymax=0.1)
+        l2 = ax.axvline(x=domain[1], ymin=0, ymax=0.1)
+        return [l1, l2]
+
+    def plot_approximation(self, approx_obj):
+        plots = []
+
+        domain = approx_obj.domain
+        d_size = domain[1] - domain[0]
+        extended_domain = (domain[0] - 0.05*d_size, domain[1] + 0.05*d_size)
+        X = np.linspace(extended_domain[0], extended_domain[1], 1000)
+        Y = approx_obj.density(X)
+        Y0 = self._exact_distr.pdf(X)
+
+        ax = self.axes[0]
+        ax.set_title("PDF")
+        np.set_printoptions(precision=2)
+        lab = str(np.array(domain))
+        line, = ax.plot(X, Y, label=lab)
+        plots.append(line)
+        ax.plot(X, Y0, c='black', label="exact PDF")
+        plots += self.plot_borders(ax, domain)
 
 
-def check_distr_approx(moment_class, distribution, distr_args):
+        ax = self.axes[1]
+        ax.set_title("log(PDF)")
+        line, = ax.plot(X, -np.log(Y))
+        plots.append(line)
+        plots += self.plot_borders(ax, domain)
+
+        ax = self.axes[2]
+        ax.set_title("PDF diff")
+        line, = ax.plot(X, Y - Y0)
+        plots.append(line)
+        plots += self.plot_borders(ax, domain)
+
+        self.plot_matrix.append(plots)
+
+    def show(self):
+        for i, plots in enumerate(self.plot_matrix):
+            col = plt.cm.jet(plt.Normalize(0, len(self.plot_matrix))(i))
+            for line in plots:
+                line.set_color(col)
+        self.fig.legend()
+        plt.show()
+
+    def clean(self):
+        plt.close()
+
+@pytest.mark.parametrize("moment_fn, max_n_moments", [
+    (moments.Monomial, 10),
+    (moments.Fourier, 31),
+    (moments.Legendre, 31)])
+@pytest.mark.parametrize("distribution",[
+        (stats.norm(loc=1, scale=2), False),
+        (stats.norm(loc=1, scale=10), False),
+        (stats.lognorm(scale=np.exp(5), s=1), True),  # worse conv of higher moments
+        (stats.lognorm(scale=np.exp(-3), s=2), False),  # worse conv of higher moments
+        (stats.chi2(df=10), False),
+        (stats.chi2(df=5), True),
+        (stats.weibull_min(c=0.5), False),  # Exponential
+        (stats.weibull_min(c=1), False),  # Exponential
+        (stats.weibull_min(c=2), False),  # Rayleigh distribution
+        (stats.weibull_min(c=5, scale=4), False),   # close to normal
+        (stats.weibull_min(c=1.5), True),  # Infinite derivative at zero
+    ])
+def test_distribution(moment_fn, max_n_moments, distribution):
     """
-    :param moment_class:
-    :param distribution:
+    Test reconstruction of the density function from exact moments.
+    - various distributions
+    - various moments functions
+    - test convergency with increasing number of moments
     :return:
     """
-    fn_name = moment_class.__name__
-    distr_name = distribution.__class__.__name__
+    distr, log_flag = distribution
+    fn_name = moment_fn.__name__
+    distr_name = distr.dist.name
     print("Testing moments: {} for distribution: {}".format(fn_name, distr_name))
+    density = lambda x: distr.pdf(x)
+    tol_exact_moments = 1e-6
 
     # Approximation for exact moments
+    quantiles = np.array([0.1, 0.01, 0.001, 0.0001, 0])
 
-    density = lambda x: distribution.pdf(x, **distr_args)
-    domain = distribution.ppf([0.01, 0.99], **distr_args)
-    print("domain: ", domain)
+    moment_sizes = np.round(np.exp(np.linspace(np.log(3), np.log(max_n_moments), 10))).astype(int)
+    kl_collected = np.empty( (len(quantiles), len(moment_sizes)) )
+    l2_collected = np.empty_like(kl_collected)
 
-    n_moments = 10
-    tol = 1e-4
+    distr_plot = DistrPlot(distr, distr_name + " " + fn_name)
+    for i_q, domain_quantile in enumerate(quantiles):
+        if domain_quantile == 0:
+            domain = Distribution.choose_parameters_from_moments(mean, variance, log=log_flag)
+        else:
+            domain = distr.ppf([domain_quantile, 1-domain_quantile])
 
-    mean = distribution.mean(**distr_args)
-    variance = distribution.var(**distr_args)
-    moments_fn = moment_class(n_moments, domain)
-    exact_moments = mlmc.distribution.compute_exact_moments(moments_fn, density, tol)
-    moments_data = np.empty((n_moments, 2))
-    moments_data[:, 0] = exact_moments
-    moments_data[:, 1] = tol
-    is_positive = (domain[0] > 0.0)
-    distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data, is_positive)
-    distr_obj.choose_parameters_from_moments(mean, variance)
-
-    # Just for test plotting
-    distr_obj.fn_name = fn_name
-    t1 = time.clock()
-    result = distr_obj.estimate_density(tol)
-    t2 = time.clock()
-    t = t2 - t1
-    nit = getattr(result, 'nit', result.njev)
-    kl_div = mlmc.distribution.KL_divergence(distr_obj.density, density, domain[0], domain[1])
-    l2_dist = mlmc.distribution.L2_distance(distr_obj.density, density, domain[0], domain[1])
-    print("Conv: {} Nit: {} Time: {} KL: {} L2: {}".format(
-        result.success, nit, t, kl_div, l2_dist
-    ))
-    return distr_obj
+        mean = distr.mean()
+        variance = distr.var()
 
 
-def plot_approximations(dist, args, approx_objs):
-    import matplotlib.pyplot as plt
-    import matplotlib as mpl
+        for i_m, n_moments in enumerate(moment_sizes):
+            moments_fn = moment_fn(n_moments, domain, log=log_flag, safe_eval=False )
+            exact_moments = mlmc.distribution.compute_exact_moments(moments_fn, density, tol=tol_exact_moments)
+            moments_data = np.empty((n_moments, 2))
+            moments_data[:, 0] = exact_moments
+            moments_data[:, 1] = tol_exact_moments
+            is_positive = log_flag
+            distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data, is_positive, domain=domain)
+            #result = distr_obj.estimate_density(tol_exact_moments)
+            result = distr_obj.estimate_density_minimize(tol_exact_moments)
+            nit = getattr(result, 'nit', result.njev)
+            fn_norm = result.fun_norm
+            if result.success:
+                kl_div = mlmc.distribution.KL_divergence(distr_obj.density, density, domain[0], domain[1])
+                l2_dist = mlmc.distribution.L2_distance(distr_obj.density, density, domain[0], domain[1])
+                kl_collected[i_q, i_m] = kl_div
+                l2_collected[i_q, i_m] = l2_dist
+                print("q: {}, m: {} :: nit: {} fn: {} ; kl: {} l2: {}".format(
+                    domain_quantile, n_moments, nit, fn_norm, kl_div, l2_dist))
+                if i_m + 1 == len(moment_sizes):
+                    # plot for last case
+                    distr_plot.plot_approximation(distr_obj)
+            else:
+                print("q: {}, m: {} :: nit: {} fn:{} ; msg: ".format(
+                    domain_quantile, n_moments, nit, fn_norm, result.message))
 
-    domain = approx_objs[0].domain
-    X = np.linspace(domain[0], domain[1], 1000)
-    fig = plt.figure(figsize=(15, 5))
-    ax = fig.add_subplot(1, 3, 1)
-    ax_log = fig.add_subplot(1, 3, 2)
-    ax_diff = fig.add_subplot(1, 3, 3)
-    cmap = plt.cm.jet
-    norm = mpl.colors.Normalize(vmin=0, vmax=2)
+                kl_collected[i_q, i_m] = np.nan
+                l2_collected[i_q, i_m] = np.nan
 
-    Y0 = dist.pdf(X, **args)
-    ax.plot(X, Y0, c='red')
-    for i, approx in enumerate(approx_objs):
-        Y = approx.density(X)
-        ax.plot(X, Y, c=cmap(norm(i)), label=approx.fn_name)
-        ax_log.plot(X, -np.log(Y), c=cmap(norm(i)), label=approx.fn_name)
-        ax_diff.plot(X, Y - Y0, c=cmap(norm(i)), label=approx.fn_name)
-    ax.set_ylim(0, 2)
-    # ax_diff.set_ylim(0, 1)
-    fig.legend()
-    plt.show()
+    #distr_plot.show()
+    distr_plot.clean()
+
+    # Fit convergence rate
+    for iq, q in enumerate(quantiles):
+        s1, s0 = np.polyfit(np.log(moment_sizes), np.log(kl_collected[iq,:]), 1)
+        max_err = np.max(kl_collected[iq,:])
+        if q > 0.01:
+            continue
+        assert max_err < tol_exact_moments or (s1 < -2 and s0 < 10), (iq, s1, s0, max_err)
 
 
-def test_distribution():
-    moment_fns = [mlmc.moments.Monomial, mlmc.moments.Fourier, mlmc.moments.Legendre]
-    # moment_fns = [mlmc.moments.monomial_moments]
-    distrs = [
-        (stats.norm, dict(loc=1.0, scale=2.0)),
-        (stats.lognorm, dict(s=0.5, scale=np.exp(2.0)))
-    ]
+    def plot_convergence():
+        for iq, q in enumerate(quantiles):
+            col = plt.cm.tab10(plt.Normalize(0,10)(iq))
+            plt.plot(moment_sizes, kl_collected[iq,:], ls='solid', c=col, label="kl_q="+str(q), marker='o')
+            plt.plot(moment_sizes, l2_collected[iq,:], ls='dashed', c=col, label="l2_q=" + str(q), marker='d')
+        plt.yscale('log')
+        plt.xscale('log')
+        plt.legend()
+        plt.show()
 
-    for distr, args in distrs:
-        approx_objs = []
-        for fn in moment_fns:
-            approx_objs.append(check_distr_approx(fn, distr, args))
-        plot_approximations(distr, args, approx_objs)
+    #plot_convergence()
+
+
+
+
+
+
+
+
+
+
 
 
 # shape = 0.1
@@ -293,8 +377,7 @@ def test_distribution():
 # plt.show()
 # """
 
-@pytest.mark.skip
-def test_mlmc_distribution(nl, distr):
+def compute_mlmc_distribution(nl, distr):
     """
     Test approximation moments from first estimate and from final number of samples
     :param nl: int. Number of levels
@@ -308,7 +391,7 @@ def test_mlmc_distribution(nl, distr):
     all_means = []
     d = distr[0]
     for i in range(repet_number):
-        mc_test = test_mlmc.TestMLMC(nl, n_moments, d, distr[1], distr[2])
+        mc_test = TestMLMC(nl, n_moments, d, distr[1], distr[2])
         # number of samples on each level
         mc_test.mc.set_initial_n_samples()
         mc_test.mc.refill_samples()
@@ -430,7 +513,7 @@ def test_distributions():
     # Loop through distributions and levels
     for distr in distributions:
         for level in levels:
-            mlmc_list.append(test_mlmc_distribution(level, distr))
+            mlmc_list.append(compute_mlmc_distribution(level, distr))
 
     fig = plt.figure(figsize=(30, 10))
     ax1 = fig.add_subplot(1, 2, 1)
@@ -443,6 +526,7 @@ def test_distributions():
 
     # Plot densities according to TestMLMC instances data
     for test_mc in mlmc_list:
+        test_mc.mc.clean_subsamples()
         test_mc.mc.update_moments(test_mc.moments_fn)
         domain, est_domain, mc_test = mlmc.postprocess.compute_results(mlmc_list[0], n_moments, test_mc)
         mlmc.postprocess.plot_pdf_approx(ax1, ax2, mc0_samples, mc_test, domain, est_domain)
