@@ -1,9 +1,9 @@
+import copy
 import numpy as np
 import numpy.linalg as la
+import numpy.random as rand
 import scipy as sp
-import copy
 from sklearn.utils.extmath import randomized_svd
-
 
 
 def kozeny_carman(porosity, m, factor, viscosity):
@@ -27,6 +27,7 @@ def kozeny_carman(porosity, m, factor, viscosity):
     cond = np.maximum(cond, 1e-15)
     return cond
 
+
 def positive_to_range(exp, a, b):
     """
     Mapping a positive parameter 'exp' from the interval <0, \infty) to the interval <a,b).
@@ -34,7 +35,8 @@ def positive_to_range(exp, a, b):
     :param exp: A positive parameter. (LogNormal distribution.)
     :param a, b: Range interval.
     """
-    return  b * (1 - (b - a) / (b + (b - a) * exp))
+    return b * (1 - (b - a) / (b + (b - a) * exp))
+
 
 class Field:
     def __init__(self, name, field=None, param_fields=[], regions=[]):
@@ -57,7 +59,7 @@ class Field:
         if type(field) in [float, int]:
             self.const = field
             assert len(param_fields) == 0
-        elif type(field) is SpatialCorrelatedField:
+        elif isinstance(field, RandomFieldBase):
             self.correlated_field = field
             assert len(param_fields) == 0
         else:
@@ -65,7 +67,7 @@ class Field:
 
             # check callable
             try:
-                params = [ np.ones(2) for i in range(len(param_fields))]
+                params = [np.ones(2) for i in range(len(param_fields))]
                 field(*params)
             except:
                 raise Exception("Invalid field function for field: {}".format(name))
@@ -81,9 +83,10 @@ class Field:
         if self.const is not None:
             self._sample = self.const * np.ones(len(points))
         elif self.correlated_field is not None:
-            #print("Set crr field, ", self.name, self.regions)
             self.correlated_field.set_points(points)
-            self.correlated_field.svd_dcmp(n_terms_range=(10, 100))
+            if type(self.correlated_field) is  SpatialCorrelatedField:
+                # TODO: make n_terms_range an optianal parmater for SpatialCorrelatedField
+                self.correlated_field.svd_dcmp(n_terms_range=(10, 100))
         else:
             pass
 
@@ -180,7 +183,6 @@ class Fields:
             else:
                 f.is_outer = False
 
-
     def set_points(self, points, region_ids=[], region_map={}):
         """
         Set mesh related data to fields.
@@ -226,10 +228,12 @@ class Fields:
         return result
 
 
-class SpatialCorrelatedField:
+class RandomFieldBase:
     """
+    Base class for various methods for generating random fields.
+
     Generating realizations of a spatially correlated random field F for a fixed set of points at X.
-    E[F(x)]       = mu(x) 
+    E[F(x)]       = mu(x)
     Cov_ij = Cov[x_i,x_j]  = E[(F(x_i) - mu(x))(F(x_j) - mu(x))]
 
     We assume stationary random field with covariance matrix Cov_ij:
@@ -261,7 +265,7 @@ class SpatialCorrelatedField:
     """
 
     def __init__(self, corr_exp='gauss', dim=2, corr_length=1.0,
-                 aniso_correlation=None, mu=0.0, sigma=1.0, log=False):
+                 aniso_correlation=None, mu=0.0, sigma=1.0, log=False, **kwargs):
         """
         :param corr_exp: 'gauss', 'exp' or a float (should be >= 1)
         :param dim: dimension of the domain (size of point coords)
@@ -270,7 +274,11 @@ class SpatialCorrelatedField:
         :param mu - mu field (currently just a constant)
         :param sigma - sigma field (currently just a constant)
 
-        TODO: use kwargs and move set_points into constructor
+        TODO:
+        - implement anisotropy in the base class using transformation matrix for the points
+        - use transformation matrix also for the corr_length
+        - replace corr_exp by aux classes for various correlation functions and pass them here
+        - more general set of correlation functions
         """
         self.dim = dim
         self.log = log
@@ -282,6 +290,9 @@ class SpatialCorrelatedField:
         else:
             self.correlation_exponent = float(corr_exp)
 
+        # TODO: User should prescribe scaling for main axis and their rotation.
+        # From this we should construct the transformation matrix for the points
+        self._corr_length = corr_length
         if aniso_correlation is None:
             assert corr_length > np.finfo(float).eps
             self.correlation_tensor = np.eye(dim, dim) * (1 / (corr_length ** 2))
@@ -298,15 +309,12 @@ class SpatialCorrelatedField:
         self.sigma = sigma
         # Standard deviance in points. Or scalar.
 
-        ### Attributes computed in precalculation.
-        self.cov_mat = None
-        # Covariance matrix (dense).
-        self._n_approx_terms = None
-        # Length of the sample vector, number of KL (Karhunen-Loe?ve) expansion terms.
-        self._cov_l_factor = None
-        # (Reduced) L factor of the SVD decomposition of the covariance matrix.
-        self._sqrt_ev = None
-        # (Reduced) square roots of singular values.
+        self._initialize(**kwargs)  # Implementation dependent initialization.
+
+
+    def _initialize(self, **kwargs):
+        raise NotImplementedError()
+
 
     def set_points(self, points, mu=None, sigma=None):
         """
@@ -332,10 +340,53 @@ class SpatialCorrelatedField:
         self.sigma = np.array(self.sigma, dtype=float)
         assert self.sigma.shape == () or sigma.shape == (len(points),)
 
+    def _set_points(self):
+        pass
+
+
+    def sample(self):
+        """
+        :param uncorelated: Random samples from standard normal distribution.
+               Removed as the spectral method do not support it.
+        :return: Random field evaluated in points given by 'set_points'.
+        """
+        # if uncorelated is None:
+        #     uncorelated = np.random.normal(0, 1, self.n_approx_terms)
+        # else:
+        #     assert uncorelated.shape == (self.n_approx_terms,)
+
+        field = self._sample()
+        field = self.sigma * field + self.mu
+
+        if not self.log:
+            return field
+        return np.exp(field)
+
+    def _sample(self, uncorrelated):
+        raise NotImplementedError()
+
+
+class SpatialCorrelatedField(RandomFieldBase):
+
+    def _initialize(self, **kwargs):
+        """
+        Called after initialization in common constructor.
+        """
+
+        ### Attributes computed in precalculation.
+        self.cov_mat = None
+        # Covariance matrix (dense).
+        self._n_approx_terms = None
+        # Length of the sample vector, number of KL (Karhunen-Loe?ve) expansion terms.
+        self._cov_l_factor = None
+        # (Reduced) L factor of the SVD decomposition of the covariance matrix.
+        self._sqrt_ev = None
+        # (Reduced) square roots of singular values.
+
+    def _set_points(self):
         self.cov_mat = None
         self._cov_l_factor = None
 
-        #return self.n_points
 
     def cov_matrix(self):
         """
@@ -343,6 +394,7 @@ class SpatialCorrelatedField:
         :return: None.
         """
         assert self.points is not None, "Points not set, call set_points."
+
         self._points_bbox = box = (np.min(self.points, axis=0), np.max(self.points, axis=0))
         diameter = np.max(np.abs(box[1] - box[0]))
         self._relative_corr_length = self._max_corr_length / diameter
@@ -350,15 +402,14 @@ class SpatialCorrelatedField:
         # sigma_sqr_mat = np.outer(self.sigma, self.sigma.T)
         self._sigma_sqr_max = np.max(self.sigma) ** 2
         n_pt = len(self.points)
-        self.cov_mat = np.empty( (n_pt, n_pt))
+        self.cov_mat = np.empty((n_pt, n_pt))
         corr_exp = self.correlation_exponent / 2.0
-        exp_scale = - 1.0 / self.correlation_exponent
 
         for i_row in range(n_pt):
             pt = self.points[i_row]
             diff_row = self.points - pt
             len_sqr_row = np.sum(diff_row.dot(self.correlation_tensor) * diff_row, axis=-1)
-            self.cov_mat[i_row, :] = np.exp(exp_scale * len_sqr_row ** corr_exp)
+            self.cov_mat[i_row, :] = np.exp(-len_sqr_row ** corr_exp)
         return self.cov_mat
 
     def _eigen_value_estimate(self, m):
@@ -386,7 +437,7 @@ class SpatialCorrelatedField:
 
         truncated SVD:
          cov_mat = U*diag(ev) * V,
-         cov_l_factor = U[:,0:m]*sqrt(ev[0:m])
+         _cov_l_factor = U[:,0:m]*sqrt(ev[0:m])
 
         Note on number of terms:
         According to: C. Schwab and R. A. Todor: KL Approximation of Random Fields by Generalized Fast Multiploe Method
@@ -437,23 +488,213 @@ class SpatialCorrelatedField:
         self.cov_mat = None
         return self._cov_l_factor, ev[0:m]
 
-    def sample(self, uncorelated=None):
+    def _sample(self):
         """
         :param uncorelated: Random samples from standard normal distribution.
         :return: Random field evaluated in points given by 'set_points'.
         """
         if self._cov_l_factor is None:
             self.svd_dcmp()
-        if uncorelated is None:
-            uncorelated = np.random.normal(0, 1, self.n_approx_terms)
+        uncorelated = np.random.normal(0, 1, self.n_approx_terms)
+        return self._cov_l_factor.dot(uncorelated)
+
+
+class FourierSpatialCorrelatedField(RandomFieldBase):
+    """
+    Generate spatial random fields
+    """
+
+    def _initialize(self, **kwargs):
+        """
+        Own intialization.
+        :param mode_no: Number of Fourier modes
+        """
+        self.len_scale = self._corr_length * 2*np.pi
+        self.mode_no = kwargs.get("mode_no", 1000)
+
+
+    def get_normal_distr(self):
+        """
+        Normal distributed arrays
+        :return: np.ndarray
+        """
+        Z = np.empty((2, self.mode_no))
+        rng = self._get_random_stream()
+        for i in range(2):
+            Z[i] = rng.normal(size=self.mode_no)
+
+        return Z
+
+    def _sample_sphere(self, mode_no):
+        """Uniform sampling on a d-dimensional sphere
+        Parameters
+        ----------
+            mode_no : :class:`int`, optional
+                number of the Fourier modes
+        Returns
+        -------
+            coord : :class:`numpy.ndarray`
+                x[, y[, z]] coordinates on the sphere with shape (dim, mode_no)
+        """
+        coord = self._create_empty_k(mode_no)
+        if self.dim == 1:
+            rng = self._get_random_stream()
+            ang1 = rng.random_sample(mode_no)
+            coord[0] = 2 * np.around(ang1) - 1
+        elif self.dim == 2:
+            rng = self._get_random_stream()
+            ang1 = rng.uniform(0.0, 2 * np.pi, mode_no)
+            coord[0] = np.cos(ang1)
+            coord[1] = np.sin(ang1)
+        elif self.dim == 3:
+            raise NotImplementedError("For implementation see "
+                                      "https://github.com/LSchueler/GSTools/blob/randomization_revisited/gstools/field/rng.py")
+        return coord
+
+    def gau(self, mode_no=1000):
+        """
+        Compute a gaussian spectrum
+        :param mode_no: int, Number of Fourier modes
+        :return: numpy.ndarray
+        """
+        len_scale = self.len_scale * np.sqrt(np.pi / 4)
+        if self.dim == 1:
+            k = self._create_empty_k(mode_no)
+            rng = self._get_random_stream()
+            k[0] = rng.normal(0., np.pi / 2.0 / len_scale ** 2, mode_no)
+        elif self.dim == 2:
+            coord = self._sample_sphere(mode_no)
+            rng = self._get_random_stream()
+            rad_u = rng.random_sample(mode_no)
+            # weibull distribution sampling
+            rad = np.sqrt(np.pi) / len_scale * np.sqrt(-np.log(rad_u))
+            k = rad * coord
+        elif self.dim == 3:
+            raise NotImplementedError("For implementation see "
+                                      "https://github.com/LSchueler/GSTools/blob/randomization_revisited/gstools/field/rng.py")
+        return k
+
+    def exp(self, mode_no=1000):
+        """
+        Compute an exponential spectrum
+        :param mode_no: int, Number of Fourier modes
+        :return: numpy.ndarray
+        """
+        if self.dim == 1:
+            k = self._create_empty_k(mode_no)
+            rng = self._get_random_stream()
+            k_u = rng.rng.uniform(-np.pi / 2.0, np.pi / 2.0, mode_no)
+            k[0] = np.tan(k_u) / self.len_scale
+        elif self.dim == 2:
+            coord = self._sample_sphere(mode_no)
+            rng = self._get_random_stream()
+            rad_u = rng.random_sample(mode_no)
+            # sampling with ppf
+            rad = np.sqrt(1.0 / rad_u ** 2 - 1.0) / self.len_scale
+            k = rad * coord
+        elif self.dim == 3:
+            raise NotImplementedError("For implementation see "
+                                      "https://github.com/LSchueler/GSTools/blob/randomization_revisited/gstools/field/rng.py")
+        return k
+
+    def _create_empty_k(self, mode_no=None):
+        """ Create empty mode array with the correct shape.
+        Parameters
+        ----------
+            mode_no : :class:`int`
+                number of the fourier modes
+        Returns
+        -------
+            :class:`numpy.ndarray`
+                the empty mode array
+        """
+        if mode_no is None:
+            k = np.empty(self.dim)
         else:
-            assert uncorelated.shape == (self.n_approx_terms,)
-        field = (self.sigma * self._cov_l_factor.dot(uncorelated)) + self.mu
+            k = np.empty((self.dim, mode_no))
+
+        return k
+
+    def _get_random_stream(self, seed=None):
+        return rand.RandomState(rand.RandomState(seed).randint(2 ** 16 - 1))
+
+    def random_field(self):
+        """
+        Calculates the random modes for the randomization method.
+        """
+        y, z = None, None
+        if self.dim == 1:
+            x = self.points
+            x.reshape(len(x), 1)
+        elif self.dim == 2:
+            x, y = self.points.T
+            x = x.reshape(len(x), 1)
+            y = y.reshape(len(y), 1)
+        else:
+            x, y, z = self.points.T
+            x = x.reshape(len(x), 1)
+            y = y.reshape(len(y), 1)
+            z = z.reshape(len(z), 1)
+
+        normal_distr_values = self.get_normal_distr()
+
+        if self.correlation_exponent == 2:
+            k = self.gau(self.mode_no)
+        else:
+            k = self.exp(self.mode_no)
+
+        # reshape for unstructured grid
+        for dim_i in range(self.dim):
+            k[dim_i] = np.squeeze(k[dim_i])
+            k[dim_i] = np.reshape(k[dim_i], (1, len(k[dim_i])))
+
+        summed_modes = np.broadcast(x, y, z)
+        summed_modes = np.squeeze(np.zeros(summed_modes.shape))
+        # Test to see if enough memory is available.
+        # In case there isn't, divide Fourier modes into smaller chunks
+        chunk_no = 1
+        chunk_no_exp = 0
+
+        while True:
+            try:
+                chunk_len = int(np.ceil(self.mode_no / chunk_no))
+
+                for chunk in range(chunk_no):
+                    a = chunk * chunk_len
+                    # In case k[d,a:e] with e >= len(k[d,:]) causes errors in
+                    # numpy, use the commented min-function below
+                    # e = min((chunk + 1) * chunk_len, self.mode_no-1)
+                    e = (chunk + 1) * chunk_len
+
+                    if self.dim == 1:
+                        phase = k[0, a:e]*x
+                    elif self.dim == 2:
+                        phase = k[0, a:e]*x + k[1, a:e]*y
+                    else:
+                        phase = (k[0, a:e]*x + k[1, a:e]*y +
+                                 k[2, a:e]*z)
+
+                    summed_modes += np.squeeze(
+                        np.sum(normal_distr_values[0, a:e] * np.cos(2.*np.pi*phase) +
+                               normal_distr_values[1, a:e] * np.sin(2.*np.pi*phase),
+                               axis=-1))
+            except MemoryError:
+                chunk_no += 2**chunk_no_exp
+                chunk_no_exp += 1
+                print('Not enough memory. Dividing Fourier modes into {} '
+                      'chunks.'.format(chunk_no))
+            else:
+                break
+
+        field = np.sqrt(1.0 / self.mode_no) * summed_modes
+        return  field
+
+    def _sample(self):
+        """
+        :return: Random field evaluated in points given by 'set_points'.
+        """
+        return self.random_field()
 
         if not self.log:
             return field
         return np.exp(field)
-
-
-
-
