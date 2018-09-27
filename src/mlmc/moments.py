@@ -56,7 +56,7 @@ class Moments:
         return self._eval_all(value, self.size)
 
     def eval(self, i, value):
-        return self._eval_all(value, self.size)[:, i]
+        return self._eval_all(value, i+1)[:, -1]
 
     def eval_all(self, value, size=None):
         if size is None:
