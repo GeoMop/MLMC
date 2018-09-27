@@ -81,7 +81,7 @@ class Distribution:
         """
         # Initialize domain, multipliers, ...
         self._initialize_params(tol)
-
+        
         result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method='trust-exact',
                                       jac=self._calculate_gradient,
                                       hess=self._calculate_jacobian_matrix,
@@ -188,26 +188,35 @@ class Distribution:
         """
         Update quadrature points and their moments and weights based on integration of the density.
         """
-        quad_err_estimate = np.abs(np.dot(self._last_gradient, (multipliers - self._last_multipliers)))
-        if  force or quad_err_estimate > self._quad_tolerance:
-            def integrand(x):
-                return np.exp(-np.sum(self.moments_fn(x) * multipliers, axis=1))
+        mult_norm = np.linalg.norm(multipliers - self._last_multipliers)
+        grad_norm = np.linalg.norm(self._last_gradient)
+        if not force and grad_norm * mult_norm < self._quad_tolerance:
+            print("OPT")
+            return
 
-            result = sc.integrate.quad(integrand, self.domain[0], self.domain[1], full_output = 1)
-            if len(result) > 3:
-                y, abserr, info, message = result
-                self._quad_log.append(result)
-            else:
-                y, abserr, info = result
-            pt, w = np.polynomial.legendre.leggauss(self._gauss_degree)
-            K = info['last']
-            a = info['alist'][:K, None]
-            b = info['blist'][:K, None]
-            points = (pt[None, :] + 1) / 2 * (b - a) + a
-            weights = w[None, :] * (b - a) / 2
-            self._quad_points = points.flatten()
-            self._quad_weights = weights.flatten()
-            self._quad_moments = self.moments_fn(self._quad_points)
+        print(grad_norm * mult_norm, self._quad_tolerance)
+        # More precise but depends on actual gradient which may not be available
+        # quad_err_estimate = np.abs(np.dot(self._last_gradient, (multipliers - self._last_multipliers)))
+        # quad_err_estimate > self._quad_tolerance
+
+        def integrand(x):
+            return np.exp(-np.sum(self.moments_fn(x) * multipliers, axis=1))
+
+        result = sc.integrate.quad(integrand, self.domain[0], self.domain[1], full_output = 1)
+        if len(result) > 3:
+            y, abserr, info, message = result
+            self._quad_log.append(result)
+        else:
+            y, abserr, info = result
+        pt, w = np.polynomial.legendre.leggauss(self._gauss_degree)
+        K = info['last']
+        a = info['alist'][:K, None]
+        b = info['blist'][:K, None]
+        points = (pt[None, :] + 1) / 2 * (b - a) + a
+        weights = w[None, :] * (b - a) / 2
+        self._quad_points = points.flatten()
+        self._quad_weights = weights.flatten()
+        self._quad_moments = self.moments_fn(self._quad_points)
 
     def end_point_derivatives(self):
         """
@@ -224,31 +233,15 @@ class Distribution:
         return np.stack((left_diff[0,:], right_diff[0,:]), axis=0)/eps
 
 
-    def adaptive_fixed_quad(self, integrand, multipliers):
-        """
-        Evaluate integrand for precomputed moments and weights.
-        :param integrand:
-        :param multipliers:
-        :return:
-        """
-        self._update_quadrature(multipliers)
-        values = integrand(self._quad_moments)
-        return np.dot(values, self._quad_weights)
-
-
-
     def _calculate_functional(self, multipliers):
         """
         Minimized functional.
         :param multipliers: current multipliers
         :return: float
         """
-        def integrand(mom_x):
-            # mom_x: (n_points, n_moments)
-            # return: (n_points,)
-            return np.exp(-np.dot(mom_x, multipliers))
-
-        integral = self.adaptive_fixed_quad(integrand, multipliers)
+        self._update_quadrature(multipliers)
+        q_density = np.exp(-np.dot(self._quad_moments, multipliers))
+        integral = np.dot(q_density, self._quad_weights)
         sum = np.sum(self.moment_means * multipliers)
 
         end_diff = np.dot(self._end_point_diff, multipliers)
@@ -263,12 +256,10 @@ class Distribution:
         Gradient of th functional
         :return: array, shape (n_moments,)
         """
-        def integrand(mom_x):
-            # mom_x: (n_points, n_moments)
-            # return: (n_moments, n_points)
-            return mom_x.T * np.exp(-np.dot(mom_x, multipliers))
+        self._update_quadrature(multipliers)
+        q_gradient = self._quad_moments.T * np.exp(-np.dot(self._quad_moments, multipliers))
+        integral = np.dot(q_gradient, self._quad_weights)
 
-        integral = self.adaptive_fixed_quad(integrand, multipliers)
         end_diff = np.dot(self._end_point_diff, multipliers)
         penalty = 2 * np.dot( np.maximum(end_diff, 0), self._end_point_diff)
         fun = np.sum(self.moment_means * multipliers) + integral[0]
@@ -282,16 +273,15 @@ class Distribution:
         """
         :return: jacobian matrix, symmetric, (n_moments, n_moments)
         """
-        triu_idx = np.triu_indices(self.approx_size)
-        def integrand(mom_x):
-            # mom_x: (n_points, n_moments)
-            # return: (n_mat_els, n_points)
-            density = np.exp(- np.dot(mom_x, multipliers))
-            moment_outer = np.einsum('ki,kj->ijk', mom_x, mom_x)
-            triu_outer = moment_outer[triu_idx[0], triu_idx[1], :]
-            return  triu_outer * density
+        self._update_quadrature(multipliers)
 
-        integral = self.adaptive_fixed_quad(integrand, multipliers)
+        q_density = np.exp(-np.dot(self._quad_moments, multipliers))
+        moment_outer = np.einsum('ki,kj->ijk', self._quad_moments, self._quad_moments)
+        triu_idx = np.triu_indices(self.approx_size)
+        triu_outer = moment_outer[triu_idx[0], triu_idx[1], :]
+        q_jac = triu_outer * q_density
+        integral = np.dot(q_jac, self._quad_weights)
+
         jacobian_matrix = np.empty(shape=(self.approx_size, self.approx_size))
         jacobian_matrix[triu_idx[0], triu_idx[1]] = integral
         jacobian_matrix[triu_idx[1], triu_idx[0]] = integral
@@ -303,6 +293,8 @@ class Distribution:
                 penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
                 jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
 
+        self._last_gradient = jacobian_matrix[0,:]
+        self._last_multipliers = multipliers
         return jacobian_matrix
 
 
