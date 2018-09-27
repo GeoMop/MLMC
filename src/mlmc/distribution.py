@@ -191,10 +191,10 @@ class Distribution:
         mult_norm = np.linalg.norm(multipliers - self._last_multipliers)
         grad_norm = np.linalg.norm(self._last_gradient)
         if not force and grad_norm * mult_norm < self._quad_tolerance:
-            print("OPT")
+            #print("OPT")
             return
 
-        print(grad_norm * mult_norm, self._quad_tolerance)
+        #print(grad_norm * mult_norm, self._quad_tolerance)
         # More precise but depends on actual gradient which may not be available
         # quad_err_estimate = np.abs(np.dot(self._last_gradient, (multipliers - self._last_multipliers)))
         # quad_err_estimate > self._quad_tolerance

@@ -29,6 +29,7 @@ import os
 import sys
 import time
 import pytest
+import statprof
 
 import numpy as np
 import scipy.stats as stats
@@ -105,8 +106,24 @@ class DistrPlot:
     def clean(self):
         plt.close()
 
+
+
+
+def profile(fun, skip=False):
+    if skip:
+        return fun()
+    statprof.start()
+    try:
+        result = fun()
+    finally:
+        statprof.stop()
+    statprof.display()
+    return result
+
+
+
 @pytest.mark.parametrize("moment_fn, max_n_moments", [
-    (moments.Monomial, 10),
+    #(moments.Monomial, 10),
     #(moments.Fourier, 61),
     (moments.Legendre, 61)])
 @pytest.mark.parametrize("distribution",[
@@ -114,11 +131,11 @@ class DistrPlot:
         (stats.norm(loc=1, scale=10), False),
 
         (stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
-        ##(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
-        (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
+        # #(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
+        # (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
         (stats.chi2(df=10), False), # Monomial: s1=nan, Fourier: s1= -1.6, Legendre: s1=nan
         (stats.chi2(df=5), True), # Monomial: s1=-10, Fourier: s1=-1.6, Legendre: OK
-        (stats.weibull_min(c=0.5), False),  # Exponential # Monomial stuck, Fourier stuck
+        # (stats.weibull_min(c=0.5), False),  # Exponential # Monomial stuck, Fourier stuck
         (stats.weibull_min(c=1), False),  # Exponential
         (stats.weibull_min(c=2), False),  # Rayleigh distribution
         (stats.weibull_min(c=5, scale=4), False),   # close to normal
@@ -189,8 +206,9 @@ def test_distribution(moment_fn, max_n_moments, distribution):
             distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data,
                                                        domain=domain, force_decay=force_decay)
             t0 = time.time()
-            #result = distr_obj.estimate_density(tol_exact_moments)
+            # result = distr_obj.estimate_density(tol_exact_moments)
             result = distr_obj.estimate_density_minimize(tol_exact_moments)
+            #result = profile(lambda : distr_obj.estimate_density_minimize(tol_exact_moments))
             t1 = time.time()
             cumtime += (t1 - t0)
             nit = getattr(result, 'nit', result.njev)
