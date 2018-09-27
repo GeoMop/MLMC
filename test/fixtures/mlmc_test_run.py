@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
-import mlmc
+import mlmc.moments
 from test.fixtures.synth_simulation import SimulationTest
 
 
