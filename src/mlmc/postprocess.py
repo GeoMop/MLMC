@@ -39,8 +39,8 @@ def plot_pdf_approx(ax1, ax2, mc0_samples, mlmc_wrapper, domain, est_domain):
         X, Y = ecdf(mc0_samples)
         ax2.plot(X, Y, 'red')
 
-    ax1.axvline(x=est_domain[0], c=color)
-    ax1.axvline(x=est_domain[1], c=color)
+    ax1.axvline(x=domain[0], c=color)
+    ax1.axvline(x=domain[1], c=color)
 
 
 def compute_results(mlmc_l0, n_moments, mlmc_wrapper):

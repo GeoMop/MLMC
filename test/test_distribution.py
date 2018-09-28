@@ -561,9 +561,9 @@ def compute_mlmc_distribution(nl, distr):
     :param distr: Distributions as [distr obj, log (bool), simulation function]
     :return: TestMLMC instance
     """
-    n_moments = 20
+    n_moments = nm
     repet_number = 1
-    start_moments_n = 5
+    start_moments_n = nm
     all_variances = []
     all_means = []
     d = distr[0]
@@ -687,6 +687,7 @@ def test_distributions():
         # (stats.weibull_min(c=3), True, '_sample_fn_basic')  # Close to normal
          ]
     levels = [1]#, 2, 3, 5, 7, 9]
+    n_moments = 5
     # Loop through distributions and levels
     for distr in distributions:
         for level in levels:
@@ -713,3 +714,4 @@ def test_distributions():
     plt.show()
 
 
+test_distributions()

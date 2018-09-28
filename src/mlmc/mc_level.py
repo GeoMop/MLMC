@@ -373,7 +373,6 @@ class Level:
         # Current moment functions are different from last moment functions
         if force or moments_fn != self._last_moments_fn:
             samples = self.sample_values
-
             # Moments from fine samples
             moments_fine = moments_fn(samples[:, 0])
 
@@ -427,7 +426,7 @@ class Level:
             variances have length R
         """
         assert self.n_samples > 1
-        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn, force=True)
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
         return var_vec, len(mom_fine)
 
@@ -437,7 +436,7 @@ class Level:
         :param moments_fn: Function for calculating moments
         :return: np.array, moments mean vector
         """
-        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn, force=True)
         mean_vec = np.mean(mom_fine - mom_coarse, axis=0)
         return mean_vec
 
@@ -457,7 +456,7 @@ class Level:
             left = min_sample
         right = min(np.max(fine_sample), quantile_3 + 1.5 * iqr)
 
-        if left <= 0:
-            left = 1e-15
+        # if left <= 0:
+        #     left = 1e-15
 
         return left, right
