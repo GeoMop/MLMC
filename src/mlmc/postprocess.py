@@ -82,7 +82,7 @@ def compute_results(mlmc_l0, n_moments, mlmc_wrapper):
     moments_data = np.stack((est_moments, est_vars), axis=1)
     distr_obj = Distribution(moments_fn, moments_data)
     distr_obj.domain = domain
-    distr_obj.estimate_density_minimize(tol=1e-8)
+    distr_obj.estimate_density_minimize(1)
     mlmc_wrapper.distr_obj = distr_obj
 
     return domain, est_domain, mlmc_wrapper

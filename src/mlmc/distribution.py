@@ -43,7 +43,7 @@ class Distribution:
         # Degree of Gauss quad to use on every subinterval determined by adaptive quad.
         self._gauss_degree = 21
         # Panalty coef for endpoint derivatives
-        self._penalty_coef = 100
+        self._penalty_coef = 10
 
     # def choose_parameters_from_samples(self, samples):
     #     """
@@ -82,52 +82,56 @@ class Distribution:
     def estimate_density_minimize(self, tol=1e-5):
         """
         Optimize density estimation
+        :param tol: Tolerance for the nonlinear system residual, after division by std errors for
+        individual moment means, i.e.
+        res = || (F_i - \mu_i) / \sigma_i ||_2
         :return: None
         """
         # Initialize domain, multipliers, ...
 
+        # Geometrical series for sizes with base 1.2.
+        # Using just odd numbers.
+        base = 1.2
         if self.approx_size <= 5:
             sizes = [self.approx_size]
         else:
             size = self.approx_size
             sizes = [size]
             while size > 4:
-                size /= 1.5
+                size /= base
                 odd_size = 2*round((size-1)/2)+1
-                sizes.append(round(odd_size))
-
-
+                if odd_size != sizes[-1]:
+                    sizes.append(odd_size)
             sizes.reverse()
+        print(sizes)
 
         self.approx_size = sizes[0]
         self._initialize_params(self.approx_size, tol)
-        self._last_solved_multipliers = self.multipliers
-        self._stab_penalty = 0.0 / np.linalg.norm(self.multipliers)
         self.extend_size(self.approx_size)
         init_error = np.linalg.norm(self._calculate_gradient(self.multipliers))
-        #if tol
-        tolerances = np.exp(np.linspace(np.log(init_error/10), np.log(tol), len(sizes)))
-        if tolerances[0] < tolerances[-1]:
-            print("Increasing tolerances: ", tolerances)
-            tolerances[:] = tolerances[-1]
+
+        t1 = tol
+        t0 = max(tol, init_error / 10)
+        t = (np.array(sizes) - sizes[0]) / ( sizes[-1] - sizes[0])
+        tolerances = np.exp(np.log(t1) * t - np.log(t0) * (1-t))
+        print(tolerances)
 
         for approx_size, approx_tol in  zip(sizes, tolerances):
-            self._quad_tolerance = approx_tol / 8
-            self._last_solved_multipliers = self.multipliers
-            self._stab_penalty = 0.05 / np.linalg.norm(self.multipliers)
+            self._quad_tolerance = approx_tol / 16
             self.extend_size(approx_size)
-
-            if approx_size == self.moments_fn.size or approx_size == sizes[0]:
-                max_it = 200
-            else:
-                max_it = 20
+            #if approx_size == self.moments_fn.size or approx_size == sizes[0]:
+            #    max_it = 200
+            #else:
+            #    max_it = 20
+            max_it = 200
             result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method='trust-exact',
                                           jac=self._calculate_gradient,
                                           hess=self._calculate_jacobian_matrix,
                                           options={'gtol': approx_tol, 'disp': False, 'maxiter': max_it})
             self.multipliers = result.x
             jac_norm = np.linalg.norm(result.jac)
-            #print("size: {} nits: {} tol: {:5.3g} fn: {:5.3g} ".format(self.approx_size, result.nit, approx_tol, jac_norm))
+            print("size: {} nits: {} tol: {:5.3g} fn: {:5.3g} msg: {}".format(
+               self.approx_size, result.nit, approx_tol, jac_norm, result.message))
 
         # result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method='BFGS',
         #                               jac=self._calculate_gradient,
@@ -139,6 +143,7 @@ class Distribution:
             result.success = True
         if not result.success and result.message[:5] == 'A bad':
             result.success = True
+        result.nit = max(result.nit, 1)
         result.fun_norm = jac_norm
         return result
 
@@ -218,6 +223,9 @@ class Distribution:
 
 
     def extend_size(self, new_size):
+        self._last_solved_multipliers = self.multipliers
+        self._stab_penalty = 0.000 / np.linalg.norm(self.multipliers)
+
         self.approx_size = new_size
         multipliers = self.multipliers
         self.multipliers = np.zeros(new_size)
@@ -309,6 +317,8 @@ class Distribution:
         penalty = np.sum(np.maximum(end_diff, 0)**2)
         fun =  sum + integral
         fun = fun + np.abs(fun) * self._penalty_coef * penalty
+        last_size = len(self._last_solved_multipliers)
+        fun += 0.5 * self._stab_penalty * np.linalg.norm(self._last_solved_multipliers - multipliers[:last_size])
         return fun
 
 
@@ -325,6 +335,8 @@ class Distribution:
         penalty = 2 * np.dot( np.maximum(end_diff, 0), self._end_point_diff)
         fun = np.sum(self._moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
         gradient =  self._moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
+        last_size = len(self._last_solved_multipliers)
+        gradient[:last_size] += 0.5 * self._stab_penalty * (self._last_solved_multipliers - multipliers[:last_size])
         return gradient
 
     def _calculate_jacobian_matrix(self, multipliers):
@@ -354,6 +366,12 @@ class Distribution:
                 penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
                 jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
 
+        jacobian_matrix += 1.0 * self._stab_penalty
+
+        #e_vals = np.linalg.eigvalsh(jacobian_matrix)
+
+        #print(multipliers)
+        #print("jac spectra: ", e_vals[0], e_vals[-1], e_vals[-1]/e_vals[0])
         return jacobian_matrix
 
 

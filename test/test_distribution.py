@@ -152,7 +152,7 @@ def domain_for_quantile(distr, quantile):
         (stats.norm(loc=1, scale=2), False),
         (stats.norm(loc=1, scale=10), False),
         (stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
-        # #(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
+        #(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
         (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
         (stats.chi2(df=10), False), # Monomial: s1=nan, Fourier: s1= -1.6, Legendre: s1=nan
         (stats.chi2(df=5), True), # Monomial: s1=-10, Fourier: s1=-1.6, Legendre: OK
@@ -180,11 +180,11 @@ def test_pdf_approx_exact_moments(moment_fn, max_n_moments, distribution):
     tol_exact_moments = 1e-6
     tol_density_approx = tol_exact_moments * 8
     quantiles = np.array([0.0001, 0])
-    #quantiles = np.array([0.001])
+    quantiles = np.array([0.0001])
 
 
     moment_sizes = np.round(np.exp(np.linspace(np.log(3), np.log(max_n_moments), 5))).astype(int)
-    #moment_sizes = [61]
+    moment_sizes = [61]
     kl_collected = np.empty( (len(quantiles), len(moment_sizes)) )
     l2_collected = np.empty_like(kl_collected)
 
@@ -225,15 +225,15 @@ def test_pdf_approx_exact_moments(moment_fn, max_n_moments, distribution):
                 l2_dist = mlmc.distribution.L2_distance(distr_obj.density, density, domain[0], domain[1])
                 kl_collected[i_q, i_m] = kl_div
                 l2_collected[i_q, i_m] = l2_dist
-                #print("q: {}, m: {} :: nit: {} fn: {} ; kl: {} l2: {}".format(
-                #    domain_quantile, n_moments, nit, fn_norm, kl_div, l2_dist))
+                print("q: {}, m: {} :: nit: {} fn: {} ; kl: {} l2: {}".format(
+                    domain_quantile, n_moments, nit, fn_norm, kl_div, l2_dist))
                 if i_m + 1 == len(moment_sizes):
                     # plot for last case
                     distr_plot.plot_approximation(distr_obj, label=str(domain))
             else:
                 n_failed[-1]+=1
-                print("q: {}, m: {} :: nit: {} fn:{} ; msg: {}".format(
-                    domain_quantile, n_moments, nit, fn_norm, result.message))
+                #print("q: {}, m: {} :: nit: {} fn:{} ; msg: {}".format(
+                #    domain_quantile, n_moments, nit, fn_norm, result.message))
 
                 kl_collected[i_q, i_m] = np.nan
                 l2_collected[i_q, i_m] = np.nan
@@ -246,11 +246,11 @@ def test_pdf_approx_exact_moments(moment_fn, max_n_moments, distribution):
             continue
         if not (n_failed[-1] == 0 and (max_err < tol_density_approx * 8 or s1 < -1)):
             warn_log.append((i_q, n_failed[-1],  s1, s0, max_err))
-            fail = 'NQ'
+            fail = "FF"
         else:
             fail = ' q'
-        print(fail + ": ({:5.3g}, {:5.3g});  failed: {} tavg: {:5.3g};  s1: {:5.3g} s0: {:5.3g} kl: ({:5.3g}, {:5.3g})".format(
-            domain[0], domain[1], n_failed[-1], cumtime/tot_nit, s1, s0, min_err, max_err))
+        print(fail + ": ({:5.3g}, {:5.3g});  failed: {} cumit: {} tavg: {:5.3g};  s1: {:5.3g} s0: {:5.3g} kl: ({:5.3g}, {:5.3g})".format(
+            domain[0], domain[1], n_failed[-1], tot_nit, cumtime/tot_nit, s1, s0, min_err, max_err))
 
     #distr_plot.show()
     distr_plot.clean()
@@ -275,18 +275,18 @@ def test_pdf_approx_exact_moments(moment_fn, max_n_moments, distribution):
 
 
 
-@pytest.mark.skip
+#@pytest.mark.skip
 @pytest.mark.parametrize("distribution",[
 
         (stats.norm(loc=1, scale=10), False),
-        #(stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
-        # #(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
-        #(stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
-        # (stats.chi2(df=5), True), # Monomial: s1=-10, Fourier: s1=-1.6, Legendre: OK
-        # (stats.weibull_min(c=0.5), False),  # Exponential # Monomial stuck, Fourier stuck
-        # (stats.weibull_min(c=1), False),  # Exponential
-        # (stats.weibull_min(c=2), False),  # Rayleigh distribution
-        # (stats.weibull_min(c=1.5), True),  # Infinite derivative at zero
+        (stats.lognorm(scale=np.exp(1), s=1), False),    # # No D_KL convergence under 1e-3.
+        #(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
+        (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
+        (stats.chi2(df=5), True), # Monomial: s1=-10, Fourier: s1=-1.6, Legendre: OK
+        # (stats.weibull_min(c=0.5), False),  # No D_KL convergence under 1e-1.
+        (stats.weibull_min(c=1), False),  # Exponential
+        (stats.weibull_min(c=2), False),  # D_KL steady under 1e-6.
+        (stats.weibull_min(c=1.5), True),  # Infinite derivative at zero
     ])
 def test_pdf_approx_iexact_moments(distribution):
     np.random.seed(67)
@@ -341,8 +341,8 @@ def test_pdf_approx_iexact_moments(distribution):
             l2_dist = mlmc.distribution.L2_distance(distr_obj.density, density, domain[0], domain[1])
             kl_collected[i_m] = kl_div
             l2_collected[i_m] = l2_dist
-            print("q: {}, err: {:7.3g} :: nit: {} fn: {} ; kl: {} l2: {}".format(
-                domain_quantile, err, nit, fn_norm, kl_div, l2_dist))
+            #print("q: {}, err: {:7.3g} :: nit: {} fn: {} ; kl: {} l2: {}".format(
+            #    domain_quantile, err, nit, fn_norm, kl_div, l2_dist))
             distr_plot.plot_approximation(distr_obj, str(err))
         else:
             n_failed+=1
@@ -353,20 +353,20 @@ def test_pdf_approx_iexact_moments(distribution):
             l2_collected[i_m] = np.nan
 
     # Check convergence
-    print(kl_collected)
+    #print(kl_collected)
     s1, s0 = np.polyfit(np.log(moment_errors), np.log(kl_collected), 1)
     max_err = np.max(kl_collected)
     min_err = np.min(kl_collected)
-    # if not (n_failed == 0 and (max_err < tol_density_approx * 8 or s1 < -1)):
-    #     warn_log.append((domain_quantile, n_failed,  s1, s0, max_err))
-    #     fail = 'NQ'
-    # else:
-    #     fail = ' q'
+    if not (n_failed == 0 and (max_err < 1e-6 or s1 > 0)):
+        warn_log.append((domain_quantile, n_failed,  s1, s0, max_err))
+        fail = 'NQ'
+    else:
+        fail = ' q'
     fail = ' q'
     print(fail + ": ({:5.3g}, {:5.3g});  failed: {} tavg: {:5.3g};  s1: {:5.3g} s0: {:5.3g} kl: ({:5.3g}, {:5.3g})".format(
         domain[0], domain[1], n_failed, cum_time/cum_it, s1, s0, min_err, max_err))
 
-    distr_plot.show()
+    #distr_plot.show()
     distr_plot.clean()
 
 
@@ -379,7 +379,7 @@ def test_pdf_approx_iexact_moments(distribution):
         plt.legend()
         plt.show()
 
-    plot_convergence()
+    #plot_convergence()
 
     # if warn_log:
     #     for warn in warn_log:
@@ -607,7 +607,7 @@ def compute_mlmc_distribution(nl, distr):
     # distr_obj.choose_parameters_from_samples()
     distr_obj.domain = mc_test.moments_fn.domain
     # result = distr_obj.estimate_density(tol=0.0001)
-    result = distr_obj.estimate_density_minimize(tol=1e-15)
+    result = distr_obj.estimate_density_minimize(tol=1)
 
     mc_test.distr_obj = distr_obj
     # density = density_from_prior_estimate(distr_obj, mc_test, exact_moments, d, moments_data)
@@ -686,7 +686,7 @@ def test_distributions():
         # (stats.weibull_min(c=1.5), True, '_sample_fn_basic'),  # Infinite derivative at zero
         # (stats.weibull_min(c=3), True, '_sample_fn_basic')  # Close to normal
          ]
-    levels = [1, 5]#, 2, 3, 5, 7, 9]
+    levels = [1]#, 2, 3, 5, 7, 9]
     # Loop through distributions and levels
     for distr in distributions:
         for level in levels:
