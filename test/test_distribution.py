@@ -206,7 +206,7 @@ def test_pdf_approx_exact_moments(moment_fn, max_n_moments, distribution):
             #print(i_m, n_moments, domain, force_decay)
             moments_data = np.empty((n_moments, 2))
             moments_data[:, 0] = exact_moments[:n_moments]
-            moments_data[:, 1] = tol_exact_moments
+            moments_data[:, 1] = 1.0
             is_positive = log_flag
             distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data,
                                                        domain=domain, force_decay=force_decay)

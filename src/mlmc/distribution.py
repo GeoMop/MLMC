@@ -108,10 +108,11 @@ class Distribution:
         #if tol
         tolerances = np.exp(np.linspace(np.log(init_error/10), np.log(tol), len(sizes)))
         if tolerances[0] < tolerances[-1]:
+            print("Increasing tolerances: ", tolerances)
             tolerances[:] = tolerances[-1]
 
         for approx_size, approx_tol in  zip(sizes, tolerances):
-            self._quad_tolerance = approx_tol / 16
+            self._quad_tolerance = approx_tol / 8
             self._last_solved_multipliers = self.multipliers
             self._stab_penalty = 0.05 / np.linalg.norm(self.multipliers)
             self.extend_size(approx_size)
@@ -126,7 +127,7 @@ class Distribution:
                                           options={'gtol': approx_tol, 'disp': False, 'maxiter': max_it})
             self.multipliers = result.x
             jac_norm = np.linalg.norm(result.jac)
-            print("size: {} nits: {} tol: {:5.3g} fn: {:5.3g} ".format(self.approx_size, result.nit, approx_tol, jac_norm))
+            #print("size: {} nits: {} tol: {:5.3g} fn: {:5.3g} ".format(self.approx_size, result.nit, approx_tol, jac_norm))
 
         # result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method='BFGS',
         #                               jac=self._calculate_gradient,
