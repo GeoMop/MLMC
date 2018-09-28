@@ -30,7 +30,7 @@ class Distribution:
 
         # Approximation of moment values.
         self.moment_means = moment_data[:, 0]
-        self.moment_vars = moment_data[:, 1]
+        self.moment_errs = np.sqrt(moment_data[:, 1])
 
         # Approximation paramters. Lagrange multipliers for moment equations.
         self.multipliers = None
@@ -43,7 +43,7 @@ class Distribution:
         # Degree of Gauss quad to use on every subinterval determined by adaptive quad.
         self._gauss_degree = 21
         # Panalty coef for endpoint derivatives
-        self._penalty_coef = 100
+        self._penalty_coef = 10
 
     # def choose_parameters_from_samples(self, samples):
     #     """
@@ -101,14 +101,21 @@ class Distribution:
 
         self.approx_size = sizes[0]
         self._initialize_params(self.approx_size, tol)
+        self._last_solved_multipliers = self.multipliers
+        self._stab_penalty = 0.0 / np.linalg.norm(self.multipliers)
+
         self.extend_size(self.approx_size)
         init_error = np.linalg.norm(self._calculate_gradient(self.multipliers))
-        tolerances = np.exp(np.linspace(np.log(init_error/100), np.log(tol), len(sizes)))
+        #if tol
+        tolerances = np.exp(np.linspace(np.log(init_error/10), np.log(tol), len(sizes)))
+        if tolerances[0] < tolerances[-1]:
+            tolerances[:] = tolerances[-1]
 
         for approx_size, approx_tol in  zip(sizes, tolerances):
-            self._quad_tolerance = approx_tol / 8
+            self._quad_tolerance = approx_tol / 16
+            self._last_solved_multipliers = self.multipliers
+            self._stab_penalty = 0.05 / np.linalg.norm(self.multipliers)
             self.extend_size(approx_size)
-
             if approx_size == self.moments_fn.size or approx_size == sizes[0]:
                 max_it = 200
             else:
@@ -119,7 +126,7 @@ class Distribution:
                                           options={'gtol': approx_tol, 'disp': False, 'maxiter': max_it})
             self.multipliers = result.x
             jac_norm = np.linalg.norm(result.jac)
-            #print("size: {} nits: {} fn: {:5.3g} ".format(self.approx_size, result.nit, jac_norm))
+            print("size: {} nits: {} tol: {:5.3g} fn: {:5.3g} ".format(self.approx_size, result.nit, approx_tol, jac_norm))
 
         # result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method='BFGS',
         #                               jac=self._calculate_gradient,
@@ -169,7 +176,7 @@ class Distribution:
             moments = self.moments_fn(value)
         else:
             moments = moments_fn(value)
-        return np.exp(-np.sum(moments * self.multipliers, axis=1))
+        return np.exp(-np.sum(moments * self.multipliers / self._moment_errs, axis=1))
 
     def cdf(self, values):
         values = np.atleast_1d(values)
@@ -201,9 +208,10 @@ class Distribution:
         assert tol is not None
         self._quad_tolerance = tol / 16
 
+        self.moment_errs[0] = np.min(self.moment_errs[1:]) / 8
         # Start with uniform distribution
         self.multipliers = np.zeros(size)
-        self.multipliers[0] = -np.log(self.domain[1] - self.domain[0])
+        self.multipliers[0] = -np.log(1/(self.domain[1] - self.domain[0])) * self.moment_errs[0]
         # Log to store error messages from quad, report only on conv. problem.
         self._quad_log = []
 
@@ -213,10 +221,14 @@ class Distribution:
         multipliers = self.multipliers
         self.multipliers = np.zeros(new_size)
         self.multipliers[:len(multipliers)] = multipliers
+        self._moment_means = self.moment_means[:self.approx_size]
+        self._moment_errs = self.moment_errs[:self.approx_size]
+
+
         # Evaluate endpoint derivatives of the moments.
         self._end_point_diff = self.end_point_derivatives()
         self._update_quadrature(self.multipliers, force=True)
-        self._calculate_gradient(self.multipliers)
+        #self._calculate_gradient(self.multipliers)
 
     def eval_moments(self, x):
         return self.moments_fn.eval_all(x, self.approx_size)
@@ -240,7 +252,7 @@ class Distribution:
                 return
 
         def integrand(x):
-            return np.exp(-np.sum(self.eval_moments(x) * multipliers, axis=1))
+            return np.exp(-np.sum(self.eval_moments(x) * multipliers / self._moment_errs, axis=1))
 
         result = sc.integrate.quad(integrand, self.domain[0], self.domain[1], full_output = 1)
         if len(result) > 3:
@@ -248,8 +260,10 @@ class Distribution:
             self._quad_log.append(result)
         else:
             y, abserr, info = result
+            message =""
         pt, w = np.polynomial.legendre.leggauss(self._gauss_degree)
         K = info['last']
+        #print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
         a = info['alist'][:K, None]
         b = info['blist'][:K, None]
         points = (pt[None, :] + 1) / 2 * (b - a) + a
@@ -258,8 +272,8 @@ class Distribution:
         self._quad_weights = weights.flatten()
         self._quad_moments = self.eval_moments(self._quad_points)
 
-        q_gradient = self._quad_moments.T * np.exp(-np.dot(self._quad_moments, multipliers))
-        integral = np.dot(q_gradient, self._quad_weights)
+        q_gradient = self._quad_moments.T * np.exp(-np.dot(self._quad_moments, multipliers/self._moment_errs))
+        integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
         self._last_multipliers = multipliers
         self._last_gradient = integral
 
@@ -275,7 +289,7 @@ class Distribution:
         if self.decay_penalty[1]:
             right_diff = -self.eval_moments(self.domain[1]) + self.eval_moments(self.domain[1] - eps)
 
-        return np.stack((left_diff[0,:], right_diff[0,:]), axis=0)/eps
+        return np.stack((left_diff[0,:], right_diff[0,:]), axis=0)/eps/ self._moment_errs[None, :]
 
 
     def _calculate_functional(self, multipliers):
@@ -286,14 +300,16 @@ class Distribution:
         """
         update_grad = self._update_quadrature(multipliers)
 
-        q_density = np.exp(-np.dot(self._quad_moments, multipliers))
+        q_density = np.exp(-np.dot(self._quad_moments, multipliers / self._moment_errs))
         integral = np.dot(q_density, self._quad_weights)
-        sum = np.sum(self.moment_means[:self.approx_size] * multipliers)
+        sum = np.sum(self._moment_means * multipliers / self._moment_errs)
 
         end_diff = np.dot(self._end_point_diff, multipliers)
         penalty = np.sum(np.maximum(end_diff, 0)**2)
         fun =  sum + integral
         fun = fun + np.abs(fun) * self._penalty_coef * penalty
+        last_size = len(self._last_solved_multipliers)
+        fun += 0.5 * self._stab_penalty * np.linalg.norm(self._last_solved_multipliers - multipliers[:last_size])
         return fun
 
 
@@ -303,13 +319,15 @@ class Distribution:
         :return: array, shape (n_moments,)
         """
         self._update_quadrature(multipliers)
-        q_gradient = self._quad_moments.T * np.exp(-np.dot(self._quad_moments, multipliers))
-        integral = np.dot(q_gradient, self._quad_weights)
+        q_gradient = self._quad_moments.T * np.exp(-np.dot(self._quad_moments, multipliers / self._moment_errs))
+        integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
 
         end_diff = np.dot(self._end_point_diff, multipliers)
         penalty = 2 * np.dot( np.maximum(end_diff, 0), self._end_point_diff)
-        fun = np.sum(self.moment_means[:self.approx_size] * multipliers) + integral[0]
-        gradient =  self.moment_means[:self.approx_size] - integral + np.abs(fun) * self._penalty_coef * penalty
+        fun = np.sum(self._moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
+        gradient =  self._moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
+        last_size = len(self._last_solved_multipliers)
+        gradient[:last_size] += 0.5 * self._stab_penalty * (self._last_solved_multipliers - multipliers[:last_size])
         return gradient
 
     def _calculate_jacobian_matrix(self, multipliers):
@@ -318,24 +336,28 @@ class Distribution:
         """
         self._update_quadrature(multipliers)
 
-        q_density = np.exp(-np.dot(self._quad_moments, multipliers))
+        q_density = np.exp(-np.dot(self._quad_moments, multipliers / self._moment_errs))
         moment_outer = np.einsum('ki,kj->ijk', self._quad_moments, self._quad_moments)
         triu_idx = np.triu_indices(self.approx_size)
         triu_outer = moment_outer[triu_idx[0], triu_idx[1], :]
         q_jac = triu_outer * q_density
         integral = np.dot(q_jac, self._quad_weights)
+        integral /= self._moment_errs[triu_idx[0]]
+        integral /= self._moment_errs[triu_idx[1]]
 
         jacobian_matrix = np.empty(shape=(self.approx_size, self.approx_size))
         jacobian_matrix[triu_idx[0], triu_idx[1]] = integral
         jacobian_matrix[triu_idx[1], triu_idx[0]] = integral
 
         end_diff = np.dot(self._end_point_diff, multipliers)
-        fun = np.sum(self.moment_means[:self.approx_size] * multipliers) + jacobian_matrix[0,0]
+        fun = np.sum(self._moment_means * multipliers / self._moment_errs) \
+              + jacobian_matrix[0,0] * self._moment_errs[0]**2
         for side in [0,1]:
             if end_diff[side] > 0:
                 penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
                 jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
 
+        jacobian_matrix += 1.0 * self._stab_penalty
         return jacobian_matrix
 
 
