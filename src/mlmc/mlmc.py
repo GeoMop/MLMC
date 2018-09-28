@@ -305,7 +305,7 @@ class MLMC:
 
         sqrt_var_n = np.sqrt(vars.T * n_ops)    # moments in rows, levels in cols
         total = np.sum(sqrt_var_n, axis=1)      # sum over levels
-        n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int) # moments in cols
+        n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)# moments in cols
 
         # Limit maximal number of samples per level
         n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars*self.n_levels/target_variance), 2)
@@ -393,7 +393,7 @@ class MLMC:
 
     def update_moments(self, moments_fn):
         for level in self.levels:
-            level.evaluate_moments(moments_fn)
+            level.evaluate_moments(moments_fn, force=True)
 
     def estimate_moments(self, moments_fn):
         """

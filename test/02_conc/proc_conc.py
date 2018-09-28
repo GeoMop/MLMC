@@ -20,6 +20,7 @@ import pbs
 import glob
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
+import mlmc.postprocess as postprocess
 
 
 class FlowConcSim(flow_mc.FlowSim):
@@ -110,6 +111,7 @@ class ProcessMLMC:
             queue='charon')
 
         print("root: '", self.get_root_dir(), "'")
+        self._flow_3 = False
         if self.get_root_dir() == 'storage':
             # Metacentrum
             self.sample_sleep = 1
@@ -118,7 +120,6 @@ class ProcessMLMC:
             self.pbs_config['qsub'] = '/usr/bin/qsub'
             flow123d = "flow123d"#"/storage/praha1/home/jan_brezina/local/flow123d_2.2.0/flow123d"
             gmsh = "/storage/liberec1-tul/home/martin_spetlik/astra/gmsh/bin/gmsh"
-            self._flow_3 = True
         else:
             # Local
             self.sample_sleep = 1
@@ -674,20 +675,24 @@ def all_results(mlmc_list):
     fig = plt.figure(figsize=(30, 10))
     ax1 = fig.add_subplot(1, 2, 1)
     ax2 = fig.add_subplot(1, 2, 2)
-    # ax1.set_xscale('log')
-    ax1.set_xlim(0.02, 10)
+    ax1.set_xscale('log')
     ax2.set_xscale('log')
 
     n_moments = 5
     mc0_samples = mlmc_list[0].mc.levels[0].sample_values[:, 0]
+
     mlmc_list[0].ref_domain = (np.min(mc0_samples), np.max(mc0_samples))
 
     for prmc in mlmc_list:
-        prmc.compute_results(mlmc_list[0], n_moments)
-        prmc.plot_pdf_approx(ax1, ax2, mc0_samples)
+        prmc.domain = mlmc_list[0].ref_domain
+        prmc.set_moments(n_moments, log=True)
+        domain, est_domain, mc_test = postprocess.compute_results(mlmc_list[0], n_moments, prmc)
+        postprocess.plot_pdf_approx(ax1, ax2, mc0_samples, prmc, domain, est_domain)
+
+    ax1.legend()
     ax1.legend()
     ax2.legend()
-    fig.savefig('compare_distributions.pdf')
+    # fig.savefig('compare_distributions.pdf')
     plt.show()
 
 
@@ -762,17 +767,18 @@ def main():
     elif command == 'collect':
         assert os.path.isdir(work_dir)
         mlmc_list = []
-        for nl in [2]:
-            mlmc = ProcessMLMC(work_dir)
-            mlmc.load(nl)
+        for nl in [1, 2, 3, 4, 5, 7, 9]:
+            mlmc = ProcessMLMC(work_dir, options)
+            mlmc.setup(nl)
+            mlmc.initialize(clean=False)
             mlmc_list.append(mlmc)
-            mlmc_data(mlmc)
+        all_results(mlmc_list)
             # all_collect(mlmc_list)
 
     elif command == 'process':
         assert os.path.isdir(work_dir)
         mlmc_list = []
-        for nl in [1, 2, 3, 4, 5, 7, 9]:
+        for nl in [1, 2, 3, 4, 5, 7]:
             prmc = ProcessMLMC(work_dir)
             prmc.load(nl)
             mlmc_list.append(prmc)
@@ -780,8 +786,8 @@ def main():
         all_results(mlmc_list)
 
 
-def mlmc_data(proc_mlmc):
-    print("n samples ", proc_mlmc.mc.n_samples)
+# def mlmc_data(proc_mlmc):
+#     print("n samples ", proc_mlmc.mc.n_samples)
 
 
 main()
