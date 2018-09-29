@@ -9,7 +9,7 @@ import yaml
 import numpy as np
 import scipy.stats as stats
 import scipy.integrate as integrate
-
+import scipy as sc
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
@@ -23,8 +23,9 @@ import pbs
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 import test.test_mlmc as test_mlmc
-import mlmc.postprocess as postprocess
-import scipy as sc
+#import mlmc.postprocess as postprocess
+from mlmc.distribution import Distribution
+
 
 
 class FlowProcSim(flow_mc.FlowSim):
@@ -70,7 +71,12 @@ class FlowProcSim(flow_mc.FlowSim):
             return None
 
 
-class ProcessMLMC:
+class UglyMLMC:
+    """
+    This type of class should not exist. Just few configuration objects
+    should be created (PBS, Environment, Sim Factory)
+    Postporcessing is done by ProcessMLMC.
+    """
     def __init__(self, work_dir, options):
         """
         :param work_dir: Work directory (there will be dir with samples)
@@ -245,6 +251,9 @@ class ProcessMLMC:
         self.pbs.execute()
         self.mc.wait_for_simulations(sleep=self.sample_sleep, timeout=self.sample_timeout)
 
+
+########################################################
+
     def plot_diff_var(self):
         import matplotlib.pyplot as plt
         fig = plt.figure(figsize=(10, 20))
@@ -300,43 +309,6 @@ class ProcessMLMC:
         fig.savefig(title + ".pdf")
         plt.show()
 
-    # @staticmethod
-    # def ecdf(x):
-    #     xs = np.sort(x)
-    #     ys = np.arange(1, len(xs) + 1) / float(len(xs))
-    #     return xs, ys
-    #
-    # def plot_pdf_approx(self, ax1, ax2, mc0_samples):
-    #     import matplotlib.pyplot as plt
-    #     X = np.exp(np.linspace(np.log(self.domain[0]), np.log(self.domain[1]), 1000))
-    #     bins = np.exp(np.linspace(np.log(self.domain[0]), np.log(self.domain[1]), 60))
-    #
-    #     X = np.linspace(self.domain[0], self.domain[1], 1000)
-    #     bins = np.linspace(self.domain[0], self.domain[1], 1000)
-    #
-    #     n_levels = self.mc.n_levels
-    #     color = "C{}".format(n_levels)
-    #     label = "l {}".format(n_levels)
-    #     Y = self.distr_obj.density(X)
-    #     ax1.plot(X, Y, c=color, label=label)
-    #     density_integral = integrate.simps(Y, X)
-    #
-    #     Y = self.distr_obj.cdf(X)
-    #     ax2.plot(X, Y, c=color, label=label)
-    #
-    #     if n_levels == 1:
-    #         ax1.hist(mc0_samples, normed=True, bins=bins, alpha=0.3, label='full MC', color=color)
-    #         X, Y = ProcessMLMC.ecdf(mc0_samples)
-    #         ax2.plot(X, Y, 'red')
-    #
-    #         # Y = stats.lognorm.pdf(X, s=1, scale=np.exp(0.0))
-    #         # ax1.plot(X, Y, c='gray', label="stdlognorm")
-    #         # Y = stats.lognorm.cdf(X, s=1, scale=np.exp(0.0))
-    #         # ax2.plot(X, Y, c='gray')
-    #     print("self.estimate domain ", self.est_domain)
-    #
-    #     ax1.axvline(x=self.est_domain[0], c=color)
-    #     ax1.axvline(x=self.est_domain[1], c=color)
 
     # @staticmethod
     # def align_array(arr):
@@ -489,7 +461,7 @@ def all_results(mlmc_list):
     ax1.set_xscale('log')
     ax2.set_xscale('log')
 
-    n_moments = 5
+    n_moments = 7
     mc0_samples = mlmc_list[0].mc.levels[0].sample_values[:, 0]
 
     mlmc_list[0].ref_domain = (np.min(mc0_samples), np.max(mc0_samples))
@@ -501,9 +473,8 @@ def all_results(mlmc_list):
         postprocess.plot_pdf_approx(ax1, ax2, mc0_samples, prmc, domain, est_domain)
 
     ax1.legend()
-    ax1.legend()
     ax2.legend()
-    #fig.savefig('compare_distributions.pdf')
+    fig.savefig('compare_distributions.pdf')
     plt.show()
 
 
@@ -535,71 +506,6 @@ def get_arguments(arguments):
     return args
 
 
-def main():
-    args = get_arguments(sys.argv[1:])
-
-    command = args.command
-    work_dir = args.work_dir
-
-    options = {'keep_collected': args.keep_collected,
-               'regen_failed': args.regen_failed}
-
-    if command == 'run':
-        os.makedirs(work_dir, mode=0o775, exist_ok=True)
-
-        mlmc_list = []
-        for nl in [1]:  # , 2, 3, 4,5, 7, 9]:
-            mlmc = ProcessMLMC(work_dir, options)
-            mlmc.setup(nl)
-            mlmc.initialize(clean=False)
-            ns = {
-                1: [7087],
-                2: [14209, 332],
-                3: [18979, 487, 2],
-                4: [13640, 610, 2, 2],
-                5: [12403, 679, 10, 2, 2],
-                7: [12102, 807, 11, 2, 2, 2, 2],
-                9: [11449, 806, 72, 8, 2, 2, 2, 2, 2]
-            }
-
-            n_samples = 2 * np.array(ns[nl])
-            # mlmc.generate_jobs(n_samples=n_samples)
-            # mlmc.generate_jobs(n_samples=[10000, 100])
-            # mlmc.mc.levels[0].target_n_samples = 1
-            mlmc.generate_jobs(n_samples=[8])#, 1, 1])
-            mlmc_list.append(mlmc)
-
-            # for nl in [3,4]:
-            # mlmc = ProcessMLMC(work_dir)
-            # mlmc.load(nl)
-            # mlmc_list.append(mlmc)
-
-        all_collect(mlmc_list)
-
-    elif command == 'collect':
-        assert os.path.isdir(work_dir)
-        mlmc_list = []
-
-        for nl in [1, 2, 3, 4, 5, 7]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
-            mlmc = ProcessMLMC(work_dir, options)
-            mlmc.setup(nl)
-            mlmc.initialize(clean=False)
-            mlmc_list.append(mlmc)
-        all_collect(mlmc_list)
-        calculate_var(mlmc_list)
-        #show_results(mlmc_list)
-
-    elif command == 'process':
-        assert os.path.isdir(work_dir)
-        mlmc_list = []
-        # for nl in [ 1,2,3,4,5,7,9]:
-        for nl in [1]:
-            prmc = ProcessMLMC(work_dir, options)
-            prmc.setup(nl)
-            prmc.initialize(clean=False)
-            mlmc_list.append(prmc)
-
-        all_results(mlmc_list)
 
 
 def calculate_var(mlmc_list):
@@ -649,7 +555,7 @@ def calculate_var(mlmc_list):
     # exit()
 
     moments = None
-    all_results(mlmc_list)
+    #all_results(mlmc_list)
     densities_x = []
     densities = []
 
@@ -673,11 +579,11 @@ def calculate_var(mlmc_list):
         moments = moments[0][1:], moments[1][1:]
 
         # Estimate denstity
-        d = estimate_density(moments_fn, moments_data)
-        densities.append(d[0])
-        densities_x.append(d[1])
+        #d = estimate_density(moments_fn, moments_data)
+        #densities.append(d[0])
+        #densities_x.append(d[1])
 
-        # level_var_diff.append(test_mlmc.var_subsample(moments, proc_mlmc.mc, moments_fn, n_subsamples=1000))
+        level_var_diff.append(test_mlmc.var_subsample(moments, proc_mlmc.mc, moments_fn, n_subsamples=1000))
 
         # Variances
         variances = np.sqrt(moments[1]) * 3
@@ -921,31 +827,6 @@ def estimate_density(moments_fn, moments):
     return density, x
 
 
-def plot_densities(densities, x, n_levels, mlmc_list=None):
-    """
-    Plot densities
-    :param densities: density values
-    :param x: x coords
-    :param n_levels: number of levels
-    :return: None
-    """
-    import matplotlib.cm as cm
-    import matplotlib.pyplot as plt
-
-    density_integral = integrate.simps(densities, x)
-
-    [print("integral density ", integrate.simps(densities[index], x[index])) for index, density in enumerate(densities)]
-
-    colors = iter(cm.rainbow(np.linspace(0, 1, len(densities) + 1)))
-
-    [plt.plot(x[index], density, label="%dLMC" % n_levels[index], color=next(colors)) for index, density in
-     enumerate(densities)]
-    plt.legend()
-    plt.ylabel(r'$y$', rotation=0)
-    plt.xlabel("x")
-    # if mlmc_list is not None:
-    #     plt.hist(mlmc_list[0].mc.levels[0].sample_values, bins=10000, normed=1)
-    plt.show()
 
 # def show_results(mlmc_list):
 #     for mlmc in mlmc_list:
@@ -954,6 +835,283 @@ def plot_densities(densities, x, n_levels, mlmc_list=None):
 #         for level in mlmc.mc.levels:
 #             print("level id ", level._logger.level_idx)
 #             print("level samples ", level._sample_values)
+
+
+
+class ProcessMLMC:
+    """
+    Base of future class dedicated to all kind of processing of the collected samples
+    MLMC should only collect the samples.
+    """
+    def __init__(self, mlmc):
+        self.mlmc = mlmc
+
+    @property
+    def n_levels(self):
+        return self.mlmc.n_levels
+
+    @property
+    def n_samples(self):
+        return self.mlmc.n_samples
+
+    @property
+    def levels(self):
+        return self.mlmc.levels
+
+    def approx_pdf(self, x):
+        if self._distribution is None:
+            return np.zeros_like(x)
+        else:
+            return self._distribution.density(x)
+
+    def approx_cdf(self, x):
+        if self._distribution is None:
+            return np.zeros_like(x)
+        else:
+            return self._distribution.cdf(x)
+
+
+    def estimate_domain(self):
+        return self.mlmc.estimate_domain()
+
+    def construct_density(self, moments_fn):
+        #[print("integral density ", integrate.simps(densities[index], x[index])) for index, density in
+        # enumerate(densities)]
+
+        domain = moments_fn.domain
+
+
+        #t_var = 1e-5
+        #ref_diff_vars, _ = mlmc.estimate_diff_vars(moments_fn)
+        # ref_moments, ref_vars = mc.estimate_moments(moments_fn)
+        # ref_std = np.sqrt(ref_vars)
+        # ref_diff_vars_max = np.max(ref_diff_vars, axis=1)
+        # ref_n_samples = mc.set_target_variance(t_var, prescribe_vars=ref_diff_vars)
+        # ref_n_samples = np.max(ref_n_samples, axis=1)
+        # ref_cost = mc.estimate_cost(n_samples=ref_n_samples)
+        # ref_total_std = np.sqrt(np.sum(ref_diff_vars / ref_n_samples[:, None]) / n_moments)
+        # ref_total_std_x = np.sqrt(np.mean(ref_vars))
+
+        est_moments, est_vars = self.mlmc.estimate_moments(moments_fn)
+
+        # def describe(arr):
+        #     print("arr ", arr)
+        #     q1, q3 = np.percentile(arr, [25, 75])
+        #     print("q1 ", q1)
+        #     print("q2 ", q3)
+        #     return "{:f8.2} < {:f8.2} | {:f8.2} | {:f8.2} < {:f8.2}".format(
+        #         np.min(arr), q1, np.mean(arr), q3, np.max(arr))
+
+        print("n_levels: ", self.n_levels)
+        moments_data = np.stack((est_moments, est_vars), axis=1)
+        distr_obj = Distribution(moments_fn, moments_data, domain = domain)
+        distr_obj.estimate_density_minimize(1.95)  # 0.95 two side quantile
+        self._distribution = distr_obj
+
+
+
+
+class CompareLevels:
+    """
+    Class to compare MLMC for different number of levels.
+    """
+    def __init__(self, mlmc_list, **kwargs):
+        """
+        Args:
+            List of MLMC instances with collected data.
+        """
+        self.mlmc = [ ProcessMLMC(mc) for mc in mlmc_list ]
+        # Directory for plots.
+        self.output_dir = kwargs.get('output_dir', src_path)
+        # Default moments, type, number.
+        self.log_scale = kwargs.get('log_scale', False)
+        self.moment_class = kwargs.get('moment_class', mlmc.moments.Legendre)
+        self.n_moments = kwargs.get('n_meoments', 21)
+        # Set domain to union of domains  of all mlmc:
+        self.domain = self.common_domain()
+
+    def common_domain(self):
+        L = +np.inf
+        U = -np.inf
+        for mc in self.mlmc:
+            l, u = mc.estimate_domain()
+            L = min(l, L)
+            U = max(u, U)
+        return (L, U)
+
+
+    @property
+    def moments(self):
+        return self.moment_class(self.n_moments, self.domain, log=self.log_scale)
+
+    @property
+    def moments_uncut(self):
+        return self.moment_class(self.n_moments, self.domain, log=self.log_scale, safe_eval=False)
+
+
+    def collected_report(self):
+        """
+        Print a record about existing levels, their collected samples, etc.
+        """
+
+        print("\n#Levels |     N collected samples")
+        for mlmc in self.mlmc:
+            tab_fields = ["{:8}".format(n) for n in mlmc.n_samples]
+            print("{:7} | {}".format(mlmc.n_levels, " ".join(tab_fields)))
+        print("\n")
+
+
+    def set_common_domain(self, i_mlmc, domain=None):
+        if domain is not None:
+            self._domain = domain
+        self._domain = self.mlmc[i_mlmc].estimate_domain()
+
+
+    def plot_means(self, moments_fn):
+        pass
+
+
+    def construct_densities(self):
+        for mc in self.mlmc:
+            mc.construct_density(self.moments)
+
+
+    @staticmethod
+    def ecdf(x):
+        xs = np.sort(x)
+        ys = np.arange(1, len(xs) + 1) / float(len(xs))
+        return xs, ys
+
+    def plot_densities(self, i_sample_mlmc=0):
+        """
+        Plot constructed densities (see construct densities)
+        Args:
+            i_sample_mlmc: Index of MLMC used to construct histogram and ecdf.
+
+        Returns:
+
+        """
+        import matplotlib.pyplot as plt
+
+        fig = plt.figure(figsize=(30, 10))
+        ax1 = fig.add_subplot(1, 2, 1)
+        ax2 = fig.add_subplot(1, 2, 2)
+        ax1.set_xscale('log')
+        ax2.set_xscale('log')
+        domain = self.domain
+        #colors = iter(cm.rainbow(np.linspace(0, 1, len(densities) + 1)))
+
+        if self.mlmc[0].n_levels == 0:
+            # Add histogram and ecdf
+
+            mc0_samples = self.mlmc[i_sample_mlmc].levels[0].sample_values[:, 0]
+            bins = np.linspace(domain[0], domain[1], np.sqrt(len(mc0_samples)))
+            # bins = np.exp(np.linspace(np.log(domain[0]), np.log(10), 60))
+            ax1.hist(mc0_samples, normed=True, bins=bins, alpha=0.3, label='full MC', color='red')
+            X, Y = self.ecdf(mc0_samples)
+            ax2.plot(X, Y, 'red')
+
+        X = np.linspace(domain[0], domain[1], 1000)
+        # X = np.exp(np.linspace(np.log(domain[0]), np.log(domain[1]), 1000))
+        for mc in self.mlmc:
+            color = "C{}".format(mc.n_levels)
+            label = "L = {}".format(mc.n_levels)
+            Y = mc.approx_pdf(X)
+            ax1.plot(X, Y, c=color, label=label)
+
+            Y = mc.approx_cdf(X)
+            ax2.plot(X, Y, c=color, label=label)
+
+            #         # Y = stats.lognorm.pdf(X, s=1, scale=np.exp(0.0))
+            #         # ax1.plot(X, Y, c='gray', label="stdlognorm")
+            #         # Y = stats.lognorm.cdf(X, s=1, scale=np.exp(0.0))
+            #         # ax2.plot(X, Y, c='gray')
+
+            ax1.set_ylim(0, 2)
+            ax1.axvline(x=domain[0], c=color)
+            ax1.axvline(x=domain[1], c=color)
+
+        ax1.legend()
+        ax2.legend()
+        plt.ylabel(r'$y$', rotation=0)
+        plt.xlabel("x")
+        fig.savefig('compare_distributions.pdf')
+        plt.show()
+
+
+
+def main():
+    args = get_arguments(sys.argv[1:])
+
+    command = args.command
+    work_dir = args.work_dir
+
+    options = {'keep_collected': args.keep_collected,
+               'regen_failed': args.regen_failed}
+
+    if command == 'run':
+        os.makedirs(work_dir, mode=0o775, exist_ok=True)
+
+        mlmc_list = []
+        for nl in [1]:  # , 2, 3, 4,5, 7, 9]:
+            mlmc = UglyMLMC(work_dir, options)
+            mlmc.setup(nl)
+            mlmc.initialize(clean=False)
+            ns = {
+                1: [7087],
+                2: [14209, 332],
+                3: [18979, 487, 2],
+                4: [13640, 610, 2, 2],
+                5: [12403, 679, 10, 2, 2],
+                7: [12102, 807, 11, 2, 2, 2, 2],
+                9: [11449, 806, 72, 8, 2, 2, 2, 2, 2]
+            }
+
+            n_samples = 2 * np.array(ns[nl])
+            # mlmc.generate_jobs(n_samples=n_samples)
+            # mlmc.generate_jobs(n_samples=[10000, 100])
+            # mlmc.mc.levels[0].target_n_samples = 1
+            mlmc.generate_jobs(n_samples=[8])#, 1, 1])
+            mlmc_list.append(mlmc)
+
+            # for nl in [3,4]:
+            # mlmc = ProcessMLMC(work_dir)
+            # mlmc.load(nl)
+            # mlmc_list.append(mlmc)
+
+        all_collect(mlmc_list)
+
+    elif command == 'collect':
+        assert os.path.isdir(work_dir)
+        mlmc_list = []
+
+        for nl in [1, 2, 3, 4, 5, 7]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
+            mlmc = UglyMLMC(work_dir, options)
+            mlmc.setup(nl)
+            mlmc.initialize(clean=False)
+            mlmc_list.append(mlmc)
+        all_collect(mlmc_list)
+        calculate_var(mlmc_list)
+        #show_results(mlmc_list)
+
+    elif command == 'process':
+        assert os.path.isdir(work_dir)
+        mlmc_list = []
+        for nl in [ 1,2,3,4,5,7,9]:
+        #for nl in [1]:
+            prmc = UglyMLMC(work_dir, options)
+            prmc.setup(nl)
+            prmc.initialize(clean=False)
+            mlmc_list.append(prmc)
+        cl = CompareLevels([pm.mc for pm in mlmc_list],
+                           output_dir=src_path)
+        cl.collected_report()
+        cl.set_common_domain(0)
+        cl.n_moments = 7
+        cl.construct_densities()
+        cl.plot_densities()
+        #calculate_var(mlmc_list)
+        #all_results(mlmc_list)
 
 
 main()
