@@ -224,7 +224,7 @@ class Distribution:
 
     def extend_size(self, new_size):
         self._last_solved_multipliers = self.multipliers
-        self._stab_penalty = 0.000 / np.linalg.norm(self.multipliers)
+        self._stab_penalty = 0.01 / np.linalg.norm(self.multipliers)
 
         self.approx_size = new_size
         multipliers = self.multipliers
@@ -318,7 +318,7 @@ class Distribution:
         fun =  sum + integral
         fun = fun + np.abs(fun) * self._penalty_coef * penalty
         last_size = len(self._last_solved_multipliers)
-        fun += 0.5 * self._stab_penalty * np.linalg.norm(self._last_solved_multipliers - multipliers[:last_size])
+        fun += 0.5 * self._stab_penalty * np.sum((self._last_solved_multipliers - multipliers[:last_size])**2)
         return fun
 
 
@@ -336,7 +336,7 @@ class Distribution:
         fun = np.sum(self._moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
         gradient =  self._moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
         last_size = len(self._last_solved_multipliers)
-        gradient[:last_size] += 0.5 * self._stab_penalty * (self._last_solved_multipliers - multipliers[:last_size])
+        gradient[:last_size] += self._stab_penalty * (multipliers[:last_size] - self._last_solved_multipliers)
         return gradient
 
     def _calculate_jacobian_matrix(self, multipliers):
@@ -366,7 +366,7 @@ class Distribution:
                 penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
                 jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
 
-        jacobian_matrix += 1.0 * self._stab_penalty
+        jacobian_matrix[np.diag_indices_from(jacobian_matrix)] += self._stab_penalty
 
         #e_vals = np.linalg.eigvalsh(jacobian_matrix)
 

@@ -554,7 +554,7 @@ def test_pdf_approx_iexact_moments(distribution):
 # plt.show()
 # """
 
-def compute_mlmc_distribution(nl, distr):
+def compute_mlmc_distribution(nl, distr, nm):
     """
     Test approximation moments from first estimate and from final number of samples
     :param nl: int. Number of levels
@@ -691,7 +691,7 @@ def test_distributions():
     # Loop through distributions and levels
     for distr in distributions:
         for level in levels:
-            mlmc_list.append(compute_mlmc_distribution(level, distr))
+            mlmc_list.append(compute_mlmc_distribution(level, distr, n_moments))
 
     fig = plt.figure(figsize=(30, 10))
     ax1 = fig.add_subplot(1, 2, 1)
