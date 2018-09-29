@@ -141,11 +141,11 @@ class Distribution:
         #                               jac=self._calculate_gradient,
         #                               options={'gtol': tol, 'disp': False, 'maxiter': 100})
 
-
+        # Fix normalization
+        gradient = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
+        self.multipliers /= gradient[0]
 
         if result.success or jac_norm < tol:
-            result.success = True
-        if not result.success and result.message[:5] == 'A bad':
             result.success = True
         result.nit = max(result.nit, 1)
         result.fun_norm = jac_norm
@@ -246,6 +246,15 @@ class Distribution:
     def eval_moments(self, x):
         return self.moments_fn.eval_all(x, self.approx_size)
 
+    def _calculate_exact_moment(self, multipliers, m=0, full_output=1):
+        def integrand(x):
+            moms = self.eval_moments(x)
+            return np.exp(-np.sum(moms * multipliers / self._moment_errs, axis=1)) * moms[:,m]
+
+        result = sc.integrate.quad(integrand, self.domain[0], self.domain[1],
+                                   epsabs=self._quad_tolerance, full_output=full_output)
+        return result[0], result
+
     def _update_quadrature(self, multipliers, force=False):
         """
         Update quadrature points and their moments and weights based on integration of the density.
@@ -264,10 +273,8 @@ class Distribution:
             if quad_err_estimate < self._quad_tolerance:
                 return
 
-        def integrand(x):
-            return np.exp(-np.sum(self.eval_moments(x) * multipliers / self._moment_errs, axis=1))
+        val, result = self._calculate_exact_moment(multipliers, m=0, full_output=1)
 
-        result = sc.integrate.quad(integrand, self.domain[0], self.domain[1], full_output = 1)
         if len(result) > 3:
             y, abserr, info, message = result
             self._quad_log.append(result)
@@ -377,6 +384,7 @@ class Distribution:
         #print(multipliers)
         #print("jac spectra: ", e_vals[0], e_vals[-1], e_vals[-1]/e_vals[0])
         return jacobian_matrix
+
 
 
 def compute_exact_moments(moments_fn, density, tol=1e-4):
