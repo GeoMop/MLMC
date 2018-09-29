@@ -845,6 +845,7 @@ class ProcessMLMC:
     """
     def __init__(self, mlmc):
         self.mlmc = mlmc
+        self._distribution = None
 
     @property
     def n_levels(self):
@@ -858,23 +859,32 @@ class ProcessMLMC:
     def levels(self):
         return self.mlmc.levels
 
+    @property
+    def distribution(self):
+        assert self._distribution is not None, "Need to call construct_density before."
+        return self._distribution
+
     def approx_pdf(self, x):
-        if self._distribution is None:
-            return np.zeros_like(x)
-        else:
-            return self._distribution.density(x)
+        return self.distribution.density(x)
 
     def approx_cdf(self, x):
-        if self._distribution is None:
-            return np.zeros_like(x)
-        else:
-            return self._distribution.cdf(x)
-
+        return self.distribution.cdf(x)
 
     def estimate_domain(self):
         return self.mlmc.estimate_domain()
 
-    def construct_density(self, moments_fn):
+    def construct_density(self, moments_fn, tol = 1.95, reg_param = 0.01):
+        """
+        Construct approximation of the density using given moment functions.
+        Args:
+            moments_fn: Moments object, determines also domain and n_moments.
+            tol: Tolerance of the fitting problem, with account for variances in moments.
+                 Default value 1.95 corresponds to the two tail confidency 0.95.
+            reg_param: Regularization parameter.
+
+        Returns:
+
+        """
         #[print("integral density ", integrate.simps(densities[index], x[index])) for index, density in
         # enumerate(densities)]
 
@@ -905,7 +915,8 @@ class ProcessMLMC:
         print("n_levels: ", self.n_levels)
         moments_data = np.stack((est_moments, est_vars), axis=1)
         distr_obj = Distribution(moments_fn, moments_data, domain = domain)
-        distr_obj.estimate_density_minimize(1.95)  # 0.95 two side quantile
+        distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
+        #distr_obj.estimate_density_minimize(0.1)  # 0.95 two side quantile
         self._distribution = distr_obj
 
 
@@ -927,6 +938,9 @@ class CompareLevels:
         self.log_scale = kwargs.get('log_scale', False)
         self.moment_class = kwargs.get('moment_class', mlmc.moments.Legendre)
         self.n_moments = kwargs.get('n_meoments', 21)
+        # Optional quantity name used in plots
+        self.quantity_name = kwargs.get('quantity_name', 'X')
+
         # Set domain to union of domains  of all mlmc:
         self.domain = self.common_domain()
 
@@ -971,9 +985,9 @@ class CompareLevels:
         pass
 
 
-    def construct_densities(self):
+    def construct_densities(self, tol = 1.95, reg_param = 0.01):
         for mc in self.mlmc:
-            mc.construct_density(self.moments)
+            mc.construct_density(self.moments, tol, reg_param)
 
 
     @staticmethod
@@ -982,7 +996,7 @@ class CompareLevels:
         ys = np.arange(1, len(xs) + 1) / float(len(xs))
         return xs, ys
 
-    def plot_densities(self, i_sample_mlmc=0):
+    def plot_densities(self, i_sample_mlmc = 0):
         """
         Plot constructed densities (see construct densities)
         Args:
@@ -996,24 +1010,42 @@ class CompareLevels:
         fig = plt.figure(figsize=(30, 10))
         ax1 = fig.add_subplot(1, 2, 1)
         ax2 = fig.add_subplot(1, 2, 2)
-        ax1.set_xscale('log')
-        ax2.set_xscale('log')
-        domain = self.domain
+        x_axis_label = self.quantity_name
+        if self.log_scale:
+            ax1.set_xscale('log')
+            ax2.set_xscale('log')
+            x_axis_label = "log " + x_axis_label
+        #ax1.set_yscale('log')
+
+        ax1.set_title("PDF approximations")
+        ax2.set_title("CDF approximations")
+        ax1.set_ylabel("probability density")
+        ax2.set_ylabel("probability")
+        ax1.set_xlabel(x_axis_label)
+        ax2.set_xlabel(x_axis_label)
+
         #colors = iter(cm.rainbow(np.linspace(0, 1, len(densities) + 1)))
 
-        if self.mlmc[0].n_levels == 0:
-            # Add histogram and ecdf
-
+        # Add histogram and ecdf
+        if i_sample_mlmc is not None:
             mc0_samples = self.mlmc[i_sample_mlmc].levels[0].sample_values[:, 0]
-            bins = np.linspace(domain[0], domain[1], np.sqrt(len(mc0_samples)))
-            # bins = np.exp(np.linspace(np.log(domain[0]), np.log(10), 60))
+            domain = self.mlmc[i_sample_mlmc].estimate_domain()
+            if self.log_scale:
+                bins = np.exp(np.linspace(np.log(domain[0]), np.log(domain[1]), np.sqrt(len(mc0_samples))))
+            else:
+                bins = np.linspace(domain[0], domain[1], np.sqrt(len(mc0_samples)))
             ax1.hist(mc0_samples, normed=True, bins=bins, alpha=0.3, label='full MC', color='red')
             X, Y = self.ecdf(mc0_samples)
             ax2.plot(X, Y, 'red')
 
-        X = np.linspace(domain[0], domain[1], 1000)
-        # X = np.exp(np.linspace(np.log(domain[0]), np.log(domain[1]), 1000))
+
+        #
         for mc in self.mlmc:
+            domain = mc.distribution.domain
+            if self.log_scale:
+                X = np.exp(np.linspace(np.log(domain[0]), np.log(domain[1]), 1000))
+            else:
+                X = np.linspace(domain[0], domain[1], 1000)
             color = "C{}".format(mc.n_levels)
             label = "L = {}".format(mc.n_levels)
             Y = mc.approx_pdf(X)
@@ -1028,13 +1060,11 @@ class CompareLevels:
             #         # ax2.plot(X, Y, c='gray')
 
             ax1.set_ylim(0, 2)
-            ax1.axvline(x=domain[0], c=color)
-            ax1.axvline(x=domain[1], c=color)
+            ax1.axvline(x=domain[0], ymin=0, ymax=0.1, c=color)
+            ax1.axvline(x=domain[1], ymin=0, ymax=0.1, c=color)
 
         ax1.legend()
         ax2.legend()
-        plt.ylabel(r'$y$', rotation=0)
-        plt.xlabel("x")
         fig.savefig('compare_distributions.pdf')
         plt.show()
 
@@ -1097,19 +1127,20 @@ def main():
     elif command == 'process':
         assert os.path.isdir(work_dir)
         mlmc_list = []
-        for nl in [ 1,2,3,4,5,7,9]:
+        for nl in [ 1,2,3,4, 5,7,9]:
         #for nl in [1]:
             prmc = UglyMLMC(work_dir, options)
             prmc.setup(nl)
             prmc.initialize(clean=False)
             mlmc_list.append(prmc)
         cl = CompareLevels([pm.mc for pm in mlmc_list],
-                           output_dir=src_path)
+                           output_dir=src_path,
+                           quantity_name="Q [m/s]")
         cl.collected_report()
-        cl.set_common_domain(0)
-        cl.n_moments = 7
-        cl.construct_densities()
-        cl.plot_densities()
+        #cl.set_common_domain(0)
+        cl.n_moments = 11
+        cl.construct_densities(tol = 3.0, reg_param = 0.1)
+        cl.plot_densities(i_sample_mlmc=0)
         #calculate_var(mlmc_list)
         #all_results(mlmc_list)
 

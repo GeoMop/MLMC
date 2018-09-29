@@ -79,7 +79,7 @@ class Distribution:
     #     pass
 
 
-    def estimate_density_minimize(self, tol=1e-5):
+    def estimate_density_minimize(self, tol=1e-5, reg_param =0.01):
         """
         Optimize density estimation
         :param tol: Tolerance for the nonlinear system residual, after division by std errors for
@@ -91,6 +91,7 @@ class Distribution:
 
         # Geometrical series for sizes with base 1.2.
         # Using just odd numbers.
+        self._reg_param = reg_param
         base = 1.2
         if self.approx_size <= 5:
             sizes = [self.approx_size]
@@ -110,10 +111,13 @@ class Distribution:
         self.extend_size(self.approx_size)
         init_error = np.linalg.norm(self._calculate_gradient(self.multipliers))
 
-        t1 = tol
-        t0 = max(tol, init_error / 10)
-        t = (np.array(sizes) - sizes[0]) / ( sizes[-1] - sizes[0])
-        tolerances = np.exp(np.log(t1) * t - np.log(t0) * (1-t))
+        if len(sizes) == 1:
+            tolerances = [ tol ]
+        else:
+            t1 = tol
+            t0 = max(tol, init_error / 10)
+            t = (np.array(sizes) - sizes[0]) / ( sizes[-1] - sizes[0])
+            tolerances = np.exp(np.log(t1) * t - np.log(t0) * (1-t))
         print(tolerances)
 
         for approx_size, approx_tol in  zip(sizes, tolerances):
@@ -224,7 +228,7 @@ class Distribution:
 
     def extend_size(self, new_size):
         self._last_solved_multipliers = self.multipliers
-        self._stab_penalty = 0.01 / np.linalg.norm(self.multipliers)
+        self._stab_penalty = self._reg_param / np.linalg.norm(self.multipliers)
 
         self.approx_size = new_size
         multipliers = self.multipliers
