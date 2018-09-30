@@ -95,6 +95,12 @@ class Level:
         return self._fine_simulation
 
     @property
+    def step(self):
+        # TODO: modify mechanism to combine precision and step_range in simulation factory
+        # in order to get true step here.
+        return self._precision
+
+    @property
     def coarse_simulation(self):
         """
         Coarse simulation object

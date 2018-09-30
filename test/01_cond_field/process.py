@@ -452,30 +452,6 @@ class UglyMLMC:
     #     # print(result)
 
 
-def all_results(mlmc_list):
-    import matplotlib.pyplot as plt
-
-    fig = plt.figure(figsize=(30, 10))
-    ax1 = fig.add_subplot(1, 2, 1)
-    ax2 = fig.add_subplot(1, 2, 2)
-    ax1.set_xscale('log')
-    ax2.set_xscale('log')
-
-    n_moments = 7
-    mc0_samples = mlmc_list[0].mc.levels[0].sample_values[:, 0]
-
-    mlmc_list[0].ref_domain = (np.min(mc0_samples), np.max(mc0_samples))
-
-    for prmc in mlmc_list:
-        prmc.domain = mlmc_list[0].ref_domain
-        prmc.set_moments(n_moments, log=True)
-        domain, est_domain, mc_test = postprocess.compute_results(mlmc_list[0], n_moments, prmc)
-        postprocess.plot_pdf_approx(ax1, ax2, mc0_samples, prmc, domain, est_domain)
-
-    ax1.legend()
-    ax2.legend()
-    fig.savefig('compare_distributions.pdf')
-    plt.show()
 
 
 def all_collect(mlmc_list):
@@ -487,23 +463,6 @@ def all_collect(mlmc_list):
         print("N running: ", running)
 
 
-def get_arguments(arguments):
-    """
-    Getting arguments from console
-    :param arguments: list of arguments
-    :return: namespace
-    """
-    import argparse
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('command', choices=['run', 'collect', 'process'], help='Run, collect or process')
-    parser.add_argument('work_dir', help='Work directory')
-    parser.add_argument("-r", "--regen-failed", default=False, action='store_true', help="Regenerate failed samples",)
-    parser.add_argument("-k", "--keep-collected", default=False, action='store_true',
-                        help="Keep sample dirs")
-
-    args = parser.parse_args(arguments)
-    return args
 
 
 
@@ -807,24 +766,6 @@ def normality_test(level_moments):
                 print("H0 cannot be rejected")
 
 
-def estimate_density(moments_fn, moments):
-    """
-    Estimate density
-    :param moments_fn: moments function
-    :param moments: moments data
-    :return: tuple, density in x points
-    """
-    # print("moments data ", moments_data)
-    distr_obj = mlmc.distribution.Distribution(moments_fn, moments)
-    # distr_obj.choose_parameters_from_samples()
-    distr_obj.domain = moments_fn.domain
-    # result = distr_obj.estimate_density(tol=0.0001)
-    distr_obj.estimate_density_minimize(tol=1e-8)
-
-    x = np.linspace(distr_obj.domain[0], distr_obj.domain[1], 1e5)
-    density = distr_obj.density(x)
-
-    return density, x
 
 
 
@@ -847,6 +788,7 @@ class ProcessMLMC:
         self.mlmc = mlmc
         self._distribution = None
 
+
     @property
     def n_levels(self):
         return self.mlmc.n_levels
@@ -863,7 +805,11 @@ class ProcessMLMC:
     def distribution(self):
         assert self._distribution is not None, "Need to call construct_density before."
         return self._distribution
-
+    
+    @property
+    def sim_steps(self):
+        return np.array([lvl.step for lvl in self.levels])
+    
     def approx_pdf(self, x):
         return self.distribution.density(x)
 
@@ -881,9 +827,6 @@ class ProcessMLMC:
             tol: Tolerance of the fitting problem, with account for variances in moments.
                  Default value 1.95 corresponds to the two tail confidency 0.95.
             reg_param: Regularization parameter.
-
-        Returns:
-
         """
         #[print("integral density ", integrate.simps(densities[index], x[index])) for index, density in
         # enumerate(densities)]
@@ -919,7 +862,76 @@ class ProcessMLMC:
         #distr_obj.estimate_density_minimize(0.1)  # 0.95 two side quantile
         self._distribution = distr_obj
 
+    def plot_means_and_vars(self, ax, moments_fn,):
+        """
+        Plot means with variance whiskers to given axes.
+        :param moments_mean: array, moments mean
+        :param moments_var: array, moments variance
+        :param n_levels: array, number of levels
+        :param exact_moments: array, moments from distribution
+        :param ex_moments: array, moments from distribution samples
+        :return: 
+        """
+        
 
+        moment_fn
+        colors = iter(cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
+    
+        x = np.arange(0, len(moments_mean[0]))
+        x = x - 0.3
+        default_x = x
+    
+        for index, means in enumerate(moments_mean):
+            if index == int(len(moments_mean)/2) and exact_moments is not None:
+                plt.plot(default_x, exact_moments, 'ro', label="Exact moments")
+            else:
+                x = x + (1 / (len(moments_mean)*1.5))
+                plt.errorbar(x, means, yerr=moments_var[index], fmt='o', capsize=3, color=next(colors), label="%dLMC" % n_levels[index])
+    
+        if ex_moments is not None:
+            plt.plot(default_x-0.125, ex_moments, 'ko', label="Exact moments")
+    
+        plt.legend()
+        plt.show()
+        exit()
+
+    def plot_diff_vars(self, ax, moments_fn, i_moments=[], i_style=0):
+        import matplotlib.pyplot as plt
+        
+        est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
+        reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn)
+
+        marker = ['o', 'd', ',', '^'][i_style]
+        line_style = ['-', '--', '-.', ':'][i_style]
+
+        
+        if not i_moments:
+            i_moments = range(1,moments_fn.size)
+            
+
+        for m in i_moments:
+            color = 'C' + str(m)
+            Y = est_diff_vars[:, m] 
+            ax.scatter(self.sim_steps, Y, c=color, marker=marker, label="var, m="+str(m))
+            Y = reg_diff_vars[1:, m]
+            ax.plot(self.sim_steps[1:], Y, c=color, linestyle=line_style, label="reg, m="+str(m))
+        
+        #
+        #
+        #     Y = np.percentile(self.vars_est[:, :, m],  [10, 50, 90], axis=1)
+        #     ax.plot(target_var, Y[1,:], c=color)
+        #     ax.plot(target_var, Y[0,:], c=color, ls='--')
+        #     ax.plot(target_var, Y[2, :], c=color, ls ='--')
+        #     Y = (self.exact_mean[m] - self.means_est[:, :, m])**2
+        #     Y = np.percentile(Y, [10, 50, 90], axis=1)
+        #     ax.plot(target_var, Y[1,:], c='gray')
+        #     ax.plot(target_var, Y[0,:], c='gray', ls='--')
+        #     ax.plot(target_var, Y[2, :], c='gray', ls ='--')
+        ax.set_yscale('log')
+        #ax.set_xscale('log')
+
+        ax.set_ylabel("level variance $V_l$")
+        
 
 
 class CompareLevels:
@@ -932,6 +944,8 @@ class CompareLevels:
             List of MLMC instances with collected data.
         """
         self.mlmc = [ ProcessMLMC(mc) for mc in mlmc_list ]
+        self.mlmc_dict = {mc.n_levels: mc for mc in self.mlmc }
+
         # Directory for plots.
         self.output_dir = kwargs.get('output_dir', src_path)
         # Default moments, type, number.
@@ -1003,7 +1017,6 @@ class CompareLevels:
             i_sample_mlmc: Index of MLMC used to construct histogram and ecdf.
 
         Returns:
-
         """
         import matplotlib.pyplot as plt
 
@@ -1024,8 +1037,6 @@ class CompareLevels:
         ax1.set_xlabel(x_axis_label)
         ax2.set_xlabel(x_axis_label)
 
-        #colors = iter(cm.rainbow(np.linspace(0, 1, len(densities) + 1)))
-
         # Add histogram and ecdf
         if i_sample_mlmc is not None:
             mc0_samples = self.mlmc[i_sample_mlmc].levels[0].sample_values[:, 0]
@@ -1037,8 +1048,6 @@ class CompareLevels:
             ax1.hist(mc0_samples, normed=True, bins=bins, alpha=0.3, label='full MC', color='red')
             X, Y = self.ecdf(mc0_samples)
             ax2.plot(X, Y, 'red')
-
-
         #
         for mc in self.mlmc:
             domain = mc.distribution.domain
@@ -1054,11 +1063,6 @@ class CompareLevels:
             Y = mc.approx_cdf(X)
             ax2.plot(X, Y, c=color, label=label)
 
-            #         # Y = stats.lognorm.pdf(X, s=1, scale=np.exp(0.0))
-            #         # ax1.plot(X, Y, c='gray', label="stdlognorm")
-            #         # Y = stats.lognorm.cdf(X, s=1, scale=np.exp(0.0))
-            #         # ax2.plot(X, Y, c='gray')
-
             ax1.set_ylim(0, 2)
             ax1.axvline(x=domain[0], ymin=0, ymax=0.1, c=color)
             ax1.axvline(x=domain[1], ymin=0, ymax=0.1, c=color)
@@ -1067,6 +1071,47 @@ class CompareLevels:
         ax2.legend()
         fig.savefig('compare_distributions.pdf')
         plt.show()
+
+    
+    def plot_level_vars(self, l_mlmc, n_moments):
+        """
+        For given i_mlmc plot level variances and regression curve.
+        Args:
+            n_levels: List of  i_mlmc to plot.
+            n_moments: n_moments to plot
+        """
+        import matplotlib.pyplot as plt
+        fig = plt.figure(figsize=(30, 10))
+        ax = fig.add_subplot(1, 2, 1)
+        if type(n_moments) is int:
+            n_moments = list(range(n_moments))
+
+        for i, l in enumerate(l_mlmc):
+            mc = self.mlmc_dict[l]
+            mc.plot_diff_vars(ax, self.moments, n_moments, i_style=i)
+        ax.legend()
+        fig.savefig('level_vars_regression.pdf')
+        plt.show()
+
+
+
+def get_arguments(arguments):
+    """
+    Getting arguments from console
+    :param arguments: list of arguments
+    :return: namespace
+    """
+    import argparse
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('command', choices=['run', 'collect', 'process'], help='Run, collect or process')
+    parser.add_argument('work_dir', help='Work directory')
+    parser.add_argument("-r", "--regen-failed", default=False, action='store_true', help="Regenerate failed samples",)
+    parser.add_argument("-k", "--keep-collected", default=False, action='store_true',
+                        help="Keep sample dirs")
+
+    args = parser.parse_args(arguments)
+    return args
 
 
 
@@ -1138,9 +1183,11 @@ def main():
                            quantity_name="Q [m/s]")
         cl.collected_report()
         #cl.set_common_domain(0)
-        cl.n_moments = 11
-        cl.construct_densities(tol = 3.0, reg_param = 0.1)
-        cl.plot_densities(i_sample_mlmc=0)
+        #cl.n_moments = 11
+        #cl.construct_densities(tol = 3.0, reg_param = 0.1)
+        #cl.plot_densities(i_sample_mlmc=0)
+        cl.plot_level_vars([9], 10)
+        #cl.plot_level_vars([5, 7, 9], [1])
         #calculate_var(mlmc_list)
         #all_results(mlmc_list)
 

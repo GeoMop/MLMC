@@ -197,7 +197,7 @@ class MLMC:
         R1 = R - 1
         X = np.zeros((L1, R1, K))
         X[:, :, :-2] = np.eye(R1)[None, :, :]
-        log_step = np.log(sim_steps[1:])
+        log_step = sim_steps[1:]
         #X[:, :, -1] = np.repeat(log_step ** 2, R1).reshape((L1, R1))[:, :, None] * np.eye(R1)[None, :, :]
         X[:, :, -2] = np.repeat(log_step ** 2, R1).reshape((L1, R1))
         X[:, :, -1] = np.repeat(log_step, R1).reshape((L1, R1))
@@ -224,7 +224,7 @@ class MLMC:
         :return: array of variances L x (R-1)
         """
         vars, n_samples = self.estimate_diff_vars(moments_fn)
-        sim_steps = np.array([lvl.fine_simulation.step for lvl in self.levels])
+        sim_steps = np.array([lvl.step for lvl in self.levels])
         vars = self._varinace_regression(vars, sim_steps)
         return vars
 
