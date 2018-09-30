@@ -910,11 +910,14 @@ class ProcessMLMC:
             
 
         for m in i_moments:
-            color = 'C' + str(m)
-            Y = est_diff_vars[:, m] 
-            ax.scatter(self.sim_steps, Y, c=color, marker=marker, label="var, m="+str(m))
-            Y = reg_diff_vars[1:, m]
-            ax.plot(self.sim_steps[1:], Y, c=color, linestyle=line_style, label="reg, m="+str(m))
+            color = plt.cm.rainbow(plt.Normalize(0, len(i_moments))(m))
+            Y = est_diff_vars[:, m]
+            col = np.ones_like(Y)[:, None] * np.array(color)[None, :]
+            ax.scatter(self.sim_steps, Y, c=col, marker=marker, label="var, m="+str(m))
+        Y = reg_diff_vars[1:]
+        ax.plot(self.sim_steps[1:], Y, c=color, linestyle=line_style, label="reg")
+        #ax.clim(0, len(i_moments))
+        #ax.colorbar()
         
         #
         #
@@ -931,6 +934,7 @@ class ProcessMLMC:
         ax.set_xscale('log')
 
         ax.set_ylabel("level variance $V_l$")
+        ax.set_xlabel("step h_l")
         
 
 
@@ -1186,7 +1190,7 @@ def main():
         #cl.n_moments = 11
         #cl.construct_densities(tol = 3.0, reg_param = 0.1)
         #cl.plot_densities(i_sample_mlmc=0)
-        cl.plot_level_vars([9], 10)
+        cl.plot_level_vars([9], 21)
         #cl.plot_level_vars([5, 7, 9], [1])
         #calculate_var(mlmc_list)
         #all_results(mlmc_list)

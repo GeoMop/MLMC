@@ -180,14 +180,14 @@ class MLMC:
                                             for l = 0, .. L-1
 
 
-        :param raw_vars: moments variances raws, shape (L, R)
+        :param raw_vars: level variances , shape (L)
         :param sim_steps: simulation steps, shape L
-        :return: np.array  (L, R)
+        :return: np.array  (L, )
         """
-        L, R = raw_vars.shape
-        L1 = L - 1
-        if L < 3:
+        L, = raw_vars.shape
+        if L <= 2:
             return raw_vars
+        L1 = L - 1
 
         # estimate of variances of variances, compute scaling
         W = 1.0 / np.sqrt(self._variance_of_variance())
@@ -198,28 +198,23 @@ class MLMC:
         # model log var_{r,l} = a_r  + b * log step_l
         # X_(r,l), j = dirac_{r,j}
 
-        K = R + 1 # number of parameters
-        R1 = R - 1
-        X = np.zeros((L1, R1, K))
-        X[:, :, :-2] = np.eye(R1)[None, :, :]
+        K = 3 # number of parameters
         log_step = np.log(sim_steps[1:])
-        #X[:, :, -1] = np.repeat(log_step ** 2, R1).reshape((L1, R1))[:, :, None] * np.eye(R1)[None, :, :]
-        X[:, :, -2] = np.repeat(log_step ** 2, R1).reshape((L1, R1))
-        X[:, :, -1] = np.repeat(log_step, R1).reshape((L1, R1))
+        X = np.zeros((L1,  K))
+        X[:,  0] = 1.0
+        X[:,  1] = log_step
+        X[:,  2] = log_step ** 2
 
 
-        WX = X * W[:, None, None]    # scale
-        WX.shape = (-1, K)
-        X.shape = (-1, K)
-        # solve X.T * X = X.T * V
+        WX = X * W[:, None]    # scale
 
-        log_vars = np.log(raw_vars[1:, 1:])     # omit first variance, and first moment that is constant 1.0
-        log_vars = W[:, None] * log_vars       # scale RHS
+        log_vars = np.log(raw_vars[1:])     # omit first variance, and first moment that is constant 1.0
+        log_vars = W[:] * log_vars       # scale RHS
 
-        params, res, rank, sing_vals = np.linalg.lstsq(WX, log_vars.ravel())
+        params, res, rank, sing_vals = np.linalg.lstsq(WX, log_vars)
         new_vars = raw_vars.copy()
-        assert np.allclose(raw_vars[:, 0], 0.0)
-        new_vars[1:, 1:] = np.exp(np.dot(X, params)).reshape(L-1, -1)
+        #assert np.isclose(raw_vars[0], 0.0)
+        new_vars[1:] = np.exp(np.dot(X, params))
         return new_vars
 
     def estimate_diff_vars_regression(self, moments_fn):
@@ -229,9 +224,15 @@ class MLMC:
         :param moments_fn: Moment evaluation function
         :return: array of variances, shape  L
         """
+        # vars shape L x R
         vars, n_samples = self.estimate_diff_vars(moments_fn)
         sim_steps = self.sim_steps
-        vars = self._varinace_regression(vars, sim_steps)
+        # max over moments of mean over levels
+        #mean_var = np.mean(vars, axis=0)
+        max_vars = np.max(vars, axis=1)
+        #ir_max = np.bincount(r_max).argmax()
+        #print("max mom: ", ir_max)
+        vars = self._varinace_regression(max_vars, sim_steps)
         return vars
 
 
