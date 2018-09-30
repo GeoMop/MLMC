@@ -6,7 +6,7 @@ from mlmc.mc_level import Level
 from mlmc.logger import Logger
 import scipy.stats as st
 import scipy.integrate as integrate
-
+from mlmc.simulation import Simulation
 
 
 ##################################################
@@ -112,6 +112,11 @@ class MLMC:
         """
         return np.array([len(l.nan_samples) for l in self.levels])
 
+    @property
+    def sim_steps(self):
+        return np.array([Simulation.log_interpolation(self.step_range, lvl.step) for lvl in self.levels])
+
+
     def estimate_diff_vars(self, moments_fn):
         """
         Estimate moments variance from samples
@@ -173,7 +178,7 @@ class MLMC:
 
         log(var_l,r) = A_r + B * log(h_l) + C * log^2(hl),
                                             for l = 0, .. L-1
-                                            for r = 1, .., R-1
+
 
         :param raw_vars: moments variances raws, shape (L, R)
         :param sim_steps: simulation steps, shape L
@@ -197,7 +202,7 @@ class MLMC:
         R1 = R - 1
         X = np.zeros((L1, R1, K))
         X[:, :, :-2] = np.eye(R1)[None, :, :]
-        log_step = sim_steps[1:]
+        log_step = np.log(sim_steps[1:])
         #X[:, :, -1] = np.repeat(log_step ** 2, R1).reshape((L1, R1))[:, :, None] * np.eye(R1)[None, :, :]
         X[:, :, -2] = np.repeat(log_step ** 2, R1).reshape((L1, R1))
         X[:, :, -1] = np.repeat(log_step, R1).reshape((L1, R1))
@@ -220,11 +225,12 @@ class MLMC:
     def estimate_diff_vars_regression(self, moments_fn):
         """
         Estimate variances using linear regression model.
+        Assumes increasing variance with moments, use only two moments with highest average variance.
         :param moments_fn: Moment evaluation function
-        :return: array of variances L x (R-1)
+        :return: array of variances, shape  L
         """
         vars, n_samples = self.estimate_diff_vars(moments_fn)
-        sim_steps = np.array([lvl.step for lvl in self.levels])
+        sim_steps = self.sim_steps
         vars = self._varinace_regression(vars, sim_steps)
         return vars
 

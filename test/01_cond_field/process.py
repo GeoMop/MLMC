@@ -150,7 +150,7 @@ class UglyMLMC:
             cf.Field('conductivity', cf.FourierSpatialCorrelatedField('gauss', dim=2, corr_length=0.125, log=True)),
         ])
 
-        self.step_range = (1, 0.95)
+        self.step_range = (1, 0.01)
 
         yaml_path = os.path.join(self.work_dir, '01_conductivity.yaml')
         geo_path = os.path.join(self.work_dir, 'square_1x1.geo')
@@ -808,7 +808,7 @@ class ProcessMLMC:
     
     @property
     def sim_steps(self):
-        return np.array([lvl.step for lvl in self.levels])
+        return self.mlmc.sim_steps
     
     def approx_pdf(self, x):
         return self.distribution.density(x)
@@ -928,7 +928,7 @@ class ProcessMLMC:
         #     ax.plot(target_var, Y[0,:], c='gray', ls='--')
         #     ax.plot(target_var, Y[2, :], c='gray', ls ='--')
         ax.set_yscale('log')
-        #ax.set_xscale('log')
+        ax.set_xscale('log')
 
         ax.set_ylabel("level variance $V_l$")
         
