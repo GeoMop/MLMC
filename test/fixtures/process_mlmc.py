@@ -138,7 +138,7 @@ class ProcessMLMC:
             color = plt.cm.rainbow(plt.Normalize(0, len(i_moments))(m))
             Y = est_diff_vars[:, m]
             col = np.ones_like(Y)[:, None] * np.array(color)[None, :]
-            ax.scatter(self.sim_steps, Y, c=col, marker=marker, label="var, m=" + str(m))
+            ax.scatter(self.sim_steps, Y, c=col, marker=marker)
         Y = reg_diff_vars[1:]
         ax.plot(self.sim_steps[1:], Y, c=color, linestyle=line_style, label="reg")
         # ax.clim(0, len(i_moments))
@@ -271,7 +271,7 @@ class CompareLevels:
             ax1.hist(mc0_samples, normed=True, bins=bins, alpha=0.3, label='full MC', color='red')
             X, Y = self.ecdf(mc0_samples)
             ax2.plot(X, Y, 'red')
-        #
+
         for mc in self.mlmc:
             domain = mc.distribution.domain
             if self.log_scale:
@@ -303,6 +303,7 @@ class CompareLevels:
             n_moments: n_moments to plot
         """
         import matplotlib.pyplot as plt
+        import matplotlib.cm as cm
         fig = plt.figure(figsize=(30, 10))
         ax = fig.add_subplot(1, 2, 1)
         if type(n_moments) is int:
@@ -311,7 +312,16 @@ class CompareLevels:
         for i, l in enumerate(l_mlmc):
             mc = self.mlmc_dict[l]
             mc.plot_diff_vars(ax, self.moments, n_moments, i_style=i)
-        ax.legend()
+
+        # Create colorbar
+        colormap = cm.get_cmap('rainbow')
+        normalize = plt.Normalize(vmin=n_moments[0], vmax=n_moments[-1])
+        scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=colormap)
+        scalarmappaple.set_array(l_mlmc)
+        bounds = np.arange(0, 21, 2)
+        clb = plt.colorbar(scalarmappaple, ticks=bounds, aspect=50, pad=0.01)
+        clb.set_label('moments')
+
+        ax.legend(loc=2)
         fig.savefig('level_vars_regression.pdf')
         plt.show()
-
