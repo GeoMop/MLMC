@@ -5,7 +5,7 @@ import shutil
 import copy
 import glob
 import yaml
-# import statprof
+import statprof
 import numpy as np
 import scipy.stats as stats
 import scipy.integrate as integrate
@@ -872,10 +872,21 @@ def main():
         #cl.n_moments = 11
         #cl.construct_densities(tol = 3.0, reg_param = 0.1)
         #cl.plot_densities(i_sample_mlmc=0)
-        cl.plot_level_vars([9], 21)
-        #cl.plot_level_vars([5, 7, 9], [1])
-        #calculate_var(mlmc_list)
-        #all_results(mlmc_list)
 
+        #cl.plot_level_vars([9], 21)
+        #cl.plot_level_vars([5, 7, 9], [1])
+
+        cl.construct_bootstrap_estimates(20)
+        cl.plot_var_var(9)
+
+
+
+        # statprof.start()
+        # try:
+        #     cl.construct_bootstrap_estimates(10)
+        #     cl.plot_var_var(9)
+        # finally:
+        #     statprof.stop()
+        #     statprof.display()
 
 main()
