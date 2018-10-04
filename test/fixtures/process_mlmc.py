@@ -182,9 +182,13 @@ class ProcessMLMC:
         self._plot_level_moment_value(ax, bs_variances, marker='.')
         self._plot_level_moment_value(ax, est_variances, marker='d')
 
-        ax.legend()
+        ax.legend(loc=6)
+        lbls = ['Total'] + [ 'L{:2d}'.format(l+1) for l in range(self.n_levels)]
+        ax.set_xticks(ticks = np.arange(self.n_levels + 1))
+        ax.set_xticklabels(lbls)
         ax.set_yscale('log')
         ax.set_ylim((1e-17, 0.1))
+        fig.savefig('bs_var_vs_var.pdf')
         plt.show()
 
 
