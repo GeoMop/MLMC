@@ -136,6 +136,18 @@ class MLMC:
             n_samples.append(n)
         return np.array(vars), np.array(n_samples)
 
+    def estimate_level_means(self, moments_fn):
+        """
+        Estimate means on individual levels.
+        :param moments_fn: moments object of size R
+        :return: shape (L, R)
+        """
+        means = []
+        for level in self.levels:
+            means.append(level.estimate_diff_mean(moments_fn))
+        return np.array(means)
+
+
 
     def _variance_of_variance(self, n_samples = None):
         """
@@ -217,7 +229,7 @@ class MLMC:
         new_vars[1:] = np.exp(np.dot(X, params))
         return new_vars
 
-    def estimate_diff_vars_regression(self, moments_fn):
+    def estimate_diff_vars_regression(self, moments_fn=None, raw_vars=None):
         """
         Estimate variances using linear regression model.
         Assumes increasing variance with moments, use only two moments with highest average variance.
@@ -225,13 +237,12 @@ class MLMC:
         :return: array of variances, shape  L
         """
         # vars shape L x R
-        vars, n_samples = self.estimate_diff_vars(moments_fn)
+        if raw_vars is None:
+            assert moments_fn is not None
+            raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
         sim_steps = self.sim_steps
-        # max over moments of mean over levels
-        #mean_var = np.mean(vars, axis=0)
-        max_vars = np.max(vars, axis=1)
-        #ir_max = np.bincount(r_max).argmax()
-        #print("max mom: ", ir_max)
+        # for evry level max variance over moments
+        max_vars = np.max(raw_vars, axis=1)
         vars = self._varinace_regression(max_vars, sim_steps)
         return vars
 
@@ -453,4 +464,4 @@ class MLMC:
         :return: None
         """
         for level in self.levels:
-            level.sample_indices = None
+            level.subsample(None)

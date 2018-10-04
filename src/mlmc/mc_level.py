@@ -58,8 +58,8 @@ class Level:
         # Collected samples (array may be partly filled)
         # Without any order, without Nans and inf. Only this is used for estimates.
         self._sample_values = np.empty((self.target_n_samples, 2))
-        # Number of valid samples in _sample_values.
-        self._n_valid_samples = 0
+        # Number of collected samples in _sample_values.
+        self._n_collected_samples = 0
         # Possible subsample indices.
         self.sample_indices = None
         # Array of indices of nan samples (in fine or coarse sim)
@@ -79,7 +79,7 @@ class Level:
         self.finished_simulations = []
         self.target_n_samples = 1
         self._sample_values = np.empty((self.target_n_samples, 2))
-        self._n_valid_samples = 0
+        self._n_collected_samples = 0
         self.sample_indices = None
         self.nan_samples = []
         self._last_moments_fn = None
@@ -171,10 +171,11 @@ class Level:
     @property
     def sample_values(self):
         """
-        Get valid level samples
-        :return: array
+        Get ALL colected level samples.
+        Without filtering Nans in moments. Without subsampling.
+        :return: array, shape (n_samples, 2). First column fine, second coarse.
         """
-        return self._sample_values[:self._n_valid_samples]
+        return self._sample_values[:self._n_collected_samples]
 
     def _add_sample(self, idx, sample_pair):
         """
@@ -189,12 +190,12 @@ class Level:
             self.nan_samples.append(idx)
             return
         # Enlarge matrix of samples
-        if self._n_valid_samples == self._sample_values.shape[0]:
-            self.enlarge_samples(2 * self._n_valid_samples)
+        if self._n_collected_samples == self._sample_values.shape[0]:
+            self.enlarge_samples(2 * self._n_collected_samples)
 
         # Add fine and coarse sample
-        self._sample_values[self._n_valid_samples, :] = (fine, coarse)
-        self._n_valid_samples += 1
+        self._sample_values[self._n_collected_samples, :] = (fine, coarse)
+        self._n_collected_samples += 1
 
     def enlarge_samples(self, size):
         """
@@ -204,7 +205,7 @@ class Level:
         """
         # Enlarge sample matrix
         new_values = np.empty((size, 2))
-        new_values[:self._n_valid_samples] = self._sample_values[:self._n_valid_samples]
+        new_values[:self._n_collected_samples] = self._sample_values[:self._n_collected_samples]
         self._sample_values = new_values
 
     @property
@@ -218,12 +219,16 @@ class Level:
     @property
     def n_samples(self):
         """
-        Number of level sample
+        Number of collected level samples.
+        OR number of samples with correct fine and coarse moments
+        OR number of subsampled samples.
         :return: int, number of samples
         """
         # Number of samples used for estimates.
         if self.sample_indices is None:
-            return self._n_valid_samples
+            if self.last_moments_eval is not None:
+                return len(self.last_moments_eval[0])
+            return self._n_collected_samples
         else:
             return len(self.sample_indices)
 
@@ -360,21 +365,25 @@ class Level:
 
     def subsample(self, size):
         """
-        sub-selection from simulations results
+        Sub-selection from samples with correct moments (dependes on last call to eval_moments).
         :param size: number of subsamples
         :return: None
         """
         if size is None:
             self.sample_indices = None
         else:
-            assert 0 < size < self._n_valid_samples, "0 < {} < {}".format(size, self._n_valid_samples)
-            self.sample_indices = np.random.choice(np.arange(self._n_valid_samples, dtype=int), size=size)
+            assert self.last_moments_eval is not None
+            n_moment_samples = len(self.last_moments_eval[0])
+
+            assert 0 < size, "0 < {}".format(size)
+            self.sample_indices = np.random.choice(np.arange(n_moment_samples, dtype=int), size=size)
+            self.sample_indices.sort() # Better for caches.
 
     def evaluate_moments(self, moments_fn, force=False):
         """
-        Evaluating moments from moments function
-        :param moments_fn: Moment evaluation functions
-        :return: tuple
+        Evaluate level difference for all samples and given moments.
+        :param moments_fn: Moment evaluation object.
+        :return: array, shape (N, R)
         """
         # Current moment functions are different from last moment functions
         if force or moments_fn != self._last_moments_fn:
@@ -384,7 +393,7 @@ class Level:
 
             # For first level moments from coarse samples are zeroes
             if self.is_zero_level:
-                moments_coarse = np.zeros_like(np.eye(len(moments_fine), moments_fn.size))
+                moments_coarse = np.zeros( (len(moments_fine), moments_fn.size) )
             else:
                 moments_coarse = moments_fn(samples[:, 1])
             # Set last moments function
@@ -393,6 +402,7 @@ class Level:
             self.last_moments_eval = moments_fine, moments_coarse
 
             self._remove_outliers_moments()
+            self.subsample(None)
 
         if self.sample_indices is None:
             return self.last_moments_eval
@@ -400,29 +410,34 @@ class Level:
             m_fine, m_coarse = self.last_moments_eval
             return m_fine[self.sample_indices, :], m_coarse[self.sample_indices, :]
 
-    def _remove_outliers_moments(self):
+    def _remove_outliers_moments(self, ):
         """
         Remove moments from outliers from fine and course moments
         :return: None
         """
         # Fine and coarse moments mask
-        mask_fine = ma.masked_invalid(self.last_moments_eval[0]).mask
-        mask_coarse = ma.masked_invalid(self.last_moments_eval[1]).mask
+        ok_fine = np.all(np.isfinite(self.last_moments_eval[0]), axis=1)
+        ok_coarse = np.all(np.isfinite(self.last_moments_eval[1]), axis=1)
 
         # Common mask for coarse and fine
-        mask_fine_coarse = np.logical_or(mask_fine, mask_coarse)[:, -1]
-
-        self.mask = mask_fine_coarse
+        ok_fine_coarse = np.logical_and(ok_fine, ok_coarse)
+        #self.ok_fine_coarse = ok_fine_coarse
 
         # New moments without outliers
-        self.last_moments_eval = self.last_moments_eval[0][~mask_fine_coarse], self.last_moments_eval[1][
-            ~mask_fine_coarse]
+        self.last_moments_eval = self.last_moments_eval[0][ok_fine_coarse, :], self.last_moments_eval[1][ok_fine_coarse, :]
 
-        # Remove outliers also from sample values
-        self._sample_values = self._sample_values[:self._n_valid_samples][~mask_fine_coarse]
-
-        # Set new number of valid samples
-        self._n_valid_samples = len(self._sample_values)
+        # Remove outliers also from subsample indices.
+        # if self.sample_indices is not None:
+        #     new_size = len(self.last_moments_eval[0][:,0])
+        #     # back map
+        #     map = np.zeros_like(ok_fine_coarse, dtype=int)
+        #     map[ok_fine_coarse] = np.arange(new_size)
+        #     # select only valid indices
+        #     self.sample_indices = self.sample_indices[ok_fine_coarse[self.sample_indices]]
+        #     # map indices to new moments eval array
+        #     self.sample_indices = map[self.sample_indices]
+        #     if np.any(self.sample_indices >= new_size):
+        #         raise IndexError
 
     def estimate_diff_var(self, moments_fn):
         """
@@ -431,8 +446,9 @@ class Level:
         :return: (array of variances of moments, number of samples)
             variances have length R
         """
-        assert self.n_samples > 1
-        mom_fine, mom_coarse = self.evaluate_moments(moments_fn, force=True)
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        assert len(mom_fine) == len(mom_coarse)
+        assert len(mom_fine) >= 2
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
         return var_vec, len(mom_fine)
 
@@ -442,7 +458,9 @@ class Level:
         :param moments_fn: Function for calculating moments
         :return: np.array, moments mean vector
         """
-        mom_fine, mom_coarse = self.evaluate_moments(moments_fn, force=True)
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        assert len(mom_fine) == len(mom_coarse)
+        assert len(mom_fine) >= 1
         mean_vec = np.mean(mom_fine - mom_coarse, axis=0)
         return mean_vec
 
