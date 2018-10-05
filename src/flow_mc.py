@@ -1,9 +1,12 @@
 import os
 import os.path
+import yaml
 import subprocess
-import shutil
-import numpy as np
+import time as t
 import gmsh_io
+import numpy as np
+import shutil
+import copy
 import mlmc.simulation as simulation
 
 
@@ -89,7 +92,7 @@ class FlowSim(simulation.Simulation):
 
         # self.field_config = config['field_name']
         self._fields_inititialied = False
-        self._fields = config['fields']
+        self._fields = copy.deepcopy(config['fields'])
         self.time_factor = config.get('time_factor', 1.0)
         self.base_yaml_file = config['yaml_file']
         self.base_geo_file = config['geo_file']
@@ -107,6 +110,8 @@ class FlowSim(simulation.Simulation):
         # Element centers of computational mesh.
         self.ele_ids = None
         # Element IDs of computational mesh.
+        self.n_fine_elements = 0
+        self._input_sample = []
 
         # TODO: determine minimal element from mesh
         self.time_step_h1 = self.time_factor * self.step
@@ -121,20 +126,18 @@ class FlowSim(simulation.Simulation):
 
         self.coarse_sim = None
         self.coarse_sim_set = False
-        self.n_fine_elements = 0
-        self.input_sample = []
 
         if clean:
             # Prepare mesh
             geo_file = os.path.join(self.work_dir, self.GEO_FILE)
-            shutil.copy(self.base_geo_file, geo_file)
+            shutil.copyfile(self.base_geo_file, geo_file)
 
             # Common computational mesh for all samples.
             self._make_mesh(geo_file, self.mesh_file)
 
             # Prepare main input YAML
             yaml_template = os.path.join(self.work_dir, self.YAML_TEMPLATE)
-            shutil.copy(self.base_yaml_file, yaml_template)
+            shutil.copyfile(self.base_yaml_file, yaml_template)
             self.yaml_file = os.path.join(self.work_dir, self.YAML_FILE)
             self._substitute_yaml(yaml_template, self.yaml_file)
         self._extract_mesh(self.mesh_file)
@@ -208,7 +211,6 @@ class FlowSim(simulation.Simulation):
         """
         param_dict = {}
         field_tmpl = self.field_template
-
         for field_name in self._fields.names:
             param_dict[field_name] = field_tmpl % (self.FIELDS_FILE, field_name)
         param_dict[self.MESH_FILE_VAR] = self.mesh_file
@@ -251,14 +253,14 @@ class FlowSim(simulation.Simulation):
         # assert self._is_fine_sim
         if not self._fields_inititialied:
             self._make_fields()
+
         fields_sample = self._fields.sample()
-
-        self.input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
+        self._input_sample = {name: values[:self.n_fine_elements, None] for name, values in fields_sample.items()}
         if self.coarse_sim is not None:
-            self.coarse_sim.input_sample = {name: values[self.n_fine_elements:, None] for name, values in
-                                            fields_sample.items()}
+            self.coarse_sim._input_sample = {name: values[self.n_fine_elements:, None] for name, values in
+                                             fields_sample.items()}
 
-    def simulation_sample(self, sample_tag):
+    def simulation_sample(self, sample_tag, start_time=0):
         """
         Evaluate model using generated or set input data sample.
         :param sample_tag: A unique ID used as work directory of the single simulation run.
@@ -277,10 +279,12 @@ class FlowSim(simulation.Simulation):
             force_mkdir(sample_dir)
         fields_file = os.path.join(sample_dir, self.FIELDS_FILE)
 
-        gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self.input_sample)
+        gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
 
         # Add flow123d realization to pbs script
-        self.pbs_creater.add_realization(self.n_fine_elements, output_subdir=out_subdir,
+        self.pbs_creater.add_realization(self.n_fine_elements,
+                                         output_subdir=out_subdir,
                                          work_dir=self.work_dir,
-                                         flow123d=self.env['flow123d'])
+                                         flow123d=self.env['flow123d'],
+                                         time=t.time() - start_time)
         return sample_tag, sample_dir

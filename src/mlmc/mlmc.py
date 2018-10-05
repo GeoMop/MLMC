@@ -282,41 +282,41 @@ class MLMC:
     #     for level in self.levels:
     #         level.reset_moment_fn(moments_fn)
 
-    def iterative_target_var(self, target_var, moments_fn):
+    def target_var_adding_samples(self, target_var, moments_fn, pbs):
         """
         Set level target number of samples according to improving estimates.  
         We assume set_initial_n_samples method was called before.
         :param target_var: float, whole mlmc target variance
         :param moments_fn: Object providing calculating moments
+        :param pbs: Pbs script generator object
         :return: None
         """
         # Get target levels samples
         ns_target = self.l_target_samples()
 
         while True:
-            # Set target number of samples, create simulation samples and collect them
+            # Set target number of samples and create simulation samples
             self.set_target_n_samples(ns_target)
             self.refill_samples()
-            self.wait_for_simulations()
+            pbs.execute()
 
             # Wait until at least half of the target samples are done
             while any(self.l_finished_samples()[index] < ns_target[index] * 0.5 for index, ns in enumerate(ns_target)):
-                self.wait_for_simulations()
+                pass
 
-            # Estimations - new number of samples and variance
-            n_samples = self.set_target_variance(target_var, moments_fn)
+            # Estimations - new number of samples from currently collected one
+            n_samples = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
 
-            # Break if number of target samples is different by only one percent of the new estimated target values
+            # If new samples are very close to current target samples then we have our best estimation
             if all((np.abs(n_samples[index] - ns_tar) / ns_tar) < 0.01
-                   if n_samples[index] >= ns_tar else False for index, ns_tar in enumerate(ns_target)):
+                   if n_samples[index] >= ns_tar else True for index, ns_tar in enumerate(ns_target)):
                 break
 
-            # Create new number of target samples
+            # New target sample is 10 percent of difference
+            # between current number of target samples and new estimated one
             new_ns_target = []
             for n_sample, ns_tar in zip(n_samples, ns_target):
-                # New estimate is greater than previous one
                 if n_sample > ns_tar:
-                    # Current target n samples is increment by 10 perecntage of difference of new estimate and previous target n
                     ns_tar += (n_sample - ns_tar) * 0.1
                 new_ns_target.append(ns_tar)
 
@@ -334,6 +334,7 @@ class MLMC:
         Get all levels number of sample values
         :return: list
         """
+        [level.collect_samples() for level in self.levels]
         return [len(level.sample_values) for level in self.levels]
 
     def estimate_n_samples_for_target_variance(self, target_variance, moments_fn=None, prescribe_vars=None):

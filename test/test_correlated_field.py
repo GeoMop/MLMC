@@ -361,7 +361,7 @@ def test_cov_func_convergence(seed):
     gauss = 2.0
     n_terms = (np.inf, np.inf)  # Use full expansion to avoid error in approximation.
 
-    impl_test_cov_func(FourierSpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms, )
+    impl_test_cov_func(FourierSpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms)
     impl_test_cov_func(FourierSpatialCorrelatedField, exponential, random_points, n_terms_range=n_terms)
 
     impl_test_cov_func(SpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms)
