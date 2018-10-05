@@ -39,8 +39,8 @@ def plot_pdf_approx(ax1, ax2, mc0_samples, mlmc_wrapper, domain, est_domain):
         X, Y = ecdf(mc0_samples)
         ax2.plot(X, Y, 'red')
 
-    ax1.axvline(x=est_domain[0], c=color)
-    ax1.axvline(x=est_domain[1], c=color)
+    ax1.axvline(x=domain[0], c=color)
+    ax1.axvline(x=domain[1], c=color)
 
 
 def compute_results(mlmc_l0, n_moments, mlmc_wrapper):
@@ -82,7 +82,7 @@ def compute_results(mlmc_l0, n_moments, mlmc_wrapper):
     moments_data = np.stack((est_moments, est_vars), axis=1)
     distr_obj = Distribution(moments_fn, moments_data)
     distr_obj.domain = domain
-    distr_obj.estimate_density_minimize(tol=1e-8)
+    distr_obj.estimate_density_minimize(1)
     mlmc_wrapper.distr_obj = distr_obj
 
     return domain, est_domain, mlmc_wrapper

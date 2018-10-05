@@ -616,7 +616,7 @@ class FourierSpatialCorrelatedField(RandomFieldBase):
         return k
 
     def _get_random_stream(self, seed=None):
-        return rand.RandomState(rand.RandomState(seed).random_integers(2 ** 16 - 1))
+        return rand.RandomState(rand.RandomState(seed).randint(2 ** 16 - 1))
 
     def random_field(self):
         """

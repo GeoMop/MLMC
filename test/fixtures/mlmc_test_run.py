@@ -3,7 +3,8 @@ import pytest
 import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
-import mlmc
+from mlmc import mlmc
+from mlmc import moments
 from test.fixtures.synth_simulation import SimulationTest
 
 
@@ -34,7 +35,7 @@ class TestMLMC:
         true_domain = distr.ppf([0.001, 0.999])
 
 
-        self.moments_fn = mlmc.moments.Legendre(n_moments, true_domain, is_log)
+        self.moments_fn = moments.Legendre(n_moments, true_domain, is_log)
 
 
 
@@ -75,7 +76,7 @@ class TestMLMC:
         mlmc_options = {'output_dir': None,
                         'keep_collected': True,
                         'regen_failed': False}
-        mc = mlmc.mlmc.MLMC(self.n_levels, simultion_factory, step_range, mlmc_options)
+        mc = mlmc.MLMC(self.n_levels, simultion_factory, step_range, mlmc_options)
         mc.create_levels()
         sims = [level.fine_simulation for level in mc.levels]
         return mc, sims
@@ -85,7 +86,7 @@ class TestMLMC:
     #     simulation_config = dict(distr=self.distr, complexity=2, nan_fraction=0)
     #     simultion_factory = SimulationTest.factory(step_range, config=simulation_config)
     #
-    #     mc = mlmc.mlmc.MLMC(self.n_levels, simultion_factory, pbs)
+    #     mc = mlmc.MLMC(self.n_levels, simultion_factory, pbs)
     #     mc.create_levels()
     #     sims = [level.fine_simulation for level in mc.levels]
     #     return mc, sims
