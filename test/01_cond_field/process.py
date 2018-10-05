@@ -22,6 +22,8 @@ import mlmc.distribution
 import pbs
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
+from mlmc import moments
+
 from test.fixtures.process_mlmc import CompareLevels
 #import mlmc.postprocess as postprocess
 from mlmc.distribution import Distribution
@@ -864,21 +866,35 @@ def main():
             prmc.setup(nl)
             prmc.initialize(clean=False)
             mlmc_list.append(prmc)
+
         cl = CompareLevels([pm.mc for pm in mlmc_list],
                            output_dir=src_path,
-                           quantity_name="Q [m/s]")
+                           quantity_name="Q [m/s]",
+                           moment_class=moments.Legendre,
+                           log_scale = False,
+                           n_moments=21,)
         cl.collected_report()
+
+        # PDF approximation experiments
         #cl.set_common_domain(0)
         #cl.n_moments = 11
         #cl.construct_densities(tol = 3.0, reg_param = 0.1)
         #cl.plot_densities(i_sample_mlmc=0)
 
-        #cl.plot_level_vars([9], 21)
+        # Level variances and regrssion
+        cl[9].plot_level_vars([1, 2, 4, 8, 16, 20])
         #cl.plot_level_vars([5, 7, 9], [1])
 
-        cl.construct_bootstrap_estimates(20)
-        cl.plot_var_var(9)
+        # Approximation of Variance of estimators for level variances
+        #sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        #sample_vec = 9*[100]
+        # mc = cl[9]
+        # mc.construct_bootstrap_estimates(cl.moments, 300, sample_vector=None)
+        # mc.mlmc.update_moments(cl.moments)
+        # mc.mlmc.subsample()
 
+        #cl.plot_var_compare(9)
+        #mc.plot_bootstrap_var_var(cl.moments)
 
 
         # statprof.start()

@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import matplotlib.pyplot as plt
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
@@ -8,14 +9,26 @@ import mlmc.mlmc
 from mlmc.distribution import Distribution
 
 
+def create_color_bar(size, label):
+    # Create colorbar
+    colormap = plt.cm.viridis
+    normalize = plt.Normalize(vmin=0, vmax=size)
+    scalarmappaple = plt.cm.ScalarMappable(norm=normalize, cmap=colormap)
+    scalarmappaple.set_array(np.arange(size))
+    ticks = np.linspace(0, int(size/10)*10, 9)
+    clb = plt.colorbar(scalarmappaple, ticks=ticks, aspect=50, pad=0.01)
+    clb.set_label(label)
+    return lambda v: colormap(normalize(v))
+
 class ProcessMLMC:
     """
     Base of future class dedicated to all kind of processing of the collected samples
     MLMC should only collect the samples.
     """
 
-    def __init__(self, mlmc):
+    def __init__(self, mlmc, moments):
         self.mlmc = mlmc
+        self.moments = moments
 
         # Distribution aproximation, created by method 'construct_density'
         self._distribution = None
@@ -31,6 +44,10 @@ class ProcessMLMC:
         # BS estimate of variance of MLMC level variance estimate. For every level, every moment,
         self._bs_level_var_variance = None
 
+    @property
+    def n_moments(self):
+        return self.moments.size
+
 
     @property
     def n_levels(self):
@@ -39,6 +56,7 @@ class ProcessMLMC:
     @property
     def n_samples(self):
         return self.mlmc.n_samples
+
 
     @property
     def levels(self):
@@ -62,7 +80,7 @@ class ProcessMLMC:
     def estimate_domain(self):
         return self.mlmc.estimate_domain()
 
-    def construct_density(self, moments_fn, tol=1.95, reg_param=0.01):
+    def construct_density(self, tol=1.95, reg_param=0.01):
         """
         Construct approximation of the density using given moment functions.
         Args:
@@ -73,7 +91,7 @@ class ProcessMLMC:
         """
         # [print("integral density ", integrate.simps(densities[index], x[index])) for index, density in
         # enumerate(densities)]
-
+        moments_fn = self.moments
         domain = moments_fn.domain
 
         # t_var = 1e-5
@@ -104,8 +122,14 @@ class ProcessMLMC:
         # distr_obj.estimate_density_minimize(0.1)  # 0.95 two side quantile
         self._distribution = distr_obj
 
+    def _bs_get_estimates(self):
+        moments_fn = self.moments
+        mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
+        level_var_est, _ = self.mlmc.estimate_diff_vars(moments_fn)
+        level_mean_est = self.mlmc.estimate_level_means(moments_fn)
+        return mean_est, var_est, level_mean_est, level_var_est
 
-    def construct_bootstrap_estimates(self, moments_fn, n_subsamples=100, sample_vector=None):
+    def construct_bootstrap_estimates(self, n_subsamples=100, sample_vector=None):
         """
         Estimate error of the MLMC mean value estimator and of the MLMC variance estimator
         using a bootstrapping. Bootstrapping use subsampling with replacements !!
@@ -114,85 +138,131 @@ class ProcessMLMC:
         :param sample_vector: By default same as the original sampling.
         :return:
         """
+        moments_fn = self.moments
         if sample_vector is None:
             sample_vector = self.mlmc.n_samples
-        n_moments = moments_fn.size
-        mean_samples = np.empty((n_subsamples, n_moments))
-        var_samples = np.empty((n_subsamples, n_moments))
-        level_var_samples = np.empty((n_subsamples, self.n_levels, n_moments))
-        level_mean_samples = np.empty((n_subsamples, self.n_levels, n_moments))
-
+        if len(sample_vector) > self.n_levels:
+            sample_vector = sample_vector[:self.n_levels]
         self.mlmc.update_moments(moments_fn)
+        estimates = self._bs_get_estimates(moments_fn)
+        est_samples = [ np.zeros(n_subsamples) * est[..., None]  for est in estimates]
         for i in range(n_subsamples):
             self.mlmc.subsample(sample_vector)
-            means, vars = self.mlmc.estimate_moments(moments_fn)
-            mean_samples[i, : ] = means
-            var_samples[i, :] = vars
-            level_vars, _ = self.mlmc.estimate_diff_vars(moments_fn)
-            level_var_samples[i, :, : ] = level_vars
-            level_means = self.mlmc.estimate_level_means(moments_fn)
-            level_mean_samples[i, :, :] = level_means
-        self._bs_mean_variance = np.var(mean_samples, axis=0, ddof=1)
-        self._bs_var_variance = np.var(mean_samples, axis=0, ddof=1)
-        self._bs_level_mean_variance = np.var(level_mean_samples, axis=0, ddof=1)
-        self._bs_level_var_variance = np.var(level_var_samples, axis=0, ddof=1)
+            sub_estimates = self._bs_get_estimates(moments_fn)
+            for es, se, e in zip(est_samples, sub_estimates, estimates):
+                es[..., i] = se - e
+
+        bs_estimates = [np.sum(est ** 2, axis=-1) / n_subsamples for est in est_samples]
+        mvar, vvar, lmvar, lvvar = bs_estimates
+        self._bs_mean_variance = mvar
+        self._bs_var_variance = vvar
+        # Var dX_l =  n * Var[ mean dX_l ] = n * (1 / n^2) * n * Var dX_l
+        self._bs_level_mean_variance = lmvar * self.n_samples[:, None]
+        self._bs_level_var_variance = lvvar
         self.mlmc.clean_subsamples()
+
+
     # def _plot_var_fraction(self, vars_frac):
     #     """
     #     :param vars_frac:
     #     :return:
     #     """
 
-    def _plot_level_moment_value(self, ax, value, marker='o'):
-        import matplotlib.pyplot as plt
+    def _plot_level_moment_value(self, ax, cmap, value, marker='o'):
         n_levels = value.shape[0]
         n_moments = value.shape[1]
+        moments_x_step = 0.5/n_moments
         for m in range(n_moments):
-            color = plt.cm.rainbow(plt.Normalize(0, n_moments)(m))
-
-            X = np.arange(n_levels) + 0.01 * m
+            color = cmap(m)
+            X = np.arange(n_levels) + moments_x_step * m
             Y = value[:, m]
             col = np.ones(n_levels)[:, None] * np.array(color)[None, :]
             ax.scatter(X, Y, c=col, marker=marker, label="var, m=" + str(m+1))
 
-    def plot_bootstrap_variance_variance(self, moments_fn):
-        import matplotlib.pyplot as plt
-        self.mlmc.clean_subsamples()
-        means, vars = self.mlmc.estimate_moments(moments_fn)
-        level_var_var = self.mlmc._variance_of_variance()
-        level_var_frac = self._bs_level_var_variance[:, 1:] #/ self.n_samples[:, None]
-        total_var_frac = self._bs_var_variance[1:]
-        bs_variances = np.concatenate((total_var_frac[None, :], level_var_frac), axis=0)
+    def plot_bootstrap_variance_compare(self):
+        """
+        Plot fraction (MLMC var est) / (BS var set) for the total variance and level variances.
+        :param moments_fn:
+        :return:
+        """
+        moments_fn = self.moments
+        mean, var, l_mean, l_var = self._bs_get_estimates(moments_fn)
+        l_var = l_var / self.n_samples[: , None]
+        est_variances = np.concatenate((var[None, 1:], l_var[:, 1:]), axis=0)
 
-        vars, _  = self.mlmc.estimate_diff_vars(moments_fn)
-        tot_mean, tot_var = self.mlmc.estimate_moments(moments_fn)
-        level_var_frac = vars[:, 1:] #/ self.n_samples[:, None]
-        total_var_frac = tot_var[1:]
-        est_variances = np.concatenate((total_var_frac[None, :], level_var_frac), axis=0)
+        bs_var = self._bs_mean_variance
+        bs_l_var = self._bs_level_mean_variance / self.n_samples[:, None]
+        bs_variances = np.concatenate((bs_var[None, 1:], bs_l_var[:, 1:]), axis=0)
 
-
-        #n_moments = self._bs_var_variance.shape[0]
-        #assert n_moments == moments_fn.size
-
-
+        fraction = est_variances / bs_variances
 
         fig = plt.figure(figsize=(30, 10))
         ax = fig.add_subplot(1, 1, 1)
 
-        self._plot_level_moment_value(ax, bs_variances, marker='.')
-        self._plot_level_moment_value(ax, est_variances, marker='d')
+        #self._plot_level_moment_value(ax, bs_variances, marker='.')
+        #self._plot_level_moment_value(ax, est_variances, marker='d')
+        self._plot_level_moment_value(ax, fraction, marker='o')
 
-        ax.legend(loc=6)
+        #ax.legend(loc=6)
         lbls = ['Total'] + [ 'L{:2d}'.format(l+1) for l in range(self.n_levels)]
         ax.set_xticks(ticks = np.arange(self.n_levels + 1))
         ax.set_xticklabels(lbls)
         ax.set_yscale('log')
-        ax.set_ylim((1e-17, 0.1))
+        ax.set_ylim((0.3, 3))
+
+        self.color_bar(moments_fn.size, 'moments')
+
         fig.savefig('bs_var_vs_var.pdf')
         plt.show()
 
 
-    def plot_means_and_vars(self, ax, moments_fn, ):
+
+    def plot_bootstrap_var_var(self):
+        """
+        Plot fraction (MLMC var est) / (BS var set) for the total variance and level variances.
+        :param moments_fn:
+        :return:
+        """
+        moments_fn = self.moments
+        mean, var, l_mean, l_var = self._bs_get_estimates(moments_fn)
+        print("n samples:", self.n_samples)
+        l_var = l_var
+        est_variances = np.concatenate((var[None, 1:], l_var[:, 1:]), axis=0)
+
+        bs_var_var = self._bs_var_variance[1:]
+        #bs_l_var_var = self._bs_level_var_variance / (self.n_samples[:, None])**2
+        vv  =  self.mlmc._variance_of_variance()[:, None]
+
+
+        #print(vv)
+        #bs_l_var_var = - np.log(self._bs_level_var_variance[:, 1:]) / self.mlmc._variance_of_variance()[:, None]  / self.n_samples[:, None]
+        bs_l_var_var = self._bs_level_var_variance[:, 1:] / l_var[:, 1:]**2
+        bs_l_var_var = bs_l_var_var * (self.n_samples[:, None] - 1) / 2
+        #bs_l_var_var = bs_l_var_var ** (1 / self.mlmc._variance_of_variance()[:, None])
+        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+
+        #fraction = est_variances / bs_variances
+
+        fig = plt.figure(figsize=(30, 10))
+        ax = fig.add_subplot(1, 1, 1)
+        cmap = create_color_bar(moments_fn.size, 'moments')
+        self._plot_level_moment_value(ax, cmap, bs_variances, marker='.')
+        #self._plot_level_moment_value(ax, est_variances, marker='d')
+        #self._plot_level_moment_value(ax, fraction, marker='o')
+
+        #ax.legend(loc=6)
+        lbls = ['Total'] + [ 'L{:2d}'.format(l+1) for l in range(self.n_levels)]
+        ax.set_xticks(ticks = np.arange(self.n_levels + 1))
+        ax.set_xticklabels(lbls)
+        ax.set_yscale('log')
+        ax.set_ylim((0.01, 1000))
+
+
+        fig.savefig('bs_var_vs_var.pdf')
+        plt.show()
+
+
+    def plot_means_and_vars(self, ax, ):
         """
         Plot means with variance whiskers to given axes.
         :param moments_mean: array, moments mean
@@ -202,8 +272,7 @@ class ProcessMLMC:
         :param ex_moments: array, moments from distribution samples
         :return:
         """
-
-        moment_fn
+        moments_fn = self.moments
         colors = iter(cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
 
         x = np.arange(0, len(moments_mean[0]))
@@ -225,44 +294,50 @@ class ProcessMLMC:
         plt.show()
         exit()
 
-    def plot_diff_vars(self, ax, moments_fn, i_moments=[], i_style=0):
-        import matplotlib.pyplot as plt
+
+    def plot_level_vars(self, i_moments = None):
+        """
+        Plot total and level variances and their regression and errors of regression.
+        :param i_moments: List of moment indices to plot. If it is an int M, the range(M) is used.
+                       If None, self.moments.size is used.
+        """
+        moments_fn = self.moments
+
+        fig = plt.figure(figsize=(30, 10))
+        ax = fig.add_subplot(1, 2, 1)
+        ax_err = fig.add_subplot(2, 2, 1)
+
+        if not i_moments:
+            i_moments = moments_fn.size
+        if type(i_moments) is int:
+            i_moments = list(range(i_moments))
+
+        cmap = create_color_bar(moments_fn.size, 'moments')
 
         est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
         reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn)
 
-        marker = ['o', 'd', ',', '^'][i_style]
-        line_style = ['-', '--', '-.', ':'][i_style]
 
-        if not i_moments:
-            i_moments = range(1, moments_fn.size)
-
+        self._plot_level_moment_value(ax, cmap, est_diff_vars, marker='o')
+        # add regression curves
+        moments_x_step = 0.5 / self.n_moments
         for m in i_moments:
-            color = plt.cm.rainbow(plt.Normalize(0, len(i_moments))(m))
-            Y = est_diff_vars[:, m]
-            col = np.ones_like(Y)[:, None] * np.array(color)[None, :]
-            ax.scatter(self.sim_steps, Y, c=col, marker=marker)
-        Y = reg_diff_vars[1:]
-        ax.plot(self.sim_steps[1:], Y, c=color, linestyle=line_style, label="reg")
-        # ax.clim(0, len(i_moments))
-        # ax.colorbar()
+            color = cmap(m)
+            X = np.arange(self.n_levels) + moments_x_step * m
+            Y = reg_diff_vars[1:, m]
+            ax.plot(X[2:], Y, c=color, label="reg")
 
-        #
-        #
-        #     Y = np.percentile(self.vars_est[:, :, m],  [10, 50, 90], axis=1)
-        #     ax.plot(target_var, Y[1,:], c=color)
-        #     ax.plot(target_var, Y[0,:], c=color, ls='--')
-        #     ax.plot(target_var, Y[2, :], c=color, ls ='--')
-        #     Y = (self.exact_mean[m] - self.means_est[:, :, m])**2
-        #     Y = np.percentile(Y, [10, 50, 90], axis=1)
-        #     ax.plot(target_var, Y[1,:], c='gray')
-        #     ax.plot(target_var, Y[0,:], c='gray', ls='--')
-        #     ax.plot(target_var, Y[2, :], c='gray', ls ='--')
+
+
         ax.set_yscale('log')
         ax.set_xscale('log')
 
         ax.set_ylabel("level variance $V_l$")
         ax.set_xlabel("step h_l")
+
+        ax.legend(loc=2)
+        fig.savefig('level_vars_regression.pdf')
+        plt.show()
 
 
 class CompareLevels:
@@ -275,25 +350,45 @@ class CompareLevels:
         Args:
             List of MLMC instances with collected data.
         """
-        self.mlmc = [ProcessMLMC(mc) for mc in mlmc_list]
-        self.mlmc_dict = {mc.n_levels: mc for mc in self.mlmc}
-
+        self._mlmc_list = mlmc_list
         # Directory for plots.
         self.output_dir = kwargs.get('output_dir', "")
-        # Default moments, type, number.
-        self.log_scale = kwargs.get('log_scale', False)
-        self.moment_class = kwargs.get('moment_class', mlmc.moments.Legendre)
-        self.n_moments = kwargs.get('n_meoments', 21)
         # Optional quantity name used in plots
         self.quantity_name = kwargs.get('quantity_name', 'X')
+
+        self.reinit(**kwargs)
+
+    def reinit(self, **kwargs):
+        """
+        Re-create new ProcessMLMC objects from same original MLMC list.
+        Set new parameters in particular for moments.
+        :return:
+        """
+        # Default moments, type, number.
+        self.log_scale = kwargs.get('log_scale', False)
+        # Name of Moments class to use.
+        self.moment_class = kwargs.get('moment_class', mlmc.moments.Legendre)
+        # Number of moments.
+        self.n_moments = kwargs.get('n_moments', 21)
 
         # Set domain to union of domains  of all mlmc:
         self.domain = self.common_domain()
 
+        self._moments = self.moment_class(self.n_moments, self.domain, self.log_scale)
+
+        self.mlmc = [ProcessMLMC(mc, self._moments) for mc in self._mlmc_list]
+        self.mlmc_dict = {mc.n_levels: mc for mc in self.mlmc}
+
+
+
+        self._moments_params = None
+
+
+
     def common_domain(self):
         L = +np.inf
         U = -np.inf
-        for mc in self.mlmc:
+        for mc in self._mlmc_list:
             l, u = mc.estimate_domain()
             L = min(l, L)
             U = max(u, U)
@@ -306,7 +401,7 @@ class CompareLevels:
 
     @property
     def moments(self):
-        return self.moment_class(self.n_moments, self.domain, log=self.log_scale)
+        return self._moments
 
     @property
     def moments_uncut(self):
@@ -403,40 +498,13 @@ class CompareLevels:
         fig.savefig('compare_distributions.pdf')
         plt.show()
 
-    def plot_level_vars(self, l_mlmc, n_moments):
-        """
-        For given i_mlmc plot level variances and regression curve.
-        Args:
-            n_levels: List of  i_mlmc to plot.
-            n_moments: n_moments to plot
-        """
-        import matplotlib.pyplot as plt
-        import matplotlib.cm as cm
-        fig = plt.figure(figsize=(30, 10))
-        ax = fig.add_subplot(1, 2, 1)
-        if type(n_moments) is int:
-            n_moments = list(range(n_moments))
 
-        for i, l in enumerate(l_mlmc):
-            mc = self.mlmc_dict[l]
-            mc.plot_diff_vars(ax, self.moments, n_moments, i_style=i)
-
-        # Create colorbar
-        colormap = cm.get_cmap('rainbow')
-        normalize = plt.Normalize(vmin=n_moments[0], vmax=n_moments[-1])
-        scalarmappaple = cm.ScalarMappable(norm=normalize, cmap=colormap)
-        scalarmappaple.set_array(l_mlmc)
-        bounds = np.arange(0, 21, 2)
-        clb = plt.colorbar(scalarmappaple, ticks=bounds, aspect=50, pad=0.01)
-        clb.set_label('moments')
-
-        ax.legend(loc=2)
-        fig.savefig('level_vars_regression.pdf')
-        plt.show()
-
-    def construct_bootstrap_estimates(self, n_samples):
+    def construct_bootstrap_estimates(self, n_samples, sample_vector=None):
         for mc in self.mlmc:
-            mc.construct_bootstrap_estimates(self.moments, n_subsamples=n_samples)
+            mc.construct_bootstrap_estimates(self.moments, n_subsamples=n_samples, sample_vector=sample_vector)
+
+    def plot_var_compare(self, nl):
+        self[nl].plot_bootstrap_variance_compare(self.moments)
 
     def plot_var_var(self, nl):
-        self[nl].plot_bootstrap_variance_variance(self.moments)
+        self[nl].plot_bootstrap_var_var(self.moments)
