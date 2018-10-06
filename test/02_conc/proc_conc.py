@@ -18,6 +18,7 @@ import mlmc.moments
 import mlmc.distribution
 import pbs
 import glob
+from datetime import datetime as dt
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 import mlmc.postprocess as postprocess
@@ -33,10 +34,7 @@ class FlowConcSim(flow_mc.FlowSim):
         Extract the observed value from the Flow123d output.
         Get sample from the field restriction, write to the GMSH file, call flow.
         :param sample_dir: Sample directory
-        :return:
-
-        TODO: Pass an extraction function as other FlowSim parameter. This function will take the
-        balance data and retun observed values.
+        :return: None, total flux (float) and overall sample time
         """
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             # extract the flux
@@ -69,11 +67,33 @@ class FlowConcSim(flow_mc.FlowSim):
 
                 if not found:
                     raise
-            except:
-                return np.inf
-            return max_flux
+
+                profiler_file = os.path.join(sample_dir, "profiler_info_*.json")
+                profiler = glob.glob(profiler_file)[0]
+
+                try:
+                    with open(profiler, "r") as f:
+                        prof_content = json.load(f)
+
+                    dt_obj_start = dt.strptime(prof_content["run-started-at"], "%m/%d/%y %H:%M:%S")
+                    dt_obj_end = dt.strptime(prof_content["run-finished-at"], "%m/%d/%y %H:%M:%S")
+                    run_time = (dt_obj_end - dt_obj_start).total_seconds()
+                except:
+                    print("extract run time error")
+
+                try:
+                    with open(os.path.join(sample_dir, "FINISHED"), "r") as f:
+                        preprocess_time = f.readlines()[0]
+                except:
+                    print("extract preprocess time error")
+
+            except Exception as e:
+                print(str(e))
+                return np.inf, 0
+
+            return max_flux, (run_time + float(preprocess_time))
         else:
-            return None
+            return None, 0
 
 
 class ProcessMLMC:

@@ -54,21 +54,22 @@ class Simulation(metaclass=ABCMeta):
 
     def extract_result(self, sample_dir):
         """
-        Extract simulation result
+        Extract simulation result with sample time
         :param sample_dir: Simulation sample directory
-        :return: simulation result
+        :return: simulation result, overall time for one sample (random field generation and running sample)
         """
         try:
-            result = self._extract_result(sample_dir)
+            result, overall_time = self._extract_result(sample_dir)
             if result is np.nan:
                 raise
         except:
             result = np.inf
+            overall_time = 0
 
         if result is np.inf:
             Simulation._move_sample_dir(sample_dir)
 
-        return result
+        return result, overall_time
 
     @abstractmethod
     def _extract_result(self):

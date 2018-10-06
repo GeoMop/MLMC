@@ -10,7 +10,6 @@ import numpy as np
 import scipy.stats as stats
 import scipy.integrate as integrate
 
-
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
 
@@ -20,6 +19,8 @@ import mlmc.simulation
 import mlmc.moments
 import mlmc.distribution
 import pbs
+import glob
+from datetime import datetime as dt
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 import test.test_mlmc as test_mlmc
@@ -36,8 +37,10 @@ class FlowProcSim(flow_mc.FlowSim):
         """
         Extract the observed value from the Flow123d output.
         :param sample_dir: Sample directory path
-        :return: None, inf or water balance result (float)
+        :return: None, inf or water balance result (float) and overall sample time
         """
+        run_time = 0
+        preprocess_time = 0
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             try:
                 # extract the flux
@@ -60,14 +63,36 @@ class FlowProcSim(flow_mc.FlowSim):
                             raise Exception("Possitive inflow at outlet region.")
                         total_flux += flux  # flux field
                         found = True
+
+                profiler_file = os.path.join(sample_dir, "profiler_info_*.json")
+                profiler = glob.glob(profiler_file)[0]
+
+                try:
+                    with open(profiler, "r") as f:
+                        prof_content = json.load(f)
+
+                    dt_obj_start = dt.strptime(prof_content["run-started-at"], "%m/%d/%y %H:%M:%S")
+                    dt_obj_end = dt.strptime(prof_content["run-finished-at"], "%m/%d/%y %H:%M:%S")
+                    run_time = (dt_obj_end - dt_obj_start).total_seconds()
+                except:
+                    print("extract run time error")
+
+                try:
+                    with open(os.path.join(sample_dir, "FINISHED"), "r") as f:
+                        preprocess_time = f.readlines()[0]
+                except:
+                    print("extract preprocess time error")
+
+                if not found:
+                    raise
+
             except Exception as e:
                 print(str(e))
-                return np.inf
-            if not found:
-                raise np.inf
-            return -total_flux
+                return np.inf, 0
+
+            return -total_flux, (run_time + float(preprocess_time))
         else:
-            return None
+            return None, 0
 
 
 class ProcessMLMC:

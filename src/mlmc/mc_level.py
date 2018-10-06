@@ -66,7 +66,8 @@ class Level:
         self.nan_samples = []
         # Cache evaluated moments.
         self._last_moments_fn = None
-
+        self.fine_times = []
+        self.coarse_times = []
         # Load simulations from log
         self.load_simulations(regen_failed)
 
@@ -77,12 +78,14 @@ class Level:
         """
         self.running_simulations = []
         self.finished_simulations = []
-        self.target_n_samples = 1
+        self.target_n_samples = 3
         self._sample_values = np.empty((self.target_n_samples, 2))
         self._n_valid_samples = 0
         self.sample_indices = None
         self.nan_samples = []
         self._last_moments_fn = None
+        self.fine_times = []
+        self.coarse_times = []
 
     @property
     def fine_simulation(self):
@@ -107,7 +110,6 @@ class Level:
     def load_simulations(self, regen_failed):
         """
         Load finished and running simulations from logs
-        :param regen_failed: bool, if True then regenerate failed simulations
         :return: None
         """
         finished = set()
@@ -115,16 +117,20 @@ class Level:
         self._logger.reload_logs()
 
         for sim in self._logger.collected_log_content:
-            i_level, i, _, _, value = sim
+            i_level, i, _, _, value, times = sim
             # Don't add failed simulations, they will be generated again
             if not regen_failed:
                 self.finished_simulations.append(sim)
                 self._add_sample(i, value)
                 finished.add((i_level, i))
+                self.fine_times.append(times[0])
+                self.coarse_times.append(times[1])
             elif value[0] != np.inf and value[1] != np.inf:
                 self.finished_simulations.append(sim)
                 self._add_sample(i, value)
                 finished.add((i_level, i))
+                self.fine_times.append(times[0])
+                self.coarse_times.append(times[1])
 
         # Save simulations without those that failed
         if regen_failed:
@@ -261,18 +267,23 @@ class Level:
         Generate new random samples for fine and coarse simulation objects
         :return: list
         """
+        import time as t
+        start = t.time()
         self.set_coarse_sim()
         # All levels have fine simulation
         idx = self.n_total_samples
         self.fine_simulation.generate_random_sample()
         tag = self._get_sample_tag('F')
-        fine_sample = self.fine_simulation.simulation_sample(tag)
+        fine_sample = self.fine_simulation.simulation_sample(tag, start)
+
+        start = t.time()
         if self.coarse_simulation is not None:
             tag = self._get_sample_tag('C')
-            coarse_sample = self.coarse_simulation.simulation_sample(tag)
+            coarse_sample = self.coarse_simulation.simulation_sample(tag, start)
         else:
             # Zero level have no coarse simulation.
             coarse_sample = None
+
         return [self._logger.level_idx, idx, fine_sample, coarse_sample, None]
 
     def _run_simulations(self):
@@ -322,14 +333,16 @@ class Level:
         # Loop through pair of running simulations
         for (level, idx, fine_sim, coarse_sim, value) in self.running_simulations:
 
-            fine_result = self.fine_simulation.extract_result(fine_sim if isinstance(fine_sim, str) else fine_sim[1])
+            fine_result, fine_time = self.fine_simulation.extract_result(fine_sim if isinstance(fine_sim, str)
+                                                                         else fine_sim[1])
             fine_done = fine_result is not None
 
             if self.is_zero_level:
                 coarse_result = 0.0
+                coarse_time = 0
                 coarse_done = True
             else:
-                coarse_result = self.coarse_simulation.extract_result(
+                coarse_result, coarse_time = self.coarse_simulation.extract_result(
                     coarse_sim if isinstance(coarse_sim, str) else coarse_sim[1])
                 coarse_done = coarse_result is not None
 
@@ -337,9 +350,13 @@ class Level:
                 if fine_result is np.inf or coarse_result is np.inf:
                     coarse_result = fine_result = np.inf
 
+                self.fine_times.append(fine_time)
+                self.coarse_times.append(coarse_time)
+
                 # collect values
                 self.finished_simulations.append(
-                    [self._logger.level_idx, idx, fine_sim, coarse_sim, [fine_result, coarse_result]])
+                    [self._logger.level_idx, idx, fine_sim, coarse_sim, [fine_result, coarse_result],
+                     [fine_time, coarse_time]])
                 self._add_sample(idx, (fine_result, coarse_result))
             else:
                 new_running.append([level, idx, fine_sim, coarse_sim, value])
@@ -368,6 +385,7 @@ class Level:
         """
         Evaluating moments from moments function
         :param moments_fn: Moment evaluation functions
+        :param force: Reevaluate moments
         :return: tuple
         """
         # Current moment functions are different from last moment functions
@@ -422,11 +440,10 @@ class Level:
         """
         Estimate moments variance
         :param moments_fn: Moments evaluation function
-        :return: (array of variances of moments, number of samples)
-            variances have length R
+        :return: tuple (variance vector, length of moments)
         """
         assert self.n_samples > 1
-        mom_fine, mom_coarse = self.evaluate_moments(moments_fn, force=True)
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
         return var_vec, len(mom_fine)
 
@@ -436,7 +453,7 @@ class Level:
         :param moments_fn: Function for calculating moments
         :return: np.array, moments mean vector
         """
-        mom_fine, mom_coarse = self.evaluate_moments(moments_fn, force=True)
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
         mean_vec = np.mean(mom_fine - mom_coarse, axis=0)
         return mean_vec
 
@@ -456,7 +473,7 @@ class Level:
             left = min_sample
         right = min(np.max(fine_sample), quantile_3 + 1.5 * iqr)
 
-        # if left <= 0:
-        #     left = 1e-15
+        if left <= 0:
+            left = 1e-15
 
         return left, right
