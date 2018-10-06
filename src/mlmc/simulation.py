@@ -34,10 +34,11 @@ class Simulation(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def simulation_sample(self, tag):
+    def simulation_sample(self, tag, time):
         """
         Forward simulation for generated input.
         :param tag: Simulation sample identifier
+        :param time: time needed for sample generation
         """
 
     @abstractmethod

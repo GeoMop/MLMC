@@ -443,7 +443,7 @@ class Level:
         :return: tuple (variance vector, length of moments)
         """
         assert self.n_samples > 1
-        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn, force=True)
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
         return var_vec, len(mom_fine)
 
@@ -453,7 +453,7 @@ class Level:
         :param moments_fn: Function for calculating moments
         :return: np.array, moments mean vector
         """
-        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn, force=True)
         mean_vec = np.mean(mom_fine - mom_coarse, axis=0)
         return mean_vec
 
