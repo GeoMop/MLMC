@@ -144,7 +144,7 @@ class Logger:
         :return: None
         """
         for sim in simulations:
-            _, _, fine, coarse, _ = sim
+            _, _, fine, coarse, _, _ = sim
             if coarse is not None and os.path.isdir(coarse[1]):
                 shutil.rmtree(coarse[1], ignore_errors=True)
             if os.path.isdir(fine[1]):
