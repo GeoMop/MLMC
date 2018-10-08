@@ -111,7 +111,8 @@ class FlowSim(simulation.Simulation):
         self.ele_ids = None
         # Element IDs of computational mesh.
         self.n_fine_elements = 0
-        self._input_sample = []
+        # Fields samples
+        self._input_sample = {}
 
         # TODO: determine minimal element from mesh
         self.time_step_h1 = self.time_factor * self.step
@@ -288,3 +289,27 @@ class FlowSim(simulation.Simulation):
                                          flow123d=self.env['flow123d'],
                                          time=t.time() - start_time)
         return sample_tag, sample_dir
+
+    def get_run_time(self, sample_dir):
+        """
+        Get flow123d sample running time from profiler
+        :param sample_dir: Sample directory
+        :return: float
+        """
+        from datetime import datetime as dt
+        import json
+        profiler_file = os.path.join(sample_dir, "profiler_info_*.json")
+        profiler = glob.glob(profiler_file)[0]
+
+        try:
+            with open(profiler, "r") as f:
+                prof_content = json.load(f)
+            dt_obj_start = dt.strptime(prof_content["run-started-at"], "%m/%d/%y %H:%M:%S")
+            dt_obj_end = dt.strptime(prof_content["run-finished-at"], "%m/%d/%y %H:%M:%S")
+            run_time = (dt_obj_end - dt_obj_start).total_seconds()
+        except:
+            print("Extract run time failed")
+
+        return run_time
+
+

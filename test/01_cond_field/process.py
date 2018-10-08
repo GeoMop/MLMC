@@ -1,13 +1,8 @@
 import os
 import sys
-import json
 import shutil
-import copy
-import glob
 import yaml
-# import statprof
 import numpy as np
-import scipy.stats as stats
 import scipy.integrate as integrate
 
 src_path = os.path.dirname(os.path.abspath(__file__))
@@ -20,12 +15,10 @@ import mlmc.moments
 import mlmc.distribution
 import pbs
 import glob
-from datetime import datetime as dt
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 import test.test_mlmc as test_mlmc
 import mlmc.postprocess as postprocess
-import scipy as sc
 
 
 class FlowProcSim(flow_mc.FlowSim):
@@ -39,8 +32,6 @@ class FlowProcSim(flow_mc.FlowSim):
         :param sample_dir: Sample directory path
         :return: None, inf or water balance result (float) and overall sample time
         """
-        run_time = 0
-        preprocess_time = 0
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             try:
                 # extract the flux
@@ -64,35 +55,26 @@ class FlowProcSim(flow_mc.FlowSim):
                         total_flux += flux  # flux field
                         found = True
 
-                profiler_file = os.path.join(sample_dir, "profiler_info_*.json")
-                profiler = glob.glob(profiler_file)[0]
+                # Get flow123d computing time
+                run_time = self.get_run_time(sample_dir)
 
-                try:
-                    with open(profiler, "r") as f:
-                        prof_content = json.load(f)
-
-                    dt_obj_start = dt.strptime(prof_content["run-started-at"], "%m/%d/%y %H:%M:%S")
-                    dt_obj_end = dt.strptime(prof_content["run-finished-at"], "%m/%d/%y %H:%M:%S")
-                    run_time = (dt_obj_end - dt_obj_start).total_seconds()
-                except:
-                    print("extract run time error")
-
+                # Get preprocess time, generating random fields etc.
                 try:
                     with open(os.path.join(sample_dir, "FINISHED"), "r") as f:
-                        preprocess_time = f.readlines()[0]
+                        preprocess_time = float(f.readlines()[0])
                 except:
-                    print("extract preprocess time error")
+                    print("Extract preprocess time failed")
 
                 if not found:
                     raise
 
             except Exception as e:
                 print(str(e))
-                return np.inf, 0
+                return np.inf, [0, 0]
 
-            return -total_flux, (run_time + float(preprocess_time))
+            return -total_flux, [preprocess_time, run_time]
         else:
-            return None, 0
+            return None, [0, 0]
 
 
 class ProcessMLMC:
@@ -618,7 +600,7 @@ def main():
         assert os.path.isdir(work_dir)
         mlmc_list = []
         # for nl in [ 1,2,3,4,5,7,9]:
-        for nl in [1]:
+        for nl in [1, 2, 3, 4, 5, 7, 9]:
             prmc = ProcessMLMC(work_dir, options)
             prmc.setup(nl)
             prmc.initialize(clean=False)

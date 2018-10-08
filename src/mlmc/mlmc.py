@@ -7,10 +7,6 @@ from mlmc.logger import Logger
 import scipy.stats as st
 import scipy.integrate as integrate
 
-
-
-##################################################
-
 class MLMC:
     """
     Multilevel Monte Carlo method
@@ -282,45 +278,61 @@ class MLMC:
     #     for level in self.levels:
     #         level.reset_moment_fn(moments_fn)
 
-    def target_var_adding_samples(self, target_var, moments_fn, pbs):
+    def target_var_adding_samples(self, target_var, moments_fn, pbs=None, sleep=30):
         """
         Set level target number of samples according to improving estimates.  
         We assume set_initial_n_samples method was called before.
         :param target_var: float, whole mlmc target variance
         :param moments_fn: Object providing calculating moments
         :param pbs: Pbs script generator object
+        :param sleep: Time waiting for samples
         :return: None
         """
         # Get target levels samples
-        ns_target = self.l_target_samples()
+        ns_target = np.array(self.l_target_samples())
+        # Indices of target samples that are greater than already done samples
+        greater_items = np.arange(0, len(ns_target))
 
         while True:
             # Set target number of samples and create simulation samples
-            self.set_target_n_samples(ns_target)
+            self.set_level_target_n_samples(ns_target)
             self.refill_samples()
-            pbs.execute()
+            # Use PBS job scheduler
+            if pbs is not None:
+                pbs.execute()
 
             # Wait until at least half of the target samples are done
-            while any(self.l_finished_samples()[index] < ns_target[index] * 0.5 for index, ns in enumerate(ns_target)):
-                pass
+            while True:
+                # Wait a while
+                time.sleep(sleep)
+                finished_samples = ns_target - np.array([level.collect_samples() for level in self.levels])
+
+                # At least half of the samples must be done on each level
+                if np.all(finished_samples[greater_items] >= 0.5 * ns_target[greater_items]):
+                    break
 
             # Estimations - new number of samples from currently collected one
-            n_samples = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
+            n_samples = np.ceil(np.max(self.estimate_n_samples_for_target_variance(target_var, moments_fn), axis=1))
 
             # If new samples are very close to current target samples then we have our best estimation
-            if all((np.abs(n_samples[index] - ns_tar) / ns_tar) < 0.01
-                   if n_samples[index] >= ns_tar else True for index, ns_tar in enumerate(ns_target)):
+            if np.all(n_samples[greater_items] == ns_target[greater_items]):
                 break
 
             # New target sample is 10 percent of difference
             # between current number of target samples and new estimated one
             new_ns_target = []
-            for n_sample, ns_tar in zip(n_samples, ns_target):
+            greater_items = []
+            for index, (n_sample, ns_tar) in enumerate(zip(n_samples, ns_target)):
                 if n_sample > ns_tar:
-                    ns_tar += (n_sample - ns_tar) * 0.1
+                    # If it remains less than 10 percent of current estimates, add all samples immediately
+                    if (n_sample * 0.2) > (n_sample - ns_tar):
+                        ns_tar = n_sample
+                    else:
+                        ns_tar += (n_sample - ns_tar) * 0.1
+                    greater_items.append(index)
                 new_ns_target.append(ns_tar)
 
-            ns_target = new_ns_target
+            ns_target = np.array(np.ceil(new_ns_target))
 
     def l_target_samples(self):
         """
@@ -329,13 +341,15 @@ class MLMC:
         """
         return [level.target_n_samples for level in self.levels]
 
-    def l_finished_samples(self):
+    def set_level_target_n_samples(self, n_samples, fraction=1.0):
         """
-        Get all levels number of sample values
-        :return: list
+        Set level number of target samples
+        :param n_samples: list, each level target samples
+        :param fraction: Use just fraction of total samples
+        :return: None
         """
-        [level.collect_samples() for level in self.levels]
-        return [len(level.sample_values) for level in self.levels]
+        for level, n in zip(self.levels, n_samples):
+            level.set_target_n_samples(int(n * fraction))
 
     def estimate_n_samples_for_target_variance(self, target_variance, moments_fn=None, prescribe_vars=None):
         """
@@ -375,13 +389,12 @@ class MLMC:
         :param moments_fn: moment evaluation functions
         :param fraction: Plan only this fraction of computed counts.
         :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
-        :return: np.array with number of optimal samples
+        :return: None
         """
 
         n_samples = self.estimate_n_samples_for_target_variance(target_variance, moments_fn, prescribe_vars)
         n_samples = np.max(n_samples, axis=1)
-        for level, n in zip(self.levels, n_samples):
-            level.set_target_n_samples(int(n * fraction))
+        self.set_level_target_n_samples(n_samples, fraction)
 
     def refill_samples(self):
         """

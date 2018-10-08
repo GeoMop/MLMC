@@ -473,7 +473,4 @@ class Level:
             left = min_sample
         right = min(np.max(fine_sample), quantile_3 + 1.5 * iqr)
 
-        if left <= 0:
-            left = 1e-15
-
         return left, right

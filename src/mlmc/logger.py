@@ -2,6 +2,7 @@ import os
 import os.path
 import json
 import shutil
+import numpy as np
 
 
 class Logger:
@@ -75,7 +76,9 @@ class Logger:
                     for line in lines:
                         try:
                             sim = json.loads(line)
-                            # Simulation list has 6 items
+                            # Simulation list should contains 6 items if not add default time at the end
+                            if len(sim) == 5:
+                                sim.append([[np.inf, np.inf], [np.inf, np.inf]])
                             if len(sim) == 6:
                                 self.collected_log_content.append(sim)
                         except:
@@ -149,3 +152,4 @@ class Logger:
                 shutil.rmtree(coarse[1], ignore_errors=True)
             if os.path.isdir(fine[1]):
                 shutil.rmtree(fine[1], ignore_errors=True)
+

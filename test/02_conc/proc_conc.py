@@ -1,13 +1,7 @@
 import os
 import sys
-import json
 import yaml
-import shutil
-import copy
-# import statprof
 import numpy as np
-import scipy.stats as stats
-import scipy.integrate as integrate
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
@@ -18,7 +12,6 @@ import mlmc.moments
 import mlmc.distribution
 import pbs
 import glob
-from datetime import datetime as dt
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 import mlmc.postprocess as postprocess
@@ -68,32 +61,23 @@ class FlowConcSim(flow_mc.FlowSim):
                 if not found:
                     raise
 
-                profiler_file = os.path.join(sample_dir, "profiler_info_*.json")
-                profiler = glob.glob(profiler_file)[0]
+                # Get flow123d computing time
+                run_time = self.get_run_time(sample_dir)
 
-                try:
-                    with open(profiler, "r") as f:
-                        prof_content = json.load(f)
-
-                    dt_obj_start = dt.strptime(prof_content["run-started-at"], "%m/%d/%y %H:%M:%S")
-                    dt_obj_end = dt.strptime(prof_content["run-finished-at"], "%m/%d/%y %H:%M:%S")
-                    run_time = (dt_obj_end - dt_obj_start).total_seconds()
-                except:
-                    print("extract run time error")
-
+                # Get preprocess time, generating random fields etc.
                 try:
                     with open(os.path.join(sample_dir, "FINISHED"), "r") as f:
-                        preprocess_time = f.readlines()[0]
+                        preprocess_time = float(f.readlines()[0])
                 except:
                     print("extract preprocess time error")
 
             except Exception as e:
                 print(str(e))
-                return np.inf, 0
+                return np.inf, [0, 0]
 
-            return max_flux, (run_time + float(preprocess_time))
+            return max_flux, [preprocess_time, run_time]
         else:
-            return None, 0
+            return None, [0, 0]
 
 
 class ProcessMLMC:
