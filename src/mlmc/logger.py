@@ -70,11 +70,20 @@ class Logger:
         try:
             with open(log_collected_file, 'r') as reader:
                 lines = reader.readlines()
+                # File is not empty
                 if len(lines) > 0:
-
                     for line in lines:
-                        json.loads(line)
-                    self.collected_log_content = [json.loads(line) for line in lines]
+                        try:
+                            sim = json.loads(line)
+                            # Simulation list has 6 items
+                            if len(sim) == 6:
+                                self.collected_log_content.append(sim)
+                        except:
+                            continue
+
+            # The error was detected by reading log, save correct log again
+            if len(lines) != len(self.collected_log_content):
+                self.rewrite_collected_log(self.collected_log_content)
         except FileNotFoundError:
             self.collected_log_content = []
         try:
