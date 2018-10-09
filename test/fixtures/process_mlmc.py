@@ -9,14 +9,14 @@ import mlmc.mlmc
 from mlmc.distribution import Distribution
 
 
-def create_color_bar(size, label):
+def create_color_bar(size, label, ax = None):
     # Create colorbar
     colormap = plt.cm.viridis
     normalize = plt.Normalize(vmin=0, vmax=size)
     scalarmappaple = plt.cm.ScalarMappable(norm=normalize, cmap=colormap)
     scalarmappaple.set_array(np.arange(size))
     ticks = np.linspace(0, int(size/10)*10, 9)
-    clb = plt.colorbar(scalarmappaple, ticks=ticks, aspect=50, pad=0.01)
+    clb = plt.colorbar(scalarmappaple, ticks=ticks, aspect=50, pad=0.01, ax=ax)
     clb.set_label(label)
     return lambda v: colormap(normalize(v))
 
@@ -34,7 +34,7 @@ class ProcessMLMC:
         self._distribution = None
 
         # Bootstrap estimates of variances of MLMC estimators.
-        # Created by method 'construct_bootstrap_estimates'.
+        # Created by method 'ref_estimates_bootstrap'.
         # BS estimate of variance of MLMC mean estimate. For every moment.
         self._bs_mean_variance = None
         # BS estimate of variance of MLMC variance estimate. For every moment.
@@ -129,37 +129,81 @@ class ProcessMLMC:
         level_mean_est = self.mlmc.estimate_level_means(moments_fn)
         return mean_est, var_est, level_mean_est, level_var_est
 
-    def construct_bootstrap_estimates(self, n_subsamples=100, sample_vector=None):
+    def _bs_get_estimates_log(self):
+        moments_fn = self.moments
+        mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
+        level_var_est, _ = self.mlmc.estimate_diff_vars(moments_fn)
+        level_mean_est = self.mlmc.estimate_level_means(moments_fn)
+        return mean_est, var_est, level_mean_est, level_var_est
+
+
+    def _bs_get_estimates_regression(self):
+        moments_fn = self.moments
+        mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
+        level_var_est, _ = self.mlmc.estimate_diff_vars(moments_fn)
+        level_mean_est = self.mlmc.estimate_level_means(moments_fn)
+        level_var_est = self.mlmc.estimate_diff_vars_regression(moments_fn, level_var_est)
+        var_est = np.sum(level_var_est[:, :]/self.n_samples[:,  None], axis=0)
+        return mean_est, var_est, level_mean_est, level_var_est
+
+
+    def ref_estimates_bootstrap(self, n_subsamples=100, sample_vector=None, regression=False, log=False):
         """
-        Estimate error of the MLMC mean value estimator and of the MLMC variance estimator
-        using a bootstrapping. Bootstrapping use subsampling with replacements !!
+        Use current MLMC sample_vector to compute reference estimates for: mean, var, level_means, leval_vars.
+
+        Estimate error of these MLMC estimators using a bootstrapping (with replacements).
+        Bootstrapping samples MLMC estimators using provided 'sample_vector'.
+        Reference estimates are used as mean values of the estimators.
         :param n_subsamples: Number of subsamples to perform. Default is 1000. This should guarantee at least
                              first digit to be correct.
         :param sample_vector: By default same as the original sampling.
-        :return:
+        :return: None. Set reference and BS estimates.
         """
         moments_fn = self.moments
         if sample_vector is None:
             sample_vector = self.mlmc.n_samples
         if len(sample_vector) > self.n_levels:
             sample_vector = sample_vector[:self.n_levels]
+
+
+        estimate_fn = self._bs_get_estimates
+        if regression:
+            estimate_fn = self._bs_get_estimates_regression
+        if log:
+            _est_fn = estimate_fn
+            def estimate_fn():
+                (m, v, lm, lv) = _est_fn()
+                return (m, np.log(np.maximum(v, 1e-10)), lm, np.log(np.maximum(lv, 1e-10)))
+
+
         self.mlmc.update_moments(moments_fn)
-        estimates = self._bs_get_estimates(moments_fn)
+        estimates = estimate_fn()
         est_samples = [ np.zeros(n_subsamples) * est[..., None]  for est in estimates]
         for i in range(n_subsamples):
             self.mlmc.subsample(sample_vector)
-            sub_estimates = self._bs_get_estimates(moments_fn)
+            sub_estimates = estimate_fn()
             for es, se, e in zip(est_samples, sub_estimates, estimates):
                 es[..., i] = se - e
 
         bs_estimates = [np.sum(est ** 2, axis=-1) / n_subsamples for est in est_samples]
         mvar, vvar, lmvar, lvvar = bs_estimates
+        m, v, lm, lv = estimates
+
+        self._ref_mean = m
+        self._ref_var = v
+        self._ref_level_mean = lm
+        self._ref_level_var = lv
+
+        self._bs_n_samples = self.n_samples
         self._bs_mean_variance = mvar
         self._bs_var_variance = vvar
+
         # Var dX_l =  n * Var[ mean dX_l ] = n * (1 / n^2) * n * Var dX_l
         self._bs_level_mean_variance = lmvar * self.n_samples[:, None]
         self._bs_level_var_variance = lvvar
         self.mlmc.clean_subsamples()
+
+
 
 
     # def _plot_var_fraction(self, vars_frac):
@@ -295,7 +339,7 @@ class ProcessMLMC:
         exit()
 
 
-    def plot_level_vars(self, i_moments = None):
+    def plot_var_regression(self, i_moments = None):
         """
         Plot total and level variances and their regression and errors of regression.
         :param i_moments: List of moment indices to plot. If it is an int M, the range(M) is used.
@@ -305,37 +349,39 @@ class ProcessMLMC:
 
         fig = plt.figure(figsize=(30, 10))
         ax = fig.add_subplot(1, 2, 1)
-        ax_err = fig.add_subplot(2, 2, 1)
+        ax_err = fig.add_subplot(1, 2, 2)
 
         if not i_moments:
             i_moments = moments_fn.size
         if type(i_moments) is int:
             i_moments = list(range(i_moments))
+        i_moments = np.array(i_moments)
 
-        cmap = create_color_bar(moments_fn.size, 'moments')
+        cmap = create_color_bar(moments_fn.size, 'moments', ax=ax)
 
-        est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
-        reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn)
+        #est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
+        reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn) / self.n_samples[:, None]
+        ref_diff_vars = self._ref_level_var / self.n_samples[:, None]
 
 
-        self._plot_level_moment_value(ax, cmap, est_diff_vars, marker='o')
+        self._plot_level_moment_value(ax, cmap(i_moments), ref_diff_vars[:, i_moments], marker='o')
         # add regression curves
         moments_x_step = 0.5 / self.n_moments
         for m in i_moments:
             color = cmap(m)
             X = np.arange(self.n_levels) + moments_x_step * m
             Y = reg_diff_vars[1:, m]
-            ax.plot(X[2:], Y, c=color, label="reg")
+            ax.plot(X[1:], Y, c=color, label="reg")
 
-
+            ax_err.plot(X[:], reg_diff_vars[:, m]/ref_diff_vars[:, m], c=color, label="reg")
 
         ax.set_yscale('log')
-        ax.set_xscale('log')
-
         ax.set_ylabel("level variance $V_l$")
         ax.set_xlabel("step h_l")
 
-        ax.legend(loc=2)
+        ax_err.set_ylabel("regresion var. / reference var.")
+
+        #ax.legend(loc=2)
         fig.savefig('level_vars_regression.pdf')
         plt.show()
 
@@ -499,9 +545,9 @@ class CompareLevels:
         plt.show()
 
 
-    def construct_bootstrap_estimates(self, n_samples, sample_vector=None):
+    def ref_estimates_bootstrap(self, n_samples, sample_vector=None):
         for mc in self.mlmc:
-            mc.construct_bootstrap_estimates(self.moments, n_subsamples=n_samples, sample_vector=sample_vector)
+            mc.ref_estimates_bootstrap(self.moments, n_subsamples=n_samples, sample_vector=sample_vector)
 
     def plot_var_compare(self, nl):
         self[nl].plot_bootstrap_variance_compare(self.moments)

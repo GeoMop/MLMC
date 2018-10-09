@@ -881,25 +881,39 @@ def main():
         #cl.construct_densities(tol = 3.0, reg_param = 0.1)
         #cl.plot_densities(i_sample_mlmc=0)
 
-        # Level variances and regrssion
-        cl[9].plot_level_vars([1, 2, 4, 8, 16, 20])
-        #cl.plot_level_vars([5, 7, 9], [1])
+        # Level variances and regression
+        # cl[9].ref_estimates_bootstrap(10)
+        # sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        # cl[9].mlmc.subsample(sample_vec)
+        # cl[9].plot_var_regression([1, 2, 4, 8, 16, 20])
 
-        # Approximation of Variance of estimators for level variances
+        # Demonstrate that variance of varaince estimates is proportional to
         #sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
-        #sample_vec = 9*[100]
+        sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        #sample_vec = 9*[80]
+        mc = cl[9]
+        mc.ref_estimates_bootstrap(300, sample_vector=sample_vec, log=True)
+        mc.mlmc.update_moments(cl.moments)
+        mc.mlmc.subsample()
+        #cl.plot_var_compare(9)
+        mc.plot_bootstrap_var_var()
+
+        # Demonstrate that variance of varaince estimates based on regression
+        # TODO:
+        #sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        #sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        # sample_vec = 9*[80]
         # mc = cl[9]
-        # mc.construct_bootstrap_estimates(cl.moments, 300, sample_vector=None)
+        # mc.ref_estimates_bootstrap(300, sample_vector=sample_vec)
         # mc.mlmc.update_moments(cl.moments)
         # mc.mlmc.subsample()
-
         #cl.plot_var_compare(9)
-        #mc.plot_bootstrap_var_var(cl.moments)
+        # mc.plot_bootstrap_var_var()
 
 
         # statprof.start()
         # try:
-        #     cl.construct_bootstrap_estimates(10)
+        #     cl.ref_estimates_bootstrap(10)
         #     cl.plot_var_var(9)
         # finally:
         #     statprof.stop()
