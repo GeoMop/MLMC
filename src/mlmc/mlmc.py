@@ -234,6 +234,58 @@ class MLMC:
         new_vars[1:, 1:] = np.exp(np.dot(X, params)).reshape(L-1, -1)
         return new_vars
 
+    def _moment_varinace_regression(self, raw_vars, sim_steps):
+        """
+        Estimate level variance using separate model for every moment.
+
+        log(var_l) = A + B * log(h_l) + C * log^2(hl),
+                                            for l = 0, .. L-1
+        :param raw_vars: moments variances raws, shape (L,)
+        :param sim_steps: simulation steps, shape (L,)
+        :return: np.array  (L, )
+        """
+        L, = raw_vars.shape
+        L1 = L - 1
+        if L < 3:
+            return raw_vars
+
+        # estimate of variances of variances, compute scaling
+        W = 1.0 / np.sqrt(self._variance_of_variance())
+        W = W[1:]   # ignore level 0
+        W = np.ones((L - 1,))
+
+        # Use linear regresion to improve estimate of variances V1, ...
+        # model log var_{r,l} = a_r  + b * log step_l
+        # X_(r,l), j = dirac_{r,j}
+
+        K = 3 # number of parameters
+
+        X = np.zeros((L1, K))
+        log_step = np.log(sim_steps[1:])
+        X[:, 0] = np.ones(L1)
+        X[:, 1] = np.full(L1, log_step)
+        X[:, 2] = np.full(L1, log_step ** 2)
+
+
+        WX = X * W[:, None]    # scale
+
+        log_vars = np.log(raw_vars[1:])     # omit first variance
+        log_vars = W * log_vars       # scale RHS
+
+        params, res, rank, sing_vals = np.linalg.lstsq(WX, log_vars)
+        new_vars = raw_vars.copy()
+        new_vars[1:] = np.exp(np.dot(X, params))
+        return new_vars
+
+    def _all_moments_varinace_regression(self, raw_vars, sim_steps):
+        reg_vars = raw_vars.copy()
+        n_moments = raw_vars.shape[1]
+        for m in range(1, n_moments):
+            reg_vars[:, m] = self._moment_varinace_regression(raw_vars[:, m], sim_steps)
+        assert np.allclose( reg_vars[:, 0], 0.0)
+        return reg_vars
+
+
     def estimate_diff_vars_regression(self, moments_fn=None, raw_vars=None):
         """
         Estimate variances using linear regression model.
@@ -246,7 +298,8 @@ class MLMC:
             assert moments_fn is not None
             raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
         sim_steps = self.sim_steps
-        vars = self._varinace_regression(raw_vars, sim_steps)
+        #vars = self._varinace_regression(raw_vars, sim_steps)
+        vars = self._all_moments_varinace_regression(raw_vars, sim_steps)
         return vars
 
 
