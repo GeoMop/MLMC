@@ -80,6 +80,9 @@ class ProcessMLMC:
     def estimate_domain(self):
         return self.mlmc.estimate_domain()
 
+    def set_moments_color_bar(self, ax):
+        self._moments_cmap = create_color_bar(self.n_moments, "Moments", ax)
+
     def construct_density(self, tol=1.95, reg_param=0.01):
         """
         Construct approximation of the density using given moment functions.
@@ -124,28 +127,34 @@ class ProcessMLMC:
 
     def _bs_get_estimates(self):
         moments_fn = self.moments
-        mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
+        #mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
         level_var_est, _ = self.mlmc.estimate_diff_vars(moments_fn)
         level_mean_est = self.mlmc.estimate_level_means(moments_fn)
-        return mean_est, var_est, level_mean_est, level_var_est
-
-    def _bs_get_estimates_log(self):
-        moments_fn = self.moments
-        mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
-        level_var_est, _ = self.mlmc.estimate_diff_vars(moments_fn)
-        level_mean_est = self.mlmc.estimate_level_means(moments_fn)
-        return mean_est, var_est, level_mean_est, level_var_est
+        return level_mean_est, level_var_est
 
 
     def _bs_get_estimates_regression(self):
         moments_fn = self.moments
-        mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
+        #mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
         level_var_est, _ = self.mlmc.estimate_diff_vars(moments_fn)
         level_mean_est = self.mlmc.estimate_level_means(moments_fn)
         level_var_est = self.mlmc.estimate_diff_vars_regression(moments_fn, level_var_est)
-        var_est = np.sum(level_var_est[:, :]/self.n_samples[:,  None], axis=0)
-        return mean_est, var_est, level_mean_est, level_var_est
+        #var_est = np.sum(level_var_est[:, :]/self.n_samples[:,  None], axis=0)
+        return level_mean_est, level_var_est
 
+
+    def check_bias(self, a, b, var, label):
+        diff = np.abs(a - b)
+        tol = 2*np.sqrt(var) + 1e-20
+        if np.any( diff > tol):
+            print("Bias ", label)
+            it = np.nditer(diff, flags=['multi_index'])
+            while not it.finished:
+                midx = it.multi_index
+                sign = "<" if diff[midx] < tol[midx] else ">"
+                print("{:6} {:8.2g} {} {:8.2g} {:8.3g} {:8.3g}".format(
+                    str(midx), diff[midx], sign, tol[midx], a[midx], b[midx]))
+                it.iternext()
 
     def ref_estimates_bootstrap(self, n_subsamples=100, sample_vector=None, regression=False, log=False):
         """
@@ -164,17 +173,21 @@ class ProcessMLMC:
             sample_vector = self.mlmc.n_samples
         if len(sample_vector) > self.n_levels:
             sample_vector = sample_vector[:self.n_levels]
+        sample_vector = np.array(sample_vector)
 
-
-        estimate_fn = self._bs_get_estimates
+        level_estimate_fn = self._bs_get_estimates
         if regression:
-            estimate_fn = self._bs_get_estimates_regression
-        if log:
-            _est_fn = estimate_fn
-            def estimate_fn():
-                (m, v, lm, lv) = _est_fn()
-                return (m, np.log(np.maximum(v, 1e-10)), lm, np.log(np.maximum(lv, 1e-10)))
+            level_estimate_fn = self._bs_get_estimates_regression
 
+        def _estimate_fn():
+            lm, lv =level_estimate_fn()
+            return (np.sum(lm, axis=0), np.sum(lv[:, :] / sample_vector[:, None], axis=0), lm, lv)
+        if log:
+            def estimate_fn():
+                (m, v, lm, lv) = _estimate_fn()
+                return (m, np.log(np.maximum(v, 1e-10)), lm, np.log(np.maximum(lv, 1e-10)))
+        else:
+            estimate_fn = _estimate_fn
 
         self.mlmc.update_moments(moments_fn)
         estimates = estimate_fn()
@@ -182,11 +195,12 @@ class ProcessMLMC:
         for i in range(n_subsamples):
             self.mlmc.subsample(sample_vector)
             sub_estimates = estimate_fn()
-            for es, se, e in zip(est_samples, sub_estimates, estimates):
-                es[..., i] = se - e
+            for es, se in zip(est_samples, sub_estimates):
+                es[..., i] = se
 
-        bs_estimates = [np.sum(est ** 2, axis=-1) / n_subsamples for est in est_samples]
-        mvar, vvar, lmvar, lvvar = bs_estimates
+        bs_mean_est = [np.mean(est, axis=-1) for est in est_samples]
+        bs_err_est = [np.var(est, axis=-1, ddof=1) for est in est_samples]
+        mvar, vvar, lmvar, lvvar = bs_err_est
         m, v, lm, lv = estimates
 
         self._ref_mean = m
@@ -201,6 +215,14 @@ class ProcessMLMC:
         # Var dX_l =  n * Var[ mean dX_l ] = n * (1 / n^2) * n * Var dX_l
         self._bs_level_mean_variance = lmvar * self.n_samples[:, None]
         self._bs_level_var_variance = lvvar
+
+        # Check bias
+        mmean, vmean, lmmean, lvmean = bs_mean_est
+        self.check_bias(m,   mmean, mvar,   "Mean")
+        self.check_bias(v,   vmean, vvar,   "Variance")
+        self.check_bias(lm, lmmean, lmvar,  "Level Mean")
+        self.check_bias(lv, lvmean, lvvar,  "Level Varaince")
+
         self.mlmc.clean_subsamples()
 
 
@@ -212,16 +234,31 @@ class ProcessMLMC:
     #     :return:
     #     """
 
-    def _plot_level_moment_value(self, ax, cmap, value, marker='o'):
-        n_levels = value.shape[0]
-        n_moments = value.shape[1]
+    def _scatter_level_moment_data(self, ax, values, i_moments=None, marker='o'):
+        """
+        Scatter plot of given table of data for moments and levels.
+        X coordinate is given by level, and slight shift is applied to distinguish the moments.
+        Moments are colored using self._moments_cmap.
+        :param ax: Axis where to add the scatter.
+        :param values: data to plot, array n_levels x len(i_moments)
+        :param i_moments: Indices of moments to use, all moments grater then 0 are used.
+        :param marker: Scatter marker to use.
+        :return:
+        """
+        cmap = self._moments_cmap
+        if i_moments is None:
+            i_moments = range(1, self.n_moments)
+        values = values[:, i_moments[:]]
+        n_levels = values.shape[0]
+        n_moments = values.shape[1]
+
         moments_x_step = 0.5/n_moments
         for m in range(n_moments):
-            color = cmap(m)
+            color = cmap(i_moments[m])
             X = np.arange(n_levels) + moments_x_step * m
-            Y = value[:, m]
+            Y = values[:, m]
             col = np.ones(n_levels)[:, None] * np.array(color)[None, :]
-            ax.scatter(X, Y, c=col, marker=marker, label="var, m=" + str(m+1))
+            ax.scatter(X, Y, c=col, marker=marker, label="var, m=" + str(i_moments[m]))
 
     def plot_bootstrap_variance_compare(self):
         """
@@ -243,9 +280,9 @@ class ProcessMLMC:
         fig = plt.figure(figsize=(30, 10))
         ax = fig.add_subplot(1, 1, 1)
 
-        #self._plot_level_moment_value(ax, bs_variances, marker='.')
-        #self._plot_level_moment_value(ax, est_variances, marker='d')
-        self._plot_level_moment_value(ax, fraction, marker='o')
+        #self._scatter_level_moment_data(ax, bs_variances, marker='.')
+        #self._scatter_level_moment_data(ax, est_variances, marker='d')
+        self._scatter_level_moment_data(ax, fraction, marker='o')
 
         #ax.legend(loc=6)
         lbls = ['Total'] + [ 'L{:2d}'.format(l+1) for l in range(self.n_levels)]
@@ -260,50 +297,86 @@ class ProcessMLMC:
         plt.show()
 
 
-
-    def plot_bootstrap_var_var(self):
+    def plot_bs_variances(self, variances, y_label=None, log=True, y_lim=None):
         """
-        Plot fraction (MLMC var est) / (BS var set) for the total variance and level variances.
-        :param moments_fn:
+        Plot BS estimate of error of variances of other related quantities.
+        :param variances: Data, shape: (n_levels + 1, n_moments).
         :return:
         """
-        moments_fn = self.moments
-        mean, var, l_mean, l_var = self._bs_get_estimates(moments_fn)
-        print("n samples:", self.n_samples)
-        l_var = l_var
-        est_variances = np.concatenate((var[None, 1:], l_var[:, 1:]), axis=0)
+        if y_lim is None:
+            y_lim = (np.min(variances[:, 1:]), np.max(variances[:, 1:]))
+        if y_label is None:
+            y_label = "Error of variance estimates"
 
-        bs_var_var = self._bs_var_variance[1:]
-        #bs_l_var_var = self._bs_level_var_variance / (self.n_samples[:, None])**2
-        vv  =  self.mlmc._variance_of_variance()[:, None]
-
-
-        #print(vv)
-        #bs_l_var_var = - np.log(self._bs_level_var_variance[:, 1:]) / self.mlmc._variance_of_variance()[:, None]  / self.n_samples[:, None]
-        bs_l_var_var = self._bs_level_var_variance[:, 1:] / l_var[:, 1:]**2
-        bs_l_var_var = bs_l_var_var * (self.n_samples[:, None] - 1) / 2
-        #bs_l_var_var = bs_l_var_var ** (1 / self.mlmc._variance_of_variance()[:, None])
-        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
-
-        #fraction = est_variances / bs_variances
-
-        fig = plt.figure(figsize=(30, 10))
+        fig = plt.figure(figsize=(8, 5))
         ax = fig.add_subplot(1, 1, 1)
-        cmap = create_color_bar(moments_fn.size, 'moments')
-        self._plot_level_moment_value(ax, cmap, bs_variances, marker='.')
-        #self._plot_level_moment_value(ax, est_variances, marker='d')
-        #self._plot_level_moment_value(ax, fraction, marker='o')
+        self.set_moments_color_bar(ax)
+        self._scatter_level_moment_data(ax, variances, marker='.')
 
-        #ax.legend(loc=6)
-        lbls = ['Total'] + [ 'L{:2d}'.format(l+1) for l in range(self.n_levels)]
+        lbls = ['Total'] + ['L{:2d}\n{}\n{}'.format(l + 1, nsbs, ns)
+                            for l, (nsbs, ns) in enumerate(zip(self._bs_n_samples, self.n_samples))]
         ax.set_xticks(ticks = np.arange(self.n_levels + 1))
         ax.set_xticklabels(lbls)
-        ax.set_yscale('log')
-        ax.set_ylim((0.01, 1000))
+        if log:
+            ax.set_yscale('log')
+        ax.set_ylim(y_lim)
+        ax.set_ylabel(y_label)
 
-
-        fig.savefig('bs_var_vs_var.pdf')
+        fig.savefig('bs_var_var.pdf')
         plt.show()
+
+
+
+    def plot_bs_var_var(self):
+        """
+        Test that  MSE of V_l scales as V_l^2 / n_samples.
+        """
+        l_var = self._ref_level_var
+
+        # l_var_var_scale = l_var[:, 1:] ** 2 * 2 / (self._bs_n_samples[:, None] - 1)
+        # total_var_var_scale = np.sum(l_var_var_scale[:, :] / self._bs_n_samples[:, None]**2, axis=0 )
+
+
+        l_var_var_scale = self._bs_n_samples[:, None]**2
+        #total_var_var_scale = np.sum(l_var_var_scale[:, :] / self._bs_n_samples[:, None]**2, axis=0 )
+
+        bs_var_var = self._bs_var_variance[:]
+        #bs_var_var[1:] /= total_var_var_scale
+
+        bs_l_var_var = self._bs_level_var_variance[:, :]
+        bs_l_var_var[:, 1:] /= l_var_var_scale
+
+        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+        self.plot_bs_variances(bs_variances, log=True,
+                               y_label="BS estimate of MSE of $\hat V^r$, $\hat V^r_l$ estimators.",
+                               )#y_lim=(1e-10, 1e10))
+
+
+    def plot_bs_var_log_var(self):
+        """
+        Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).
+        """
+        vv = self.mlmc._variance_of_variance(self._bs_n_samples)
+        bs_l_var_var = (self._bs_level_var_variance[:, :]) / vv[:, None]
+        bs_var_var = self._bs_var_variance[:]  # - np.log(total_var_var_scale)
+        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+        self.plot_bs_variances(bs_variances, log=True,
+                               y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
+                               y_lim=(0.1, 20))
+
+
+    def plot_bs_var_reg_var(self):
+        """
+        Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).
+        """
+        vv = self.mlmc._variance_of_variance(self._bs_n_samples)
+        bs_l_var_var = (self._bs_level_var_variance[:, :]) / vv[:, None]
+        bs_var_var = self._bs_var_variance[:]  # - np.log(total_var_var_scale)
+        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+        self.plot_bs_variances(bs_variances, log=True,
+                               y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
+                               y_lim=(0.1, 20))
+
 
 
     def plot_means_and_vars(self, ax, ):
@@ -357,18 +430,19 @@ class ProcessMLMC:
             i_moments = list(range(i_moments))
         i_moments = np.array(i_moments)
 
-        cmap = create_color_bar(moments_fn.size, 'moments', ax=ax)
+        self.set_moments_color_bar(ax=ax)
+
 
         #est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
         reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn) / self.n_samples[:, None]
         ref_diff_vars = self._ref_level_var / self.n_samples[:, None]
 
 
-        self._plot_level_moment_value(ax, cmap(i_moments), ref_diff_vars[:, i_moments], marker='o')
+        self._scatter_level_moment_data(ax, i_moments, ref_diff_vars, marker='o')
         # add regression curves
         moments_x_step = 0.5 / self.n_moments
         for m in i_moments:
-            color = cmap(m)
+            color = self._moments_cmap(m)
             X = np.arange(self.n_levels) + moments_x_step * m
             Y = reg_diff_vars[1:, m]
             ax.plot(X[1:], Y, c=color, label="reg")
@@ -474,7 +548,7 @@ class CompareLevels:
 
     def construct_densities(self, tol=1.95, reg_param=0.01):
         for mc in self.mlmc:
-            mc.construct_density(self.moments, tol, reg_param)
+            mc.construct_density(tol, reg_param)
 
     @staticmethod
     def ecdf(x):

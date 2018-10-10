@@ -803,6 +803,100 @@ def get_arguments(arguments):
 
 
 
+def analyze_pdf_approx(cl):
+    # PDF approximation experiments
+    cl.set_common_domain(0)
+    cl.reinit(n_moments = 11)
+    cl.construct_densities(tol = 3.0, reg_param = 0.1)
+    cl.plot_densities(i_sample_mlmc=0)
+
+def analyze_regression_of_variance(cl):
+    # Level variances and regression
+    cl[9].ref_estimates_bootstrap(10)
+    sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+    cl[9].mlmc.subsample(sample_vec)
+    cl[9].plot_var_regression([1, 2, 4, 8, 16, 20])
+
+def analyze_error_of_variance(cl):
+    # Demonstrate that variance of varaince estimates is proportional to
+
+    mc = cl[9]
+    # sample_vec = 9*[8]
+    sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+    n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
+    sample_vec = np.max(n_samples, axis=1).astype(int)
+    print(sample_vec)
+
+
+    mc.ref_estimates_bootstrap(300, sample_vector=sample_vec)
+    mc.mlmc.update_moments(cl.moments)
+    mc.mlmc.subsample()
+
+    print("std var. est / var. est.\n", np.sqrt(mc._bs_var_variance) / mc._bs_mean_variance)
+    vv_components = mc._bs_level_mean_variance[:, :] ** 2 / mc._bs_n_samples[:,None] ** 3
+    vv = np.sum(vv_components, axis=0) / mc.n_levels
+    print("err. var. composition\n", vv_components  - vv)
+    # cl.plot_var_compare(9)
+    mc.plot_bs_var_var()
+
+
+def analyze_error_of_log_variance(cl):
+    # Demonstrate that variance of varaince estimates is proportional to
+    # sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+    sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+    # sample_vec = 9*[80]
+    mc = cl[9]
+    mc.ref_estimates_bootstrap(300, sample_vector=sample_vec, log=True)
+    mc.mlmc.update_moments(cl.moments)
+    mc.mlmc.subsample()
+    # cl.plot_var_compare(9)
+    mc.plot_bs_var_log_var()
+
+
+def analyze_error_of_regression_variance(cl):
+    # Demonstrate that variance of varaince estimates is proportional to
+    # sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+    sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+    # sample_vec = 9*[80]
+    mc = cl[9]
+    mc.ref_estimates_bootstrap(300, sample_vector=sample_vec, regression=True)
+    print(mc._bs_level_mean_variance)
+    mc.mlmc.update_moments(cl.moments)
+    mc.mlmc.subsample()
+    # cl.plot_var_compare(9)
+    mc.plot_bs_var_var()
+
+
+def process_analysis(cl):
+    """
+    Main analysis function. Particular types of analysis called from here.
+    :param cl: Instance of Compare levels.
+    :return:
+    """
+    cl.collected_report()
+
+    #analyze_pdf_approx(cl)
+    # analyze_regression_of_variance(cl)
+    analyze_error_of_variance(cl)
+    #analyze_error_of_log_variance(cl)
+    #analyze_error_of_regression_variance(cl)
+
+
+
+
+# Demonstrate that variance of varaince estimates based on regression
+# TODO:
+# sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+# sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+# sample_vec = 9*[80]
+# mc = cl[9]
+# mc.ref_estimates_bootstrap(300, sample_vector=sample_vec)
+# mc.mlmc.update_moments(cl.moments)
+# mc.mlmc.subsample()
+# cl.plot_var_compare(9)
+# mc.plot_bootstrap_var_var()
+
+
 def main():
     args = get_arguments(sys.argv[1:])
 
@@ -873,42 +967,8 @@ def main():
                            moment_class=moments.Legendre,
                            log_scale = False,
                            n_moments=21,)
-        cl.collected_report()
 
-        # PDF approximation experiments
-        #cl.set_common_domain(0)
-        #cl.n_moments = 11
-        #cl.construct_densities(tol = 3.0, reg_param = 0.1)
-        #cl.plot_densities(i_sample_mlmc=0)
-
-        # Level variances and regression
-        # cl[9].ref_estimates_bootstrap(10)
-        # sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
-        # cl[9].mlmc.subsample(sample_vec)
-        # cl[9].plot_var_regression([1, 2, 4, 8, 16, 20])
-
-        # Demonstrate that variance of varaince estimates is proportional to
-        #sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
-        sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
-        #sample_vec = 9*[80]
-        mc = cl[9]
-        mc.ref_estimates_bootstrap(300, sample_vector=sample_vec, log=True)
-        mc.mlmc.update_moments(cl.moments)
-        mc.mlmc.subsample()
-        #cl.plot_var_compare(9)
-        mc.plot_bootstrap_var_var()
-
-        # Demonstrate that variance of varaince estimates based on regression
-        # TODO:
-        #sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
-        #sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
-        # sample_vec = 9*[80]
-        # mc = cl[9]
-        # mc.ref_estimates_bootstrap(300, sample_vector=sample_vec)
-        # mc.mlmc.update_moments(cl.moments)
-        # mc.mlmc.subsample()
-        #cl.plot_var_compare(9)
-        # mc.plot_bootstrap_var_var()
+        process_analysis(cl)
 
 
         # statprof.start()
