@@ -234,7 +234,7 @@ class MLMC:
         new_vars[1:, 1:] = np.exp(np.dot(X, params)).reshape(L-1, -1)
         return new_vars
 
-    def _moment_varinace_regression(self, raw_vars, sim_steps):
+    def _moment_varinace_regression(self, raw_vars, sim_steps,  weights = None, order=2):
         """
         Estimate level variance using separate model for every moment.
 
@@ -242,46 +242,82 @@ class MLMC:
                                             for l = 0, .. L-1
         :param raw_vars: moments variances raws, shape (L,)
         :param sim_steps: simulation steps, shape (L,)
+        :param order: 2 for linear, 3 for quadratic model.
         :return: np.array  (L, )
         """
         L, = raw_vars.shape
-        L1 = L - 1
-        if L < 3:
+        if L < order + 1:
             return raw_vars
 
         # estimate of variances of variances, compute scaling
-        W = 1.0 / np.sqrt(self._variance_of_variance())
-        W = W[1:]   # ignore level 0
-        W = np.ones((L - 1,))
+        if weights is None:
+            weights = np.ones((L,))
+        else:
+            assert weights.shape == (L,)
+            weights = np.sqrt(weights)
+        #W = 1.0 / np.sqrt(self._variance_of_variance())
+        #W = W[:]   # ignore level 0
+        #W =
 
         # Use linear regresion to improve estimate of variances V1, ...
         # model log var_{r,l} = a_r  + b * log step_l
         # X_(r,l), j = dirac_{r,j}
 
-        K = 3 # number of parameters
+        K = order # number of parameters
 
-        X = np.zeros((L1, K))
-        log_step = np.log(sim_steps[1:])
-        X[:, 0] = np.ones(L1)
-        X[:, 1] = np.full(L1, log_step)
-        X[:, 2] = np.full(L1, log_step ** 2)
+        X = np.zeros((L, K))
+        log_step = np.log(sim_steps[:])
+        X[:, 0] = np.ones(L)
+        X[:, 1] = np.full(L, log_step)
+        if order == 3:
+            X[:, 2] = np.full(L, log_step ** 2)
 
 
-        WX = X * W[:, None]    # scale
+        WX = X * weights[:, None]    # scale
 
-        log_vars = np.log(raw_vars[1:])     # omit first variance
-        log_vars = W * log_vars       # scale RHS
+        log_vars = np.log(raw_vars[:])     # omit first variance
+        log_vars = weights * log_vars       # scale RHS
 
         params, res, rank, sing_vals = np.linalg.lstsq(WX, log_vars)
-        new_vars = raw_vars.copy()
-        new_vars[1:] = np.exp(np.dot(X, params))
-        return new_vars
+        #new_vars = raw_vars.copy()
+        return np.exp(np.dot(X, params))
+
 
     def _all_moments_varinace_regression(self, raw_vars, sim_steps):
+        """
+        Use linear regression model independently for every moment.
+        Different number of levels used for regression are tried
+        using the regression only if the fit error is smaller then theoretical
+        varaince of $V_l$ estimators.
+        :param raw_vars:
+        :param sim_steps:
+        :return:
+        """
         reg_vars = raw_vars.copy()
         n_moments = raw_vars.shape[1]
-        for m in range(1, n_moments):
-            reg_vars[:, m] = self._moment_varinace_regression(raw_vars[:, m], sim_steps)
+
+        #significance = 0.9999
+        #print("---")
+        reg_order = 3
+        mse_list = []
+        for l0 in range(1, self.n_levels - reg_order -1):
+            reg_vars = raw_vars.copy()
+            for m in range(1, n_moments):
+                reg_vars[l0:, m] = self._moment_varinace_regression(raw_vars[l0:, m], sim_steps[l0:],
+                                                                    weights= self.n_samples[l0:],
+                                                                    order=reg_order)
+
+            df =  self.n_levels - l0 #- reg_order
+            mse_l = (np.log(raw_vars[l0:, 1:]) - np.log(reg_vars[l0:, 1:]))**2 * self.n_samples[l0:, None] / n_moments #/ (df + reg_order) / n_moments
+            mse = np.sum( mse_l)
+            max_chi = st.chi2.cdf(mse, df=df)
+            mse_list.append(max_chi)
+
+            #print(self.n_levels - l0, max_chi, mse, np.max(mse_l, axis=1))
+            #if max_chi < 1e-1:
+                #print(df+reg_order)
+            #    break
+        print(mse_list)
         assert np.allclose( reg_vars[:, 0], 0.0)
         return reg_vars
 
@@ -299,7 +335,10 @@ class MLMC:
             raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
         sim_steps = self.sim_steps
         #vars = self._varinace_regression(raw_vars, sim_steps)
-        vars = self._all_moments_varinace_regression(raw_vars, sim_steps)
+        if self.n_levels < 3:
+            vars =  raw_vars
+        else:
+            vars = self._all_moments_varinace_regression(raw_vars, sim_steps)
         return vars
 
 
@@ -491,17 +530,23 @@ class MLMC:
 
         return np.array(means), np.array(vars)
 
+    def estimate_level_cost(self):
+        """
+        For every level estimate of cost of evaluation of a single coarse-fine simulation pair.
+        TODO: Estimate simulation cost from collected times + regression similar to variance
+        :return:
+        """
+        return np.array([lvl.n_ops_estimate for lvl in self.levels])
+
     def estimate_cost(self, level_times=None, n_samples=None):
         """
         Estimate total cost of mlmc
-        :param level_times: Number of level executions
+        :param level_times: Cost estimate for single simulation for every level.
         :param n_samples: Number of samples on each level
         :return: total cost
-        TODO: Have cost expressed as a time estimate. This requires
-        estimate of relation ship to the  task size and complexity.
         """
         if level_times is None:
-            level_times = [lvl.n_ops_estimate for lvl in self.levels]
+            level_times = self.estimate_level_cost()
         if n_samples is None:
             n_samples = self.n_samples
         return np.sum(level_times * n_samples)

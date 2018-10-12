@@ -810,6 +810,7 @@ def analyze_pdf_approx(cl):
     cl.construct_densities(tol = 3.0, reg_param = 0.1)
     cl.plot_densities(i_sample_mlmc=0)
 
+
 def analyze_regression_of_variance(cl):
     # Level variances and regression
     cl[9].ref_estimates_bootstrap(10)
@@ -817,41 +818,25 @@ def analyze_regression_of_variance(cl):
     cl[9].mlmc.subsample(sample_vec)
     cl[9].plot_var_regression([1, 2, 4, 8, 16, 20])
 
+
 def analyze_error_of_variance(cl):
-    # Demonstrate that variance of varaince estimates is proportional to
+    # Error of total variance estimater and contribution form individual levles.
 
     mc = cl[9]
-    # sample_vec = 9*[8]
     sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
-    n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
-    sample_vec = np.max(n_samples, axis=1).astype(int)
-    print(sample_vec)
-
+    #n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
+    #sample_vec = np.max(n_samples, axis=1).astype(int)
 
     mc.ref_estimates_bootstrap(300, sample_vector=sample_vec)
     mc.mlmc.update_moments(cl.moments)
     mc.mlmc.subsample()
 
-    print("std var. est / var. est.\n", np.sqrt(mc._bs_var_variance) / mc._bs_mean_variance)
-    vv_components = mc._bs_level_mean_variance[:, :] ** 2 / mc._bs_n_samples[:,None] ** 3
-    vv = np.sum(vv_components, axis=0) / mc.n_levels
-    print("err. var. composition\n", vv_components  - vv)
+    #print("std var. est / var. est.\n", np.sqrt(mc._bs_var_variance) / mc._bs_mean_variance)
+    #vv_components = mc._bs_level_mean_variance[:, :] ** 2 / mc._bs_n_samples[:,None] ** 3
+    #vv = np.sum(vv_components, axis=0) / mc.n_levels
+    #print("err. var. composition\n", vv_components  - vv)
     # cl.plot_var_compare(9)
-    mc.plot_bs_var_var()
-
-
-def analyze_error_of_log_variance(cl):
-    # Demonstrate that variance of varaince estimates is proportional to
-    # sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
-    sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
-    # sample_vec = 9*[80]
-    mc = cl[9]
-    mc.ref_estimates_bootstrap(300, sample_vector=sample_vec, log=True)
-    mc.mlmc.update_moments(cl.moments)
-    mc.mlmc.subsample()
-    # cl.plot_var_compare(9)
-    mc.plot_bs_var_log_var()
-
+    mc.plot_bs_var_error_contributions()
 
 def analyze_error_of_regression_variance(cl):
     # Demonstrate that variance of varaince estimates is proportional to
@@ -860,12 +845,90 @@ def analyze_error_of_regression_variance(cl):
     # sample_vec = 9*[80]
     mc = cl[9]
     mc.ref_estimates_bootstrap(300, sample_vector=sample_vec, regression=True)
-    print(mc._bs_level_mean_variance)
+    # print(mc._bs_level_mean_variance)
     mc.mlmc.update_moments(cl.moments)
     mc.mlmc.subsample()
     # cl.plot_var_compare(9)
-    mc.plot_bs_var_var()
+    mc.plot_bs_var_error_contributions()
 
+
+def analyze_error_of_level_variances(cl):
+    # Demonstrate that variance of varaince estimates is proportional to
+
+    mc = cl[9]
+    # sample_vec = 9*[8]
+    sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+    #n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
+    #sample_vec = np.max(n_samples, axis=1).astype(int)
+    #print(sample_vec)
+
+
+    mc.ref_estimates_bootstrap(300, sample_vector=sample_vec)
+    mc.mlmc.update_moments(cl.moments)
+    mc.mlmc.subsample()
+
+    #print("std var. est / var. est.\n", np.sqrt(mc._bs_var_variance) / mc._bs_mean_variance)
+    #vv_components = mc._bs_level_mean_variance[:, :] ** 2 / mc._bs_n_samples[:,None] ** 3
+    #vv = np.sum(vv_components, axis=0) / mc.n_levels
+    #print("err. var. composition\n", vv_components  - vv)
+    # cl.plot_var_compare(9)
+    mc.plot_bs_level_variances_error()
+
+
+def analyze_error_of_regression_level_variances(cl):
+    # Demonstrate that variance of varaince estimates is proportional to
+
+    mc = cl[9]
+    # sample_vec = 9*[8]
+    sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+    #n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
+    #sample_vec = np.max(n_samples, axis=1).astype(int)
+    #print(sample_vec)
+
+
+    mc.ref_estimates_bootstrap(10, sample_vector=sample_vec, regression=True)
+    mc.mlmc.update_moments(cl.moments)
+    mc.mlmc.subsample()
+
+    #print("std var. est / var. est.\n", np.sqrt(mc._bs_var_variance) / mc._bs_mean_variance)
+    #vv_components = mc._bs_level_mean_variance[:, :] ** 2 / mc._bs_n_samples[:,None] ** 3
+    #vv = np.sum(vv_components, axis=0) / mc.n_levels
+    #print("err. var. composition\n", vv_components  - vv)
+    # cl.plot_var_compare(9)
+    mc.plot_bs_level_variances_error()
+
+
+def analyze_error_of_log_variance(cl):
+    # Demonstrate that variance of varaince estimates is proportional to
+    # sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+    sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+    #sample_vec = 9*[80]
+    mc = cl[9]
+    mc.ref_estimates_bootstrap(300, sample_vector=sample_vec, log=True)
+    mc.mlmc.update_moments(cl.moments)
+    mc.mlmc.subsample()
+    # cl.plot_var_compare(9)
+    mc.plot_bs_var_log_var()
+
+
+
+
+def analyse_error_for_optimal_sample_vec(cl):
+    # We assume optimal choice of N_l (for known V_l, C_l).
+    # Then there is common asymptotics for the error of total variance V and
+    # total cost C. This analysis plot brakedown of the error of V to contributions
+    # from individual levels.
+    mc = cl[9]
+    var_target = 0.0001
+    n_samples = mc.mlmc.estimate_n_samples_for_target_variance(var_target, cl.moments )
+    sample_vec = np.max(n_samples, axis=1).astype(int)
+    print(sample_vec)
+    mc.ref_estimates_bootstrap(300, sample_vector=sample_vec)
+    mc.mlmc.update_moments(cl.moments)
+    mc.mlmc.subsample()
+    # cl.plot_var_compare(9)
+    mc.plot_var_error_contributions()
+    mc.plot_cost_error_contributions()
 
 def process_analysis(cl):
     """
@@ -876,10 +939,9 @@ def process_analysis(cl):
     cl.collected_report()
 
     #analyze_pdf_approx(cl)
-    # analyze_regression_of_variance(cl)
-    analyze_error_of_variance(cl)
+    #analyze_error_of_level_variances(cl)
+    analyze_error_of_regression_level_variances(cl)
     #analyze_error_of_log_variance(cl)
-    #analyze_error_of_regression_variance(cl)
 
 
 

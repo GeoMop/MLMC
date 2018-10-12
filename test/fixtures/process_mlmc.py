@@ -138,9 +138,16 @@ class ProcessMLMC:
         #mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
         level_var_est, _ = self.mlmc.estimate_diff_vars(moments_fn)
         level_mean_est = self.mlmc.estimate_level_means(moments_fn)
-        level_var_est = self.mlmc.estimate_diff_vars_regression(moments_fn, level_var_est)
+        reg_level_var_est = self.mlmc.estimate_diff_vars_regression(moments_fn, level_var_est)
+
+        print("ns: ", self.n_samples)
+        raw_diff = (np.log(level_var_est[:,1:]) - np.log(self._ref_level_var[:,1:])) * np.sqrt(self.n_samples)[:, None]
+        reg_diff = (np.log(reg_level_var_est[:, 1:]) - np.log(self._ref_level_var[:, 1:])) * np.sqrt(self.n_samples)[:, None]
+        print("raw - ref: ", np.linalg.norm(raw_diff))
+        print("reg - ref: ", np.linalg.norm(reg_diff))
+        #self.plot_var_regression([1,2,4,8,16,20])
         #var_est = np.sum(level_var_est[:, :]/self.n_samples[:,  None], axis=0)
-        return level_mean_est, level_var_est
+        return level_mean_est, reg_level_var_est
 
 
     def check_bias(self, a, b, var, label):
@@ -179,18 +186,36 @@ class ProcessMLMC:
         if regression:
             level_estimate_fn = self._bs_get_estimates_regression
 
-        def _estimate_fn():
-            lm, lv =level_estimate_fn()
-            return (np.sum(lm, axis=0), np.sum(lv[:, :] / sample_vector[:, None], axis=0), lm, lv)
-        if log:
-            def estimate_fn():
-                (m, v, lm, lv) = _estimate_fn()
-                return (m, np.log(np.maximum(v, 1e-10)), lm, np.log(np.maximum(lv, 1e-10)))
-        else:
-            estimate_fn = _estimate_fn
+        def full_fn(est_fn):
+            if log:
+                def estimate_fn():
+                    lm, lv = est_fn()
+                    m, v, lm, lv = (np.sum(lm, axis=0), np.sum(lv[:, :] / sample_vector[:, None], axis=0), lm, lv)
+                    v[1:] = np.log(np.maximum(v[1:], 1e-10))
+                    lv[:, 1:] = np.log(np.maximum(lv[:, 1:], 1e-10))
+                    return (m, v, lm, lv)
+            else:
+                def estimate_fn():
+                    lm, lv = est_fn()
+                    return (np.sum(lm, axis=0), np.sum(lv[:, :] / sample_vector[:, None], axis=0), lm, lv)
+            return estimate_fn
+
+        estimate_fn = full_fn(level_estimate_fn)
 
         self.mlmc.update_moments(moments_fn)
-        estimates = estimate_fn()
+        estimates = full_fn(self._bs_get_estimates)()
+        # if log:
+        #     m, v, lm, lv = estimates
+        #     v[1:] = np.log(np.maximum(v[1:], 1e-10))
+        #     lv[:, 1:] = np.log(np.maximum(lv[:, 1:], 1e-10))
+        #     estimates = (m, v, lm, lv)
+        m, v, lm, lv = estimates
+        self._ref_mean = m
+        self._ref_var = v
+        self._ref_level_mean = lm
+        self._ref_level_var = lv
+
+
         est_samples = [ np.zeros(n_subsamples) * est[..., None]  for est in estimates]
         for i in range(n_subsamples):
             self.mlmc.subsample(sample_vector)
@@ -201,29 +226,30 @@ class ProcessMLMC:
         bs_mean_est = [np.mean(est, axis=-1) for est in est_samples]
         bs_err_est = [np.var(est, axis=-1, ddof=1) for est in est_samples]
         mvar, vvar, lmvar, lvvar = bs_err_est
-        m, v, lm, lv = estimates
-
-        self._ref_mean = m
-        self._ref_var = v
-        self._ref_level_mean = lm
-        self._ref_level_var = lv
 
         self._bs_n_samples = self.n_samples
         self._bs_mean_variance = mvar
         self._bs_var_variance = vvar
 
-        # Var dX_l =  n * Var[ mean dX_l ] = n * (1 / n^2) * n * Var dX_l
+        # ???
+        # Err[ dX_l ] =  n * Var[ mean dX_l ] = n * (1 / n^2) * n * Var dX_l
         self._bs_level_mean_variance = lmvar * self.n_samples[:, None]
         self._bs_level_var_variance = lvvar
 
         # Check bias
         mmean, vmean, lmmean, lvmean = bs_mean_est
+        self._bs_mean_mean = mmean
+        self._bs_var_mean = vmean
+        self._bs_level_mean_mean = lmmean
+        self._bs_level_var_mean = lvmean
+        self.mlmc.clean_subsamples()
+        return
+
         self.check_bias(m,   mmean, mvar,   "Mean")
         self.check_bias(v,   vmean, vvar,   "Variance")
         self.check_bias(lm, lmmean, lmvar,  "Level Mean")
         self.check_bias(lv, lvmean, lvvar,  "Level Varaince")
 
-        self.mlmc.clean_subsamples()
 
 
 
@@ -327,42 +353,53 @@ class ProcessMLMC:
 
 
 
-    def plot_bs_var_var(self):
+    def plot_bs_var_error_contributions(self):
         """
-        Test that  MSE of V_l scales as V_l^2 / n_samples.
+        MSE of total variance and contribution of individual levels.
+        """
+        bs_var_var = self._bs_var_variance[:]
+        bs_l_var_var = self._bs_level_var_variance[:, :]
+        bs_l_var_var[:, 1:] /= self._bs_n_samples[:, None]**2
+
+        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+        self.plot_bs_variances(bs_variances, log=True,
+                               y_label="MSE of total variance and contributions from individual levels.",
+                               )
+
+    def plot_bs_level_variances_error(self):
+        """
+        Plot error of estimates of V_l. Scaled as V_l^2 / N_l
         """
         l_var = self._ref_level_var
 
-        # l_var_var_scale = l_var[:, 1:] ** 2 * 2 / (self._bs_n_samples[:, None] - 1)
-        # total_var_var_scale = np.sum(l_var_var_scale[:, :] / self._bs_n_samples[:, None]**2, axis=0 )
+        l_var_var_scale = l_var[:, 1:] ** 2 * 2 / (self._bs_n_samples[:, None] - 1)
+        total_var_var_scale = np.sum(l_var_var_scale[:, :] / self._bs_n_samples[:, None]**2, axis=0 )
 
 
-        l_var_var_scale = self._bs_n_samples[:, None]**2
-        #total_var_var_scale = np.sum(l_var_var_scale[:, :] / self._bs_n_samples[:, None]**2, axis=0 )
 
         bs_var_var = self._bs_var_variance[:]
-        #bs_var_var[1:] /= total_var_var_scale
+        bs_var_var[1:] /= total_var_var_scale
 
         bs_l_var_var = self._bs_level_var_variance[:, :]
         bs_l_var_var[:, 1:] /= l_var_var_scale
 
         bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
         self.plot_bs_variances(bs_variances, log=True,
-                               y_label="BS estimate of MSE of $\hat V^r$, $\hat V^r_l$ estimators.",
-                               )#y_lim=(1e-10, 1e10))
+                               y_label="MSE of level variances estimators scaled by $V_l^2/N_l$.")
 
 
     def plot_bs_var_log_var(self):
         """
         Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).
         """
-        vv = self.mlmc._variance_of_variance(self._bs_n_samples)
-        bs_l_var_var = (self._bs_level_var_variance[:, :]) / vv[:, None]
+        #vv = 1/ self.mlmc._variance_of_variance(self._bs_n_samples)
+        vv = self._bs_n_samples
+        bs_l_var_var = np.sqrt((self._bs_level_var_variance[:, :]) * vv[:, None])
         bs_var_var = self._bs_var_variance[:]  # - np.log(total_var_var_scale)
         bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
         self.plot_bs_variances(bs_variances, log=True,
                                y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
-                               y_lim=(0.1, 20))
+                               )#y_lim=(0.1, 20))
 
 
     def plot_bs_var_reg_var(self):
@@ -377,6 +414,40 @@ class ProcessMLMC:
                                y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
                                y_lim=(0.1, 20))
 
+
+
+    def plot_var_error_contributions(self):
+        """
+        Plot error in the total variance and contributions form individual levels.
+        """
+        #l_var = self._ref_level_var
+
+        # l_var_var_scale = l_var[:, 1:] ** 2 * 2 / (self._bs_n_samples[:, None] - 1)
+        # total_var_var_scale = np.sum(l_var_var_scale[:, :] / self._bs_n_samples[:, None]**2, axis=0 )
+
+
+        l_cost = self.mlmc.estimate_level_cost()
+        l_var, n_samples = self.mlmc.estimate_diff_vars(self.moments)
+        ref_cost = np.sum(l_cost)
+        ref_var = np.sum(l_var)
+
+        l_var_scale = np.sqrt(self._bs_level_var_mean[:, :] / ref_var * l_cost[:, None] / ref_cost) / np.sqrt(self._bs_n_samples[:, None])
+        #total_var_var_scale = np.sum(l_var_var_scale[:, :] / self._bs_n_samples[:, None]**2, axis=0 )
+
+        target_var = 0.0001
+        bs_var_var = np.sqrt(self._bs_var_variance[:]) / ref_var / target_var * np.sqrt(np.sum(l_var[:,:] * l_cost[:, None], axis=0))
+        #bs_var_var[1:] /= total_var_var_scale
+
+
+        bs_l_var_var = self._bs_level_var_variance[:, :]
+        bs_l_var_var[:, 1:] = l_var_scale[:, 1:]
+        avg_err = np.sum(bs_l_var_var) / self.n_levels
+        print(np.sum(bs_l_var_var, axis=1) - avg_err)
+
+        var_errors = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+        self.plot_bs_variances(var_errors, log=True,
+                               y_label="BS estimate of MSE of $\hat V^r$, $\hat V^r_l$ estimators.",
+                               )#y_lim=(1e-10, 1e10))
 
 
     def plot_means_and_vars(self, ax, ):
@@ -424,35 +495,36 @@ class ProcessMLMC:
         ax = fig.add_subplot(1, 2, 1)
         ax_err = fig.add_subplot(1, 2, 2)
 
-        if not i_moments:
+        if i_moments is None:
             i_moments = moments_fn.size
         if type(i_moments) is int:
             i_moments = list(range(i_moments))
-        i_moments = np.array(i_moments)
+        i_moments = np.array(i_moments, dtype=int)
 
         self.set_moments_color_bar(ax=ax)
 
 
-        #est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
-        reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn) / self.n_samples[:, None]
-        ref_diff_vars = self._ref_level_var / self.n_samples[:, None]
+        est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
+        reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn) #/ self.n_samples[:, None]
+        ref_diff_vars = self._ref_level_var #/ self.n_samples[:, None]
 
 
-        self._scatter_level_moment_data(ax, i_moments, ref_diff_vars, marker='o')
+        self._scatter_level_moment_data(ax,  ref_diff_vars, i_moments, marker='o')
+        self._scatter_level_moment_data(ax, est_diff_vars, i_moments, marker='d')
         # add regression curves
         moments_x_step = 0.5 / self.n_moments
         for m in i_moments:
             color = self._moments_cmap(m)
             X = np.arange(self.n_levels) + moments_x_step * m
             Y = reg_diff_vars[1:, m]
-            ax.plot(X[1:], Y, c=color, label="reg")
-
-            ax_err.plot(X[:], reg_diff_vars[:, m]/ref_diff_vars[:, m], c=color, label="reg")
+            ax.plot(X[1:], Y, c=color)
+            ax_err.plot(X[:], reg_diff_vars[:, m]/ref_diff_vars[:,m], c=color)
 
         ax.set_yscale('log')
         ax.set_ylabel("level variance $V_l$")
         ax.set_xlabel("step h_l")
 
+        ax_err.set_yscale('log')
         ax_err.set_ylabel("regresion var. / reference var.")
 
         #ax.legend(loc=2)
