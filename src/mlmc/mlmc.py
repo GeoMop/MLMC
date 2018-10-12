@@ -491,17 +491,23 @@ class MLMC:
 
         return np.array(means), np.array(vars)
 
+    def estimate_level_cost(self):
+        """
+        For every level estimate of cost of evaluation of a single coarse-fine simulation pair.
+        TODO: Estimate simulation cost from collected times + regression similar to variance
+        :return:
+        """
+        return np.array([lvl.n_ops_estimate for lvl in self.levels])
+
     def estimate_cost(self, level_times=None, n_samples=None):
         """
         Estimate total cost of mlmc
-        :param level_times: Number of level executions
+        :param level_times: Cost estimate for single simulation for every level.
         :param n_samples: Number of samples on each level
         :return: total cost
-        TODO: Have cost expressed as a time estimate. This requires
-        estimate of relation ship to the  task size and complexity.
         """
         if level_times is None:
-            level_times = [lvl.n_ops_estimate for lvl in self.levels]
+            level_times = self.estimate_level_cost()
         if n_samples is None:
             n_samples = self.n_samples
         return np.sum(level_times * n_samples)
