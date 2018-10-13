@@ -491,6 +491,17 @@ class MLMC:
 
         return np.array(means), np.array(vars)
 
+
+    def estimate_covariance(self, moments_fn):
+        """
+        MLMC estimate of covariance matrix of moments.
+        :return:
+        """
+        cov_mat = np.zeros((moments_fn.size, moments_fn.size))
+        for level in self.levels:
+            cov_mat += level.estimate_covariance(moments_fn)
+        return cov_mat
+
     def estimate_level_cost(self):
         """
         For every level estimate of cost of evaluation of a single coarse-fine simulation pair.
@@ -527,3 +538,5 @@ class MLMC:
         """
         for level in self.levels:
             level.subsample(None)
+
+

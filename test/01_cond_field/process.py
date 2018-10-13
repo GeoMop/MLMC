@@ -807,7 +807,7 @@ def analyze_pdf_approx(cl):
     # PDF approximation experiments
     cl.set_common_domain(0)
     cl.reinit(n_moments = 11)
-    cl.construct_densities(tol = 3.0, reg_param = 0.1)
+    cl.construct_densities(tol = 1.0, reg_param = 0.1)
     cl.plot_densities(i_sample_mlmc=0)
 
 
@@ -920,7 +920,7 @@ def process_analysis(cl):
     """
     cl.collected_report()
 
-    #analyze_pdf_approx(cl)
+    analyze_pdf_approx(cl)
     #analyze_regression_of_variance(cl)
     #analyze_error_of_variance(cl)
     #analyze_error_of_regression_variance(cl)
@@ -1001,7 +1001,7 @@ def main():
     elif command == 'process':
         assert os.path.isdir(work_dir)
         mlmc_list = []
-        for nl in [ 1,2,3,4, 5,7,9]:
+        for nl in [ 1,2,3,4,5, 7,9]:
         #for nl in [1]:
             prmc = UglyMLMC(work_dir, options)
             prmc.setup(nl)

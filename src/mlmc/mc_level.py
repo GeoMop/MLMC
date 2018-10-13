@@ -450,7 +450,9 @@ class Level:
         assert len(mom_fine) == len(mom_coarse)
         assert len(mom_fine) >= 2
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
-        return var_vec, len(mom_fine)
+        ns = self.n_samples
+        assert ns == len(mom_fine)  # This was previous unconsistent implementation.
+        return var_vec, ns
 
     def estimate_diff_mean(self, moments_fn):
         """
@@ -463,6 +465,19 @@ class Level:
         assert len(mom_fine) >= 1
         mean_vec = np.mean(mom_fine - mom_coarse, axis=0)
         return mean_vec
+
+    def estimate_covariance(self, moments_fn):
+        """
+        Estimate covariance matrix (non central).
+        :param moments_fn:
+        :return:
+        """
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        assert len(mom_fine) == len(mom_coarse)
+        assert len(mom_fine) >= 2
+        mom_diff= mom_fine - mom_coarse
+        cov = np.matmul(mom_diff.T, mom_diff) / self.n_samples
+        return cov
 
     def sample_range(self):
         """

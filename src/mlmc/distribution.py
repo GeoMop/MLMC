@@ -117,7 +117,7 @@ class Distribution:
             t1 = tol
             t0 = max(tol, init_error / 10)
             t = (np.array(sizes) - sizes[0]) / ( sizes[-1] - sizes[0])
-            tolerances = np.exp(np.log(t1) * t - np.log(t0) * (1-t))
+            tolerances = np.exp(np.log(t1) * t + np.log(t0) * (1-t))
         print(tolerances)
 
         for approx_size, approx_tol in  zip(sizes, tolerances):
@@ -356,7 +356,9 @@ class Distribution:
         """
         self._update_quadrature(multipliers)
 
-        q_density = np.exp(-np.dot(self._quad_moments, multipliers / self._moment_errs))
+        power = -np.dot(self._quad_moments, multipliers / self._moment_errs)
+        power = np.minimum(np.maximum(power, -200), 200)
+        q_density = np.exp(power)
         moment_outer = np.einsum('ki,kj->ijk', self._quad_moments, self._quad_moments)
         triu_idx = np.triu_indices(self.approx_size)
         triu_outer = moment_outer[triu_idx[0], triu_idx[1], :]
@@ -378,6 +380,7 @@ class Distribution:
                 jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
 
         jacobian_matrix[np.diag_indices_from(jacobian_matrix)] += self._stab_penalty
+
 
         #e_vals = np.linalg.eigvalsh(jacobian_matrix)
 

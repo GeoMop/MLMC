@@ -83,6 +83,12 @@ class ProcessMLMC:
     def set_moments_color_bar(self, ax):
         self._moments_cmap = create_color_bar(self.n_moments, "Moments", ax)
 
+    def set_covariance_moments(self):
+        """
+
+        :return:
+        """
+
     def construct_density(self, tol=1.95, reg_param=0.01):
         """
         Construct approximation of the density using given moment functions.
@@ -97,6 +103,12 @@ class ProcessMLMC:
         moments_fn = self.moments
         domain = moments_fn.domain
 
+        cov = self._covariance = self.mlmc.estimate_covariance(moments_fn)
+        L = np.linalg.cholesky(self._covariance)
+        Linv = np.linalg.inv(L)
+        LCL = np.matmul(np.matmul(Linv, cov), Linv.T)
+        natural_moments = mlmc.moments.TransformedMoments(moments_fn, Linv, L)
+
         # t_var = 1e-5
         # ref_diff_vars, _ = mlmc.estimate_diff_vars(moments_fn)
         # ref_moments, ref_vars = mc.estimate_moments(moments_fn)
@@ -108,7 +120,8 @@ class ProcessMLMC:
         # ref_total_std = np.sqrt(np.sum(ref_diff_vars / ref_n_samples[:, None]) / n_moments)
         # ref_total_std_x = np.sqrt(np.mean(ref_vars))
 
-        est_moments, est_vars = self.mlmc.estimate_moments(moments_fn)
+        est_moments, est_vars = self.mlmc.estimate_moments(natural_moments)
+
 
         # def describe(arr):
         #     print("arr ", arr)
@@ -119,8 +132,9 @@ class ProcessMLMC:
         #         np.min(arr), q1, np.mean(arr), q3, np.max(arr))
 
         print("n_levels: ", self.n_levels)
+        est_moments[1:] /= 1.1
         moments_data = np.stack((est_moments, est_vars), axis=1)
-        distr_obj = Distribution(moments_fn, moments_data, domain=domain)
+        distr_obj = Distribution(natural_moments, moments_data, domain=domain)
         distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
         # distr_obj.estimate_density_minimize(0.1)  # 0.95 two side quantile
         self._distribution = distr_obj
