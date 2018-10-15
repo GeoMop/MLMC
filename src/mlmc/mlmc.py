@@ -288,53 +288,60 @@ class MLMC:
         :param sleep: Time waiting for samples
         :return: None
         """
-        # Get target levels samples
-        ns_target = np.array(self.l_target_samples())
-        # Indices of target samples that are greater than already done samples
-        greater_items = np.arange(0, len(ns_target))
+        # Get default scheduled samples
+        n_scheduled = np.array(self.l_scheduled_samples())
+        # Scheduled samples that are greater than already done samples
+        greater_items = np.arange(0, len(n_scheduled))
 
-        while True:
-            # Set target number of samples and create simulation samples
-            self.set_level_target_n_samples(ns_target)
-            self.refill_samples()
-            # Use PBS job scheduler
-            if pbs is not None:
-                pbs.execute()
+        # Scheduled samples and wait until at least half of the samples are done
+        self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
 
-            # Wait until at least half of the target samples are done
-            while True:
-                # Wait a while
-                time.sleep(sleep)
-                finished_samples = ns_target - np.array([level.collect_samples() for level in self.levels])
+        # New estimation according to already finished samples
+        n_estimated = np.ceil(np.max(self.estimate_n_samples_for_target_variance(target_var, moments_fn), axis=1))
 
-                # At least half of the samples must be done on each level
-                if np.all(finished_samples[greater_items] >= 0.5 * ns_target[greater_items]):
-                    break
-
-            # Estimations - new number of samples from currently collected one
-            n_samples = np.ceil(np.max(self.estimate_n_samples_for_target_variance(target_var, moments_fn), axis=1))
-
-            # If new samples are very close to current target samples then we have our best estimation
-            if np.all(n_samples[greater_items] == ns_target[greater_items]):
-                break
-
-            # New target sample is 10 percent of difference
+        # Loop until number of estimated samples is greater than the number of scheduled samples
+        while not np.all(n_estimated[greater_items] == n_scheduled[greater_items]):
+            # New scheduled sample will be 10 percent of difference
             # between current number of target samples and new estimated one
-            new_ns_target = []
-            greater_items = []
-            for index, (n_sample, ns_tar) in enumerate(zip(n_samples, ns_target)):
-                if n_sample > ns_tar:
-                    # If it remains less than 10 percent of current estimates, add all samples immediately
-                    if (n_sample * 0.2) > (n_sample - ns_tar):
-                        ns_tar = n_sample
-                    else:
-                        ns_tar += (n_sample - ns_tar) * 0.1
-                    greater_items.append(index)
-                new_ns_target.append(ns_tar)
+            # If 10 percent of estimated samples is greater than difference between estimated and scheduled samples,
+            # set scheduled samples to estimated samples
+            n_scheduled = np.ceil(np.where(n_estimated < n_scheduled,
+                                           n_scheduled,
+                                           np.where((n_estimated * 0.1) > (n_estimated - n_scheduled),
+                                                    n_estimated,
+                                                    n_scheduled + (n_estimated - n_scheduled) * 0.1)))
 
-            ns_target = np.array(np.ceil(new_ns_target))
+            # Levels where estimated are greater than scheduled
+            greater_items = np.where(np.greater(n_estimated, n_scheduled))[0]
 
-    def l_target_samples(self):
+            # Scheduled samples and wait until at least half of the samples are done
+            self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
+
+            # New estimation according to already finished samples
+            n_estimated = np.ceil(np.max(self.estimate_n_samples_for_target_variance(target_var, moments_fn), axis=1))
+
+    def set_scheduled_and_wait(self, n_scheduled, greater_items, pbs, sleep):
+        """
+        Scheduled samples on each level and wait until at least half of the samples is done
+        :param n_scheduled: ndarray, number of scheduled samples on each level
+        :param greater_items: Items where n_estimated is greater than n_scheduled
+        :param pbs: Pbs script generator object
+        :param sleep: Time waiting for samples
+        :return: None
+        """
+        # Set scheduled samples and run simulations
+        self.set_level_target_n_samples(n_scheduled)
+        self.refill_samples()
+        # Use PBS job scheduler
+        if pbs is not None:
+            pbs.execute()
+
+        # Wait until at least half of the scheduled samples are done on each level
+        while np.any(np.array([level.get_n_finished() for level in self.levels])[greater_items] < 0.5 * n_scheduled[greater_items]):
+            # Wait a while
+            time.sleep(sleep)
+
+    def l_scheduled_samples(self):
         """
         Get all levels target number of samples
         :return: list 
