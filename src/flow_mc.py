@@ -1,10 +1,12 @@
 import os
 import os.path
-import yaml
 import subprocess
 import time as t
 import gmsh_io
 import numpy as np
+import json
+import glob
+from datetime import datetime as dt
 import shutil
 import copy
 import mlmc.simulation as simulation
@@ -296,8 +298,6 @@ class FlowSim(simulation.Simulation):
         :param sample_dir: Sample directory
         :return: float
         """
-        from datetime import datetime as dt
-        import json
         profiler_file = os.path.join(sample_dir, "profiler_info_*.json")
         profiler = glob.glob(profiler_file)[0]
 
