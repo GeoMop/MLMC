@@ -278,7 +278,7 @@ class MLMC:
     #     for level in self.levels:
     #         level.reset_moment_fn(moments_fn)
 
-    def target_var_adding_samples(self, target_var, moments_fn, pbs=None, sleep=30):
+    def target_var_adding_samples(self, target_var, moments_fn, pbs=None, sleep=20, add_coef=0.1):
         """
         Set level target number of samples according to improving estimates.  
         We assume set_initial_n_samples method was called before.
@@ -286,6 +286,7 @@ class MLMC:
         :param moments_fn: Object providing calculating moments
         :param pbs: Pbs script generator object
         :param sleep: Time waiting for samples
+        :param add_coef: Coefficient for adding samples
         :return: None
         """
         # Get default scheduled samples
@@ -305,12 +306,14 @@ class MLMC:
             # between current number of target samples and new estimated one
             # If 10 percent of estimated samples is greater than difference between estimated and scheduled samples,
             # set scheduled samples to estimated samples
+
+            new_scheduled = np.where((n_estimated * add_coef) > (n_estimated - n_scheduled),
+                             n_estimated,
+                             n_scheduled + (n_estimated - n_scheduled) * add_coef)
+
             n_scheduled = np.ceil(np.where(n_estimated < n_scheduled,
                                            n_scheduled,
-                                           np.where((n_estimated * 0.1) > (n_estimated - n_scheduled),
-                                                    n_estimated,
-                                                    n_scheduled + (n_estimated - n_scheduled) * 0.1)))
-
+                                           new_scheduled))
             # Levels where estimated are greater than scheduled
             greater_items = np.where(np.greater(n_estimated, n_scheduled))[0]
 
@@ -320,13 +323,14 @@ class MLMC:
             # New estimation according to already finished samples
             n_estimated = np.ceil(np.max(self.estimate_n_samples_for_target_variance(target_var, moments_fn), axis=1))
 
-    def set_scheduled_and_wait(self, n_scheduled, greater_items, pbs, sleep):
+    def set_scheduled_and_wait(self, n_scheduled, greater_items, pbs, sleep, fin_sample_coef=0.5):
         """
         Scheduled samples on each level and wait until at least half of the samples is done
         :param n_scheduled: ndarray, number of scheduled samples on each level
         :param greater_items: Items where n_estimated is greater than n_scheduled
         :param pbs: Pbs script generator object
         :param sleep: Time waiting for samples
+        :param done_sample_coef: The proportion of samples to finished for further estimate
         :return: None
         """
         # Set scheduled samples and run simulations
@@ -336,10 +340,13 @@ class MLMC:
         if pbs is not None:
             pbs.execute()
 
+        # Finished level samples
+        n_finished = np.array([level.get_n_finished() for level in self.levels])
         # Wait until at least half of the scheduled samples are done on each level
-        while np.any(np.array([level.get_n_finished() for level in self.levels])[greater_items] < 0.5 * n_scheduled[greater_items]):
+        while np.any(n_finished[greater_items] < fin_sample_coef * n_scheduled[greater_items]):
             # Wait a while
             time.sleep(sleep)
+            n_finished = np.array([level.get_n_finished() for level in self.levels])
 
     def l_scheduled_samples(self):
         """
