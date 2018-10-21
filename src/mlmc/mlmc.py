@@ -525,3 +525,10 @@ class MLMC:
         """
         for level in self.levels:
             level.sample_indices = None
+
+    def get_sample_times(self):
+        """
+        The total average duration of one sample per level (fine + coarse together)
+        :return: list
+        """
+        return [level.sample_time() for level in self.levels]

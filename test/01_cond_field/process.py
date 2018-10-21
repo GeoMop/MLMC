@@ -490,6 +490,9 @@ class ProcessMLMC:
 def all_results(mlmc_list):
     import matplotlib.pyplot as plt
 
+    print("sample times")
+    print([ml.mc.get_sample_times() for ml in mlmc_list])
+
     fig = plt.figure(figsize=(30, 10))
     ax1 = fig.add_subplot(1, 2, 1)
     ax2 = fig.add_subplot(1, 2, 2)
@@ -504,6 +507,7 @@ def all_results(mlmc_list):
     for prmc in mlmc_list:
         prmc.domain = mlmc_list[0].ref_domain
         prmc.set_moments(n_moments, log=True)
+
         domain, est_domain, mc_test = postprocess.compute_results(mlmc_list[0], n_moments, prmc)
         postprocess.plot_pdf_approx(ax1, ax2, mc0_samples, prmc, domain, est_domain)
 
