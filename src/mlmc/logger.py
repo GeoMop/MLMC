@@ -2,6 +2,7 @@ import os
 import os.path
 import json
 import shutil
+import numpy as np
 
 
 class Logger:
@@ -70,11 +71,22 @@ class Logger:
         try:
             with open(log_collected_file, 'r') as reader:
                 lines = reader.readlines()
+                # File is not empty
                 if len(lines) > 0:
-
                     for line in lines:
-                        json.loads(line)
-                    self.collected_log_content = [json.loads(line) for line in lines]
+                        try:
+                            sim = json.loads(line)
+                            # Simulation list should contains 6 items if not add default time at the end
+                            if len(sim) == 5:
+                                sim.append([[np.inf, np.inf], [np.inf, np.inf]])
+                            if len(sim) == 6:
+                                self.collected_log_content.append(sim)
+                        except:
+                            continue
+
+            # The error was detected by reading log, save correct log again
+            if len(lines) != len(self.collected_log_content):
+                self.rewrite_collected_log(self.collected_log_content)
         except FileNotFoundError:
             self.collected_log_content = []
         try:
@@ -135,8 +147,9 @@ class Logger:
         :return: None
         """
         for sim in simulations:
-            _, _, fine, coarse, _ = sim
+            _, _, fine, coarse, _, _ = sim
             if coarse is not None and os.path.isdir(coarse[1]):
                 shutil.rmtree(coarse[1], ignore_errors=True)
             if os.path.isdir(fine[1]):
                 shutil.rmtree(fine[1], ignore_errors=True)
+

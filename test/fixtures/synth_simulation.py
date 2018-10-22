@@ -49,7 +49,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         """
         return x
 
-    def simulation_sample(self, tag):
+    def simulation_sample(self, tag, time=None):
         """
         Run simulation
         :param sim_id:    Simulation id
@@ -58,6 +58,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         h = self.step
         # Specific method is called according to pass parameters
         y = getattr(self, self.config['sim_method'])(x, h)  # self._sample_fn(x, h)
+
 
         if (self.n_nans / (1e-10 + len(self._result_dict)) < self.nan_fraction):
             self.n_nans += 1
@@ -80,5 +81,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         self.coarse_sim_set = True
 
     def _extract_result(self, sim_id):
-        return self._result_dict[sim_id]
+        # sample time, not implemented in this simulation
+        time = 0
+        return self._result_dict[sim_id], time
 

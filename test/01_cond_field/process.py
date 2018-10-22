@@ -1,15 +1,9 @@
 import os
 import sys
-import json
 import shutil
-import copy
-import glob
 import yaml
-# import statprof
 import numpy as np
-import scipy.stats as stats
 import scipy.integrate as integrate
-
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
@@ -20,11 +14,11 @@ import mlmc.simulation
 import mlmc.moments
 import mlmc.distribution
 import pbs
+import glob
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 import test.test_mlmc as test_mlmc
 import mlmc.postprocess as postprocess
-import scipy as sc
 
 
 class FlowProcSim(flow_mc.FlowSim):
@@ -36,7 +30,7 @@ class FlowProcSim(flow_mc.FlowSim):
         """
         Extract the observed value from the Flow123d output.
         :param sample_dir: Sample directory path
-        :return: None, inf or water balance result (float)
+        :return: None, inf or water balance result (float) and overall sample time
         """
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             try:
@@ -60,14 +54,27 @@ class FlowProcSim(flow_mc.FlowSim):
                             raise Exception("Possitive inflow at outlet region.")
                         total_flux += flux  # flux field
                         found = True
+
+                # Get flow123d computing time
+                run_time = self.get_run_time(sample_dir)
+
+                # Get preprocess time, generating random fields etc.
+                try:
+                    with open(os.path.join(sample_dir, "FINISHED"), "r") as f:
+                        preprocess_time = float(f.readlines()[0])
+                except:
+                    print("Extract preprocess time failed")
+
+                if not found:
+                    raise
+
             except Exception as e:
                 print(str(e))
-                return np.inf
-            if not found:
-                raise np.inf
-            return -total_flux
+                return np.inf, [0, 0]
+
+            return -total_flux, [preprocess_time, run_time]
         else:
-            return None
+            return None, [0, 0]
 
 
 class ProcessMLMC:
@@ -483,6 +490,9 @@ class ProcessMLMC:
 def all_results(mlmc_list):
     import matplotlib.pyplot as plt
 
+    print("sample times")
+    print([ml.mc.get_sample_times() for ml in mlmc_list])
+
     fig = plt.figure(figsize=(30, 10))
     ax1 = fig.add_subplot(1, 2, 1)
     ax2 = fig.add_subplot(1, 2, 2)
@@ -497,6 +507,7 @@ def all_results(mlmc_list):
     for prmc in mlmc_list:
         prmc.domain = mlmc_list[0].ref_domain
         prmc.set_moments(n_moments, log=True)
+
         domain, est_domain, mc_test = postprocess.compute_results(mlmc_list[0], n_moments, prmc)
         postprocess.plot_pdf_approx(ax1, ax2, mc0_samples, prmc, domain, est_domain)
 
@@ -593,7 +604,7 @@ def main():
         assert os.path.isdir(work_dir)
         mlmc_list = []
         # for nl in [ 1,2,3,4,5,7,9]:
-        for nl in [1]:
+        for nl in [1, 2, 3, 4, 5, 7, 9]:
             prmc = ProcessMLMC(work_dir, options)
             prmc.setup(nl)
             prmc.initialize(clean=False)

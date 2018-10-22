@@ -282,13 +282,13 @@ class TestMLMC:
         vars = np.zeros((self.n_levels, self.n_moments))
         for vars_sample in self.all_level_vars:
             vars[:, 1:] = vars_sample
-            reg_vars = self.mc._varinace_regression(vars, sim_steps)
+            reg_vars = self.mc._variance_regression(vars, sim_steps)
             #diff = reg_vars[:, 1:] - mean_level_vars[1:, :]
             diff = reg_vars[:, 1:] - self.ref_level_vars[:, 1:]
             all_diffs.append(diff)
 
         # compute error
-        print( "RMS:", np.linalg.norm(np.array(all_diffs).ravel()))
+        print("RMS:", np.linalg.norm(np.array(all_diffs).ravel()))
 
         def plot_var_regression():
             # Plot variance regression for exact level variances
