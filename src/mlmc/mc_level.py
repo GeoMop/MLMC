@@ -480,3 +480,22 @@ class Level:
         right = min(np.max(fine_sample), quantile_3 + 1.5 * iqr)
 
         return left, right
+
+    def get_n_finished(self):
+        """
+        Number of finished simulations
+        :return: int
+        """
+        self.collect_samples()
+        return len(self.finished_simulations)
+
+    def sample_time(self):
+        """
+        Get average sample time
+        :return: float
+        """
+        times = np.array(self.fine_times) + np.array(self.coarse_times)
+        # Remove error times - temporary solution
+        times = times[(times < 1e5)]
+
+        return np.mean(times)
