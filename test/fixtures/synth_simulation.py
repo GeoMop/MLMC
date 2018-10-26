@@ -11,6 +11,8 @@ import numpy as np
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, src_path + '/../src/')
 import mlmc.simulation
+import mlmc.sample
+
 
 class SimulationTest(mlmc.simulation.Simulation):
     # Artificial simulation. Just random parameter + numerical error."""
@@ -65,7 +67,8 @@ class SimulationTest(mlmc.simulation.Simulation):
             y = np.nan
 
         self._result_dict[tag] = float(y)
-        return tag
+
+        return mlmc.sample.Sample(sample_tag=tag)
 
     def generate_random_sample(self):
         distr = self.config['distr']
@@ -80,8 +83,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         self._coarse_simulation = coarse_simulation
         self.coarse_sim_set = True
 
-    def _extract_result(self, sim_id):
+    def _extract_result(self, sample):
         # sample time, not implemented in this simulation
         time = 0
-        return self._result_dict[sim_id], time
-
+        return self._result_dict[sample.sample_tag], time

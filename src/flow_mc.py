@@ -1,6 +1,7 @@
 import os
 import os.path
 import yaml
+import glob
 import subprocess
 import time as t
 import gmsh_io
@@ -8,6 +9,7 @@ import numpy as np
 import shutil
 import copy
 import mlmc.simulation as simulation
+import mlmc.sample as sample
 
 
 def substitute_placeholders(file_in, file_out, params):
@@ -282,13 +284,25 @@ class FlowSim(simulation.Simulation):
 
         gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
 
+        preprocess_time = (t.time() - start_time)
+
+        package_dir = self.run_sim_sample(out_subdir)
+
+        return sample.Sample(sample_dir, package_dir, preprocess_time)
+
+    def run_sim_sample(self, out_subdir):
+        """
+        @TODO
+        :param out_subdir: 
+        :return: 
+        """
         # Add flow123d realization to pbs script
-        self.pbs_creater.add_realization(self.n_fine_elements,
-                                         output_subdir=out_subdir,
-                                         work_dir=self.work_dir,
-                                         flow123d=self.env['flow123d'],
-                                         time=t.time() - start_time)
-        return sample_tag, sample_dir
+        package_dir = self.pbs_creater.add_realization(self.n_fine_elements,
+                                                       output_subdir=out_subdir,
+                                                       work_dir=self.work_dir,
+                                                       flow123d=self.env['flow123d'])
+
+        return package_dir
 
     def get_run_time(self, sample_dir):
         """

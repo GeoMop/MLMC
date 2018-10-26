@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.ma as ma
+from mlmc.sample import Sample
 
 
 class Level:
@@ -274,17 +275,23 @@ class Level:
         idx = self.n_total_samples
         self.fine_simulation.generate_random_sample()
         tag = self._get_sample_tag('F')
+        print(type(self.fine_simulation))
         fine_sample = self.fine_simulation.simulation_sample(tag, start)
+
+        print(type(fine_sample))
+
+        fine_sample.sample_id = idx
 
         start = t.time()
         if self.coarse_simulation is not None:
             tag = self._get_sample_tag('C')
             coarse_sample = self.coarse_simulation.simulation_sample(tag, start)
+            coarse_sample.sample_id = idx
         else:
             # Zero level have no coarse simulation.
             coarse_sample = None
 
-        return [self._logger.level_idx, idx, fine_sample, coarse_sample, None]
+        return [self._logger.level_idx, idx, fine_sample, coarse_sample]
 
     def _run_simulations(self):
         """
@@ -331,35 +338,34 @@ class Level:
         new_running = []
 
         # Loop through pair of running simulations
-        for (level, idx, fine_sim, coarse_sim, value) in self.running_simulations:
+        for (level, idx, fine_sample, coarse_sample) in self.running_simulations:
 
-            fine_result, fine_time = self.fine_simulation.extract_result(fine_sim if isinstance(fine_sim, str)
-                                                                         else fine_sim[1])
-            fine_done = fine_result is not None
+            fine_sample = self.fine_simulation.extract_result(fine_sample)
+            fine_done = fine_sample.result is not None
 
             if self.is_zero_level:
-                coarse_result = 0.0
-                coarse_time = 0
+                coarse_sample = Sample()
+                coarse_sample.result = 0.0
                 coarse_done = True
             else:
-                coarse_result, coarse_time = self.coarse_simulation.extract_result(
-                    coarse_sim if isinstance(coarse_sim, str) else coarse_sim[1])
-                coarse_done = coarse_result is not None
+                coarse_sample = self.coarse_simulation.extract_result(coarse_sample)
+                coarse_done = coarse_sample.result is not None
 
             if fine_done and coarse_done:
-                if fine_result is np.inf or coarse_result is np.inf:
-                    coarse_result = fine_result = np.inf
+                if fine_sample.result is np.inf or coarse_sample.result is np.inf:
+                    coarse_sample.result = coarse_sample.result = np.inf
 
-                self.fine_times.append(fine_time)
-                self.coarse_times.append(coarse_time)
+                self.fine_times.append(fine_sample.time)
+                self.coarse_times.append(coarse_sample.time)
 
                 # collect values
                 self.finished_simulations.append(
-                    [self._logger.level_idx, idx, fine_sim, coarse_sim, [fine_result, coarse_result],
-                     [fine_time, coarse_time]])
-                self._add_sample(idx, (fine_result, coarse_result))
+                    [self._logger.level_idx, idx, fine_sample.directory, coarse_sample.directory,
+                     [fine_sample.result, coarse_sample.result],
+                     [fine_sample.time, coarse_sample.time]])
+                self._add_sample(idx, (fine_sample.result, coarse_sample.result))
             else:
-                new_running.append([level, idx, fine_sim, coarse_sim, value])
+                new_running.append([level, idx, fine_sample, coarse_sample])
 
         self.running_simulations = new_running
 
