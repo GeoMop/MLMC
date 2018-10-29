@@ -7,6 +7,9 @@ from mlmc.logger import Logger
 import scipy.stats as st
 import scipy.integrate as integrate
 
+import hdf
+
+
 class MLMC:
     """
     Multilevel Monte Carlo method
@@ -35,6 +38,9 @@ class MLMC:
         # Total variance
         self.target_variance = None
 
+        # Create hdf5 file - contains metadata and samples at levels
+        hdf.HDF5(work_dir=self._process_options['output_dir'], step_range=step_range, n_levels=n_levels)
+
     def load_from_setup(self):
         """
         Run mlmc according to setup parameters, load setup {n_levels, step_range} and create levels
@@ -51,6 +57,7 @@ class MLMC:
         Load mlmc setup file {n_levels, step_range}
         :return: None
         """
+        #@TODO: load settings from hdf5 file
         if self._process_options['output_dir'] is not None:
             setup_file = os.path.join(self._process_options['output_dir'], "mlmc_setup.json")
             with open(setup_file, 'r') as f_reader:

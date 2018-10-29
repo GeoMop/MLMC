@@ -3,7 +3,8 @@ import os.path
 import json
 import shutil
 import numpy as np
-
+from mlmc.sample import Sample
+import hdf
 
 class Logger:
     """
@@ -18,7 +19,7 @@ class Logger:
         """
         # Work dir for scripts and PBS files.
         self.output_dir = output_dir
-        self.level_idx = level_idx
+        self.level_idx = str(level_idx)
         self.keep_collected = keep_collected
 
         # Number of operation for fine simulations
@@ -32,14 +33,25 @@ class Logger:
         self.collected_log_ = None
         self.running_log_ = None
 
+        self._get_hdf()
+        self._level_group_path = self._hdf.create_level_group(self.level_idx)
+
         if output_dir is not None:
             # Get log files
-            self.log_running_file = os.path.join(self.output_dir, "running_log_{:d}.json".format(self.level_idx))
-            self.log_collected_file = os.path.join(self.output_dir, "collected_log_{:d}.json".format(self.level_idx))
+            self.log_running_file = os.path.join(self.output_dir, "running_log_{:s}.json".format(self.level_idx))
+            self.log_collected_file = os.path.join(self.output_dir, "collected_log_{:s}.json".format(self.level_idx))
         # Files doesn't exist
         else:
             self.log_running_file = ''
             self.log_collected_file = ''
+
+    def _get_hdf(self):
+        """
+        Create object to manage HDF5 file
+        :return: object
+        """
+        hdf_file = os.path.join(self.output_dir, "mlmc.hdf5")
+        self._hdf = hdf.HDF5(hdf_file, self.output_dir)
 
     def _running_log(self):
         """
@@ -65,6 +77,8 @@ class Logger:
         :param log_collected_file: Collected file abs path
         :return: None
         """
+        self._hdf.read_level(self._level_group_path)
+
         self._close()
         if log_collected_file is None:
             log_collected_file = self.log_collected_file
@@ -116,18 +130,22 @@ class Logger:
             return
         if collected:
             log_file = self._collected_log()
+            self._hdf.save_collected(self._level_group_path, simulations)
             if not self.keep_collected:
                 self._rm_samples(simulations)
         else:
             log_file = self._running_log()
             # n_ops_estimate is already in log file
             if self.n_ops_estimate > 0 and not self.running_header_set:
+                self._hdf.set_n_ops_estimate(self._level_group_path, self.n_ops_estimate)
                 log_file.write(json.dumps([self.n_ops_estimate]))
                 log_file.write("\n")
                 self.running_header_set = True
 
+            self._hdf.save_scheduled(self._level_group_path, simulations)
+
         for sim in simulations:
-            log_file.write(json.dumps(sim))
+            log_file.write(json.dumps(sim, cls=ComplexEncoder))
             log_file.write("\n")
         log_file.flush()
 
@@ -152,4 +170,15 @@ class Logger:
                 shutil.rmtree(coarse[1], ignore_errors=True)
             if os.path.isdir(fine[1]):
                 shutil.rmtree(fine[1], ignore_errors=True)
+
+
+class ComplexEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Sample):
+            return obj.__dict__
+        return json.JSONEncoder.default(self, obj)
+
+
+
+
 

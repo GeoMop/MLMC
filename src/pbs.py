@@ -8,10 +8,6 @@ import numpy as np
 
 
 class Pbs:
-    """
-    Create and execute scripts with simulations
-    """
-
     def __init__(self, work_dir=None, package_weight=200000, qsub=None, clean=False):
         """
         :param work_dir: if None, means no logging and just direct execution.
@@ -28,13 +24,15 @@ class Pbs:
         # Work dir for scripts and PBS files.
         self.work_dir = work_dir
 
-        self.max_realizations = 100
+        self.max_realizations = 10
         self._number_of_realizations = 0
         # Lines to put at the beginning of the PBS script.
         self.pbs_script_heading = None
         self.pbs_script = None
         # Set q sub command or direct execution.
         self.qsub_cmd = qsub
+        self._pbs_config = None
+        self._pbs_header_template = None
 
         if work_dir is not None:
             if clean:
@@ -58,21 +56,24 @@ class Pbs:
         else:
             kwargs['select_flags'] = ""
 
-        pbs_header_template = ["#!/bin/bash",
-                               '#PBS -S /bin/bash',
-                               '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}{select_flags}',
-                               '#PBS -l walltime=1:00:00',
-                               '#PBS -q {queue}',
-                               '#PBS -N Flow123d',
-                               '#PBS -j oe',
-                               '#PBS -o {pbs_output_dir}',
-                               '#PBS -e {pbs_output_dir}',
-                               '']
+        self._pbs_header_template = ["#!/bin/bash",
+                                     '#PBS -S /bin/bash',
+                                     '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}{select_flags}',
+                                     '#PBS -l walltime=4:00:00',
+                                     '#PBS -q {queue}',
+                                     '#PBS -N Flow123d',
+                                     '#PBS -j oe',
+                                     '#PBS -o {pbs_output_dir}/{package_name}.OU',
+                                     '#PBS -e {pbs_output_dir}/{package_name}.ER',
+                                     '']
         if flow_3:
-            pbs_header_template.extend(('module use /storage/praha1/home/jan-hybs/modules',
-                                        'module load flow123d', ''))
+            self._pbs_header_template.extend(('module use /storage/praha1/home/jan-hybs/modules',
+                                              'module load flow123d', ''))
 
-        self.pbs_script_heading = [line.format(**kwargs) for line in pbs_header_template]
+        self._pbs_header_template.append('touch {pbs_output_dir}/RUNNING')
+        self._pbs_header_template.append('rm -f {pbs_output_dir}/QUEUED')
+
+        self._pbs_config = kwargs
         self.clean_script()
 
     def add_realization(self, weight, **kwargs):
@@ -90,7 +91,6 @@ class Pbs:
             'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out',
             'date +%y.%m.%d_%H:%M:%S',
             'touch {output_subdir}/FINISHED',
-            'echo {time} > {output_subdir}/FINISHED',
             'echo \\"Finished simulation:\\" \\"{flow123d}\\" \\"{work_dir}\\" \\"{output_subdir}\\"',
             '']
         lines = [line.format(**kwargs) for line in lines]
@@ -101,6 +101,8 @@ class Pbs:
         if self._current_package_weight > self.package_weight or self._number_of_realizations > self.max_realizations:
             self.execute()
 
+        return self._pbs_config['package_name']
+
     def execute(self):
         """
         Execute pbs script
@@ -108,22 +110,38 @@ class Pbs:
         """
         if self.pbs_script is None or self._number_of_realizations == 0:
             return
-        self.pbs_script.append("echo SUCCESS.")
-        script_content = "\n".join(self.pbs_script)
-        pbs_file = os.path.join(self.work_dir, "package_{:04d}.sh".format(self._package_count))
+        self.pbs_script.append("touch " + self._package_dir + "/FINISHED")
+        self.pbs_script.append("rm -f " + self._package_dir + "/RUNNING")
 
+        script_content = "\n".join(self.pbs_script)
+
+        print("execute package dir ", self._package_dir)
+        pbs_file = os.path.join(self._package_dir, "{:04d}.sh".format(self._package_count))
+
+        pbs_file_pom = os.path.join("/home/martin/Documents/MLMC/test/",
+                                    "{:04d}.sh".format(self._package_count))
         self._package_count += 1
-        with open(pbs_file, "w") as file_writer:
+        with open(pbs_file_pom, "w") as file_writer:
             file_writer.write(script_content)
 
-        os.chmod(pbs_file, 0o774)  # Make executable to allow direct call.
 
-        if self.qsub_cmd is None:
-            subprocess.call(pbs_file)
-        else:
-            process = subprocess.run([self.qsub_cmd, pbs_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            if process.returncode != 0:
-                raise Exception(process.stderr.decode('ascii'))
+
+        os.chmod(pbs_file_pom, 0o774)  # Make executable to allow direct call.
+        shutil.copyfile(pbs_file_pom, pbs_file)
+        #
+        subprocess.call(["touch", os.path.join(self._package_dir, "QUEUED")])
+        try:
+            os.remove(pbs_file_pom)
+        except OSError:
+            pass
+        # @TODO: uncomment
+        # if self.qsub_cmd is None:
+        #     subprocess.call(pbs_file)
+        # else:
+        #     process = subprocess.run([self.qsub_cmd, pbs_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        #     print("process return code ", process.returncode)
+        #     if process.returncode != 0:
+        #         raise Exception(process.stderr.decode('ascii'))
 
         # Clean script for other usage
         self.clean_script()
@@ -135,7 +153,18 @@ class Pbs:
         Clean script and keep header
         :return: None
         """
-        self.pbs_script = self.pbs_script_heading.copy()
+        # Package dir path
+        self._package_dir = os.path.join(self.work_dir, "{:04d}".format(self._package_count))
+
+        # Remove dir
+        if os.path.isdir(self._package_dir):
+            shutil.rmtree(self._package_dir)
+
+        os.makedirs(self._package_dir, mode=0o775, exist_ok=True)
+        # Job output with similar name to package
+        self._pbs_config['package_name'] = "{:04d}".format(self._package_count)
+        self._pbs_config['pbs_output_dir'] = self._package_dir
+        self.pbs_script = [line.format(**self._pbs_config) for line in self._pbs_header_template]
 
     def estimate_level_times(self, n_samples=20):
         """

@@ -31,7 +31,7 @@ class Level:
         # Logger class instance
         self._logger = logger
         # Indicator of first level
-        self.is_zero_level = (self._logger.level_idx == 0)
+        self.is_zero_level = (int(self._logger.level_idx) == 0)
         # Previous level instance
         self._previous_level = previous_level
         # Fine simulation instance
@@ -184,7 +184,9 @@ class Level:
         :param sample_pair: Fine and coarse result
         :return: None
         """
+
         fine, coarse = sample_pair
+
         # Samples are not finite
         if not np.isfinite(fine) or not np.isfinite(coarse):
             self.nan_samples.append(idx)
@@ -234,7 +236,7 @@ class Level:
         :param char: 'C' or 'F' depending on the type of simulation
         :return: str
         """
-        return "L{:02d}_{}_S{:07d}".format(self._logger.level_idx, char, self.n_total_samples)
+        return "L{:02d}_{}_S{:07d}".format(int(self._logger.level_idx), char, self.n_total_samples)
 
     @property
     def n_ops_estimate(self):
@@ -275,30 +277,27 @@ class Level:
         idx = self.n_total_samples
         self.fine_simulation.generate_random_sample()
         tag = self._get_sample_tag('F')
-        print(type(self.fine_simulation))
         fine_sample = self.fine_simulation.simulation_sample(tag, start)
-
-        print(type(fine_sample))
-
         fine_sample.sample_id = idx
 
         start = t.time()
         if self.coarse_simulation is not None:
             tag = self._get_sample_tag('C')
             coarse_sample = self.coarse_simulation.simulation_sample(tag, start)
-            coarse_sample.sample_id = idx
         else:
             # Zero level have no coarse simulation.
-            coarse_sample = None
+            coarse_sample = Sample()
+            coarse_sample.result = 0.0
+        coarse_sample.sample_id = idx
 
-        return [self._logger.level_idx, idx, fine_sample, coarse_sample]
+        return [fine_sample, coarse_sample]
 
     def _run_simulations(self):
         """
         Run already generated simulations again
         :return: None
         """
-        for (_, _, fine_sim, coarse_sim, _) in self.running_simulations:
+        for (_, fine_sim, coarse_sim) in self.running_simulations:
             self.set_coarse_sim()
             # All levels have fine simulation
             self.fine_simulation.generate_random_sample()
@@ -338,18 +337,13 @@ class Level:
         new_running = []
 
         # Loop through pair of running simulations
-        for (level, idx, fine_sample, coarse_sample) in self.running_simulations:
-
+        for (fine_sample, coarse_sample) in self.running_simulations:
             fine_sample = self.fine_simulation.extract_result(fine_sample)
             fine_done = fine_sample.result is not None
 
-            if self.is_zero_level:
-                coarse_sample = Sample()
-                coarse_sample.result = 0.0
-                coarse_done = True
-            else:
+            if not self.is_zero_level:
                 coarse_sample = self.coarse_simulation.extract_result(coarse_sample)
-                coarse_done = coarse_sample.result is not None
+            coarse_done = coarse_sample.result is not None
 
             if fine_done and coarse_done:
                 if fine_sample.result is np.inf or coarse_sample.result is np.inf:
@@ -359,13 +353,10 @@ class Level:
                 self.coarse_times.append(coarse_sample.time)
 
                 # collect values
-                self.finished_simulations.append(
-                    [self._logger.level_idx, idx, fine_sample.directory, coarse_sample.directory,
-                     [fine_sample.result, coarse_sample.result],
-                     [fine_sample.time, coarse_sample.time]])
-                self._add_sample(idx, (fine_sample.result, coarse_sample.result))
+                self.finished_simulations.append([fine_sample, coarse_sample])
+                self._add_sample(fine_sample.sample_id, (fine_sample.result, coarse_sample.result))
             else:
-                new_running.append([level, idx, fine_sample, coarse_sample])
+                new_running.append([fine_sample, coarse_sample])
 
         self.running_simulations = new_running
 
@@ -448,6 +439,7 @@ class Level:
         :param moments_fn: Moments evaluation function
         :return: tuple (variance vector, length of moments)
         """
+
         assert self.n_samples > 1
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn, force=True)
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
