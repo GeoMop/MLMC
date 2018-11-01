@@ -10,6 +10,8 @@ class Moments:
         assert size > 0
         self.size = size
         self.domain = domain
+        self._is_log = log
+        self._is_clip = safe_eval
 
         if log:
             lin_domain = (np.log(domain[0]), np.log(domain[1]))
@@ -34,6 +36,16 @@ class Moments:
         elif not safe_eval and not log:
             self.transform = lambda val: self.linear(val)
             self.inv_transform = lambda ref: self.inv_linear(ref)
+
+    def __eq__(self, other):
+        """
+        Compare two moment functions. Equal if they returns same values.
+        """
+        return  type(self) is type(other) \
+                and self.size == other.size \
+                and self.domain == other.domain \
+                and self._is_log == other._is_log \
+                and self._is_clip == other._is_clip
 
     def clip(self, value):
         """
@@ -127,7 +139,7 @@ class Legendre(Moments):
 
 
 class TransformedMoments(Moments):
-    def __init__(self, other_moments, matrix, inv):
+    def __init__(self, other_moments, matrix):
         """
         Set a new moment functions as linear combination of the previous.
         new_moments = matrix . old_moments
@@ -137,18 +149,28 @@ class TransformedMoments(Moments):
         :param other_moments: Original moments.
         :param matrix: Linear combinations of the original moments.
         """
-        self.size = other_moments.size
+        n, m = matrix.shape
+        assert m == other_moments.size
+
+        self.size = n
         self.domain = other_moments.domain
 
         self._origin = other_moments
         self._transform = matrix
-        self._inv = inv
-        assert np.isclose(matrix[0, 0], 1) and np.allclose(matrix[0, 1:], 0)
+        #self._inv = inv
+        #assert np.isclose(matrix[0, 0], 1) and np.allclose(matrix[0, 1:], 0)
         # TODO: find last nonzero for every row to compute which origianl moments needs to be evaluated for differrent sizes.
+
+    def __eq__(self, other):
+        return  type(self) is type(other) \
+                and self.size == other.size \
+                and self._origin == other._origin \
+                and np.all(self._transform == other._transform)
+
 
 
     def _eval_all(self, value, size):
-        orig_moments = self._origin._eval_all(value, self.size)
-        #x1 = np.matmul(orig_moments, self._transform.T)
-        x2 = np.linalg.solve(self._inv, orig_moments.T).T
-        return x2[:, :size]
+        orig_moments = self._origin._eval_all(value, self._origin.size)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        #x2 = np.linalg.solve(self._inv, orig_moments.T).T
+        return x1[:, :size]

@@ -386,7 +386,10 @@ class Level:
         :return: array, shape (N, R)
         """
         # Current moment functions are different from last moment functions
-        if force or moments_fn != self._last_moments_fn:
+        same_moments = moments_fn == self._last_moments_fn
+        same_shapes = self.last_moments_eval is not None and \
+                      self.last_moments_eval[0].shape == (self.n_samples, moments_fn.size)
+        if force or not same_moments or not same_shapes:
             samples = self.sample_values
             # Moments from fine samples
             moments_fine = moments_fn(samples[:, 0])
@@ -466,17 +469,29 @@ class Level:
         mean_vec = np.mean(mom_fine - mom_coarse, axis=0)
         return mean_vec
 
-    def estimate_covariance(self, moments_fn):
+    def estimate_covariance(self, moments_fn, stable=False):
         """
         Estimate covariance matrix (non central).
-        :param moments_fn:
+        :param moments_fn: Moment functions object.
+        :param stable: Use alternative formula with better numerical stability.
         :return:
         """
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
         assert len(mom_fine) == len(mom_coarse)
         assert len(mom_fine) >= 2
-        mom_diff= mom_fine - mom_coarse
-        cov = np.matmul(mom_diff.T, mom_diff) / self.n_samples
+        assert self.n_samples == len(mom_fine)
+
+        if stable:
+            # Stable formula - however seems that we have no problem with numerical stability
+            mom_diff= mom_fine - mom_coarse
+            mom_sum = mom_fine + mom_coarse
+            cov = 0.5 * (np.matmul(mom_diff.T, mom_sum) + np.matmul(mom_sum.T, mom_diff)) / self.n_samples
+        else:
+            # Direct formula
+            cov_fine   = np.matmul(mom_fine.T,   mom_fine)
+            cov_coarse = np.matmul(mom_coarse.T, mom_coarse)
+            cov = (cov_fine - cov_coarse) / self.n_samples
+
         return cov
 
     def sample_range(self):

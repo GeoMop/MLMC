@@ -383,8 +383,8 @@ class MLMC:
 
         # Limit maximal number of samples per level
         n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars*self.n_levels/target_variance), 2)
-
-        return n_samples_estimate_safe
+        n_samples = np.max(n_samples_estimate_safe, axis=1).astype(int)
+        return n_samples
 
 
     def set_target_variance(self, target_variance, moments_fn=None, fraction=1.0, prescribe_vars=None):
@@ -492,14 +492,14 @@ class MLMC:
         return np.array(means), np.array(vars)
 
 
-    def estimate_covariance(self, moments_fn):
+    def estimate_covariance(self, moments_fn, stable=False):
         """
         MLMC estimate of covariance matrix of moments.
         :return:
         """
         cov_mat = np.zeros((moments_fn.size, moments_fn.size))
         for level in self.levels:
-            cov_mat += level.estimate_covariance(moments_fn)
+            cov_mat += level.estimate_covariance(moments_fn, stable)
         return cov_mat
 
     def estimate_level_cost(self):
