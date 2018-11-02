@@ -474,7 +474,7 @@ class Level:
         Estimate covariance matrix (non central).
         :param moments_fn: Moment functions object.
         :param stable: Use alternative formula with better numerical stability.
-        :return:
+        :return: cov covariance matrix  with shape (n_moments, n_moments)
         """
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
         assert len(mom_fine) == len(mom_coarse)
@@ -491,8 +491,24 @@ class Level:
             cov_fine   = np.matmul(mom_fine.T,   mom_fine)
             cov_coarse = np.matmul(mom_coarse.T, mom_coarse)
             cov = (cov_fine - cov_coarse) / self.n_samples
-
         return cov
+
+
+    def estimate_cov_diag_err(self, moments_fn, ):
+        """
+        Estimate mean square error (variance) of the estimate of covariance matrix difference at this level.
+        Only compute MSE for diagonal elements of the covariance matrix.
+        :param moments_fn:
+        :return: Vector of MSE for diagonal
+        """
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        assert len(mom_fine) == len(mom_coarse)
+        assert len(mom_fine) >= 2
+        assert self.n_samples == len(mom_fine)
+
+        mse_vec = np.var(mom_fine**2 - mom_coarse**2, axis=0, ddof=1)
+        return mse_vec
+
 
     def sample_range(self):
         """

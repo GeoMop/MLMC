@@ -47,6 +47,13 @@ class Moments:
                 and self._is_log == other._is_log \
                 and self._is_clip == other._is_clip
 
+    def change_size(self, size):
+        """
+        Return moment object with different size.
+        :param size: int, new number of moments
+        """
+        return self.__class__(size, self.domain, self._is_log, self._is_clip)
+
     def clip(self, value):
         """
         Remove outliers and replace them with NaN

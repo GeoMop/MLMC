@@ -492,15 +492,24 @@ class MLMC:
         return np.array(means), np.array(vars)
 
 
-    def estimate_covariance(self, moments_fn, stable=False):
+    def estimate_covariance(self, moments_fn, stable=False, mse=False):
         """
         MLMC estimate of covariance matrix of moments.
         :return:
         """
         cov_mat = np.zeros((moments_fn.size, moments_fn.size))
+
         for level in self.levels:
             cov_mat += level.estimate_covariance(moments_fn, stable)
-        return cov_mat
+
+        if mse:
+            mse_diag = np.zeros(moments_fn.size)
+            for level in self.levels:
+                mse_diag += level.estimate_cov_diag_err(moments_fn)/level.n_samples
+            return cov_mat, mse_diag
+        else:
+            return cov_mat
+
 
     def estimate_level_cost(self):
         """
