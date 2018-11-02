@@ -1,13 +1,7 @@
 import os
 import sys
-import json
 import yaml
-import shutil
-import copy
-# import statprof
 import numpy as np
-import scipy.stats as stats
-import scipy.integrate as integrate
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
@@ -33,10 +27,7 @@ class FlowConcSim(flow_mc.FlowSim):
         Extract the observed value from the Flow123d output.
         Get sample from the field restriction, write to the GMSH file, call flow.
         :param sample_dir: Sample directory
-        :return:
-
-        TODO: Pass an extraction function as other FlowSim parameter. This function will take the
-        balance data and retun observed values.
+        :return: None, total flux (float) and overall sample time
         """
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             # extract the flux
@@ -69,11 +60,24 @@ class FlowConcSim(flow_mc.FlowSim):
 
                 if not found:
                     raise
-            except:
-                return np.inf
-            return max_flux
+
+                # Get flow123d computing time
+                run_time = self.get_run_time(sample_dir)
+
+                # Get preprocess time, generating random fields etc.
+                try:
+                    with open(os.path.join(sample_dir, "FINISHED"), "r") as f:
+                        preprocess_time = float(f.readlines()[0])
+                except:
+                    print("extract preprocess time error")
+
+            except Exception as e:
+                print(str(e))
+                return np.inf, [0, 0]
+
+            return max_flux, [preprocess_time, run_time]
         else:
-            return None
+            return None, [0, 0]
 
 
 class ProcessMLMC:

@@ -7,14 +7,11 @@ from mlmc.logger import Logger
 import scipy.stats as st
 import scipy.integrate as integrate
 from mlmc.simulation import Simulation
-
-
-##################################################
-
 class MLMC:
     """
     Multilevel Monte Carlo method
     """
+
     def __init__(self, n_levels, sim_factory, step_range, process_options):
         """
         :param n_levels: Number of levels
@@ -85,7 +82,8 @@ class MLMC:
                 level_param = i_level / (self._n_levels - 1)
 
             logger = Logger(i_level, self._process_options['output_dir'], self._process_options['keep_collected'])
-            level = Level(self.simulation_factory, previous_level, level_param, logger, self._process_options['regen_failed'])
+            level = Level(self.simulation_factory, previous_level, level_param, logger,
+                          self._process_options['regen_failed'])
             self.levels.append(level)
 
         self._save_setup()
@@ -148,7 +146,6 @@ class MLMC:
         return np.array(means)
 
 
-
     def _variance_of_variance(self, n_samples = None):
         """
         Approximate variance of log(X) where
@@ -184,7 +181,7 @@ class MLMC:
         self._saved_var_var = (n_samples, np.array(vars))
         return np.array(vars)
 
-    def _varinace_regression(self, raw_vars, sim_steps):
+    def _variance_regression(self, raw_vars, sim_steps):
         """
         Estimate level variance by regression from model:
 
@@ -203,35 +200,34 @@ class MLMC:
 
         # estimate of variances of variances, compute scaling
         W = 1.0 / np.sqrt(self._variance_of_variance())
-        W = W[1:]   # ignore level 0
-        #W = np.ones((L - 1,))
+        W = W[1:]  # ignore level 0
+        # W = np.ones((L - 1,))
 
         # Use linear regresion to improve estimate of variances V1, ...
         # model log var_{r,l} = a_r  + b * log step_l
         # X_(r,l), j = dirac_{r,j}
 
-        K = R + 1 # number of parameters
+        K = R + 1  # number of parameters
         R1 = R - 1
         X = np.zeros((L1, R1, K))
         X[:, :, :-2] = np.eye(R1)[None, :, :]
         log_step = np.log(sim_steps[1:])
-        #X[:, :, -1] = np.repeat(log_step ** 2, R1).reshape((L1, R1))[:, :, None] * np.eye(R1)[None, :, :]
+        # X[:, :, -1] = np.repeat(log_step ** 2, R1).reshape((L1, R1))[:, :, None] * np.eye(R1)[None, :, :]
         X[:, :, -2] = np.repeat(log_step ** 2, R1).reshape((L1, R1))
         X[:, :, -1] = np.repeat(log_step, R1).reshape((L1, R1))
 
-
-        WX = X * W[:, None, None]    # scale
+        WX = X * W[:, None, None]  # scale
         WX.shape = (-1, K)
         X.shape = (-1, K)
         # solve X.T * X = X.T * V
 
-        log_vars = np.log(raw_vars[1:, 1:])     # omit first variance, and first moment that is constant 1.0
-        log_vars = W[:, None] * log_vars       # scale RHS
+        log_vars = np.log(raw_vars[1:, 1:])  # omit first variance, and first moment that is constant 1.0
+        log_vars = W[:, None] * log_vars  # scale RHS
 
         params, res, rank, sing_vals = np.linalg.lstsq(WX, log_vars.ravel())
         new_vars = raw_vars.copy()
         assert np.allclose(raw_vars[:, 0], 0.0)
-        new_vars[1:, 1:] = np.exp(np.dot(X, params)).reshape(L-1, -1)
+        new_vars[1:, 1:] = np.exp(np.dot(X, params)).reshape(L - 1, -1)
         return new_vars
 
     def _moment_varinace_regression(self, raw_vars, sim_steps):
@@ -302,7 +298,6 @@ class MLMC:
         vars = self._all_moments_varinace_regression(raw_vars, sim_steps)
         return vars
 
-
     def sample_range(self, n0, nL):
         """
         Geometric sequence of L elements decreasing from n0 to nL.
@@ -312,7 +307,6 @@ class MLMC:
         :return: np.array of length L = n_levels.
         """
         return np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), self.n_levels))).astype(int)
-
 
     def set_initial_n_samples(self, n_samples=None):
         """
@@ -358,6 +352,93 @@ class MLMC:
     #     for level in self.levels:
     #         level.reset_moment_fn(moments_fn)
 
+    def target_var_adding_samples(self, target_var, moments_fn, pbs=None, sleep=20, add_coef=0.1):
+        """
+        Set level target number of samples according to improving estimates.  
+        We assume set_initial_n_samples method was called before.
+        :param target_var: float, whole mlmc target variance
+        :param moments_fn: Object providing calculating moments
+        :param pbs: Pbs script generator object
+        :param sleep: Time waiting for samples
+        :param add_coef: Coefficient for adding samples
+        :return: None
+        """
+        # Get default scheduled samples
+        n_scheduled = np.array(self.l_scheduled_samples())
+        # Scheduled samples that are greater than already done samples
+        greater_items = np.arange(0, len(n_scheduled))
+
+        # Scheduled samples and wait until at least half of the samples are done
+        self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
+
+        # New estimation according to already finished samples
+        n_estimated = np.ceil(np.max(self.estimate_n_samples_for_target_variance(target_var, moments_fn), axis=1))
+
+        # Loop until number of estimated samples is greater than the number of scheduled samples
+        while not np.all(n_estimated[greater_items] == n_scheduled[greater_items]):
+            # New scheduled sample will be 10 percent of difference
+            # between current number of target samples and new estimated one
+            # If 10 percent of estimated samples is greater than difference between estimated and scheduled samples,
+            # set scheduled samples to estimated samples
+
+            new_scheduled = np.where((n_estimated * add_coef) > (n_estimated - n_scheduled),
+                             n_estimated,
+                             n_scheduled + (n_estimated - n_scheduled) * add_coef)
+
+            n_scheduled = np.ceil(np.where(n_estimated < n_scheduled,
+                                           n_scheduled,
+                                           new_scheduled))
+            # Levels where estimated are greater than scheduled
+            greater_items = np.where(np.greater(n_estimated, n_scheduled))[0]
+
+            # Scheduled samples and wait until at least half of the samples are done
+            self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
+
+            # New estimation according to already finished samples
+            n_estimated = np.ceil(np.max(self.estimate_n_samples_for_target_variance(target_var, moments_fn), axis=1))
+
+    def set_scheduled_and_wait(self, n_scheduled, greater_items, pbs, sleep, fin_sample_coef=0.5):
+        """
+        Scheduled samples on each level and wait until at least half of the samples is done
+        :param n_scheduled: ndarray, number of scheduled samples on each level
+        :param greater_items: Items where n_estimated is greater than n_scheduled
+        :param pbs: Pbs script generator object
+        :param sleep: Time waiting for samples
+        :param done_sample_coef: The proportion of samples to finished for further estimate
+        :return: None
+        """
+        # Set scheduled samples and run simulations
+        self.set_level_target_n_samples(n_scheduled)
+        self.refill_samples()
+        # Use PBS job scheduler
+        if pbs is not None:
+            pbs.execute()
+
+        # Finished level samples
+        n_finished = np.array([level.get_n_finished() for level in self.levels])
+        # Wait until at least half of the scheduled samples are done on each level
+        while np.any(n_finished[greater_items] < fin_sample_coef * n_scheduled[greater_items]):
+            # Wait a while
+            time.sleep(sleep)
+            n_finished = np.array([level.get_n_finished() for level in self.levels])
+
+    def l_scheduled_samples(self):
+        """
+        Get all levels target number of samples
+        :return: list 
+        """
+        return [level.target_n_samples for level in self.levels]
+
+    def set_level_target_n_samples(self, n_samples, fraction=1.0):
+        """
+        Set level number of target samples
+        :param n_samples: list, each level target samples
+        :param fraction: Use just fraction of total samples
+        :return: None
+        """
+        for level, n in zip(self.levels, n_samples):
+            level.set_target_n_samples(int(n * fraction))
+
     def estimate_n_samples_for_target_variance(self, target_variance, moments_fn=None, prescribe_vars=None):
         """
         Estimate optimal number of samples for individual levels that should provide a target variance of
@@ -377,15 +458,14 @@ class MLMC:
 
         n_ops = np.array([lvl.n_ops_estimate for lvl in self.levels])
 
-        sqrt_var_n = np.sqrt(vars.T * n_ops)    # moments in rows, levels in cols
-        total = np.sum(sqrt_var_n, axis=1)      # sum over levels
-        n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)# moments in cols
+        sqrt_var_n = np.sqrt(vars.T * n_ops)  # moments in rows, levels in cols
+        total = np.sum(sqrt_var_n, axis=1)  # sum over levels
+        n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)  # moments in cols
 
         # Limit maximal number of samples per level
-        n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars*self.n_levels/target_variance), 2)
+        n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars * self.n_levels / target_variance), 2)
         n_samples = np.max(n_samples_estimate_safe, axis=1).astype(int)
         return n_samples
-
 
     def set_target_variance(self, target_variance, moments_fn=None, fraction=1.0, prescribe_vars=None):
         """
@@ -397,14 +477,12 @@ class MLMC:
         :param moments_fn: moment evaluation functions
         :param fraction: Plan only this fraction of computed counts.
         :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
-        :return: np.array with number of optimal samples
+        :return: None
         """
 
-        n_samples =  self.estimate_n_samples_for_target_variance(target_variance, moments_fn, prescribe_vars)
+        n_samples = self.estimate_n_samples_for_target_variance(target_variance, moments_fn, prescribe_vars)
         n_samples = np.max(n_samples, axis=1)
-        for level, n in zip(self.levels, n_samples):
-            level.set_target_n_samples(int(n*fraction))
-
+        self.set_level_target_n_samples(n_samples, fraction)
 
     def refill_samples(self):
         """
@@ -460,7 +538,7 @@ class MLMC:
         :return: None
         """
         if sub_samples is None:
-            sub_samples = [None]*self.n_levels
+            sub_samples = [None] * self.n_levels
         assert len(sub_samples) == self.n_levels, "{} != {}".format(len(sub_samples), self.n_levels)
         for ns, level in zip(sub_samples, self.levels):
             level.subsample(ns)
@@ -548,4 +626,9 @@ class MLMC:
         for level in self.levels:
             level.subsample(None)
 
-
+    def get_sample_times(self):
+        """
+        The total average duration of one sample per level (fine + coarse together)
+        :return: list
+        """
+        return [level.sample_time() for level in self.levels]

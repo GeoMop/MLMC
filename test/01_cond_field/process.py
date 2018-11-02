@@ -1,16 +1,11 @@
 import os
 import sys
-import json
 import shutil
-import copy
-import glob
 import yaml
 import statprof
 import numpy as np
-import scipy.stats as stats
 import scipy.integrate as integrate
 import scipy as sc
-
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
 
@@ -20,6 +15,7 @@ import mlmc.simulation
 import mlmc.moments
 import mlmc.distribution
 import pbs
+import glob
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 from mlmc import moments
@@ -39,7 +35,7 @@ class FlowProcSim(flow_mc.FlowSim):
         """
         Extract the observed value from the Flow123d output.
         :param sample_dir: Sample directory path
-        :return: None, inf or water balance result (float)
+        :return: None, inf or water balance result (float) and overall sample time
         """
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             try:
@@ -63,14 +59,27 @@ class FlowProcSim(flow_mc.FlowSim):
                             raise Exception("Possitive inflow at outlet region.")
                         total_flux += flux  # flux field
                         found = True
+
+                # Get flow123d computing time
+                run_time = self.get_run_time(sample_dir)
+
+                # Get preprocess time, generating random fields etc.
+                try:
+                    with open(os.path.join(sample_dir, "FINISHED"), "r") as f:
+                        preprocess_time = float(f.readlines()[0])
+                except:
+                    print("Extract preprocess time failed")
+
+                if not found:
+                    raise
+
             except Exception as e:
                 print(str(e))
-                return np.inf
-            if not found:
-                raise np.inf
-            return -total_flux
+                return np.inf, [0, 0]
+
+            return -total_flux, [preprocess_time, run_time]
         else:
-            return None
+            return None, [0, 0]
 
 
 class UglyMLMC:
@@ -452,6 +461,10 @@ class UglyMLMC:
     #     self.distr_obj.domain = self.domain
     #     result = self.distr_obj.estimate_density_minimize(tol=1e-8)
     #     # print(result)
+
+
+    print("sample times")
+    print([ml.mc.get_sample_times() for ml in mlmc_list])
 
 
 

@@ -11,6 +11,7 @@ class Pbs:
     """
     Create and execute scripts with simulations
     """
+
     def __init__(self, work_dir=None, package_weight=200000, qsub=None, clean=False):
         """
         :param work_dir: if None, means no logging and just direct execution.
@@ -27,6 +28,8 @@ class Pbs:
         # Work dir for scripts and PBS files.
         self.work_dir = work_dir
 
+        self.max_realizations = 100
+        self._number_of_realizations = 0
         # Lines to put at the beginning of the PBS script.
         self.pbs_script_heading = None
         self.pbs_script = None
@@ -87,32 +90,34 @@ class Pbs:
             'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out',
             'date +%y.%m.%d_%H:%M:%S',
             'touch {output_subdir}/FINISHED',
-            'rm -f {output_subdir}/flow.out',
-            'rm -f {output_subdir}/profiler_info*',
+            'echo {time} > {output_subdir}/FINISHED',
             'echo \\"Finished simulation:\\" \\"{flow123d}\\" \\"{work_dir}\\" \\"{output_subdir}\\"',
             '']
         lines = [line.format(**kwargs) for line in lines]
         self.pbs_script.extend(lines)
 
+        self._number_of_realizations += 1
         self._current_package_weight += weight
-        if self._current_package_weight > self.package_weight:
+        if self._current_package_weight > self.package_weight or self._number_of_realizations > self.max_realizations:
             self.execute()
-            self._current_package_weight = 0
 
     def execute(self):
         """
         Execute pbs script
         :return: None
         """
-        if self.pbs_script is None:
+        if self.pbs_script is None or self._number_of_realizations == 0:
             return
         self.pbs_script.append("echo SUCCESS.")
         script_content = "\n".join(self.pbs_script)
         pbs_file = os.path.join(self.work_dir, "package_{:04d}.sh".format(self._package_count))
+
         self._package_count += 1
         with open(pbs_file, "w") as file_writer:
             file_writer.write(script_content)
+
         os.chmod(pbs_file, 0o774)  # Make executable to allow direct call.
+
         if self.qsub_cmd is None:
             subprocess.call(pbs_file)
         else:
@@ -122,6 +127,8 @@ class Pbs:
 
         # Clean script for other usage
         self.clean_script()
+        self._current_package_weight = 0
+        self._number_of_realizations = 0
 
     def clean_script(self):
         """

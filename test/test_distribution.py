@@ -106,9 +106,6 @@ class DistrPlot:
     def clean(self):
         plt.close()
 
-
-
-
 def profile(fun, skip=False):
     import statprof
     if skip:
