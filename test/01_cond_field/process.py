@@ -463,8 +463,6 @@ class UglyMLMC:
     #     # print(result)
 
 
-    print("sample times")
-    print([ml.mc.get_sample_times() for ml in mlmc_list])
 
 
 
@@ -818,9 +816,14 @@ def get_arguments(arguments):
 
 def analyze_pdf_approx(cl):
     # PDF approximation experiments
+    np.random.seed(15)
     cl.set_common_domain(0)
     cl.reinit(n_moments = 11)
-    cl.construct_densities(tol = 1.0, reg_param = 0.1)
+    il = 7
+    #ns = cl[il].mlmc.estimate_n_samples_for_target_variance(0.01, cl.moments)
+    #cl[il].mlmc.subsample(ns)
+    #cl.construct_densities(tol = 1.0, reg_param = 1)
+    cl[il].construct_density(tol = 0.0001, reg_param = 1)
     cl.plot_densities(i_sample_mlmc=0)
 
 
@@ -1014,8 +1017,8 @@ def main():
     elif command == 'process':
         assert os.path.isdir(work_dir)
         mlmc_list = []
-        for nl in [ 1,2,3,4,5, 7,9]:
-        #for nl in [1]:
+        #for nl in [ 1,2,3,4,5, 7,9]:
+        for nl in [7]:
             prmc = UglyMLMC(work_dir, options)
             prmc.setup(nl)
             prmc.initialize(clean=False)

@@ -3,7 +3,7 @@ import scipy as sc
 import scipy.integrate as integrate
 
 
-class Distribution:
+class SimpleDistribution:
     """
     Calculation of the distribution
     """
@@ -45,38 +45,6 @@ class Distribution:
         # Panalty coef for endpoint derivatives
         self._penalty_coef = 10
 
-    # def choose_parameters_from_samples(self, samples):
-    #     """
-    #     Determine model hyperparameters, in particular domain of the density function,
-    #     from given samples.
-    #     :param samples: np array of samples from the distribution or its approximation.
-    #     :return: None
-    #     """
-    #     self.domain = (np.min(samples), np.max(samples))
-    #
-    # @staticmethod
-    # def choose_parameters_from_moments(mean, variance, quantile=0.9999, log=False):
-    #     """
-    #     Determine model hyperparameters, in particular domain of the density function,
-    #     from given samples.
-    #     :param samples: np array of samples from the distribution or its approximation.
-    #     :return: None
-    #     """
-    #     if log:
-    #         # approximate by log normal
-    #         # compute mu, sigma parameters from observed mean and variance
-    #         sigma_sq = np.log(np.exp(np.log(variance) - 2.0 * np.log(mean)) + 1.0)
-    #         mu = np.log(mean) - sigma_sq / 2.0
-    #         sigma = np.sqrt(sigma_sq)
-    #         domain = tuple(sc.stats.lognorm.ppf([1.0 - quantile, quantile], s=sigma, scale=np.exp(mu)))
-    #         assert np.isclose(mean, sc.stats.lognorm.mean(s=sigma, scale=np.exp(mu)))
-    #         assert np.isclose(variance, sc.stats.lognorm.var(s=sigma, scale=np.exp(mu)))
-    #     else:
-    #         domain = tuple(sc.stats.norm.ppf([1.0 - quantile, quantile], loc=mean, scale=np.sqrt(variance)))
-    #     return domain
-    #
-    # def choose_parameters_from_approximation(self):
-    #     pass
 
 
     def estimate_density_minimize(self, tol=1e-5, reg_param =0.01):
@@ -89,56 +57,20 @@ class Distribution:
         """
         # Initialize domain, multipliers, ...
 
-        # Geometrical series for sizes with base 1.2.
-        # Using just odd numbers.
-        self._reg_param = reg_param
-        base = 1.2
-        if self.approx_size <= 5:
-            sizes = [self.approx_size]
-        else:
-            size = self.approx_size
-            sizes = [size]
-            while size > 4:
-                size /= base
-                odd_size = 2*round((size-1)/2)+1
-                if odd_size != sizes[-1]:
-                    sizes.append(odd_size)
-            sizes.reverse()
-        print(sizes)
 
-        self.approx_size = sizes[0]
-        self._initialize_params(self.approx_size, tol)
-        self.extend_size(self.approx_size)
-        init_error = np.linalg.norm(self._calculate_gradient(self.multipliers))
-
-        if len(sizes) == 1:
-            tolerances = [ tol ]
-        else:
-            t1 = tol
-            t0 = max(tol, init_error / 10)
-            t = (np.array(sizes) - sizes[0]) / ( sizes[-1] - sizes[0])
-            tolerances = np.exp(np.log(t1) * t + np.log(t0) * (1-t))
-        print(tolerances)
-
-        for approx_size, approx_tol in  zip(sizes, tolerances):
-            self._quad_tolerance = approx_tol / 16
-            self.extend_size(approx_size)
-            #if approx_size == self.moments_fn.size or approx_size == sizes[0]:
-            #    max_it = 200
-            #else:
-            #    max_it = 20
-            max_it = 200
-            method = 'trust-exact'
-            #method ='Newton-CG'
-            result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
-                                          jac=self._calculate_gradient,
-                                          hess=self._calculate_jacobian_matrix,
-                                          options={'tol': approx_tol, 'xtol': approx_tol,
-                                                   'gtol': approx_tol, 'disp': False,  'maxiter': max_it})
-            self.multipliers = result.x
-            jac_norm = np.linalg.norm(result.jac)
-            print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
-               self.approx_size, result.nit, approx_tol, jac_norm, result.message))
+        self._initialize_params(self.moments_fn.size, tol)
+        max_it = 200
+        method = 'trust-exact'
+        #method ='Newton-CG'
+        result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
+                                      jac=self._calculate_gradient,
+                                      hess=self._calculate_jacobian_matrix,
+                                      options={'tol': tol, 'xtol': tol,
+                                               'gtol': tol, 'disp': False,  'maxiter': max_it})
+        self.multipliers = result.x
+        jac_norm = np.linalg.norm(result.jac)
+        print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
+           self.approx_size, result.nit, tol, jac_norm, result.message))
 
         # Fix normalization
         gradient, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
@@ -150,29 +82,6 @@ class Distribution:
         result.fun_norm = jac_norm
         return result
 
-    def estimate_density(self, tol=None):
-        """
-        Run nonlinear iterative solver to estimate density, use previous solution as initial guess.
-        Faster, but worse stability.
-        :return: None
-        """
-        # Initialize domain, multipliers, ...
-        self._initialize_params(tol)
-
-        result = sc.optimize.root(
-            fun=self._calculate_gradient,
-            x0=self.multipliers,
-            jac=self._calculate_jacobian_matrix,
-            tol=tol
-        )
-
-        fun_norm = np.linalg.norm(result.fun)
-        if result.success or fun_norm < tol:
-            result.success = True
-
-        self.multipliers = result.x
-        result.fun_norm = fun_norm
-        return result
 
 
     def density(self, value, moments_fn=None):
@@ -215,33 +124,21 @@ class Distribution:
         assert self.domain is not None
 
         assert tol is not None
-        self._quad_tolerance = tol / 16
+        self._quad_tolerance = tol / 64
+
 
         self.moment_errs[0] = np.min(self.moment_errs[1:]) / 8
+        self._moment_errs = self.moment_errs
         # Start with uniform distribution
         self.multipliers = np.zeros(size)
         self.multipliers[0] = -np.log(1/(self.domain[1] - self.domain[0])) * self.moment_errs[0]
         # Log to store error messages from quad, report only on conv. problem.
         self._quad_log = []
 
-
-    def extend_size(self, new_size):
-        self._last_solved_multipliers = self.multipliers
-        self._stab_penalty = self._reg_param / np.linalg.norm(self.multipliers)
-        #self._stab_penalty = 0.0
-
-        self.approx_size = new_size
-        multipliers = self.multipliers
-        self.multipliers = np.zeros(new_size)
-        self.multipliers[:len(multipliers)] = multipliers
-        self._moment_means = self.moment_means[:self.approx_size]
-        self._moment_errs = self.moment_errs[:self.approx_size]
-
-
         # Evaluate endpoint derivatives of the moments.
         self._end_point_diff = self.end_point_derivatives()
         self._update_quadrature(self.multipliers, force=True)
-        #self._calculate_gradient(self.multipliers)
+
 
     def eval_moments(self, x):
         return self.moments_fn.eval_all(x, self.approx_size)
@@ -330,6 +227,11 @@ class Distribution:
 
         return np.stack((left_diff[0,:], right_diff[0,:]), axis=0)/eps/ self._moment_errs[None, :]
 
+    def _density_in_quads(self, multipliers):
+        power = -np.dot(self._quad_moments, multipliers / self._moment_errs)
+        power = np.minimum(np.maximum(power, -200), 200)
+        return np.exp(power)
+
 
     def _calculate_functional(self, multipliers):
         """
@@ -337,20 +239,15 @@ class Distribution:
         :param multipliers: current multipliers
         :return: float
         """
-        update_grad = self._update_quadrature(multipliers)
-
-        power = -np.dot(self._quad_moments, multipliers / self._moment_errs)
-        power = np.minimum(np.maximum(power, -200), 200)
-        q_density = np.exp(power)
+        self._update_quadrature(multipliers)
+        q_density = self._density_in_quads(multipliers)
         integral = np.dot(q_density, self._quad_weights)
-        sum = np.sum(self._moment_means * multipliers / self._moment_errs)
+        sum = np.sum(self.moment_means * multipliers / self._moment_errs)
 
         end_diff = np.dot(self._end_point_diff, multipliers)
         penalty = np.sum(np.maximum(end_diff, 0)**2)
         fun =  sum + integral
         fun = fun + np.abs(fun) * self._penalty_coef * penalty
-        last_size = len(self._last_solved_multipliers)
-        fun += 0.5 * self._stab_penalty * np.sum((self._last_solved_multipliers - multipliers[:last_size])**2)
         return fun
 
 
@@ -360,18 +257,14 @@ class Distribution:
         :return: array, shape (n_moments,)
         """
         self._update_quadrature(multipliers)
-        power = -np.dot(self._quad_moments, multipliers / self._moment_errs)
-        #power = np.minimum(np.maximum(power, -200), 200)
-        q_density = np.exp(power)
+        q_density = self._density_in_quads(multipliers)
         q_gradient = self._quad_moments.T * q_density
         integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
 
         end_diff = np.dot(self._end_point_diff, multipliers)
         penalty = 2 * np.dot( np.maximum(end_diff, 0), self._end_point_diff)
-        fun = np.sum(self._moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
-        gradient =  self._moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
-        last_size = len(self._last_solved_multipliers)
-        gradient[:last_size] += self._stab_penalty * (multipliers[:last_size] - self._last_solved_multipliers)
+        fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
+        gradient =  self.moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
         return gradient
 
     def _calculate_jacobian_matrix(self, multipliers):
@@ -379,10 +272,8 @@ class Distribution:
         :return: jacobian matrix, symmetric, (n_moments, n_moments)
         """
         self._update_quadrature(multipliers)
+        q_density = self._density_in_quads(multipliers)
 
-        power = -np.dot(self._quad_moments, multipliers / self._moment_errs)
-        power = np.minimum(np.maximum(power, -200), 200)
-        q_density = np.exp(power)
         moment_outer = np.einsum('ki,kj->ijk', self._quad_moments, self._quad_moments)
         triu_idx = np.triu_indices(self.approx_size)
         triu_outer = moment_outer[triu_idx[0], triu_idx[1], :]
@@ -396,15 +287,12 @@ class Distribution:
         jacobian_matrix[triu_idx[1], triu_idx[0]] = integral
 
         end_diff = np.dot(self._end_point_diff, multipliers)
-        fun = np.sum(self._moment_means * multipliers / self._moment_errs) \
+        fun = np.sum(self.moment_means * multipliers / self._moment_errs) \
               + jacobian_matrix[0,0] * self._moment_errs[0]**2
         for side in [0,1]:
             if end_diff[side] > 0:
                 penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
                 jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
-
-        jacobian_matrix[np.diag_indices_from(jacobian_matrix)] += self._stab_penalty
-
 
         #e_vals = np.linalg.eigvalsh(jacobian_matrix)
 
