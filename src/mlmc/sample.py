@@ -1,15 +1,29 @@
+import numpy as np
+
+
 class Sample:
-    # @TODO: some attributes not yet used
-    def __init__(self, directory='', job_id='id', prepare_time=0, queued_time=0, sample_id=None, sample_tag=None):
-        self.sample_id = sample_id
-        self.directory = directory
-        self.job_id = job_id
-        self.prepare_time = prepare_time
-        self.queued_time = queued_time
-        self._result = None
-        self.running_time = 0
-        # @TODO: Not yet used
-        self.sample_tag = sample_tag
+    def __init__(self, **kwargs):
+        """
+        Create Sample() instance
+        :param kwargs: 
+                sample_id: Sample unique identifier
+                directory: Directory with sample simulation data
+                job_id: Id of pbs job with this sample
+                prepare_time: Time needed for creating sample
+                queued_time: Time when job was queued
+                result: sample simulation result
+                time: overall time
+        """
+        self.sample_id = kwargs.get('sample_id')
+        self.directory = kwargs.get('directory', '')
+        self.job_id = kwargs.get('job_id', '')
+        self.prepare_time = kwargs.get('prepare_time', 0)
+        self.queued_time = kwargs.get('queued_time', 0)
+        self._result = kwargs.get('result')
+        # @TODO is this attr used?
+        self.running_time = kwargs.get('running_time')
+        self._time = kwargs.get('time', None)
+
 
     # def set_values(self, attributes):
     #     """
@@ -22,7 +36,13 @@ class Sample:
 
     @property
     def time(self):
-        return self.prepare_time + self.running_time
+        if self._time is None:
+            self.time = self.prepare_time + self.running_time
+        return self._time
+
+    @time.setter
+    def time(self, time):
+        self._time = time
 
     def scheduled_data(self):
         """
@@ -33,20 +53,20 @@ class Sample:
 
     @property
     def result(self):
-        return self._result
+        return np.squeeze(self._result)
 
     @result.setter
     def result(self, res):
         self._result = res
 
-    def collected_data(self, attributes):
+    def collected_data_array(self, attributes):
         """
-        Get sample selected attributes
+        Get sample attribute values
         :param attributes: list of required sample attributes
-        :return: dict {attribute name: attribute value}
+        :return: list of collected values
         """
-        coll_attributes = {}
+        coll_attributes = []
         for name in attributes:
-            coll_attributes[name] = getattr(self, name)
+            coll_attributes.append(getattr(self, name))
 
         return coll_attributes
