@@ -38,12 +38,10 @@ class HDF5:
         self._hdf_file.attrs['version'] = '1.0.1'
         self._hdf_file.attrs['work_dir'] = self.work_dir
         self._hdf_file.attrs['job_dir'] = self.job_dir
-        # @TODO !!
         self._hdf_file.attrs['step_range'] = step_range
         self._hdf_file.attrs.create("n_levels", n_levels, dtype=np.int8)
-        # Create groups Levels and set step range attribute
+        # Create group Levels
         self._hdf_file.create_group("Levels")
-        self._hdf_file["Levels"].attrs.create("step_range", step_range, dtype=np.float16)
 
     def add_level_group(self, level_id):
         """
