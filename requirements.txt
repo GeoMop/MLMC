@@ -1,4 +1,7 @@
+h5py
+mpi4py
 pyyaml
 numpy
 scipy
 sklearn
+h5py
