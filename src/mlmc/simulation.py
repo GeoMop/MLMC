@@ -141,4 +141,4 @@ class Simulation(metaclass=ABCMeta):
                     else:
                         os.remove(file)
         except:
-            print("move sample dir error")
+            print("ERROR - Move sample dir {}".format(sample_dir))

@@ -3,85 +3,143 @@ import os.path
 import json
 import shutil
 import numpy as np
-from mlmc.sample import Sample
-import hdf
+import mlmc.sample
+
 
 class Logger:
     """
-    Logging running simulations and finished simulations
+    Logging level samples
     """
-    def __init__(self, level_idx, output_dir=None, keep_collected=False):
+    # @TODO remove all json logs dependencies
+    def __init__(self, level_idx, hdf_level_group, output_dir=None, keep_collected=False):
         """
         Level logger
         :param level_idx: int, Level id
-        :param output_dir: string, Output dir for log files
+        :param hdf_level_group: HDF5 file group 
         :param keep_collected: bool, if True then directories of completed simulations are not removed
         """
-        # Work dir for scripts and PBS files.
-        self.output_dir = output_dir
         self.level_idx = str(level_idx)
         self.keep_collected = keep_collected
+        self.output_dir = output_dir
 
         # Number of operation for fine simulations
-        self.n_ops_estimate = None
-        self.running_header_set = False
+        self._n_ops_estimate = None
+        self._jobs_dir = None
+        self._hdf_level_group = hdf_level_group
 
-        self.collected_log_content = []
-        self.running_log_content = []
+    @property
+    def n_ops_estimate(self):
+        if self._n_ops_estimate is None:
+            self._n_ops_estimate = self._hdf_level_group.n_ops_estimate
+        return self._n_ops_estimate
+
+    @n_ops_estimate.setter
+    def n_ops_estimate(self, n_ops):
+        self._n_ops_estimate = n_ops
+
+    def not_queued_jobs_sample_ids(self):
+        """
+        Get level queued jobs and sample ids from these jobs
+        :return: set
+        """
+        if self._jobs_dir is None:
+            self._jobs_dir = self._hdf_level_group.job_dir
+
+        # Level jobs ids (=names)
+        job_ids = self._hdf_level_group.level_jobs()
+        # Ids from jobs that are not queued
+        not_queued_jobs = [job_id for job_id in job_ids
+                           if not os.path.exists(os.path.join(self._jobs_dir, *[job_id, 'QUEUED']))]
+
+        # Set of sample ids that are not in queued
+        return self._hdf_level_group.job_samples(not_queued_jobs)
+
+    def reload_samples(self):
+        """
+        Read collected and scheduled samples from hdf file
+        :return: tuple
+        """
+        scheduled_samples = self._hdf_level_group.scheduled()
+        collected_samples = self._hdf_level_group.collected()
+
+        return scheduled_samples, collected_samples
+
+    def log_failed(self, samples):
+        """
+        Log failed samples
+        :param samples: set; sample ids
+        :return: None
+        """
+        self._hdf_level_group.save_failed(samples)
+
+    def log_collected(self, samples):
+        """
+        Log collected samples, eventually remove samples
+        :param samples: list [(fine sample, coarse sample), ...], both are Sample() instances
+        :return: None
+        """
+        if not samples:
+            return
+        self._hdf_level_group.append_collected(samples)
+
+        # If not keep collected remove samples
+        if not self.keep_collected:
+            self._rm_samples(samples)
+
+    def log_scheduled(self, samples):
+        """
+        Log scheduled samples
+        :param samples: dict {sample_id : (fine sample, coarse sample), ...}, samples are Sample() instances 
+        :return: None
+        """
+        if not samples:
+            return
+        # n_ops_estimate is already in log file
+        if self.n_ops_estimate > 0:
+            self._hdf_level_group.n_ops_estimate = self.n_ops_estimate
+
+        self._hdf_level_group.append_scheduled(samples)
+
+    def failed_samples(self):
+        """
+        Get failed samples from hdf file
+        :return: set
+        """
+        return self._hdf_level_group.failed_samples()
+
+    def _rm_samples(self, samples):
+        """
+        Remove sample dirs
+        :param samples: List of sample tuples (fine Sample(), coarse Sample())
+        :return: None
+        """
+        for fine_sample, coarse_sample in samples:
+            if os.path.isdir(coarse_sample.directory):
+                shutil.rmtree(coarse_sample.directory, ignore_errors=True)
+            if os.path.isdir(fine_sample.directory):
+                shutil.rmtree(fine_sample.directory, ignore_errors=True)
+
+    def json_to_hdf(self):
+        """
+        Auxiliary method for conversion from json log to hdf log
+        :return: None
+        """
+        collected_log_content = []
+        running_log_content = []
 
         # File objects
         self.collected_log_ = None
         self.running_log_ = None
 
-        self._get_hdf()
-        self._level_group_path = self._hdf.create_level_group(self.level_idx)
-
-        if output_dir is not None:
+        if self.output_dir is not None:
             # Get log files
-            self.log_running_file = os.path.join(self.output_dir, "running_log_{:s}.json".format(self.level_idx))
-            self.log_collected_file = os.path.join(self.output_dir, "collected_log_{:s}.json".format(self.level_idx))
-        # Files doesn't exist
+            log_running_file = os.path.join(self.output_dir, "running_log_{:s}.json".format(self.level_idx))
+            log_collected_file = os.path.join(self.output_dir, "collected_log_{:s}.json".format(self.level_idx))
+            # Files doesn't exist
         else:
             self.log_running_file = ''
             self.log_collected_file = ''
 
-    def _get_hdf(self):
-        """
-        Create object to manage HDF5 file
-        :return: object
-        """
-        hdf_file = os.path.join(self.output_dir, "mlmc.hdf5")
-        self._hdf = hdf.HDF5(hdf_file, self.output_dir)
-
-    def _running_log(self):
-        """
-        Running log file object
-        :return: File object
-        """
-        if self.running_log_ is None:
-            self._open()
-        return self.running_log_
-
-    def _collected_log(self):
-        """
-        Collected log file object
-        :return: File object
-        """
-        if self.collected_log_ is None:
-            self._open()
-        return self.collected_log_
-
-    def reload_logs(self, log_collected_file=None):
-        """
-        Read collected and running simulations data from log file
-        :param log_collected_file: Collected file abs path
-        :return: None
-        """
-        self._hdf.read_level(self._level_group_path)
-
-        self._close()
-        if log_collected_file is None:
-            log_collected_file = self.log_collected_file
         try:
             with open(log_collected_file, 'r') as reader:
                 lines = reader.readlines()
@@ -94,91 +152,56 @@ class Logger:
                             if len(sim) == 5:
                                 sim.append([[np.inf, np.inf], [np.inf, np.inf]])
                             if len(sim) == 6:
-                                self.collected_log_content.append(sim)
+                                collected_log_content.append(sim)
                         except:
                             continue
 
-            # The error was detected by reading log, save correct log again
-            if len(lines) != len(self.collected_log_content):
-                self.rewrite_collected_log(self.collected_log_content)
         except FileNotFoundError:
-            self.collected_log_content = []
+            collected_log_content = []
         try:
-            with open(self.log_running_file, 'r') as reader:
-                self.running_log_content = [json.loads(line) for line in reader.readlines()]
+            with open(log_running_file, 'r') as reader:
+                running_log_content = [json.loads(line) for line in reader.readlines()]
         except FileNotFoundError:
-            self.running_log_content = []
+            running_log_content = []
 
-    def _open(self, flag='a'):
-        self.running_log_ = open(self.log_running_file, flag)
-        self.collected_log_ = open(self.log_collected_file, flag)
+        if len(collected_log_content) > 0 and len(running_log_content) > 0:
+            self._hdf_samples(running_log_content, collected_log_content)
 
-    def _close(self):
-        if self.running_log_ is not None:
-            self.running_log_.close()
-        if self.collected_log_ is not None:
-            self.collected_log_.close()
-
-    def log_simulations(self, simulations, collected=False):
+    def _hdf_samples(self, running_log_content, collected_log_content):
         """
-        Log simulations, append to collected or running simulations log.
-        :param simulations: array of simulations, format according to mc_levels.collect_samples
-        :param collected: bool, if true then save collected simulations
+        Convert to HDF5 format
         :return: None
         """
-        if self.output_dir is None or not simulations:
-            return
-        if collected:
-            log_file = self._collected_log()
-            self._hdf.save_collected(self._level_group_path, simulations)
-            if not self.keep_collected:
-                self._rm_samples(simulations)
-        else:
-            log_file = self._running_log()
-            # n_ops_estimate is already in log file
-            if self.n_ops_estimate > 0 and not self.running_header_set:
-                self._hdf.set_n_ops_estimate(self._level_group_path, self.n_ops_estimate)
-                log_file.write(json.dumps([self.n_ops_estimate]))
-                log_file.write("\n")
-                self.running_header_set = True
+        n_ops_estimate = np.squeeze(running_log_content[0])
 
-            self._hdf.save_scheduled(self._level_group_path, simulations)
+        samples = []
+        scheduled_samples = {}
+        failed = set()
+        for sim in collected_log_content:
+            _, i, fine, coarse, value, times = sim
+            fine_sample = mlmc.sample.Sample(sample_id=i, directory=fine[1])
+            fine_sample.result = value[0]
+            fine_sample.time = times[0]
 
-        for sim in simulations:
-            log_file.write(json.dumps(sim, cls=ComplexEncoder))
-            log_file.write("\n")
-        log_file.flush()
+            if coarse is None:
+                coarse_sample = mlmc.sample.Sample(sample_id=i)
+                coarse_sample.result = 0.0
+            else:
+                coarse_sample = mlmc.sample.Sample(sample_id=i, directory=coarse[1])
+                coarse_sample.result = value[1]
+                coarse_sample.time = times[1]
 
-    def rewrite_collected_log(self, simulations):
-        """
-        Create new collected log
-        :param simulations: list of simulations
-        :return: None
-        """
-        self.collected_log_ = open(self.log_collected_file, "w")
-        self.log_simulations(simulations, True)
+            if fine_sample.result == np.Inf or coarse_sample.result == np.Inf:
+                failed.add(fine_sample.sample_id)
+                continue
 
-    def _rm_samples(self, simulations):
-        """
-        Remove collected samples dirs
-        :param simulations: list of simulations
-        :return: None
-        """
-        for sim in simulations:
-            _, _, fine, coarse, _, _ = sim
-            if coarse is not None and os.path.isdir(coarse[1]):
-                shutil.rmtree(coarse[1], ignore_errors=True)
-            if os.path.isdir(fine[1]):
-                shutil.rmtree(fine[1], ignore_errors=True)
+            samples.append((fine_sample, coarse_sample))
+            scheduled_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
 
+        self._hdf_level_group.append_scheduled(scheduled_samples)
+        self._hdf_level_group.append_collected(samples)
+        self._hdf_level_group.save_failed(failed)
+        self._hdf_level_group.n_ops_estimate = n_ops_estimate
 
-class ComplexEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Sample):
-            return obj.__dict__
-        return json.JSONEncoder.default(self, obj)
-
-
-
-
-
+    # def change_status(self, sample_id, status):
+    #     self._hdf.change_scheduled_sample_status(self.level_idx, sample_id, status)

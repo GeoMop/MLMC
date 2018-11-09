@@ -16,12 +16,12 @@ class Sample:
         """
         self.sample_id = kwargs.get('sample_id')
         self.directory = kwargs.get('directory', '')
-        self.job_id = kwargs.get('job_id', '')
+        self.job_id = kwargs.get('job_id', 'jobId')
         self.prepare_time = kwargs.get('prepare_time', 0)
         self.queued_time = kwargs.get('queued_time', 0)
         self._result = kwargs.get('result')
         # @TODO is this attr used?
-        self.running_time = kwargs.get('running_time')
+        self.running_time = kwargs.get('running_time', 0)
         self._time = kwargs.get('time', None)
 
 
@@ -53,7 +53,10 @@ class Sample:
 
     @property
     def result(self):
-        return np.squeeze(self._result)
+        if self._result != np.Inf:
+            return np.squeeze(self._result)
+
+        return self._result
 
     @result.setter
     def result(self, res):
