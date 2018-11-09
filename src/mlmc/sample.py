@@ -17,13 +17,11 @@ class Sample:
         self.sample_id = kwargs.get('sample_id')
         self.directory = kwargs.get('directory', '')
         self.job_id = kwargs.get('job_id', 'jobId')
-        self.prepare_time = kwargs.get('prepare_time', 0)
+        self.prepare_time = kwargs.get('prepare_time', 0.0)
         self.queued_time = kwargs.get('queued_time', 0)
         self._result = kwargs.get('result')
-        # @TODO is this attr used?
-        self.running_time = kwargs.get('running_time', 0)
+        self.running_time = kwargs.get('running_time', 0.0)
         self._time = kwargs.get('time', None)
-
 
     # def set_values(self, attributes):
     #     """
@@ -36,6 +34,10 @@ class Sample:
 
     @property
     def time(self):
+        """
+        Total time for sample
+        :return: float
+        """
         if self._time is None:
             self.time = self.prepare_time + self.running_time
         return self._time
@@ -53,9 +55,12 @@ class Sample:
 
     @property
     def result(self):
+        """
+        Sample result
+        :return: numpy array or np.Inf
+        """
         if self._result != np.Inf:
             return np.squeeze(self._result)
-
         return self._result
 
     @result.setter
@@ -66,7 +71,7 @@ class Sample:
         """
         Get sample attribute values
         :param attributes: list of required sample attributes
-        :return: list of collected values
+        :return: list of collected values of attributes
         """
         coll_attributes = []
         for name in attributes:
