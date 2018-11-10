@@ -33,9 +33,6 @@ class SimulationTest(mlmc.simulation.Simulation):
         self._coarse_simulation = None
         self.coarse_sim_set = False
 
-        if "pbs" in self.config:
-            self.pbs_creater = self.config["pbs"]
-
     def _sample_fn(self, x, h):
         """
         Calculates the simulation sample
@@ -69,16 +66,9 @@ class SimulationTest(mlmc.simulation.Simulation):
             self.n_nans += 1
             y = np.nan
 
-        self._result_dict[sample_id] = float(y)
+        self._result_dict[tag] = float(y)
 
-        work_dir = "/home/martin/Documents/MLMC/_test_tmp"
-        # package_dir = self.pbs_creater.add_realization(self._input_sample,
-        #                                                output_subdir=work_dir,
-        #                                                work_dir=work_dir,
-        #                                                flow123d='flow123d')
-
-        return mlmc.sample.Sample(sample_id=sample_id, directory=work_dir,
-                                  prepare_time=randint(0, 20)/10, queued_time=randint(0, 100)/2)
+        return mlmc.sample.Sample(sample_id=sample_id, directory=tag)
 
     def generate_random_sample(self):
         distr = self.config['distr']
@@ -96,4 +86,4 @@ class SimulationTest(mlmc.simulation.Simulation):
     def _extract_result(self, sample):
         # sample time, not implemented in this simulation
         time = 0
-        return self._result_dict[sample.sample_id], time
+        return self._result_dict[sample.directory], time
