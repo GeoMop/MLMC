@@ -6,6 +6,7 @@ TODO:
 """
 import sys
 import os
+from random import randint
 import numpy as np
 
 src_path = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +33,9 @@ class SimulationTest(mlmc.simulation.Simulation):
         self._coarse_simulation = None
         self.coarse_sim_set = False
 
+        if "pbs" in self.config:
+            self.pbs_creater = self.config["pbs"]
+
     def _sample_fn(self, x, h):
         """
         Calculates the simulation sample
@@ -51,7 +55,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         """
         return x
 
-    def simulation_sample(self, tag, time=None):
+    def simulation_sample(self, tag=None, sample_id=0, time=None):
         """
         Run simulation
         :param sim_id:    Simulation id
@@ -61,14 +65,20 @@ class SimulationTest(mlmc.simulation.Simulation):
         # Specific method is called according to pass parameters
         y = getattr(self, self.config['sim_method'])(x, h)  # self._sample_fn(x, h)
 
-
-        if (self.n_nans / (1e-10 + len(self._result_dict)) < self.nan_fraction):
+        if self.n_nans / (1e-10 + len(self._result_dict)) < self.nan_fraction:
             self.n_nans += 1
             y = np.nan
 
-        self._result_dict[tag] = float(y)
+        self._result_dict[sample_id] = float(y)
 
-        return mlmc.sample.Sample(sample_tag=tag)
+        work_dir = "/home/martin/Documents/MLMC/_test_tmp"
+        # package_dir = self.pbs_creater.add_realization(self._input_sample,
+        #                                                output_subdir=work_dir,
+        #                                                work_dir=work_dir,
+        #                                                flow123d='flow123d')
+
+        return mlmc.sample.Sample(sample_id=sample_id, directory=work_dir,
+                                  prepare_time=randint(0, 20)/10, queued_time=randint(0, 100)/2)
 
     def generate_random_sample(self):
         distr = self.config['distr']
@@ -86,4 +96,4 @@ class SimulationTest(mlmc.simulation.Simulation):
     def _extract_result(self, sample):
         # sample time, not implemented in this simulation
         time = 0
-        return self._result_dict[sample.sample_tag], time
+        return self._result_dict[sample.sample_id], time

@@ -6,6 +6,7 @@ import scipy.stats as st
 import scipy.integrate as integrate
 import mlmc.hdf.hdf as hdf
 
+
 class MLMC:
     """
     Multilevel Monte Carlo method
@@ -35,7 +36,7 @@ class MLMC:
         self.target_variance = None
 
         # Create hdf5 file - contains metadata and samples at levels
-        self._hdf_object = hdf.HDF5(work_dir=self._process_options['output_dir'])
+        self._hdf_object = hdf.HDF5(file_name="mlmc_{}.hdf5".format(n_levels), work_dir=self._process_options['output_dir'])
 
     def load_from_file(self):
         """
@@ -57,7 +58,7 @@ class MLMC:
         #         self._n_levels = setup.get('n_levels', None)
         #         self.step_range = setup.get('step_range', None)
 
-        self._hdf_object.init_header(self.step_range, self._n_levels)
+        #self._hdf_object.init_header(self.step_range, self._n_levels)
 
         # Create mlmc levels
         self.create_levels()
@@ -67,6 +68,7 @@ class MLMC:
         Save mlmc main attributes {n_levels, step_range} and create levels
         :return: None
         """
+        self._hdf_object.clear_groups()
         self._hdf_object.init_header(step_range=self.step_range,
                                      n_levels=self._n_levels)
         self.create_levels()
@@ -379,7 +381,6 @@ class MLMC:
         TODO: separate target_variance per moment
         :param target_variance: Constrain to achieve this variance.
         :param moments_fn: moment evaluation functions
-        :param fraction: Plan only this fraction of computed counts.
         :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
         :return: np.array with number of optimal samples for individual levels and moments, array (LxR)
         """
@@ -411,7 +412,6 @@ class MLMC:
         :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
         :return: None
         """
-
         n_samples = self.estimate_n_samples_for_target_variance(target_variance, moments_fn, prescribe_vars)
         n_samples = np.max(n_samples, axis=1)
         self.set_level_target_n_samples(n_samples, fraction)
@@ -485,7 +485,6 @@ class MLMC:
         :param moments_fn: Vector moment function, gives vector of moments for given sample or sample vector.
         :return: estimate_of_moment_means, estimate_of_variance_of_estimate ; arrays of length n_moments
         """
-
         means = []
         vars = []
         n_samples = []

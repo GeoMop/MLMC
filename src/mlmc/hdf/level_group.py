@@ -14,8 +14,8 @@ class LevelGroup:
     # @TODO change docstring
     # {attribute name in class Sample : {name: dataset name, maxshape: dataset maxshape, dtype: dataset dtype}}
     COLLECTED_ATTRS = {"sample_id": {'name': 'collected_ids', 'maxshape': (None, 1), 'dtype': np.int16},
-                       "result": {'name': 'collected_values', 'maxshape': (None, 2, None), 'dtype': np.float32},
-                       "time": {'name': 'collected_times', 'maxshape': (None, 2, None), 'dtype': np.float32}}
+                       "result": {'name': 'collected_values', 'maxshape': (None, 2, None), 'dtype': np.float64},
+                       "time": {'name': 'collected_times', 'maxshape': (None, 2, None), 'dtype': np.float64}}
 
     DATASET_NAMES = {"scheduled": "scheduled",
                      "collected_ids": "collected_ids"}

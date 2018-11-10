@@ -8,8 +8,8 @@ class HDF5:
     # @TODO: comment hdf structure
     def __init__(self, work_dir, file_name="mlmc.hdf5", job_dir="scripts"):
         # Read/write if exists, create otherwise
-        self._hdf_file = h5py.File(os.path.join(work_dir, file_name), 'a')
-
+        self.file_name = os.path.join(work_dir, file_name)
+        self._hdf_file = h5py.File(self.file_name, 'a')
         self.work_dir = work_dir
         # Job directroy relative path
         self.job_dir = job_dir
@@ -23,6 +23,14 @@ class HDF5:
         # Set class attributes from hdf file
         for attr_name, value in self._hdf_file.attrs.items():
             self.__dict__[attr_name] = value
+
+    def clear_groups(self):
+        """
+        Remove group Levels, it allow run same mlmc object more times
+        :return: None
+        """
+        for item in self._hdf_file.keys():
+            del self._hdf_file[item]
 
     def init_header(self, step_range, n_levels):
         """

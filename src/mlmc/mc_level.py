@@ -120,16 +120,15 @@ class Level:
         # @TODO remove - just for conversion logs from json to hdf
         #self._logger.json_to_hdf()
 
-        collected = set()
+        collected_samples = {}
         # Get logs content
-        scheduled_samples, collected_samples = self._logger.reload_samples()
+        scheduled_samples, log_collected_samples = self._logger.reload_samples()
 
-        for fine_sample, coarse_sample in collected_samples:
+        for fine_sample, coarse_sample in log_collected_samples:
             # Append collected samples
-            self.collected_samples.append((fine_sample, coarse_sample))
+            collected_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
             # Add sample results
             self._add_sample(fine_sample.sample_id, (fine_sample.result, coarse_sample.result))
-            collected.add(fine_sample.sample_id)
             # Get time from samples
             self.fine_times.append(fine_sample.time)
             self.coarse_times.append(coarse_sample.time)
@@ -139,15 +138,22 @@ class Level:
 
         # Recover scheduled
         for fine_sample, coarse_sample in scheduled_samples:
+            # Append data that are saved in scheduled dataset to collected samples
+            if fine_sample.sample_id in collected_samples:
+                f_col_sample, c_col_sample = collected_samples[fine_sample.sample_id]
+                f_col_sample.add_scheduled_attrs(fine_sample)
+                c_col_sample.add_scheduled_attrs(coarse_sample)
+
             # Regenerate failed samples
             if regen_failed:
                 # Sample that is not in collected to scheduled
-                if fine_sample.sample_id not in collected:
+                if fine_sample.sample_id not in collected_samples:
                     self.scheduled_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
             # Not collected and not failed sample to scheduled
-            else:
-                if fine_sample.sample_id not in collected and fine_sample.sample_id not in self.failed_samples:
+            elif fine_sample.sample_id not in collected_samples and fine_sample.sample_id not in self.failed_samples:
                     self.scheduled_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
+
+        self.collected_samples = list(collected_samples.values())
 
         # Get n_ops_estimate from logger
         self.n_ops_estimate = self._logger.n_ops_estimate
@@ -455,7 +461,6 @@ class Level:
         :param moments_fn: Moments evaluation function
         :return: tuple (variance vector, length of moments)
         """
-
         assert self.n_samples > 1
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn, force=True)
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)

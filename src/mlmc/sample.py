@@ -78,3 +78,20 @@ class Sample:
             coll_attributes.append(getattr(self, name))
 
         return coll_attributes
+
+    def add_scheduled_attrs(self, scheduled_sample):
+        """
+        Add sample attributes - which were previously saved as as scheduled sampled - to 'collected' sample
+        :param scheduled_sample: Sample()
+        :return: None
+        """
+        # Sample attributes which are in scheduled dataset
+        scheduled_attr_saved = ['directory', 'job_id', 'prepare_time', 'queued_time']
+        for attr_name in scheduled_attr_saved:
+            setattr(self, attr_name, getattr(scheduled_sample, attr_name))
+
+    def __eq__(self, other):
+        return self.sample_id == other.sample_id and \
+               self.prepare_time == other.prepare_time and\
+               self.queued_time == other.queued_time and \
+               self.result == other.result
