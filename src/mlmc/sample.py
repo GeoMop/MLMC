@@ -94,4 +94,5 @@ class Sample:
         return self.sample_id == other.sample_id and \
                self.prepare_time == other.prepare_time and\
                self.queued_time == other.queued_time and \
-               self.result == other.result
+               self.result == other.result and\
+               self.directory == other.directory
