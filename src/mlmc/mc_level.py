@@ -405,8 +405,7 @@ class Level:
         """
         # Current moment functions are different from last moment functions
         same_moments = moments_fn == self._last_moments_fn
-        same_shapes = self.last_moments_eval is not None and \
-                      self.last_moments_eval[0].shape == (self.n_samples, moments_fn.size)
+        same_shapes = self.last_moments_eval is not None
         if force or not same_moments or not same_shapes:
             samples = self.sample_values
             # Moments from fine samples
@@ -423,7 +422,8 @@ class Level:
             self.last_moments_eval = moments_fine, moments_coarse
 
             self._remove_outliers_moments()
-            self.subsample(None)
+            if self.sample_indices is not None:
+                self.subsample(len(self.sample_indices))
 
         if self.sample_indices is None:
             return self.last_moments_eval
@@ -447,18 +447,6 @@ class Level:
         # New moments without outliers
         self.last_moments_eval = self.last_moments_eval[0][ok_fine_coarse, :], self.last_moments_eval[1][ok_fine_coarse, :]
 
-        # Remove outliers also from subsample indices.
-        # if self.sample_indices is not None:
-        #     new_size = len(self.last_moments_eval[0][:,0])
-        #     # back map
-        #     map = np.zeros_like(ok_fine_coarse, dtype=int)
-        #     map[ok_fine_coarse] = np.arange(new_size)
-        #     # select only valid indices
-        #     self.sample_indices = self.sample_indices[ok_fine_coarse[self.sample_indices]]
-        #     # map indices to new moments eval array
-        #     self.sample_indices = map[self.sample_indices]
-        #     if np.any(self.sample_indices >= new_size):
-        #         raise IndexError
 
     def estimate_diff_var(self, moments_fn):
         """
