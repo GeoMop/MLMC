@@ -143,14 +143,16 @@ class LevelGroup:
         """
         Merge fine sample and coarse sample collected values to one dictionary
         :param fine_coarse_samples: list of tuples; [(Sample(), Sample()), ...]
-        :return: zip
+        :return: Fine and coarse samples in array: [n_attrs, N, 2]
         """
-        fine_coarse_data = np.array([(f_sample.collected_data_array(LevelGroup.COLLECTED_ATTRS),
-                                      coarse_sample.collected_data_array(LevelGroup.COLLECTED_ATTRS))
-                                     for f_sample, coarse_sample in fine_coarse_samples])
+        n_attrs = len(Sample().collected_data_array(LevelGroup.COLLECTED_ATTRS))
+        fine_coarse_data = np.empty((len(fine_coarse_samples), 2, n_attrs))
+        for i, (f_sample, c_sample) in enumerate(fine_coarse_samples):
+            fine_coarse_data[i, 0, :] = f_sample.collected_data_array(LevelGroup.COLLECTED_ATTRS)
+            fine_coarse_data[i, 1, :] = c_sample.collected_data_array(LevelGroup.COLLECTED_ATTRS)
 
-        samples_attr_values = (zip(*[zip(f, c) for f, c in zip(fine_coarse_data[:, 0], fine_coarse_data[:, 1])]))
-        return samples_attr_values
+        # Shape: [N, 2, n_attrs] -> [n_attrs, N, 2]
+        return fine_coarse_data.transpose([2,0,1])
 
     def save_failed(self, failed_samples):
         """
