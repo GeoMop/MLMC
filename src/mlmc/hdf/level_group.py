@@ -153,7 +153,7 @@ class LevelGroup:
             job_dataset_path = '/'.join(['Jobs', job_name])
 
             # Get job dataset and direct save sample ids
-            job_dset = self._make_dataset(name=job_dataset_path, shape=(len(job_samples),),
+            job_dset = self._make_dataset(name=job_dataset_path, shape=(0,),
                                           dtype=np.int32, maxshape=(None,), chunks=True)
             # Append sample ids to existing job dataset
             self._append_dataset(job_dset, list(job_samples))

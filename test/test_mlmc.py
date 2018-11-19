@@ -765,9 +765,9 @@ def test_save_load_samples():
     # 6. check that they match the reference copy
 
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
-    if os.path.isdir(work_dir):
-        shutil.rmtree(work_dir)
-    os.makedirs(work_dir)
+    # if os.path.isdir(work_dir):
+    #     shutil.rmtree(work_dir)
+    # os.makedirs(work_dir)
 
     n_levels = 5
     distr = stats.norm()
@@ -782,12 +782,14 @@ def test_save_load_samples():
                     'regen_failed': False}
 
     mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
-    mc.create_new_execution()
+    mc.load_from_file()
 
     mc.set_initial_n_samples()
     mc.refill_samples()
     mc.wait_for_simulations()
     check_estimates_for_nans(mc, distr)
+
+    exit()
 
     # Levels collected samples
     l_collected = [level.collected_samples.copy() for level in mc.levels]

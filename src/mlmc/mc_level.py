@@ -122,7 +122,7 @@ class Level:
         :return: None
         """
         # @TODO remove - just for conversion logs from json to hdf
-        #self._logger.json_to_hdf()
+        self._logger.json_to_hdf()
 
         collected_samples = {}
         # Get logs content
