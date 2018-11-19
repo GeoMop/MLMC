@@ -52,7 +52,14 @@ class Logger:
                            if not os.path.exists(os.path.join(self._jobs_dir, *[job_id, 'QUEUED']))]
 
         # Set of sample ids that are not in queued
-        return self._hdf_level_group.job_samples(not_queued_jobs)
+        not_queued_samples_ids = self._hdf_level_group.job_samples(not_queued_jobs)
+        finished_samples = self._hdf_level_group.get_finished_ids()
+
+        if len(not_queued_samples_ids) > 0:
+            if len(finished_samples) > 0:
+                return np.setdiff1d(not_queued_samples_ids, finished_samples)
+
+        return not_queued_samples_ids
 
     def reload_samples(self):
         """

@@ -30,7 +30,7 @@ long_description='%s\n%s' % (
 
 
 setup(
-    # Project (job_id) name
+    # Project (package) name
     name='mlmc',
     version='0.1.0',
     license='GPL 3.0',
@@ -64,9 +64,9 @@ setup(
     package_dir={'': 'src'},
     py_modules=[splitext(basename(path))[0] for path in glob.glob('src/*.py')],
     package_data={
-        # If any job_id contains *.txt or *.rst files, include them:
+        # If any package contains *.txt or *.rst files, include them:
         '': ['*.txt', '*.rst'],
-        # And include any *.msg files found in the 'hello' job_id, too:
+        # And include any *.msg files found in the 'hello' package, too:
         'hello': ['*.msg'],
     },
 

@@ -3,154 +3,199 @@ from mlmc.sample import Sample
 
 
 class LevelGroup:
-    # One sample data type for dataset scheduled
+    # One sample data type for dataset (h5py.Dataset) scheduled
     SAMPLE_DTYPE = {'names': ('dir', 'job_id', 'prepare_time', 'queued_time'),
                     'formats': ('S100', 'S5', 'f8', 'f8')}
-    # Row format for dataset scheduled
+
+    # Row format for dataset (h5py.Dataset) scheduled
     SCHEDULED_DTYPE = {'names': ('fine_sample', 'coarse_sample'),
                        'formats': (SAMPLE_DTYPE, SAMPLE_DTYPE)}
 
-    # Data that is collected, only this data can by saved to datasets
-    # @TODO change docstring
-    # {attribute name in class Sample : {name: dataset name, maxshape: dataset maxshape, dtype: dataset dtype}}
-    COLLECTED_ATTRS = {"sample_id": {'name': 'collected_ids', 'maxshape': (None, 1), 'dtype': np.int16},
-                       "result": {'name': 'collected_values', 'maxshape': (None, 2, None), 'dtype': np.float64},
-                       "time": {'name': 'collected_times', 'maxshape': (None, 2, None), 'dtype': np.float64}}
-
-    DATASET_NAMES = {"scheduled": "scheduled",
-                     "collected_ids": "collected_ids"}
+    """
+    Data that are collected, only this data can by saved to HDF datasets (h5py.Dataset)
+    {attribute name in class Sample : {name: dataset name,
+                                       default_shape: dataset shape, used while creating
+                                       maxshape: Maximal dataset shape, necessary for resizing
+                                       dtype: dataset values dtype}
+                                       }
+    """
+    COLLECTED_ATTRS = {"sample_id": {'name': 'collected_ids', 'default_shape': (0,), 'maxshape': (None,),
+                                     'dtype': np.int32},
+                       "result": {'name': 'collected_values', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
+                                  'dtype': np.float64},
+                       "time": {'name': 'collected_times', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
+                                'dtype': np.float64}}
 
     def __init__(self, hdf_group, level_id, job_dir):
-        # HDF5 level group
+        """
+        Create LevelGroup instance, each mlmc.Level has access to corresponding LevelGroup to save data
+        :param hdf_group: h5py.Group instance, can contains other groups and dataset (h5py.Dataset)
+        :param level_id: Unambiguous identifier of mlmc.Level object 
+        :param job_dir: Absolute path to jobs directory which contains pbs scripts of samples
+        """
+        # mlmc.Level identifier
         self.level_id = level_id
-        # HDF Group object
+        # HDF Group object (h5py.Group)
         self._level_group = hdf_group
-        self._n_ops_estimate = None
-        # Absolute path to job directory
+        # Absolute path to the job directory
         self.job_dir = job_dir
 
+        # Attribute necessary for mlmc run
+        self._n_ops_estimate = None
+        # Set group attribute 'level_id'
         self._level_group.attrs['level_id'] = self.level_id
+
+        # Create necessary datasets (h5py.Dataset) a groups (h5py.Group)
+        self._make_groups_datasets()
+
+    def _make_groups_datasets(self):
+        """
+        Create h5py.Dataset for scheduled samples, collected samples according to COLLECTED_ATTRS and failed samples,
+        also create h5py.Group for Jobs - it contains or will contain datasets with sample id,
+        so we can find all sample ids which was run in particular pbs job
+        :return: None
+        """
+        # Create dataset for scheduled samples
+        self._make_dataset(name='scheduled', shape=(0,), maxshape=(None,), dtype=LevelGroup.SCHEDULED_DTYPE, chunks=True)
+
+        # Create datasets for collected samples by COLLECTED_ATTRS
+        for _, attr_properties in LevelGroup.COLLECTED_ATTRS.items():
+            self._make_dataset(name=attr_properties['name'], shape=attr_properties['default_shape'],
+                               maxshape=attr_properties['maxshape'], dtype=attr_properties['dtype'], chunks=True)
+
+        # Create dataset for failed samples
+        self._make_dataset(name='failed_ids', shape=(0,), dtype=np.int32, maxshape=(None,), chunks=True)
+
+    def _make_dataset(self, **kwargs):
+        """
+        Create h5py.Dataset
+        :param kwargs: h5py.Dataset properties
+                    name: Dataset name, key in h5py.Group (self._level_group)
+                    shape: NumPy-style shape tuple giving dataset dimensions.
+                    dtype: NumPy dtype object giving the dataset’s type.
+                    maxshape: NumPy-style shape tuple indicating the maxiumum dimensions up to
+                              which the dataset may be resized. Axes with None are unlimited.
+                    chunks: Tuple giving the chunk shape, or True if we want to use chunks but not specify the size or 
+                            None if chunked storage is not used
+        :return: h5py.Dataset
+        """
+        # Check if dataset exists
+        if kwargs.get('name') not in self._level_group:
+            self._level_group.create_dataset(
+                kwargs.get('name'),
+                shape=kwargs.get('shape'),
+                dtype=kwargs.get('dtype'),
+                maxshape=kwargs.get('maxshape'),
+                chunks=kwargs.get('chunks'))
+
+        return self._level_group[kwargs.get('name')]
+
+    @property
+    def collected_ids_dset(self):
+        """
+        Collected ids dataset
+        :return: h5py.Dataset
+        """
+        return self._level_group['collected_ids']
+
+    @property
+    def scheduled_dset(self):
+        """
+        Dataset with scheduled samples
+        :return: h5py.Dataset
+        """
+        return self._level_group['scheduled']
+
+    @property
+    def failed_ids_dset(self):
+        """
+        Dataset of ids of failed samples
+        :return: h5py.Dataset
+        """
+        return self._level_group['failed_ids']
 
     def append_scheduled(self, scheduled_samples):
         """
-        Save scheduled sample to dataset
+        Save scheduled samples to dataset (h5py.Dataset)
         :param scheduled_samples: list of sample objects [(fine_sample, coarse_sample)]
         :return: None
         """
-        # Creates a scheduled samples format acceptable for hdf
-        sim_hdf_form = []
+        # Prepare NumPy array for all scheduled samples
+        samples_scheduled_data = np.empty(len(scheduled_samples), dtype=LevelGroup.SCHEDULED_DTYPE)
         # Jobs {job_id: [sample_id, ...]}
         jobs = {}
 
-        # Go through scheduled samples and format them
-        for sample_id, (fine_sample, coarse_sample) in scheduled_samples.items():
-            sim_hdf_form.append((fine_sample.scheduled_data(), coarse_sample.scheduled_data()))
-            # Append sample id to job id
-            jobs.setdefault(fine_sample.job_id, set()).add(fine_sample.sample_id)
+        # Go through scheduled samples, format them and get samples job ids (pbs script id, see src.Pbs)
+        for index, (sample_id, (fine_sample, coarse_sample)) in enumerate(scheduled_samples.items()):
+            # Add of fine samples scheduled data and coarse sample scheduled data
+            samples_scheduled_data[index] = fine_sample.scheduled_data(), coarse_sample.scheduled_data()
+            # Append sample id to job id, default create empty set
+            jobs.setdefault(fine_sample.job_id, set()).add(sample_id)
+            # For non zero level add also coarse sample job id
             if int(self.level_id) != 0:
-                jobs.setdefault(coarse_sample.job_id, set()).add(coarse_sample.sample_id)
+                jobs.setdefault(coarse_sample.job_id, set()).add(sample_id)
 
-        # Create dataset scheduled
-        if LevelGroup.DATASET_NAMES['scheduled'] not in self._level_group:
-            self._create_scheduled_dataset(sim_hdf_form)
-        # Dataset scheduled already exists
-        else:
-            self._append_dataset(LevelGroup.DATASET_NAMES['scheduled'], sim_hdf_form)
+        # Append samples to existing scheduled dataset
+        self._append_dataset(self.scheduled_dset, samples_scheduled_data)
 
         # Save to jobs to datasets
         self._append_jobs(jobs)
 
-    def _create_scheduled_dataset(self, scheduled_samples):
-        """
-        Create dataset for scheduled samples
-        :param scheduled_samples: list in form [((fine sample data, coarse sample data), status), ...]
-        :return: None
-        """
-        # Create dataset with SCHEDULED_DTYPE and with unlimited max shape (required for resize)
-        scheduled_dset = self._level_group.create_dataset(
-            LevelGroup.DATASET_NAMES['scheduled'],
-            shape=(len(scheduled_samples),),
-            maxshape=(None,),
-            dtype=LevelGroup.SCHEDULED_DTYPE,
-            chunks=True)
-
-        # Set values to dataset
-        scheduled_dset[()] = scheduled_samples
-
     def _append_jobs(self, jobs):
         """
-        Save jobs to datasets
+        Save jobs to datasets (h5py.Dataset)
         :param jobs: dict, {job_id: [sample_id,...], ...}
         :return: None
         """
-        if 'Jobs' not in self._level_group:
-            self._level_group.create_group('Jobs')
-
+        # Loop through all jobs
         for job_name, job_samples in jobs.items():
+            # HDF path to job dataset
             job_dataset_path = '/'.join(['Jobs', job_name])
 
-            if job_dataset_path not in self._level_group:
-                self._level_group.create_dataset(job_dataset_path, data=list(job_samples), maxshape=(None,),
-                                                     chunks=True)
-            else:
-                self._append_dataset('/'.join([self._level_group.name, job_dataset_path]), list(job_samples))
+            # Get job dataset and direct save sample ids
+            job_dset = self._make_dataset(name=job_dataset_path, shape=(len(job_samples),),
+                                          dtype=np.int32, maxshape=(None,), chunks=True)
+            # Append sample ids to existing job dataset
+            self._append_dataset(job_dset, list(job_samples))
 
     def append_collected(self, collected_samples):
         """
-        Save level collected data to datasets corresponding to COLLECTED_ATTRS
+        Save level collected samples to datasets (h5py.Dataset) corresponding to the COLLECTED_ATTRS
         :param collected_samples: Level sample [(fine sample, coarse sample)], both are Sample() object instances
         :return: None
         """
-        collected_data = {}
-        # Get sample attributes pairs as zip (fine attribute values, coarse attribute values)
-        samples_attr_pairs = self._sample_attributes_pairs(collected_samples)
-        # Attribute values with attribute names
-        for key, values in zip(LevelGroup.COLLECTED_ATTRS.keys(), samples_attr_pairs):
-            collected_data[key] = values
-
-        # Create own dataset for each collected attribute
-        for attr_name, data in collected_data.items():
-            data = np.array(data)
-            # Sample id is same for fine and coarse sample
+        # Get sample attributes pairs as NumPy array [num_attrs, num_samples, 2]
+        samples_attr_pairs = self._sample_attr_pairs(collected_samples)
+        # Append attributes datasets - dataset name matches the attribute name
+        for attr_name, data in zip(LevelGroup.COLLECTED_ATTRS.keys(), samples_attr_pairs):
+            # Sample id is same for fine and coarse sample, use just one
             if attr_name == 'sample_id':
                 data = data[:, 0]
-            # Data shape
-            shape = data.shape
-            # Maxshape as a constant
-            maxshape = LevelGroup.COLLECTED_ATTRS[attr_name]['maxshape']
 
-            # Data is squeezed, so expand last dimension to 'maxshape' shape
-            if len(shape) == len(maxshape) - 1:
-                data = np.expand_dims(data, axis=len(maxshape) - 1)
-                shape = data.shape
+            # Data are squeezed, so expand last dimension to 'maxshape' shape
+            if len(data.shape) == len(LevelGroup.COLLECTED_ATTRS[attr_name]['maxshape']) - 1:
+                data = np.expand_dims(data, axis=len(LevelGroup.COLLECTED_ATTRS[attr_name]['maxshape']) - 1)
 
-            # Dataset already exists, append new values
-            if LevelGroup.COLLECTED_ATTRS[attr_name]['name'] in self._level_group:
-                self._append_dataset(LevelGroup.COLLECTED_ATTRS[attr_name]['name'], data)
-                continue
+            # Append dataset
+            self._append_dataset(self._level_group[LevelGroup.COLLECTED_ATTRS[attr_name]['name']], data)
 
-            # Create resizable dataset
-            dataset = self._level_group.create_dataset(
-                LevelGroup.COLLECTED_ATTRS[attr_name]['name'],
-                shape=shape,
-                maxshape=maxshape,
-                dtype=LevelGroup.COLLECTED_ATTRS[attr_name]['dtype'],
-                chunks=True)
-            # Set data
-            dataset[()] = data
-
-    def _sample_attributes_pairs(self, fine_coarse_samples):
+    def _sample_attr_pairs(self, fine_coarse_samples):
         """
-        Merge fine sample and coarse sample collected values to one dictionary
+        Merge fine sample and coarse sample collected values to one NumPy array
         :param fine_coarse_samples: list of tuples; [(Sample(), Sample()), ...]
-        :return: zip
+        :return: Fine and coarse samples in array: [n_attrs, N, 2]
         """
-        fine_coarse_data = np.array([(f_sample.collected_data_array(LevelGroup.COLLECTED_ATTRS),
-                                      coarse_sample.collected_data_array(LevelGroup.COLLECTED_ATTRS))
-                                     for f_sample, coarse_sample in fine_coarse_samples])
+        # Number of attributes
+        n_attrs = len(Sample().collected_data_array(LevelGroup.COLLECTED_ATTRS))
+        # Prepare matrix for fine and coarse data
+        fine_coarse_data = np.empty((len(fine_coarse_samples), 2, n_attrs))
+        # Set sample's collected data
+        for index, (f_sample, c_sample) in enumerate(fine_coarse_samples):
+            fine_coarse_data[index, 0, :] = f_sample.collected_data_array(LevelGroup.COLLECTED_ATTRS)
+            fine_coarse_data[index, 1, :] = c_sample.collected_data_array(LevelGroup.COLLECTED_ATTRS)
 
-        samples_attr_values = (zip(*[zip(f, c) for f, c in zip(fine_coarse_data[:, 0], fine_coarse_data[:, 1])]))
-        return samples_attr_values
+        # Shape: [N, 2, n_attrs] -> [n_attrs, N, 2]
+        return fine_coarse_data.transpose([2, 0, 1])
 
     def save_failed(self, failed_samples):
         """
@@ -158,48 +203,28 @@ class LevelGroup:
         :param failed_samples: set; Level sample ids
         :return: None
         """
-        # Dataset already exists, append new values
-        if 'failed_ids' not in self._level_group:
-            # Create resizable dataset
-            self._level_group.create_dataset(
-                'failed_ids',
-                data=list(failed_samples),
-                maxshape=(None,),
-                chunks=True)
-            # Set data
-        else:
-            dataset = self._level_group['failed_ids']
-            dataset.resize((len(failed_samples),))
-            dataset[()] = list(failed_samples)
+        self.failed_ids_dset.resize((len(failed_samples), ))
+        self.failed_ids_dset[:] = list(failed_samples)
 
-    def _append_dataset(self, dataset_name, values):
+    def _append_dataset(self, dataset, values):
         """
         Append values to existing dataset
-        :param dataset_name: Path to dataset
-        :param values: list of values (tuple or single value)
+        :param dataset: h5py.Dataset
+        :param values: list of values (tuple, NumPy array or single value)
         :return: None
         """
-        if dataset_name not in self._level_group:
-            raise Exception("Dataset doesn't exist")
         # Resize dataset
-        self._level_group[dataset_name].resize(self._level_group[dataset_name].shape[0] +
-                                               len(values), axis=0)
+        dataset.resize(dataset.shape[0] + len(values), axis=0)
         # Append new values to the end of dataset
-        self._level_group[dataset_name][-len(values):] = values
+        dataset[-len(values):] = values
 
     def scheduled(self):
         """
         Read level dataset with scheduled samples
         :return: generator, each item is in form (Sample(), Sample())
         """
-        # Generator of scheduled dataset values
-        scheduled_dset = self._level_group.get(LevelGroup.DATASET_NAMES['scheduled'], None)
-
-        if scheduled_dset is None:
-            return
-
         # Create fine and coarse samples
-        for sample_id, (fine, coarse) in enumerate(scheduled_dset):
+        for sample_id, (fine, coarse) in enumerate(self.scheduled_dset):
             yield (Sample(sample_id=sample_id,
                           directory=fine[0].decode('UTF-8'),
                           job_id=fine[1].decode('UTF-8'),
@@ -215,16 +240,12 @@ class LevelGroup:
         create fine and coarse samples as Sample() instances
         :return: generator; one item is tuple (Sample(), Sample())
         """
-        # Collected ids dataset exists in Level group
-        if LevelGroup.DATASET_NAMES['collected_ids'] not in self._level_group:
-            return
-
         # Number of collected samples
-        num_collected_samples = self._level_group[LevelGroup.DATASET_NAMES['collected_ids']].len()
+        num_collected_samples = self.collected_ids_dset.len()
 
         # Collected data as dictionary according to lookup table COLLECTED_ATTRS
         # dictionary format -> {COLLECTED_ATTRS key: corresponding dataset values generator, ...}
-        collected_data = {sample_attr_name: self._dataset_values('/'.join([self._level_group.name, dset_params['name']]))
+        collected_data = {sample_attr_name: self._dataset_values(self._level_group[dset_params['name']])
                           for sample_attr_name, dset_params in LevelGroup.COLLECTED_ATTRS.items()}
 
         # For each item create two Sample() instances - fine sample and coarse sample
@@ -236,51 +257,35 @@ class LevelGroup:
                 value = next(values_generator)
                 # Sample id is store like single value for both samples
                 if sample_attr_name == 'sample_id':
-                    fine_values[sample_attr_name] = value[0]
-                    coarse_values[sample_attr_name] = value[0]
+                    coarse_values[sample_attr_name] = fine_values[sample_attr_name] = value
                 else:
                     fine_values[sample_attr_name] = value[0]
                     coarse_values[sample_attr_name] = value[1]
             # Create tuple of Sample() instances
             yield (Sample(**fine_values), Sample(**coarse_values))
 
-    def _dataset_values(self, dataset_name):
+    def _dataset_values(self, dataset):
         """
         Read dataset values
-        :param dataset_name: dataset name in Level group
-        :return: generator
+        :param dataset: h5py.Dataset Level group
+        :return: generator; item - row in dataset (Numpy array or single value) 
         """
-        # Dataset doesn't exist
-        if dataset_name not in self._level_group:
-            return
-        else:
-            # Scheduled dataset
-            dataset = self._level_group[dataset_name]
-
-            # Return dataset items
-            for dset_value in dataset:
-                yield dset_value
+        # Return dataset item
+        for dset_value in dataset:
+            yield dset_value
 
     def level_jobs(self):
         """
         Get level job ids
-        :param level_id: Level id
-        :return: list of job ids
+        :return: list of job ids - in this case it is equivalent to h5py.Group.keys() (h5py.Dataset names)
         """
-        if 'Jobs' not in self._level_group:
-            return []
         return list(self._level_group['Jobs'].keys())
-
-    def failed_samples(self):
-        if 'failed_ids' not in self._level_group:
-            return set()
-        return set(self._level_group['failed_ids'])
 
     def job_samples(self, job_dataset_names):
         """
         Get sample ids from job datasets
         :param job_dataset_names: Job dataset names
-        :return: set; sample ids
+        :return: NumPy array of unique sample ids
         """
         # HDF path to level Jobs group
         if 'Jobs' not in self._level_group:
@@ -288,33 +293,45 @@ class LevelGroup:
 
         # Path 'Jobs' group
         jobs_group_hdf_path = "/".join([self._level_group.name, 'Jobs'])
-        sample_ids = set()
+        sample_ids = []
         # Get job samples
         for dset_name in job_dataset_names:
             dataset = self._level_group["/".join([jobs_group_hdf_path, dset_name])]
-            sample_ids.update(dataset.value)
+            sample_ids.extend(dataset.value)
 
-        return sample_ids
+        return np.unique(np.array(sample_ids))
+
+    def get_finished_ids(self):
+        """
+        Get collected and failed samples ids
+        :return: NumPy array
+        """
+        return np.concatenate((self.collected_ids_dset.value, np.array(self.failed_samples(True))), axis=0)
+
+    def failed_samples(self, to_array=False):
+        """
+        Failed samples ids
+        :param to_array: need numpy array instead of set()
+        :return: set() or NumPy array
+        """
+        # Return NumPy array otherwise return set()
+        if to_array is True:
+            return self._level_group['failed_ids'].value
+        return set(self._level_group['failed_ids'])
 
     @property
     def n_ops_estimate(self):
+        """
+        Get number of operations estimate
+        :return: float
+        """
         return self._n_ops_estimate
 
     @n_ops_estimate.setter
     def n_ops_estimate(self, n_ops_estimate):
+        """
+        Set property n_ops_estimate
+        :param n_ops_estimate: number of operations
+        :return: None
+        """
         self._n_ops_estimate = self._level_group.attrs['n_ops_estimate'] = float(n_ops_estimate)
-
-    # def change_scheduled_sample_status(self, sample_id, status):
-    #     """
-    #     Change scheduled sample status, it is common for fine sample and coarse sample too
-    #     :param level_id: Level id
-    #     :param sample_id: Sample id
-    #     :param status: status, e.g. "RUN"
-    #     :return: None
-    #     """
-    #     if LevelGroup.DATASET_NAMES['scheduled'] not in self._level_group:
-    #         raise Exception("Dataset is not in HDF5 file")
-    #     else:
-    #         sample_row = self._level_group[LevelGroup.DATASET_NAMES['scheduled']][sample_id]
-    #         sample_row[-1] = status
-    #         self._level_group[LevelGroup.DATASET_NAMES['scheduled']][sample_id] = sample_row

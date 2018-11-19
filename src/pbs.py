@@ -83,6 +83,9 @@ class Pbs:
         :param kwargs: dict with params
         :return: None
         """
+        if self._number_of_realizations == 0:
+            self.clean_script()
+
         assert self.pbs_script is not None
 
         lines = [
@@ -114,37 +117,32 @@ class Pbs:
         self.pbs_script.append("rm -f " + self._package_dir + "/RUNNING")
 
         script_content = "\n".join(self.pbs_script)
-
-        print("execute package dir ", self._package_dir)
         pbs_file = os.path.join(self._package_dir, "{:04d}.sh".format(self._package_count))
 
-        pbs_file_pom = os.path.join("/home/martin/Documents/MLMC/test/",
+        pbs_file_pom = os.path.join("/storage/liberec1-tul/home/martin_spetlik",
                                     "{:04d}.sh".format(self._package_count))
         self._package_count += 1
         with open(pbs_file_pom, "w") as file_writer:
             file_writer.write(script_content)
 
-
-
         os.chmod(pbs_file_pom, 0o774)  # Make executable to allow direct call.
         shutil.copyfile(pbs_file_pom, pbs_file)
-        #
-        subprocess.call(["touch", os.path.join(self._package_dir, "QUEUED")])
+
         try:
             os.remove(pbs_file_pom)
         except OSError:
             pass
-        # @TODO: uncomment
-        # if self.qsub_cmd is None:
-        #     subprocess.call(pbs_file)
-        # else:
-        #     process = subprocess.run([self.qsub_cmd, pbs_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        #     print("process return code ", process.returncode)
-        #     if process.returncode != 0:
-        #         raise Exception(process.stderr.decode('ascii'))
+
+        if self.qsub_cmd is None:
+            subprocess.call(pbs_file)
+        else:
+            process = subprocess.run([self.qsub_cmd, pbs_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            subprocess.call(["touch", os.path.join(self._package_dir, "QUEUED")])
+            if process.returncode != 0:
+                raise Exception(process.stderr.decode('ascii'))
 
         # Clean script for other usage
-        self.clean_script()
+        # self.clean_script()
         self._current_package_weight = 0
         self._number_of_realizations = 0
 

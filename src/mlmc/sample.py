@@ -19,7 +19,7 @@ class Sample:
         self.job_id = kwargs.get('job_id', 'jobId')
         self.prepare_time = kwargs.get('prepare_time', 0.0)
         self.queued_time = kwargs.get('queued_time', 0)
-        self._result = kwargs.get('result')
+        self._result = kwargs.get('result', None)
         self.running_time = kwargs.get('running_time', 0.0)
         self._time = kwargs.get('time', None)
 
@@ -59,7 +59,7 @@ class Sample:
         Sample result
         :return: numpy array or np.Inf
         """
-        if self._result != np.Inf:
+        if self._result != np.Inf and self._result is not None:
             return np.squeeze(self._result)
         return self._result
 

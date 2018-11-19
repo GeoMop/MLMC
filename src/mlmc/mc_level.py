@@ -93,13 +93,17 @@ class Level:
         self.coarse_times = []
 
     @property
+    def finished_samples(self):
+        return len(self.collected_samples) + len(self.failed_samples)
+
+    @property
     def fine_simulation(self):
         """
         Fine simulation object
         :return: Simulation object
         """
         if self._fine_simulation is None:
-            self._fine_simulation = self._sim_factory(self._precision, self._logger.level_idx)
+            self._fine_simulation = self._sim_factory(self._precision, int(self._logger.level_idx))
         return self._fine_simulation
 
     @property
@@ -344,43 +348,45 @@ class Level:
         # Samples that are not running and aren't finished
         not_queued_sample_ids = self._logger.not_queued_jobs_sample_ids()
         orig_n_finised = len(self.collected_samples)
-        keep_scheduled = {}
 
-        # Loop through pair of running simulations
-        for sample_id, (fine_sample, coarse_sample) in self.scheduled_samples.items():
-            # Sample is in running job or in finished job
-            if sample_id in not_queued_sample_ids:
-                # Sample() instance
-                fine_sample = self.fine_simulation.extract_result(fine_sample)
-                fine_done = fine_sample.result is not None
+        # No scheduled samples
+        if len(self.collected_samples) > 0 and len(not_queued_sample_ids) == 0:
+            self.scheduled_samples = {}
 
-                # For zero level don't create Sample() instance via simulations,
-                # however coarse sample is created for easier processing
-                if not self.is_zero_level:
-                    coarse_sample = self.coarse_simulation.extract_result(coarse_sample)
-                coarse_done = coarse_sample.result is not None
+        for sample_id in not_queued_sample_ids:
+            fine_sample, coarse_sample = self.scheduled_samples[sample_id]
 
-                if fine_done and coarse_done:
-                    # Failed sample
-                    if fine_sample.result is np.inf or coarse_sample.result is np.inf:
-                        coarse_sample.result = fine_sample.result = np.inf
-                        self.failed_samples.add(sample_id)
-                        continue
+            # Sample() instance
+            fine_sample = self.fine_simulation.extract_result(fine_sample)
+            fine_done = fine_sample.result is not None
 
-                    self.fine_times.append(fine_sample.time)
-                    self.coarse_times.append(coarse_sample.time)
+            # For zero level don't create Sample() instance via simulations,
+            # however coarse sample is created for easier processing
+            if not self.is_zero_level:
+                coarse_sample = self.coarse_simulation.extract_result(coarse_sample)
+            coarse_done = coarse_sample.result is not None
 
-                    # collect values
-                    self.collected_samples.append((fine_sample, coarse_sample))
-                    self._add_sample(sample_id, (fine_sample.result, coarse_sample.result))
-                else:
-                    keep_scheduled[sample_id] = (fine_sample, coarse_sample)
-            # Sample is in scheduled job
-            else:
-                keep_scheduled[sample_id] = (fine_sample, coarse_sample)
+            if fine_done and coarse_done:
+                # Failed sample
+                if fine_sample.result is np.inf or coarse_sample.result is np.inf:
+                    coarse_sample.result = fine_sample.result = np.inf
+                    self.failed_samples.add(sample_id)
+                    continue
+
+                self.fine_times.append(fine_sample.time)
+                self.coarse_times.append(coarse_sample.time)
+
+                # collect values
+                self.collected_samples.append((fine_sample, coarse_sample))
+                self._add_sample(sample_id, (fine_sample.result, coarse_sample.result))
+
+                #
+                self.scheduled_samples[sample_id] = False
 
         # Still scheduled samples
-        self.scheduled_samples = keep_scheduled
+        self.scheduled_samples = {sample_id: values for sample_id, values in self.scheduled_samples.items()
+                                  if values is not False}
+
         # Log new collected samples
         self._logger.log_collected(self.collected_samples[orig_n_finised:])
         # Log failed samples
