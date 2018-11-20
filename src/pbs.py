@@ -8,22 +8,22 @@ import numpy as np
 
 
 class Pbs:
-    def __init__(self, work_dir=None, package_weight=200000, qsub=None, clean=False):
+    def __init__(self, work_dir=None, job_weight=200000, job_count=0, qsub=None, clean=False):
         """
         :param work_dir: if None, means no logging and just direct execution.
-        :param package_weight:
+        :param job_weight: Number of simulation elements per job script
+        :param job_count: Number of created jobs
         :param qsub: string with qsub command.
         :param clean: bool, if True, create new scripts directory
         """
         # Weight of the single PBS script (putting more small jobs into single PBS job).
-        self.package_weight = package_weight
+        self.job_weight = job_weight
         # Current collected weight.
-        self._current_package_weight = 0
-        # Number of executed packages.
-        self._package_count = 0
+        self._current_job_weight = 0
+        # Number of executed jobs.
+        self._job_count = job_count
         # Work dir for scripts and PBS files.
         self.work_dir = work_dir
-
         self.max_realizations = 10
         self._number_of_realizations = 0
         # Lines to put at the beginning of the PBS script.
@@ -63,15 +63,14 @@ class Pbs:
                                      '#PBS -q {queue}',
                                      '#PBS -N Flow123d',
                                      '#PBS -j oe',
-                                     '#PBS -o {pbs_output_dir}/{package_name}.OU',
-                                     '#PBS -e {pbs_output_dir}/{package_name}.ER',
+                                     '#PBS -o {pbs_output_dir}/{job_name}.OU',
+                                     '#PBS -e {pbs_output_dir}/{job_name}.ER',
                                      '']
         if flow_3:
             self._pbs_header_template.extend(('module use /storage/praha1/home/jan-hybs/modules',
                                               'module load flow123d', ''))
 
-        self._pbs_header_template.append('touch {pbs_output_dir}/RUNNING')
-        self._pbs_header_template.append('rm -f {pbs_output_dir}/QUEUED')
+        self._pbs_header_template.extend(('touch {pbs_output_dir}/RUNNING', 'rm -f {pbs_output_dir}/QUEUED'))
 
         self._pbs_config = kwargs
         self.clean_script()
@@ -100,11 +99,11 @@ class Pbs:
         self.pbs_script.extend(lines)
 
         self._number_of_realizations += 1
-        self._current_package_weight += weight
-        if self._current_package_weight > self.package_weight or self._number_of_realizations > self.max_realizations:
+        self._current_job_weight += weight
+        if self._current_job_weight > self.job_weight or self._number_of_realizations > self.max_realizations:
             self.execute()
 
-        return self._pbs_config['package_name']
+        return self._pbs_config['job_name']
 
     def execute(self):
         """
@@ -113,15 +112,15 @@ class Pbs:
         """
         if self.pbs_script is None or self._number_of_realizations == 0:
             return
-        self.pbs_script.append("touch " + self._package_dir + "/FINISHED")
-        self.pbs_script.append("rm -f " + self._package_dir + "/RUNNING")
+        self.pbs_script.append("touch " + self._job_dir + "/FINISHED")
+        self.pbs_script.append("rm -f " + self._job_dir + "/RUNNING")
 
         script_content = "\n".join(self.pbs_script)
-        pbs_file = os.path.join(self._package_dir, "{:04d}.sh".format(self._package_count))
+        pbs_file = os.path.join(self._job_dir, "{:04d}.sh".format(self._job_count))
 
         pbs_file_pom = os.path.join("/storage/liberec1-tul/home/martin_spetlik",
-                                    "{:04d}.sh".format(self._package_count))
-        self._package_count += 1
+                                    "{:04d}.sh".format(self._job_count))
+        self._job_count += 1
         with open(pbs_file_pom, "w") as file_writer:
             file_writer.write(script_content)
 
@@ -137,13 +136,13 @@ class Pbs:
             subprocess.call(pbs_file)
         else:
             process = subprocess.run([self.qsub_cmd, pbs_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            subprocess.call(["touch", os.path.join(self._package_dir, "QUEUED")])
+            subprocess.call(["touch", os.path.join(self._job_dir, "QUEUED")])
             if process.returncode != 0:
                 raise Exception(process.stderr.decode('ascii'))
 
         # Clean script for other usage
         # self.clean_script()
-        self._current_package_weight = 0
+        self._current_job_weight = 0
         self._number_of_realizations = 0
 
     def clean_script(self):
@@ -152,16 +151,16 @@ class Pbs:
         :return: None
         """
         # Package dir path
-        self._package_dir = os.path.join(self.work_dir, "{:04d}".format(self._package_count))
+        self._job_dir = os.path.join(self.work_dir, "{:04d}".format(self._job_count))
 
         # Remove dir
-        if os.path.isdir(self._package_dir):
-            shutil.rmtree(self._package_dir)
+        if os.path.isdir(self._job_dir):
+            shutil.rmtree(self._job_dir)
 
-        os.makedirs(self._package_dir, mode=0o775, exist_ok=True)
-        # Job output with similar name to package
-        self._pbs_config['package_name'] = "{:04d}".format(self._package_count)
-        self._pbs_config['pbs_output_dir'] = self._package_dir
+        os.makedirs(self._job_dir, mode=0o775, exist_ok=True)
+        # Job output with similar name to job
+        self._pbs_config['job_name'] = "{:04d}".format(self._job_count)
+        self._pbs_config['pbs_output_dir'] = self._job_dir
         self.pbs_script = [line.format(**self._pbs_config) for line in self._pbs_header_template]
 
     def estimate_level_times(self, n_samples=20):

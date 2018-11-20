@@ -98,6 +98,7 @@ class Simulation(metaclass=ABCMeta):
 
     @staticmethod
     def _move_sample_dir(sample_dir):
+        # @TODO copy tree doesn't work in astra
         """
         Move directory with failed simulation directory
         :param sample_dir: Sample directory
@@ -137,7 +138,7 @@ class Simulation(metaclass=ABCMeta):
                 for file in os.listdir(sample_dir):
                     file = os.path.abspath(os.path.join(sample_dir, file))
                     if os.path.isdir(file):
-                        shutil.rmtree(file)
+                        shutil.rmtree(file, ignore_errors=True)
                     else:
                         os.remove(file)
         except:

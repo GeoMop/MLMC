@@ -1,7 +1,6 @@
 import time
 import numpy as np
 from mlmc.mc_level import Level
-from mlmc.logger import Logger
 import scipy.stats as st
 import scipy.integrate as integrate
 import mlmc.hdf.hdf as hdf
@@ -49,17 +48,6 @@ class MLMC:
         self._n_levels = self._hdf_object.n_levels
         self.step_range = self._hdf_object.step_range
 
-        # # @TODO just for conversion from json to hdf
-        # if self._process_options['output_dir'] is not None:
-        #     import os, json
-        #     setup_file = os.path.join(self._process_options['output_dir'], "mlmc_setup.json")
-        #     with open(setup_file, 'r') as f_reader:
-        #         setup = json.load(f_reader)
-        #         self._n_levels = setup.get('n_levels', None)
-        #         self.step_range = setup.get('step_range', None)
-
-        #self._hdf_object.init_header(self.step_range, self._n_levels)
-
         # Create mlmc levels
         self.create_levels()
 
@@ -85,13 +73,10 @@ class MLMC:
             else:
                 level_param = i_level / (self._n_levels - 1)
 
-            # Each logger has own hdf file group
-            logger = Logger(i_level, self._hdf_object.add_level_group(str(i_level)),
-                            self._process_options['output_dir'],
-                            self._process_options['keep_collected'])
-
-            level = Level(self.simulation_factory, previous_level, level_param, logger,
-                          self._process_options['regen_failed'])
+            # Create level
+            level = Level(self.simulation_factory, previous_level, level_param, i_level,
+                          self._hdf_object.add_level_group(str(i_level)),
+                          self._process_options['regen_failed'], self._process_options['keep_collected'])
             self.levels.append(level)
 
     @property

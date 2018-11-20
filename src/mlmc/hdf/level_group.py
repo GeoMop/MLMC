@@ -153,7 +153,7 @@ class LevelGroup:
             job_dataset_path = '/'.join(['Jobs', job_name])
 
             # Get job dataset and direct save sample ids
-            job_dset = self._make_dataset(name=job_dataset_path, shape=(len(job_samples),),
+            job_dset = self._make_dataset(name=job_dataset_path, shape=(0,),
                                           dtype=np.int32, maxshape=(None,), chunks=True)
             # Append sample ids to existing job dataset
             self._append_dataset(job_dset, list(job_samples))
@@ -306,9 +306,9 @@ class LevelGroup:
         Get collected and failed samples ids
         :return: NumPy array
         """
-        return np.concatenate((self.collected_ids_dset.value, np.array(self.failed_samples(True))), axis=0)
+        return np.concatenate((self.collected_ids_dset.value, np.array(self.get_failed_ids(True))), axis=0)
 
-    def failed_samples(self, to_array=False):
+    def get_failed_ids(self, to_array=False):
         """
         Failed samples ids
         :param to_array: need numpy array instead of set()
