@@ -18,6 +18,7 @@ import mlmc.correlated_field as cf
 from test.fixtures.mlmc_test_run import TestMLMC
 from test.fixtures.synth_simulation import SimulationTest
 import pbs as pb
+import copy
 
 import shutil
 
@@ -790,7 +791,7 @@ def test_save_load_samples():
     check_estimates_for_nans(mc, distr)
 
     # Levels collected samples
-    l_collected = [level.collected_samples.copy() for level in mc.levels]
+    l_collected = [copy.deepcopy(level.collected_samples) for level in mc.levels]
 
     # Check NaN values
     for level in mc.levels:
@@ -882,7 +883,6 @@ def _test_regression(distr_cfg, n_levels, n_moments):
 if __name__ == '__main__':
     # @TODO fox subsample error
     #test_mlmc()
-
     test_save_load_samples()
     #_test_shooting()
 

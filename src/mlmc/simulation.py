@@ -98,7 +98,6 @@ class Simulation(metaclass=ABCMeta):
 
     @staticmethod
     def _move_sample_dir(sample_dir):
-        # @TODO copy tree doesn't work in astra
         """
         Move directory with failed simulation directory
         :param sample_dir: Sample directory
@@ -111,7 +110,7 @@ class Simulation(metaclass=ABCMeta):
             target_directory = os.path.join(output_dir, "failed_realizations")
 
             # Make destination dir if not exists
-            if not os.path.isdir(output_dir):
+            if not os.path.isdir(target_directory):
                 os.mkdir(target_directory)
 
             if os.path.isdir(sample_dir):
@@ -132,14 +131,34 @@ class Simulation(metaclass=ABCMeta):
                     sample_extension = sample_sub_dir
 
                 # Copy sample directory to failed realizations dir
-                shutil.copytree(sample_dir, target_directory + "/" + sample_extension)
+                Simulation._copy_tree(sample_dir, os.path.join(target_directory, sample_extension))
 
                 # Remove files in sample directory
                 for file in os.listdir(sample_dir):
                     file = os.path.abspath(os.path.join(sample_dir, file))
                     if os.path.isdir(file):
-                        shutil.rmtree(file, ignore_errors=True)
+                        shutil.rmtree(file)
                     else:
                         os.remove(file)
         except:
             print("ERROR - Move sample dir {}".format(sample_dir))
+
+    @staticmethod
+    def _copy_tree(source_dir, destination_dir):
+        """
+        Copy whole directory
+        :param source_dir: absolute path to source directory
+        :param destination_dir: absolute path to destination directory
+        :return: None
+        """
+        # Top-down directory scan
+        for src_dir, dirs, files in os.walk(source_dir):
+            # Create destination directory if necessary
+            if not os.path.exists(destination_dir):
+                os.mkdir(destination_dir)
+            # Copy files, use shutil.copyfile() method which doesn't need chmod permission
+            for file in files:
+                src_file = os.path.join(src_dir, file)
+                dst_file = os.path.join(destination_dir, file)
+                if not os.path.exists(dst_file):
+                    shutil.copyfile(src_file, dst_file)
