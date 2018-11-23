@@ -3,7 +3,7 @@ import numpy as np
 from mlmc.mc_level import Level
 import scipy.stats as st
 import scipy.integrate as integrate
-import mlmc.hdf.hdf as hdf
+import mlmc.hdf as hdf
 
 
 class MLMC:

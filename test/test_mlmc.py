@@ -765,10 +765,9 @@ def test_save_load_samples():
     # 5. read stored data
     # 6. check that they match the reference copy
 
-    # work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
-    # if os.path.isdir(work_dir):
-    #     shutil.rmtree(work_dir)
-    # os.makedirs(work_dir)
+    work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+    if not os.path.exists(work_dir):
+        os.makedirs(work_dir)
 
     n_levels = 5
     distr = stats.norm()
@@ -778,38 +777,50 @@ def test_save_load_samples():
         distr=distr, complexity=2, nan_fraction=0.4, sim_method='_sample_fn')
     simulation_factory = SimulationTest.factory(step_range, config=simulation_config)
 
-    mlmc_options = {'output_dir': '',
+    mlmc_options = {'output_dir': work_dir,
                     'keep_collected': True,
                     'regen_failed': False}
 
     mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
     mc.create_new_execution()
-
     mc.set_initial_n_samples()
     mc.refill_samples()
     mc.wait_for_simulations()
     check_estimates_for_nans(mc, distr)
 
+    level_data = []
     # Levels collected samples
-    l_collected = [copy.deepcopy(level.collected_samples) for level in mc.levels]
+    for level in mc.levels:
+        l_data = (copy.deepcopy(level.scheduled_samples),
+                  copy.deepcopy(level.collected_samples),
+                  level.sample_values)
+        assert not np.isnan(level.sample_values).any()
+        level_data.append(l_data)
 
+    mc.clean_levels()
     # Check NaN values
     for level in mc.levels:
         assert not np.isnan(level.sample_values).any()
 
-    mc.clean_levels()
     # New mlmc
     mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
     mc.load_from_file()
     check_estimates_for_nans(mc, distr)
 
     # Test
-    for level, level_collected in zip(mc.levels, l_collected):
+    for level, data in zip(mc.levels, level_data):
         # Collected sample results must be same
-        for (fine_sample, coarse_sample), (fine_sample_saved, coarse_sample_saved) \
-                in zip(level_collected, level.collected_samples):
-            assert fine_sample.__dict__ == fine_sample_saved.__dict__
-            assert coarse_sample.__dict__ == coarse_sample_saved.__dict__
+        scheduled, collected, values = data
+
+        for (coll_coarse, coll_fine), (coll_coarse_s, coll_fine_s) in zip(collected, level.collected_samples):
+            print("Coarse", coll_coarse)
+            print("Coarse saved", coll_coarse_s)
+
+            print("Fine", coll_fine)
+            print("Fine saved", coll_fine_s)
+
+            assert coll_coarse == coll_coarse_s
+            assert coll_fine == coll_fine_s
 
 
 def _test_regression(distr_cfg, n_levels, n_moments):

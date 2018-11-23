@@ -94,5 +94,9 @@ class Sample:
         return self.sample_id == other.sample_id and \
                self.prepare_time == other.prepare_time and\
                self.queued_time == other.queued_time and \
-               self.result == other.result and\
-               self.directory == other.directory
+               self.result == other.result
+
+    def __str__(self):
+        return "sample id: {}, result: {}, prepare time: {}, queued time: {} ".format(self.sample_id, self.result,
+                                                                                      self.prepare_time,
+                                                                                      self.queued_time)

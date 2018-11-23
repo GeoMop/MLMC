@@ -140,7 +140,7 @@ class Level:
         """
         collected_samples = {}
         # Get logs content
-        scheduled_samples, log_collected_samples = self._reload_samples()
+        log_scheduled_samples, log_collected_samples = self._reload_samples()
 
         for fine_sample, coarse_sample in log_collected_samples:
             # Append collected samples
@@ -152,13 +152,7 @@ class Level:
             self.coarse_times.append(coarse_sample.time)
 
         # Recover scheduled
-        for fine_sample, coarse_sample in scheduled_samples:
-            # Append data that are saved in scheduled dataset to collected samples
-            if fine_sample.sample_id in collected_samples:
-                f_col_sample, c_col_sample = collected_samples[fine_sample.sample_id]
-                f_col_sample.add_scheduled_attrs(fine_sample)
-                c_col_sample.add_scheduled_attrs(coarse_sample)
-
+        for fine_sample, coarse_sample in log_scheduled_samples:
             # Regenerate failed samples
             if regen_failed:
                 # Sample that is not in collected to scheduled
@@ -485,7 +479,6 @@ class Level:
                 shutil.rmtree(coarse_sample.directory, ignore_errors=True)
             if os.path.isdir(fine_sample.directory):
                 shutil.rmtree(fine_sample.directory, ignore_errors=True)
-
 
     def subsample(self, size):
         """
