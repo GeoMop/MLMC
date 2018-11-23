@@ -807,8 +807,8 @@ def test_save_load_samples():
         # Collected sample results must be same
         for (fine_sample, coarse_sample), (fine_sample_saved, coarse_sample_saved) \
                 in zip(level_collected, level.collected_samples):
-            assert fine_sample == fine_sample_saved
-            assert coarse_sample == coarse_sample_saved
+            assert fine_sample.__dict__ == fine_sample_saved.__dict__
+            assert coarse_sample.__dict__ == coarse_sample_saved.__dict__
 
 
 def _test_regression(distr_cfg, n_levels, n_moments):
@@ -882,6 +882,7 @@ def _test_regression(distr_cfg, n_levels, n_moments):
 if __name__ == '__main__':
     # @TODO fox subsample error
     #test_mlmc()
+
     test_save_load_samples()
     #_test_shooting()
 
