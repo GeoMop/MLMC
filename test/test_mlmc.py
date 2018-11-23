@@ -765,10 +765,10 @@ def test_save_load_samples():
     # 5. read stored data
     # 6. check that they match the reference copy
 
-    work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
-    if os.path.isdir(work_dir):
-        shutil.rmtree(work_dir)
-    os.makedirs(work_dir)
+    # work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+    # if os.path.isdir(work_dir):
+    #     shutil.rmtree(work_dir)
+    # os.makedirs(work_dir)
 
     n_levels = 5
     distr = stats.norm()
@@ -778,7 +778,7 @@ def test_save_load_samples():
         distr=distr, complexity=2, nan_fraction=0.4, sim_method='_sample_fn')
     simulation_factory = SimulationTest.factory(step_range, config=simulation_config)
 
-    mlmc_options = {'output_dir': work_dir,
+    mlmc_options = {'output_dir': '',
                     'keep_collected': True,
                     'regen_failed': False}
 

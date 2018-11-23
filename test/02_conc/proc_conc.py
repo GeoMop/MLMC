@@ -236,7 +236,7 @@ class ProcessMLMC:
 
         self.mlmc_options['output_dir'] = self.output_dir
         self.mc = mlmc.mlmc.MLMC(self.n_levels, self.simultion_factory, self.step_range, self.mlmc_options)
-        self.mc.create_levels()
+        self.mc.create_new_execution()
         if clean:
             # assert ProcessMLMC.is_exe(self.env['flow123d'])
             assert ProcessMLMC.is_exe(self.env['gmsh'])
