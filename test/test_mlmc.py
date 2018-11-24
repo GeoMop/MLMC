@@ -811,16 +811,28 @@ def test_save_load_samples():
     for level, data in zip(mc.levels, level_data):
         # Collected sample results must be same
         scheduled, collected, values = data
+        # Compare scheduled and collected samples with saved one
+        _compare_samples(scheduled, level.scheduled_samples)
+        _compare_samples(collected, level.collected_samples)
 
-        for (coll_coarse, coll_fine), (coll_coarse_s, coll_fine_s) in zip(collected, level.collected_samples):
-            print("Coarse", coll_coarse)
-            print("Coarse saved", coll_coarse_s)
 
-            print("Fine", coll_fine)
-            print("Fine saved", coll_fine_s)
+def _compare_samples(saved_samples, current_samples):
+    """
+    Compare two list of samples
+    :param saved_samples: List of tuples - [(fine Sample(), coarse Sample())], from log
+    :param current_samples: List of tuples - [(fine Sample(), coarse Sample())]
+    :return: None
+    """
+    saved_samples = sorted(saved_samples, key=lambda sample_tuple: sample_tuple[0].sample_id)
+    current_samples = sorted(current_samples, key=lambda sample_tuple: sample_tuple[0].sample_id)
+    for (coll_fine, coll_coarse), (coll_fine_s, coll_coarse_s) in zip(saved_samples, current_samples):
+        print("Fine", coll_fine)
+        print("Fine saved", coll_fine_s)
+        print("Coarse", coll_coarse)
+        print("Coarse saved", coll_coarse_s)
 
-            assert coll_coarse == coll_coarse_s
-            assert coll_fine == coll_fine_s
+        assert coll_coarse == coll_coarse_s
+        assert coll_fine == coll_fine_s
 
 
 def _test_regression(distr_cfg, n_levels, n_moments):
