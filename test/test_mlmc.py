@@ -18,7 +18,9 @@ import mlmc.correlated_field as cf
 from test.fixtures.mlmc_test_run import TestMLMC
 from test.fixtures.synth_simulation import SimulationTest
 import pbs as pb
+import copy
 
+import shutil
 
 #from test.simulations.simulation_shooting import SimulationShooting
 
@@ -68,14 +70,11 @@ def err_tuple(x):
     return (np.min(x), np.median(x), np.max(x))
 
 
-
-
 def test_mlmc():
     """
     Test if mlmc moments correspond to exact moments from distribution
     :return: None
     """
-
     np.random.seed(3)   # To be reproducible
     n_levels = [9] #[1, 2, 3, 5, 7]
     n_moments = [8]
@@ -126,8 +125,6 @@ def test_mlmc():
                 mc_test.mc.clean_subsamples()
                 n_samples = mc_test.mc.estimate_n_samples_for_target_variance(0.0005, mc_test.moments_fn)
                 n_samples = np.round(np.max(n_samples, axis=1)).astype(int)
-                #print("n_samples:", n_samples)
-
                 # n_samples by at most 0.8* total_samples
                 scale = min(np.max(n_samples / total_samples) / 0.8, 1.0)
                 # avoid to small number of samples
@@ -768,7 +765,6 @@ def test_save_load_samples():
     # 5. read stored data
     # 6. check that they match the reference copy
 
-    # Create work directory
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
     if not os.path.exists(work_dir):
         os.makedirs(work_dir)
@@ -776,8 +772,9 @@ def test_save_load_samples():
     n_levels = 5
     distr = stats.norm()
     step_range = (0.8, 0.01)
+
     simulation_config = dict(
-        distr=distr, complexity=2, nan_fraction=0.1, sim_method='_sample_fn')
+        distr=distr, complexity=2, nan_fraction=0.4, sim_method='_sample_fn')
     simulation_factory = SimulationTest.factory(step_range, config=simulation_config)
 
     mlmc_options = {'output_dir': work_dir,
@@ -785,35 +782,52 @@ def test_save_load_samples():
                     'regen_failed': False}
 
     mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
-    mc.create_levels()
+    mc.create_new_execution()
     mc.set_initial_n_samples()
     mc.refill_samples()
     mc.wait_for_simulations()
     check_estimates_for_nans(mc, distr)
 
-    # Copy level data
     level_data = []
+    # Levels collected samples
     for level in mc.levels:
-        l_data = (level.running_simulations.copy(),
-                   level.finished_simulations.copy(),
-                   level.sample_values)
+        l_data = (copy.deepcopy(level.scheduled_samples),
+                  copy.deepcopy(level.collected_samples),
+                  level.sample_values)
         assert not np.isnan(level.sample_values).any()
         level_data.append(l_data)
+
     mc.clean_levels()
+    # Check NaN values
+    for level in mc.levels:
+        assert not np.isnan(level.sample_values).any()
 
     # New mlmc
     mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
-    mc.load_from_setup()
-
+    mc.load_from_file()
     check_estimates_for_nans(mc, distr)
 
     # Test
     for level, data in zip(mc.levels, level_data):
-        run, fin, values = data
+        # Collected sample results must be same
+        scheduled, collected, values = data
+        # Compare scheduled and collected samples with saved one
+        _compare_samples(scheduled, level.scheduled_samples)
+        _compare_samples(collected, level.collected_samples)
 
-        assert run == level.running_simulations
-        assert fin == level.finished_simulations
-        assert np.allclose(values, level.sample_values)
+
+def _compare_samples(saved_samples, current_samples):
+    """
+    Compare two list of samples
+    :param saved_samples: List of tuples - [(fine Sample(), coarse Sample())], from log
+    :param current_samples: List of tuples - [(fine Sample(), coarse Sample())]
+    :return: None
+    """
+    saved_samples = sorted(saved_samples, key=lambda sample_tuple: sample_tuple[0].sample_id)
+    current_samples = sorted(current_samples, key=lambda sample_tuple: sample_tuple[0].sample_id)
+    for (coll_fine, coll_coarse), (coll_fine_s, coll_coarse_s) in zip(saved_samples, current_samples):
+        assert coll_coarse == coll_coarse_s
+        assert coll_fine == coll_fine_s
 
 
 def _test_regression(distr_cfg, n_levels, n_moments):
@@ -885,7 +899,8 @@ def _test_regression(distr_cfg, n_levels, n_moments):
 #                 _test_regression(distr, n_levels, n_moments)
 
 if __name__ == '__main__':
+    # @TODO fox subsample error
+    #test_mlmc()
     test_save_load_samples()
-    #test_var_estimate()
     #_test_shooting()
 

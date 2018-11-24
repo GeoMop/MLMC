@@ -1,5 +1,9 @@
 import numpy as np
 import numpy.ma as ma
+from mlmc.sample import Sample
+import os
+import shutil
+import time as t
 
 
 class Level:
@@ -14,23 +18,33 @@ class Level:
     .. have to reconsider in context of Analysis
     """
 
-    def __init__(self, sim_factory, previous_level, precision, logger, regen_failed=False):
+    def __init__(self, sim_factory, previous_level, precision, level_idx, hdf_level_group, regen_failed=False,
+                 keep_collected=False):
         """
         :param sim_factory: Method that create instance of particular simulation class
         :param previous_level: Previous level object
         :param precision: Current level number / total number of all levels
-        :param logger: Logger object
+        :param level_idx: Level identifier
+        :param hdf_level_group: hdf.LevelGroup instance, wrapper object for HDF5 group
         :param regen_failed: bool, if True then regenerate failed simulations
+        :param keep_collected: bool, if True keep sample dirs otherwise remove them
         """
         # TODO: coarse_simulation can be different to previous_level_sim if they have same mean value
         # Method for creating simulations
         self._sim_factory = sim_factory
         # Level fine simulation precision
         self._precision = precision
-        # Logger class instance
-        self._logger = logger
+        # LevelGroup instance - storage for level data
+        self._hdf_level_group = hdf_level_group
+        # Directory with level sample's jobs
+        self._jobs_dir = self._hdf_level_group.job_dir
+        # Level identifier
+        self._level_idx = level_idx
+        # Keep or remove sample directories, bool value
+        self._keep_collected = keep_collected
+
         # Indicator of first level
-        self.is_zero_level = (self._logger.level_idx == 0)
+        self.is_zero_level = (int(level_idx) == 0)
         # Previous level instance
         self._previous_level = previous_level
         # Fine simulation instance
@@ -40,7 +54,7 @@ class Level:
         # Estimate of operations number
         self._n_ops_estimate = None
         # Running unfinished simulations that were generated in last whole mlmc run
-        self.running_from_log = False
+        self.run_failed = False
         # Target number of samples for the level
         self.target_n_samples = None
         # Last moments function
@@ -50,11 +64,15 @@ class Level:
         # Moments outliers mask
         self.mask = None
         # Currently running simulations
-        self.running_simulations = []
+        self.scheduled_samples = {}
         # Collected simulations, all results of simulations. Including Nans and None ...
-        self.finished_simulations = []
+        self.collected_samples = []
+        # Failed samples, result is np.Inf
+        self.failed_samples = set()
         # Target number of samples.
         self.target_n_samples = 1
+        # Number of level samples
+        self._n_total_samples = None
         # Collected samples (array may be partly filled)
         # Without any order, without Nans and inf. Only this is used for estimates.
         self._sample_values = np.empty((self.target_n_samples, 2))
@@ -69,15 +87,15 @@ class Level:
         self.fine_times = []
         self.coarse_times = []
         # Load simulations from log
-        self.load_simulations(regen_failed)
+        self.load_samples(regen_failed)
 
     def reset(self):
         """
         Reset level variables for further use
         :return: None
         """
-        self.running_simulations = []
-        self.finished_simulations = []
+        self.scheduled_samples = {}
+        self.collected_samples = []
         self.target_n_samples = 3
         self._sample_values = np.empty((self.target_n_samples, 2))
         self._n_valid_samples = 0
@@ -88,13 +106,21 @@ class Level:
         self.coarse_times = []
 
     @property
+    def finished_samples(self):
+        """
+        Get collected and failed samples ids
+        :return: NumPy array
+        """
+        return len(self.collected_samples) + len(self.failed_samples)
+
+    @property
     def fine_simulation(self):
         """
         Fine simulation object
         :return: Simulation object
         """
         if self._fine_simulation is None:
-            self._fine_simulation = self._sim_factory(self._precision, self._logger.level_idx)
+            self._fine_simulation = self._sim_factory(self._precision, int(self._level_idx))
         return self._fine_simulation
 
     @property
@@ -107,58 +133,52 @@ class Level:
             self._coarse_simulation = self._previous_level.fine_simulation
         return self._coarse_simulation
 
-    def load_simulations(self, regen_failed):
+    def load_samples(self, regen_failed):
         """
-        Load finished and running simulations from logs
+        Load collected and scheduled samples from log
         :return: None
         """
-        finished = set()
+        collected_samples = {}
         # Get logs content
-        self._logger.reload_logs()
+        log_scheduled_samples, log_collected_samples = self._reload_samples()
 
-        for sim in self._logger.collected_log_content:
-            i_level, i, _, _, value, times = sim
-            # Don't add failed simulations, they will be generated again
-            if not regen_failed:
-                self.finished_simulations.append(sim)
-                self._add_sample(i, value)
-                finished.add((i_level, i))
-                self.fine_times.append(times[0])
-                self.coarse_times.append(times[1])
-            elif value[0] != np.inf and value[1] != np.inf:
-                self.finished_simulations.append(sim)
-                self._add_sample(i, value)
-                finished.add((i_level, i))
-                self.fine_times.append(times[0])
-                self.coarse_times.append(times[1])
+        for fine_sample, coarse_sample in log_collected_samples:
+            # Append collected samples
+            collected_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
+            # Add sample results
+            self._add_sample(fine_sample.sample_id, (fine_sample.result, coarse_sample.result))
+            # Get time from samples
+            self.fine_times.append(fine_sample.time)
+            self.coarse_times.append(coarse_sample.time)
 
-        # Save simulations without those that failed
-        if regen_failed:
-            self._logger.rewrite_collected_log(self.finished_simulations)
+        # Recover scheduled
+        for fine_sample, coarse_sample in log_scheduled_samples:
+            # Regenerate failed samples
+            if regen_failed:
+                # Sample that is not in collected to scheduled
+                if fine_sample.sample_id not in collected_samples:
+                    self.scheduled_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
+            # Not collected and not failed sample to scheduled
+            elif fine_sample.sample_id not in collected_samples and fine_sample.sample_id not in self._failed_sample_ids:
+                    self.scheduled_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
 
-        # Recover running
-        for index, sim in enumerate(self._logger.running_log_content):
-            if len(sim) != 5:
-                # First line contains fine sim n ops estimate
-                if index == 0:
-                    self.n_ops_estimate = sim[0]
-                    # Means that n_ops_estimate is already in log file
-                    self._logger.n_ops_estimate = -1
-                continue
-            i_level, i, _, _, _ = sim
+        self.collected_samples = list(collected_samples.values())
 
-            if (i_level, i) not in finished:
-                self.running_simulations.append(sim)
-
+        # @TODO check
+        # Get n_ops_estimate
         if self.n_ops_estimate is None:
             self.set_coarse_sim()
 
-        # Running simulations
-        if len(self.running_simulations) > 0:
-            self.collect_samples()
+        # Total number of samples
+        self._n_total_samples = len(self.scheduled_samples) + len(self.collected_samples) + len(self._failed_sample_ids)
 
-            if len(self.running_simulations) > 0:
-                self.running_from_log = True
+        # Regenerate failed samples and collect samples
+        if regen_failed and len(self._failed_sample_ids) > 0:
+            self._run_failed_samples()
+
+        # Collect scheduled samples
+        if len(self.scheduled_samples) > 0:
+            self.collect_samples()
 
     def set_target_n_samples(self, n_samples):
         """
@@ -184,6 +204,7 @@ class Level:
         :return: None
         """
         fine, coarse = sample_pair
+
         # Samples are not finite
         if not np.isfinite(fine) or not np.isfinite(coarse):
             self.nan_samples.append(idx)
@@ -208,14 +229,6 @@ class Level:
         self._sample_values = new_values
 
     @property
-    def n_total_samples(self):
-        """
-        Number of all level samples
-        :return: int
-        """
-        return len(self.running_simulations) + len(self.finished_simulations)
-
-    @property
     def n_samples(self):
         """
         Number of level sample
@@ -233,13 +246,15 @@ class Level:
         :param char: 'C' or 'F' depending on the type of simulation
         :return: str
         """
-        return "L{:02d}_{}_S{:07d}".format(self._logger.level_idx, char, self.n_total_samples)
+        return "L{:02d}_{}_S{:07d}".format(int(self._level_idx), char, self._n_total_samples)
 
     @property
     def n_ops_estimate(self):
         """
         :return: number of fine sim operations
         """
+        if self._n_ops_estimate is None:
+            self._n_ops_estimate = self._hdf_level_group.n_ops_estimate
         return self._n_ops_estimate
 
     @n_ops_estimate.setter
@@ -249,9 +264,8 @@ class Level:
         :param n_ops: number of operations
         :return: None
         """
-        if self._logger.n_ops_estimate is None or self._logger.n_ops_estimate > 0:
-            self._n_ops_estimate = n_ops
-            self._logger.n_ops_estimate = n_ops
+        self._n_ops_estimate = n_ops
+        self._hdf_level_group.n_ops_estimate = n_ops
 
     def set_coarse_sim(self):
         """
@@ -267,39 +281,49 @@ class Level:
         Generate new random samples for fine and coarse simulation objects
         :return: list
         """
-        import time as t
-        start = t.time()
+        start_time = t.time()
         self.set_coarse_sim()
         # All levels have fine simulation
-        idx = self.n_total_samples
+        idx = self._n_total_samples
         self.fine_simulation.generate_random_sample()
         tag = self._get_sample_tag('F')
-        fine_sample = self.fine_simulation.simulation_sample(tag, start)
+        fine_sample = self.fine_simulation.simulation_sample(tag, idx, start_time)
 
-        start = t.time()
+        start_time = t.time()
         if self.coarse_simulation is not None:
             tag = self._get_sample_tag('C')
-            coarse_sample = self.coarse_simulation.simulation_sample(tag, start)
+            coarse_sample = self.coarse_simulation.simulation_sample(tag, idx, start_time)
         else:
             # Zero level have no coarse simulation.
-            coarse_sample = None
+            coarse_sample = Sample(sample_id=idx)
+            coarse_sample.result = 0.0
 
-        return [self._logger.level_idx, idx, fine_sample, coarse_sample, None]
+        self._n_total_samples += 1
 
-    def _run_simulations(self):
+        return [(idx, (fine_sample, coarse_sample))]
+
+    def _run_failed_samples(self):
         """
         Run already generated simulations again
         :return: None
         """
-        for (_, _, fine_sim, coarse_sim, _) in self.running_simulations:
-            self.set_coarse_sim()
-            # All levels have fine simulation
-            self.fine_simulation.generate_random_sample()
+        for sample_id, (fine_sim, coarse_sim) in self.scheduled_samples.items():
+            if sample_id in self.failed_samples:
+                self.set_coarse_sim()
+                # All levels have fine simulation
+                self.fine_simulation.generate_random_sample()
+                if self.coarse_simulation is not None:
+                    coarse_sample = self.coarse_simulation.simulation_sample(sample_id=coarse_sim.sample_id)
+                else:
+                    coarse_sample = coarse_sim
+                    coarse_sample.result = 0.0
+                fine_sample = self.fine_simulation.simulation_sample(sample_id=fine_sim.sample_id)
 
-            if self.coarse_simulation is not None:
-                self.coarse_simulation.simulation_sample(coarse_sim[0])
+            self.scheduled_samples[sample_id] = (fine_sample, coarse_sample)
 
-            self.fine_simulation.simulation_sample(fine_sim[0])
+        # Empty failed samples set
+        self.failed_samples = set()
+        self.run_failed = False
 
         self.collect_samples()
 
@@ -309,65 +333,152 @@ class Level:
         Simulations are planed for execution, but sample values are collected in
         :return: None
         """
-        if self.running_from_log:
-            self._run_simulations()
+        if self.run_failed:
+            self._run_failed_samples()
 
-        orig_n_running = len(self.running_simulations)
-        if self.target_n_samples > self.n_total_samples:
+        new_scheduled_simulations = {}
+        if self.target_n_samples > self._n_total_samples:
             self.enlarge_samples(self.target_n_samples)
-
             # Create pair of fine and coarse simulations and add them to list of all running simulations
-            while self.n_total_samples < self.target_n_samples:
-                self.running_simulations.append(self._make_sample_pair())
-                self._logger.log_simulations(self.running_simulations[orig_n_running:])
-                orig_n_running += 1
+            while self._n_total_samples < self.target_n_samples:
+                new_scheduled_simulations.update(self._make_sample_pair())
+
+            self.scheduled_samples.update(new_scheduled_simulations)
+            self._log_scheduled(new_scheduled_simulations)
 
     def collect_samples(self):
         """
-        Extract values for finished simulations.
-        :return: Number of simulations to finish yet.
+        Extract values from non queued samples. Save no data to HDF datasets.
+        :return: Number of samples to finish yet.
         """
-        orig_n_finised = len(self.finished_simulations)
-        new_running = []
+        # Samples that are not running and aren't finished
+        not_queued_sample_ids = self._not_queued_sample_ids()
+        orig_n_finised = len(self.collected_samples)
 
-        # Loop through pair of running simulations
-        for (level, idx, fine_sim, coarse_sim, value) in self.running_simulations:
+        for sample_id in not_queued_sample_ids:
+            fine_sample, coarse_sample = self.scheduled_samples[sample_id]
 
-            fine_result, fine_time = self.fine_simulation.extract_result(fine_sim if isinstance(fine_sim, str)
-                                                                         else fine_sim[1])
-            fine_done = fine_result is not None
+            # Sample() instance
+            fine_sample = self.fine_simulation.extract_result(fine_sample)
+            fine_done = fine_sample.result is not None
 
-            if self.is_zero_level:
-                coarse_result = 0.0
-                coarse_time = 0
-                coarse_done = True
-            else:
-                coarse_result, coarse_time = self.coarse_simulation.extract_result(
-                    coarse_sim if isinstance(coarse_sim, str) else coarse_sim[1])
-                coarse_done = coarse_result is not None
+            # For zero level don't create Sample() instance via simulations,
+            # however coarse sample is created for easier processing
+            if not self.is_zero_level:
+                coarse_sample = self.coarse_simulation.extract_result(coarse_sample)
+            coarse_done = coarse_sample.result is not None
 
             if fine_done and coarse_done:
-                if fine_result is np.inf or coarse_result is np.inf:
-                    coarse_result = fine_result = np.inf
+                # 'Remove' from scheduled
+                self.scheduled_samples[sample_id] = False
+                # Failed sample
+                if fine_sample.result is np.inf or coarse_sample.result is np.inf:
+                    coarse_sample.result = fine_sample.result = np.inf
+                    self.failed_samples.add(sample_id)
+                    continue
 
-                self.fine_times.append(fine_time)
-                self.coarse_times.append(coarse_time)
+                self.fine_times.append(fine_sample.time)
+                self.coarse_times.append(coarse_sample.time)
 
                 # collect values
-                self.finished_simulations.append(
-                    [self._logger.level_idx, idx, fine_sim, coarse_sim, [fine_result, coarse_result],
-                     [fine_time, coarse_time]])
-                self._add_sample(idx, (fine_result, coarse_result))
-            else:
-                new_running.append([level, idx, fine_sim, coarse_sim, value])
+                self.collected_samples.append((fine_sample, coarse_sample))
+                self._add_sample(sample_id, (fine_sample.result, coarse_sample.result))
 
-        self.running_simulations = new_running
+        # Still scheduled samples
+        self.scheduled_samples = {sample_id: values for sample_id, values in self.scheduled_samples.items()
+                                  if values is not False}
 
-        # log new collected simulation pairs
-        new_finished = self.finished_simulations[orig_n_finised:]
+        # Log new collected samples
+        self._log_collected(self.collected_samples[orig_n_finised:])
+        # Log failed samples
+        self._log_failed(self.failed_samples)
 
-        self._logger.log_simulations(new_finished, collected=True)
-        return len(self.running_simulations)
+        return len(self.scheduled_samples)
+
+    def _log_failed(self, samples):
+        """
+        Log failed samples
+        :param samples: set; sample ids
+        :return: None
+        """
+        self._hdf_level_group.save_failed(samples)
+
+    def _log_collected(self, samples):
+        """
+        Log collected samples, eventually remove samples
+        :param samples: list [(fine sample, coarse sample), ...], both are Sample() instances
+        :return: None
+        """
+        if not samples:
+            return
+        self._hdf_level_group.append_collected(samples)
+
+        # If not keep collected remove samples
+        if not self._keep_collected:
+            self._rm_samples(samples)
+
+    def _reload_samples(self):
+        """
+        Read collected and scheduled samples from hdf file
+        :return: tuple of generators - item is Sample()
+        """
+        scheduled_samples = self._hdf_level_group.scheduled()
+        collected_samples = self._hdf_level_group.collected()
+        return scheduled_samples, collected_samples
+
+    @property
+    def _failed_sample_ids(self):
+        """
+        Get failed samples from hdf file
+        :return: set
+        """
+        return self._hdf_level_group.get_failed_ids()
+
+    def _log_scheduled(self, samples):
+        """
+        Log scheduled samples
+        :param samples: dict {sample_id : (fine sample, coarse sample), ...}, samples are Sample() instances 
+        :return: None
+        """
+        if not samples:
+            return
+        # n_ops_estimate is already in log file
+        if self.n_ops_estimate > 0:
+            self._hdf_level_group.n_ops_estimate = self.n_ops_estimate
+
+        self._hdf_level_group.append_scheduled(samples)
+
+    def _not_queued_sample_ids(self):
+        """
+        Get level queued jobs and sample ids from these jobs
+        :return: NumPy array
+        """
+        # Level jobs ids (=names)
+        job_ids = self._hdf_level_group.level_jobs()
+        # Ids from jobs that are not queued
+        not_queued_jobs = [job_id for job_id in job_ids
+                           if not os.path.exists(os.path.join(self._jobs_dir, *[job_id, 'QUEUED']))]
+
+        # Set of sample ids that are not in queued
+        not_queued_sample_ids = self._hdf_level_group.job_samples(not_queued_jobs)
+        finished_sample_ids = self._hdf_level_group.get_finished_ids()
+
+        # Return sample ids of not queued and not finished samples
+        if len(not_queued_sample_ids) > 0 and len(finished_sample_ids) > 0:
+                return np.setdiff1d(not_queued_sample_ids, finished_sample_ids)
+        return not_queued_sample_ids
+
+    def _rm_samples(self, samples):
+        """
+        Remove sample dirs
+        :param samples: List of sample tuples (fine Sample(), coarse Sample())
+        :return: None
+        """
+        for fine_sample, coarse_sample in samples:
+            if os.path.isdir(coarse_sample.directory):
+                shutil.rmtree(coarse_sample.directory, ignore_errors=True)
+            if os.path.isdir(fine_sample.directory):
+                shutil.rmtree(fine_sample.directory, ignore_errors=True)
 
     def subsample(self, size):
         """
@@ -481,7 +592,7 @@ class Level:
         :return: int
         """
         self.collect_samples()
-        return len(self.finished_simulations)
+        return len(self.collected_samples) + len(self.failed_samples)
 
     def sample_time(self):
         """

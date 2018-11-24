@@ -1,5 +1,5 @@
-
 import pytest
+import os.path
 import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
@@ -34,10 +34,7 @@ class TestMLMC:
         # reference variance
         true_domain = distr.ppf([0.001, 0.999])
 
-
         self.moments_fn = moments.Legendre(n_moments, true_domain, is_log)
-
-
 
         # Exact means and vars estimation from distribution
         sample_size = 10000
@@ -61,8 +58,6 @@ class TestMLMC:
         self.ref_level_means = np.array(means)
         self.ref_vars = np.sum(np.array(vars) / sample_size, axis=0)
 
-
-
     def make_simulation_mc(self, step_range, sim_method=None):
         """
         Used by constructor to create mlmc and simulation objects for given exact distribution.
@@ -73,11 +68,11 @@ class TestMLMC:
         simulation_config = dict(distr=self.distr, complexity=2, nan_fraction=0, sim_method=sim_method)
         simultion_factory = SimulationTest.factory(step_range, config=simulation_config)
 
-        mlmc_options = {'output_dir': None,
+        mlmc_options = {'output_dir': os.path.dirname(os.path.realpath(__file__)),
                         'keep_collected': True,
                         'regen_failed': False}
         mc = mlmc.MLMC(self.n_levels, simultion_factory, step_range, mlmc_options)
-        mc.create_levels()
+        mc.create_new_execution()
         sims = [level.fine_simulation for level in mc.levels]
         return mc, sims
 
@@ -161,8 +156,6 @@ class TestMLMC:
         """
         X = self.distr.rvs(size=size)
         return np.nanmean(moments_fn(X), axis=0)
-
-
 
     def generate_samples(self, n_samples):
         # generate samples
