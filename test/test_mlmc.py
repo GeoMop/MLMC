@@ -826,11 +826,6 @@ def _compare_samples(saved_samples, current_samples):
     saved_samples = sorted(saved_samples, key=lambda sample_tuple: sample_tuple[0].sample_id)
     current_samples = sorted(current_samples, key=lambda sample_tuple: sample_tuple[0].sample_id)
     for (coll_fine, coll_coarse), (coll_fine_s, coll_coarse_s) in zip(saved_samples, current_samples):
-        print("Fine", coll_fine)
-        print("Fine saved", coll_fine_s)
-        print("Coarse", coll_coarse)
-        print("Coarse saved", coll_coarse_s)
-
         assert coll_coarse == coll_coarse_s
         assert coll_fine == coll_fine_s
 

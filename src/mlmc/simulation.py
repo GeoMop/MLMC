@@ -142,7 +142,6 @@ class Simulation(metaclass=ABCMeta):
                         os.remove(file)
         except Exception as exp:
             print(str(exp))
-            #print("ERROR - Move sample dir {}".format(sample_dir))
 
     @staticmethod
     def _copy_tree(source_dir, destination_dir):
