@@ -6,11 +6,14 @@ TODO:
 """
 import sys
 import os
+from random import randint
 import numpy as np
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, src_path + '/../src/')
 import mlmc.simulation
+import mlmc.sample
+
 
 class SimulationTest(mlmc.simulation.Simulation):
     # Artificial simulation. Just random parameter + numerical error."""
@@ -49,7 +52,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         """
         return x
 
-    def simulation_sample(self, tag, time=None):
+    def simulation_sample(self, tag=None, sample_id=0, time=None):
         """
         Run simulation
         :param sim_id:    Simulation id
@@ -59,13 +62,13 @@ class SimulationTest(mlmc.simulation.Simulation):
         # Specific method is called according to pass parameters
         y = getattr(self, self.config['sim_method'])(x, h)  # self._sample_fn(x, h)
 
-
-        if (self.n_nans / (1e-10 + len(self._result_dict)) < self.nan_fraction):
+        if self.n_nans / (1e-10 + len(self._result_dict)) < self.nan_fraction:
             self.n_nans += 1
             y = np.nan
 
         self._result_dict[tag] = float(y)
-        return tag
+
+        return mlmc.sample.Sample(sample_id=sample_id, directory=tag)
 
     def generate_random_sample(self):
         distr = self.config['distr']
@@ -80,8 +83,7 @@ class SimulationTest(mlmc.simulation.Simulation):
         self._coarse_simulation = coarse_simulation
         self.coarse_sim_set = True
 
-    def _extract_result(self, sim_id):
+    def _extract_result(self, sample):
         # sample time, not implemented in this simulation
         time = 0
-        return self._result_dict[sim_id], time
-
+        return self._result_dict[sample.directory], time

@@ -8,8 +8,8 @@ import scipy.integrate as integrate
 import scipy as sc
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
+sys.path.append(os.path.join(src_path, '..', '..', 'test'))
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 import mlmc.mlmc
 import mlmc.simulation
 import mlmc.moments
@@ -31,55 +31,59 @@ class FlowProcSim(flow_mc.FlowSim):
     Child from FlowSimulation that defines extract method
     """
 
-    def _extract_result(self, sample_dir):
+    def _extract_result(self, sample):
         """
         Extract the observed value from the Flow123d output.
-        :param sample_dir: Sample directory path
+        :param sample: Sample instance
         :return: None, inf or water balance result (float) and overall sample time
         """
+        sample_dir = sample.directory
+        print("sample dir ", sample_dir)
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
-            try:
-                # extract the flux
-                balance_file = os.path.join(sample_dir, "water_balance.yaml")
+            # try:
+            # extract the flux
+            balance_file = os.path.join(sample_dir, "water_balance.yaml")
 
-                with open(balance_file, "r") as f:
-                    balance = yaml.load(f)
+            with open(balance_file, "r") as f:
+                balance = yaml.load(f)
 
-                flux_regions = ['.bc_outflow']
-                total_flux = 0.0
-                found = False
-                for flux_item in balance['data']:
-                    if flux_item['time'] > 0:
-                        break
+            flux_regions = ['.bc_outflow']
+            total_flux = 0.0
+            found = False
+            for flux_item in balance['data']:
+                if flux_item['time'] > 0:
+                    break
 
-                    if flux_item['region'] in flux_regions:
-                        flux = float(flux_item['data'][0])
-                        flux_in = float(flux_item['data'][1])
-                        if flux_in > 1e-10:
-                            raise Exception("Possitive inflow at outlet region.")
-                        total_flux += flux  # flux field
-                        found = True
+                if flux_item['region'] in flux_regions:
+                    flux = float(flux_item['data'][0])
+                    flux_in = float(flux_item['data'][1])
+                    if flux_in > 1e-10:
+                        raise Exception("Possitive inflow at outlet region.")
+                    total_flux += flux  # flux field
+                    found = True
 
-                # Get flow123d computing time
-                run_time = self.get_run_time(sample_dir)
+            # Get flow123d computing time
+            run_time = self.get_run_time(sample_dir)
 
-                # Get preprocess time, generating random fields etc.
-                try:
-                    with open(os.path.join(sample_dir, "FINISHED"), "r") as f:
-                        preprocess_time = float(f.readlines()[0])
-                except:
-                    print("Extract preprocess time failed")
+            # Get preprocess time, generating random fields etc.
+            #try:
+            # with open(os.path.join(sample_dir, "FINISHED"), "r") as f:
+            #     preprocess_time = float(f.readlines()[0])
+            # #except:
+            # print("preprocess time ", preprocess_time)
 
-                if not found:
-                    raise
+            if not found:
+                raise
 
-            except Exception as e:
-                print(str(e))
-                return np.inf, [0, 0]
+            # except Exception as e:
+            #     print(str(e))
+            #     return np.inf, [0, 0]
 
-            return -total_flux, [preprocess_time, run_time]
+            print("total flux ", total_flux)
+
+            return -total_flux, run_time
         else:
-            return None, [0, 0]
+            return None, 0
 
 
 class UglyMLMC:
@@ -114,7 +118,7 @@ class UglyMLMC:
         :return: None
         """
         self.pbs_config = dict(
-            package_weight=250000,  # max number of elements per package
+            job_weight=250000,  # max number of elements per job
             n_cores=1,
             n_nodes=1,
             select_flags=['cgroups=cpuacct'],
@@ -189,7 +193,7 @@ class UglyMLMC:
         # Remove log files
         if clean:
             if os.path.isdir(self.output_dir):
-                shutil.rmtree(self.output_dir)
+                shutil.rmtree(self.output_dir, ignore_errors=True)
             os.makedirs(self.output_dir, mode=0o775, exist_ok=True)
 
             try:
@@ -199,7 +203,12 @@ class UglyMLMC:
                 pass
 
         self.pbs_work_dir = os.path.join(self.output_dir, "scripts")
+        num_jobs = 0
+        if os.path.isdir(self.pbs_work_dir):
+            num_jobs = len([_ for _ in os.listdir(self.pbs_work_dir)])
+
         self.pbs = pbs.Pbs(self.pbs_work_dir,
+                           job_count=num_jobs,
                            qsub=self.pbs_config['qsub'],
                            clean=clean)
         self.pbs.pbs_common_setting(flow_3=True, **self.pbs_config)
@@ -211,13 +220,15 @@ class UglyMLMC:
                                                          config=self.simulation_config, clean=clean)
 
         self.mlmc_options['output_dir'] = self.output_dir
-
         self.mc = mlmc.mlmc.MLMC(self.n_levels, self.simultion_factory, self.step_range, self.mlmc_options)
-        self.mc.create_levels()
+
         if clean:
+            self.mc.create_new_execution()
             # assert ProcessMLMC.is_exe(self.env['flow123d'])
             assert ProcessMLMC.is_exe(self.env['gmsh'])
             # assert ProcessMLMC.is_exe(self.pbs_config['qsub'])
+        else:
+            self.mc.load_from_file()
 
     def collect(self):
         """

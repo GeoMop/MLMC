@@ -1,12 +1,11 @@
-import os.path
-import json
 import time
 import numpy as np
 from mlmc.mc_level import Level
-from mlmc.logger import Logger
 import scipy.stats as st
 import scipy.integrate as integrate
 from mlmc.simulation import Simulation
+import mlmc.hdf as hdf
+
 class MLMC:
     """
     Multilevel Monte Carlo method
@@ -35,39 +34,32 @@ class MLMC:
         # Total variance
         self.target_variance = None
 
-    def load_from_setup(self):
+        # Create hdf5 file - contains metadata and samples at levels
+        self._hdf_object = hdf.HDF5(file_name="mlmc_{}.hdf5".format(n_levels), work_dir=self._process_options['output_dir'])
+
+    def load_from_file(self):
         """
-        Run mlmc according to setup parameters, load setup {n_levels, step_range} and create levels
+        Run mlmc according to setup parameters, load setup from hdf file {n_levels, step_range} and create levels
         :return: None
         """
         # Load mlmc params from file
-        self._load_setup()
+        self._hdf_object.load_from_file()
+
+        self._n_levels = self._hdf_object.n_levels
+        self.step_range = self._hdf_object.step_range
 
         # Create mlmc levels
         self.create_levels()
 
-    def _load_setup(self):
+    def create_new_execution(self):
         """
-        Load mlmc setup file {n_levels, step_range}
+        Save mlmc main attributes {n_levels, step_range} and create levels
         :return: None
         """
-        if self._process_options['output_dir'] is not None:
-            setup_file = os.path.join(self._process_options['output_dir'], "mlmc_setup.json")
-            with open(setup_file, 'r') as f_reader:
-                setup = json.load(f_reader)
-                self._n_levels = setup.get('n_levels', None)
-                self.step_range = setup.get('step_range', None)
-
-    def _save_setup(self):
-        """
-        Save mlmc setup file {n_levels, step_range}
-        :return: None
-        """
-        if self._process_options['output_dir'] is not None:
-            setup_file = os.path.join(self._process_options['output_dir'], "mlmc_setup.json")
-            setup = {'n_levels': self.n_levels, 'step_range': self.step_range}
-            with open(setup_file, 'w+') as f_writer:
-                json.dump(setup, f_writer)
+        self._hdf_object.clear_groups()
+        self._hdf_object.init_header(step_range=self.step_range,
+                                     n_levels=self._n_levels)
+        self.create_levels()
 
     def create_levels(self):
         """
@@ -81,12 +73,11 @@ class MLMC:
             else:
                 level_param = i_level / (self._n_levels - 1)
 
-            logger = Logger(i_level, self._process_options['output_dir'], self._process_options['keep_collected'])
-            level = Level(self.simulation_factory, previous_level, level_param, logger,
-                          self._process_options['regen_failed'])
+            # Create level
+            level = Level(self.simulation_factory, previous_level, level_param, i_level,
+                          self._hdf_object.add_level_group(str(i_level)),
+                          self._process_options['regen_failed'], self._process_options['keep_collected'])
             self.levels.append(level)
-
-        self._save_setup()
 
     @property
     def n_levels(self):
@@ -331,6 +322,7 @@ class MLMC:
         for i, level in enumerate(self.levels):
             level.set_target_n_samples(int(n_samples[i]))
 
+
     # def set_target_time(self, target_time):
     #     """
     #     For each level counts new N according to target_time
@@ -407,6 +399,7 @@ class MLMC:
         :param done_sample_coef: The proportion of samples to finished for further estimate
         :return: None
         """
+
         # Set scheduled samples and run simulations
         self.set_level_target_n_samples(n_scheduled)
         self.refill_samples()
@@ -447,7 +440,6 @@ class MLMC:
         TODO: separate target_variance per moment
         :param target_variance: Constrain to achieve this variance.
         :param moments_fn: moment evaluation functions
-        :param fraction: Plan only this fraction of computed counts.
         :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
         :return: np.array with number of optimal samples for individual levels and moments, array (LxR)
         """
@@ -479,7 +471,6 @@ class MLMC:
         :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
         :return: None
         """
-
         n_samples = self.estimate_n_samples_for_target_variance(target_variance, moments_fn, prescribe_vars)
         n_samples = np.max(n_samples, axis=1)
         self.set_level_target_n_samples(n_samples, fraction)
@@ -553,7 +544,6 @@ class MLMC:
         :param moments_fn: Vector moment function, gives vector of moments for given sample or sample vector.
         :return: estimate_of_moment_means, estimate_of_variance_of_estimate ; arrays of length n_moments
         """
-
         means = []
         vars = []
         n_samples = []

@@ -10,6 +10,7 @@ from datetime import datetime as dt
 import shutil
 import copy
 import mlmc.simulation as simulation
+import mlmc.sample as sample
 
 
 def substitute_placeholders(file_in, file_out, params):
@@ -263,7 +264,7 @@ class FlowSim(simulation.Simulation):
             self.coarse_sim._input_sample = {name: values[self.n_fine_elements:, None] for name, values in
                                              fields_sample.items()}
 
-    def simulation_sample(self, sample_tag, start_time=0):
+    def simulation_sample(self, sample_tag, sample_id, start_time=0):
         """
         Evaluate model using generated or set input data sample.
         :param sample_tag: A unique ID used as work directory of the single simulation run.
@@ -283,14 +284,25 @@ class FlowSim(simulation.Simulation):
         fields_file = os.path.join(sample_dir, self.FIELDS_FILE)
 
         gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
+        prepare_time = (t.time() - start_time)
+        package_dir = self.run_sim_sample(out_subdir)
 
+        return sample.Sample(directory=sample_dir,sample_id=sample_id,
+                             job_id=package_dir, prepare_time=prepare_time)
+
+    def run_sim_sample(self, out_subdir):
+        """
+        Add simulations realization to pbs file
+        :param out_subdir: MLMC output directory
+        :return: Package directory (directory with pbs job data)
+        """
         # Add flow123d realization to pbs script
-        self.pbs_creater.add_realization(self.n_fine_elements,
-                                         output_subdir=out_subdir,
-                                         work_dir=self.work_dir,
-                                         flow123d=self.env['flow123d'],
-                                         time=t.time() - start_time)
-        return sample_tag, sample_dir
+        package_dir = self.pbs_creater.add_realization(self.n_fine_elements,
+                                                       output_subdir=out_subdir,
+                                                       work_dir=self.work_dir,
+                                                       flow123d=self.env['flow123d'])
+
+        return package_dir
 
     def get_run_time(self, sample_dir):
         """
@@ -308,7 +320,7 @@ class FlowSim(simulation.Simulation):
             dt_obj_end = dt.strptime(prof_content["run-finished-at"], "%m/%d/%y %H:%M:%S")
             run_time = (dt_obj_end - dt_obj_start).total_seconds()
         except:
-            print("Extract run time failed")
+             print("Extract run time failed")
 
         return run_time
 
