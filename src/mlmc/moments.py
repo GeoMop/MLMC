@@ -43,7 +43,7 @@ class Moments:
         """
         return  type(self) is type(other) \
                 and self.size == other.size \
-                and self.domain == other.domain \
+                and np.all(self.domain == other.domain) \
                 and self._is_log == other._is_log \
                 and self._is_clip == other._is_clip
 
@@ -144,7 +144,6 @@ class Legendre(Moments):
         return np.polynomial.legendre.legvander(t, deg=size - 1)
 
 
-
 class TransformedMoments(Moments):
     def __init__(self, other_moments, matrix):
         """
@@ -173,8 +172,6 @@ class TransformedMoments(Moments):
                 and self.size == other.size \
                 and self._origin == other._origin \
                 and np.all(self._transform == other._transform)
-
-
 
     def _eval_all(self, value, size):
         orig_moments = self._origin._eval_all(value, self._origin.size)

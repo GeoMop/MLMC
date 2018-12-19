@@ -24,12 +24,10 @@ and given moment functions.
 
 
 """
-
 import os
 import sys
 import time
 import pytest
-
 
 import numpy as np
 import scipy.stats as stats
@@ -61,7 +59,6 @@ class DistrPlot:
 
     def plot_approximation(self, approx_obj, label):
         plots = []
-
         domain = approx_obj.domain
         d_size = domain[1] - domain[0]
         slack = 0 #0.05
@@ -78,7 +75,6 @@ class DistrPlot:
         plots.append(line)
         ax.plot(X, Y0, c='black', label="exact PDF")
         plots += self.plot_borders(ax, domain)
-
 
         ax = self.axes[1]
         ax.set_title("log(PDF)")
@@ -684,7 +680,7 @@ def test_distributions():
         # (stats.weibull_min(c=3), True, '_sample_fn_basic')  # Close to normal
          ]
     levels = [1]#, 2, 3, 5, 7, 9]
-    n_moments = 5
+    n_moments = 10
     # Loop through distributions and levels
     for distr in distributions:
         for level in levels:
@@ -711,4 +707,4 @@ def test_distributions():
     plt.show()
 
 
-test_distributions()
+#test_distributions()

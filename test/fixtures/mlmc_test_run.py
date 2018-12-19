@@ -1,4 +1,3 @@
-import pytest
 import os.path
 import numpy as np
 import scipy.stats as st
@@ -9,7 +8,7 @@ from test.fixtures.synth_simulation import SimulationTest
 
 
 class TestMLMC:
-    def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None):
+    def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None, quantile=None):
         # Not work for one level method
         print("\n")
         print("L: {} R: {} distr: {} sim: {}".format(n_levels, n_moments, distr.dist.__class__.__name__, sim_method))
@@ -32,7 +31,10 @@ class TestMLMC:
         self.mc, self.sims = self.make_simulation_mc(step_range, sim_method)
 
         # reference variance
-        true_domain = distr.ppf([0.001, 0.999])
+        if quantile is not None:
+            true_domain = distr.ppf([quantile, 1 - quantile])
+        else:
+            true_domain = distr.ppf([0.0001, 0.9999])
 
         self.moments_fn = moments.Legendre(n_moments, true_domain, is_log)
 
@@ -226,7 +228,6 @@ class TestMLMC:
         print("{}\n var: {} var_0: {} p-val: {}".format(tag, var, var_0, p_val))
         assert p_val > max_p_val
 
-
     def test_variance_of_varaince(self):
         """
         Standard deviance of log of level variances should behave like log chi-squared,
@@ -311,7 +312,6 @@ class TestMLMC:
             plt.ylim(1e-10, 1)
             plt.show()
 
-
     def test_mean_var_consistency(self):
         """
         Test that estimated means are at most 3 sigma far from the exact
@@ -336,16 +336,12 @@ class TestMLMC:
         all_stdevs = 3 * np.sqrt(np.array(self.all_vars))
         mean_std_est = np.mean(all_stdevs, axis=0)
 
-
         # Variance estimates match true
         # 95% of means are within 3 sigma
         exact_moments = self.ref_means[1:]
         for i_mom, exact_mom in enumerate(exact_moments):
             assert np.abs(mean_means[i_mom] - exact_mom) <  mean_std_est[i_mom], \
                 "moment: {}, diff: {}, std: {}".format(i_mom, np.abs(mean_means[i_mom] - exact_mom), mean_std_est[i_mom])
-
-
-
 
     # @staticmethod
     # def box_plot(ax, X, Y):
@@ -380,7 +376,6 @@ class TestMLMC:
             ax.set_xscale('log')
             ax.legend()
             ax.set_ylabel("observed var. of mean est.")
-
         plt.show()
 
     def plot_error(self, arr, ax, label):
@@ -505,7 +500,6 @@ class TestMLMC:
         ns_99 = np.percentile(n_samples, [99])
         ax3.axvline(x=ns_99, label=str(ns_99), c='red')
         ax3.legend()
-
         plt.show()
 
     def _test_min_samples(self):
@@ -561,7 +555,7 @@ class TestMLMC:
             print(ref_n_samples.astype(int))
             print("\n")
             l_n_samples_err.append(n_samples_err)
-            l_total_std_err.append(total_std_err )
+            l_total_std_err.append(total_std_err)
             l_cost_err.append((ref_cost - est_cost)/ref_cost)
 
         l_cost_err.sort()

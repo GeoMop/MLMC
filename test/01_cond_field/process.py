@@ -2,13 +2,10 @@ import os
 import sys
 import shutil
 import yaml
-import statprof
 import numpy as np
-import scipy.integrate as integrate
-import scipy as sc
+
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
-sys.path.append(os.path.join(src_path, '..', '..', 'test'))
 
 import mlmc.mlmc
 import mlmc.simulation
@@ -20,11 +17,7 @@ import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 from mlmc import moments
 
-from test.fixtures.process_mlmc import CompareLevels
-#import mlmc.postprocess as postprocess
-from mlmc.distribution import Distribution
-
-
+from mlmc.estimate import CompareLevels
 
 class FlowProcSim(flow_mc.FlowSim):
     """
@@ -38,7 +31,6 @@ class FlowProcSim(flow_mc.FlowSim):
         :return: None, inf or water balance result (float) and overall sample time
         """
         sample_dir = sample.directory
-        print("sample dir ", sample_dir)
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             # try:
             # extract the flux
@@ -65,21 +57,8 @@ class FlowProcSim(flow_mc.FlowSim):
             # Get flow123d computing time
             run_time = self.get_run_time(sample_dir)
 
-            # Get preprocess time, generating random fields etc.
-            #try:
-            # with open(os.path.join(sample_dir, "FINISHED"), "r") as f:
-            #     preprocess_time = float(f.readlines()[0])
-            # #except:
-            # print("preprocess time ", preprocess_time)
-
             if not found:
                 raise
-
-            # except Exception as e:
-            #     print(str(e))
-            #     return np.inf, [0, 0]
-
-            print("total flux ", total_flux)
 
             return -total_flux, run_time
         else:
@@ -224,9 +203,9 @@ class UglyMLMC:
 
         if clean:
             self.mc.create_new_execution()
-            # assert ProcessMLMC.is_exe(self.env['flow123d'])
-            assert ProcessMLMC.is_exe(self.env['gmsh'])
-            # assert ProcessMLMC.is_exe(self.pbs_config['qsub'])
+            # assert Estimate.is_exe(self.env['flow123d'])
+            assert Estimate.is_exe(self.env['gmsh'])
+            # assert Estimate.is_exe(self.pbs_config['qsub'])
         else:
             self.mc.load_from_file()
 
@@ -494,7 +473,7 @@ def all_collect(mlmc_list):
 def calculate_var(mlmc_list):
     """
     Calculate density, moments (means, vars)
-    :param mlmc_list: list of ProcessMLMC
+    :param mlmc_list: list of Estimate
     :return: None
     """
     level_moments_mean = []
@@ -829,8 +808,8 @@ def analyze_pdf_approx(cl):
     # PDF approximation experiments
     np.random.seed(15)
     cl.set_common_domain(0)
-    cl.reinit(n_moments = 11)
-    il = 7
+    cl.reinit(n_moments = 10)
+    il = 1
     #ns = cl[il].mlmc.estimate_n_samples_for_target_variance(0.01, cl.moments)
     #cl[il].mlmc.subsample(ns)
     #cl.construct_densities(tol = 1.0, reg_param = 1)
@@ -1029,7 +1008,7 @@ def main():
         assert os.path.isdir(work_dir)
         mlmc_list = []
         #for nl in [ 1,2,3,4,5, 7,9]:
-        for nl in [7]:
+        for nl in [1]:
             prmc = UglyMLMC(work_dir, options)
             prmc.setup(nl)
             prmc.initialize(clean=False)
@@ -1043,7 +1022,6 @@ def main():
                            n_moments=21,)
 
         process_analysis(cl)
-
 
         # statprof.start()
         # try:

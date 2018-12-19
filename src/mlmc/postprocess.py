@@ -2,7 +2,7 @@ import numpy as np
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
-from mlmc.distribution import Distribution
+from mlmc.simple_distribution import SimpleDistribution
 
 # This file will contain postprocessing methods
 
@@ -80,7 +80,8 @@ def compute_results(mlmc_l0, n_moments, mlmc_wrapper):
     #         np.min(arr), q1, np.mean(arr), q3, np.max(arr))
 
     moments_data = np.stack((est_moments, est_vars), axis=1)
-    distr_obj = Distribution(moments_fn, moments_data)
+
+    distr_obj = SimpleDistribution(moments_fn, moments_data)
     distr_obj.domain = domain
     distr_obj.estimate_density_minimize(1)
     mlmc_wrapper.distr_obj = distr_obj
