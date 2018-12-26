@@ -527,8 +527,10 @@ class MLMC:
         TODO: compute mean and variance and use quantiles of normal or lognormal distribution (done in Distribution)
         :return:
         """
-        ranges = np.array([l.sample_range() for l in self.levels])
-
+        #ranges = np.array([l.sample_range() for l in self.levels])
+        ranges = np.array([l.sample_domain(0.003) for l in self.levels])
+        #print("ranges: ", ranges)
+        #print("r1: ", np.array([l.sample_domain(0.1) for l in self.levels]))
         return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
     def subsample(self, sub_samples=None):
