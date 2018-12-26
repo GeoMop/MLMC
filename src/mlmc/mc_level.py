@@ -11,11 +11,8 @@ class Level:
     Call Simulation methods
     There are information about random variable - average, dispersion, number of simulation, ...
     TODO:
-    workflow:
-    - queue simulations ( need simulation object for prepare input, need pbs as executor
-    - check for finished simulations (need pbs
-    - estimates for collected samples ... this can be in separate class as it is independent of simulation
-    .. have to reconsider in context of Analysis
+    - have HDF level either permanently (do not copy values), or use just for load and save
+    - fix consistency for: n_ops, n_ops_estimate, _n_ops_estimate
     """
 
     def __init__(self, sim_factory, previous_level, precision, level_idx, hdf_level_group, regen_failed=False,
@@ -169,8 +166,8 @@ class Level:
                     self.scheduled_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
 
         self.collected_samples = list(collected_samples.values())
+        self.n_ops_estimate = self._hdf_level_group.n_ops_estimate
 
-        # @TODO check
         # Get n_ops_estimate
         if self.n_ops_estimate is None:
             self.set_coarse_sim()
@@ -276,7 +273,8 @@ class Level:
         :return: None
         """
         self._n_ops_estimate = n_ops
-        self._hdf_level_group.n_ops_estimate = n_ops
+        if n_ops is not None:
+            self._hdf_level_group.n_ops_estimate = n_ops
 
     def set_coarse_sim(self):
         """
@@ -524,7 +522,7 @@ class Level:
 
             # For first level moments from coarse samples are zeroes
             if self.is_zero_level:
-                moments_coarse = np.zeros( (len(moments_fine), moments_fn.size) )
+                moments_coarse = np.zeros((len(moments_fine), moments_fn.size))
             else:
                 moments_coarse = moments_fn(samples[:, 1])
             # Set last moments function
@@ -557,7 +555,6 @@ class Level:
 
         # New moments without outliers
         self.last_moments_eval = self.last_moments_eval[0][ok_fine_coarse, :], self.last_moments_eval[1][ok_fine_coarse, :]
-
 
     def estimate_diff_var(self, moments_fn):
         """
@@ -599,16 +596,15 @@ class Level:
 
         if stable:
             # Stable formula - however seems that we have no problem with numerical stability
-            mom_diff= mom_fine - mom_coarse
+            mom_diff = mom_fine - mom_coarse
             mom_sum = mom_fine + mom_coarse
             cov = 0.5 * (np.matmul(mom_diff.T, mom_sum) + np.matmul(mom_sum.T, mom_diff)) / self.n_samples
         else:
             # Direct formula
-            cov_fine   = np.matmul(mom_fine.T,   mom_fine)
+            cov_fine = np.matmul(mom_fine.T,   mom_fine)
             cov_coarse = np.matmul(mom_coarse.T, mom_coarse)
             cov = (cov_fine - cov_coarse) / self.n_samples
         return cov
-
 
     def estimate_cov_diag_err(self, moments_fn, ):
         """
@@ -624,7 +620,6 @@ class Level:
 
         mse_vec = np.var(mom_fine**2 - mom_coarse**2, axis=0, ddof=1)
         return mse_vec
-
 
     def sample_iqr(self):
         """

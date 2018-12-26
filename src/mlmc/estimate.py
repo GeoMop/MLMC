@@ -1,15 +1,9 @@
-import os
-import sys
 import numpy as np
-import scipy as sc
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 
-src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(src_path, '..', '..', 'src'))
-import mlmc.mlmc
-from mlmc.distribution import Distribution
 from mlmc.simple_distribution import SimpleDistribution
+
 
 
 def create_color_bar(size, label, ax = None):
@@ -23,13 +17,106 @@ def create_color_bar(size, label, ax = None):
     clb.set_label(label)
     return lambda v: colormap(normalize(v))
 
-class ProcessMLMC:
+
+def plot_pdf_approx(ax1, ax2, mc0_samples, mlmc_wrapper, domain, est_domain):
+    """
+    Plot density and distribution, plot contains density estimation from MLMC and histogram created from One level MC
+    TODO: merge with similar method in clss estimate
+    :param ax1: First figure subplot
+    :param ax2: Second figure subplot
+    :param mc0_samples: One level MC samples
+    :param mlmc_wrapper: Object with mlmc instance, must contains distribution object
+    :param domain: Domain from one level MC
+    :param est_domain: Domain from MLMC
+    :return: None
+    """
+    # X = np.exp(np.linspace(np.log(domain[0]), np.log(domain[1]), 1000))
+    # bins = np.exp(np.linspace(np.log(domain[0]), np.log(10), 60))
+    X = np.linspace(domain[0], domain[1], 1000)
+    bins = np.linspace(domain[0], domain[1], len(mc0_samples)/15)
+
+    distr_obj = mlmc_wrapper.distr_obj
+
+    n_levels = mlmc_wrapper.mc.n_levels
+    color = "C{}".format(n_levels)
+    label = "l {}".format(n_levels)
+    Y = distr_obj.density(X)
+    ax1.plot(X, Y, c=color, label=label)
+
+    Y = distr_obj.cdf(X)
+    ax2.plot(X, Y, c=color, label=label)
+
+    if n_levels == 1:
+        ax1.hist(mc0_samples, normed=True, bins=bins, alpha=0.3, label='full MC', color=color)
+        X, Y = ecdf(mc0_samples)
+        ax2.plot(X, Y, 'red')
+
+    ax1.axvline(x=domain[0], c=color)
+    ax1.axvline(x=domain[1], c=color)
+
+
+def compute_results(mlmc_l0, n_moments, mlmc_wrapper):
+    """
+    Compute density and moments domains
+    TODO: remove completely or move into test_distribution
+    :param mlmc_l0: One level Monte-Carlo method
+    :param n_moments: int, Number of moments
+    :param mc_wrapper: Object with mlmc instance, must contains also moments function object
+    :return: domain - tuple, domain from 1LMC
+             est_domain - tuple, domain estimated by mlmc instance
+             mc_wrapper - with current distr_obj (object estimating distribution)
+    """
+    mlmc = mlmc_wrapper.mc
+    moments_fn = mlmc_wrapper.moments_fn
+    domain = mlmc_l0.ref_domain
+    est_domain = mlmc.estimate_domain()
+
+    t_var = 1e-5
+    ref_diff_vars, _ = mlmc.estimate_diff_vars(moments_fn)
+    # ref_moments, ref_vars = mc.estimate_moments(moments_fn)
+    # ref_std = np.sqrt(ref_vars)
+    # ref_diff_vars_max = np.max(ref_diff_vars, axis=1)
+    # ref_n_samples = mc.set_target_variance(t_var, prescribe_vars=ref_diff_vars)
+    # ref_n_samples = np.max(ref_n_samples, axis=1)
+    # ref_cost = mc.estimate_cost(n_samples=ref_n_samples)
+    # ref_total_std = np.sqrt(np.sum(ref_diff_vars / ref_n_samples[:, None]) / n_moments)
+    # ref_total_std_x = np.sqrt(np.mean(ref_vars))
+
+    est_moments, est_vars = mlmc.estimate_moments(moments_fn)
+
+    # def describe(arr):
+    #     print("arr ", arr)
+    #     q1, q3 = np.percentile(arr, [25, 75])
+    #     print("q1 ", q1)
+    #     print("q2 ", q3)
+    #     return "{:f8.2} < {:f8.2} | {:f8.2} | {:f8.2} < {:f8.2}".format(
+    #         np.min(arr), q1, np.mean(arr), q3, np.max(arr))
+
+    moments_data = np.stack((est_moments, est_vars), axis=1)
+
+    distr_obj = SimpleDistribution(moments_fn, moments_data)
+    distr_obj.domain = domain
+    distr_obj.estimate_density_minimize(1)
+    mlmc_wrapper.distr_obj = distr_obj
+
+    return domain, est_domain, mlmc_wrapper
+
+def ecdf(x):
+    xs = np.sort(x)
+    ys = np.arange(1, len(xs) + 1) / float(len(xs))
+    return xs, ys
+
+
+class Estimate:
     """
     Base of future class dedicated to all kind of processing of the collected samples
     MLMC should only collect the samples.
+
+    TODO: try to move plotting methods into separate file, allowing independent usage of the plots for
+    explicitely provided datasets.
     """
 
-    def __init__(self, mlmc, moments):
+    def __init__(self, mlmc, moments=None):
         self.mlmc = mlmc
         self.moments = moments
 
@@ -51,7 +138,6 @@ class ProcessMLMC:
     def n_moments(self):
         return self.moments.size
 
-
     @property
     def n_levels(self):
         return self.mlmc.n_levels
@@ -59,7 +145,6 @@ class ProcessMLMC:
     @property
     def n_samples(self):
         return self.mlmc.n_samples
-
 
     @property
     def levels(self):
@@ -85,6 +170,191 @@ class ProcessMLMC:
 
     def set_moments_color_bar(self, ax):
         self._moments_cmap = create_color_bar(self.n_moments, "Moments", ax)
+
+
+    def estimate_diff_vars_regression(self, moments_fn=None, raw_vars=None):
+        """
+        Estimate variances using linear regression model.
+        Assumes increasing variance with moments, use only two moments with highest average variance.
+        :param moments_fn: Moment evaluation function
+        :return: array of variances, shape  L
+        """
+        # vars shape L x R
+        if raw_vars is None:
+            assert moments_fn is not None
+            raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
+        sim_steps = self.sim_steps
+        #vars = self._varinace_regression(raw_vars, sim_steps)
+        vars = self._all_moments_varinace_regression(raw_vars, sim_steps)
+        return vars
+
+    def _moment_varinace_regression(self, raw_vars, sim_steps):
+        """
+        Estimate level variance using separate model for every moment.
+
+        log(var_l) = A + B * log(h_l) + C * log^2(hl),
+                                            for l = 0, .. L-1
+        :param raw_vars: moments variances raws, shape (L,)
+        :param sim_steps: simulation steps, shape (L,)
+        :return: np.array  (L, )
+        """
+        L, = raw_vars.shape
+        L1 = L - 1
+        if L < 3:
+            return raw_vars
+
+        # estimate of variances of variances, compute scaling
+        W = 1.0 / np.sqrt(self._variance_of_variance())
+        W = W[1:]   # ignore level 0
+        W = np.ones((L - 1,))
+
+        # Use linear regresion to improve estimate of variances V1, ...
+        # model log var_{r,l} = a_r  + b * log step_l
+        # X_(r,l), j = dirac_{r,j}
+
+        K = 3 # number of parameters
+
+        X = np.zeros((L1, K))
+        log_step = np.log(sim_steps[1:])
+        X[:, 0] = np.ones(L1)
+        X[:, 1] = np.full(L1, log_step)
+        X[:, 2] = np.full(L1, log_step ** 2)
+
+
+        WX = X * W[:, None]    # scale
+
+        log_vars = np.log(raw_vars[1:])     # omit first variance
+        log_vars = W * log_vars       # scale RHS
+
+        params, res, rank, sing_vals = np.linalg.lstsq(WX, log_vars)
+        new_vars = raw_vars.copy()
+        new_vars[1:] = np.exp(np.dot(X, params))
+        return new_vars
+
+    def _all_moments_varinace_regression(self, raw_vars, sim_steps):
+        reg_vars = raw_vars.copy()
+        n_moments = raw_vars.shape[1]
+        for m in range(1, n_moments):
+            reg_vars[:, m] = self._moment_varinace_regression(raw_vars[:, m], sim_steps)
+        assert np.allclose( reg_vars[:, 0], 0.0)
+        return reg_vars
+
+    def estimate_diff_vars(self, moments_fn):
+        """
+        Estimate moments variance from samples
+        :param moments_fn: Moment evaluation functions
+        :return: (diff_variance, n_samples);
+            diff_variance - shape LxR, variances of diffs of moments
+            n_samples -  shape L, num samples for individual levels.
+
+            Returns simple variance for level 0.
+        """
+        vars = []
+        n_samples = []
+
+        for level in self.levels:
+            v, n = level.estimate_diff_var(moments_fn)
+            vars.append(v)
+            n_samples.append(n)
+        return np.array(vars), np.array(n_samples)
+
+    def estimate_level_means(self, moments_fn):
+        """
+        Estimate means on individual levels.
+        :param moments_fn: moments object of size R
+        :return: shape (L, R)
+        """
+        means = []
+        for level in self.mlmc.levels:
+            means.append(level.estimate_diff_mean(moments_fn))
+        return np.array(means)
+
+    def estimate_n_samples_for_target_variance(self, target_variance, moments_fn=None, prescribe_vars=None):
+        """
+        Estimate optimal number of samples for individual levels that should provide a target variance of
+        resulting moment estimate. Number of samples are directly set to levels.
+        This also set given moment functions to be used for further estimates if not specified otherwise.
+        TODO: separate target_variance per moment
+        :param target_variance: Constrain to achieve this variance.
+        :param moments_fn: moment evaluation functions
+        :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
+        :return: np.array with number of optimal samples for individual levels and moments, array (LxR)
+        """
+        if prescribe_vars is None:
+            vars = self.estimate_diff_vars_regression(moments_fn)
+        else:
+            vars = prescribe_vars
+
+        n_ops = np.array([lvl.n_ops_estimate for lvl in self.levels])
+
+        sqrt_var_n = np.sqrt(vars.T * n_ops)  # moments in rows, levels in cols
+        total = np.sum(sqrt_var_n, axis=1)  # sum over levels
+        n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)  # moments in cols
+
+        # Limit maximal number of samples per level
+        n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars * self.n_levels / target_variance), 2)
+        n_samples = np.max(n_samples_estimate_safe, axis=1).astype(int)
+
+        return n_samples
+
+    def estimate_domain(self):
+        """
+        Estimate domain of the density function.
+        TODO: compute mean and variance and use quantiles of normal or lognormal distribution (done in Distribution)
+        :return:
+        """
+        ranges = np.array([l.sample_range() for l in self.levels])
+
+        return np.min(ranges[:, 0]), np.max(ranges[:, 1])
+
+    def estimate_moments(self, moments_fn):
+        """
+        Use collected samples to estimate moments and variance of this estimate.
+        :param moments_fn: Vector moment function, gives vector of moments for given sample or sample vector.
+        :return: estimate_of_moment_means, estimate_of_variance_of_estimate ; arrays of length n_moments
+        """
+        means = []
+        vars = []
+        n_samples = []
+        for level in self.levels:
+            means.append(level.estimate_diff_mean(moments_fn))
+            l_vars, ns = level.estimate_diff_var(moments_fn)
+            vars.append(l_vars)
+            n_samples.append(ns)
+        means = np.sum(np.array(means), axis=0)
+        n_samples = np.array(n_samples, dtype=int)
+
+        vars = np.sum(np.array(vars) / n_samples[:, None], axis=0)
+
+        return np.array(means), np.array(vars)
+
+    def estimate_level_cost(self):
+        """
+        For every level estimate of cost of evaluation of a single coarse-fine simulation pair.
+        TODO: Estimate simulation cost from collected times + regression similar to variance
+        :return:
+        """
+        return np.array([lvl.n_ops_estimate for lvl in self.mlmc.levels])
+
+    def estimate_cost(self, level_times=None, n_samples=None):
+        """
+        Estimate total cost of mlmc
+        :param level_times: Cost estimate for single simulation for every level.
+        :param n_samples: Number of samples on each level
+        :return: total cost
+        """
+        if level_times is None:
+            level_times = self.estimate_level_cost()
+        if n_samples is None:
+            n_samples = self.mlmc.n_samples
+        return np.sum(level_times * n_samples)
+
+
+
+
+
+
+
 
 
     # def detect_treshold(self, values, log=True, window=4):
@@ -369,16 +639,18 @@ class ProcessMLMC:
 
     def construct_ortogonal_moments(self, moments=None):
         """
-        For given moments find the basis ortogonal with resect to the covariance matrix, estimated from samples.
+        For given moments find the basis orthogonal with respect to the covariance matrix, estimated from samples.
         :param moments: moments object
-        :return: ortogonal moments object of the same size.
+        :return: orthogonal moments object of the same size.
         """
         if moments is None:
             moments = self.moments
 
-        cov = self.mlmc.estimate_covariance(moments)
+        cov = self.estimate_covariance(moments, self.mlmc.levels)
 
-        # centered covarince
+        estimate_moments = self.mlmc.estimate_moments(moments)
+
+        # centered covariance
         M = np.eye(moments.size)
         M[:, 0] = -cov[:, 0]
         cov_center = M @ cov @ M.T
@@ -442,6 +714,25 @@ class ProcessMLMC:
 
         return ortogonal_moments
 
+    def estimate_covariance(self, moments_fn, levels, stable=False, mse=False):
+        """
+        MLMC estimate of covariance matrix of moments.
+        :param stable: use formula with better numerical stability
+        :param mse: Mean squared error??
+        :return:
+        """
+        cov_mat = np.zeros((moments_fn.size, moments_fn.size))
+
+        for level in levels:
+            cov_mat += level.estimate_covariance(moments_fn, stable)
+        if mse:
+            mse_diag = np.zeros(moments_fn.size)
+            for level in levels:
+                mse_diag += level.estimate_cov_diag_err(moments_fn)/level.n_samples
+            return cov_mat, mse_diag
+        else:
+            return cov_mat
+
     def construct_density(self, tol=1.95, reg_param=0.01):
         """
         Construct approximation of the density using given moment functions.
@@ -451,9 +742,7 @@ class ProcessMLMC:
                  Default value 1.95 corresponds to the two tail confidency 0.95.
             reg_param: Regularization parameter.
         """
-        moments = self.construct_ortogonal_moments()
-
-
+        moments_obj = self.construct_ortogonal_moments()
         print("n levels: ", self.n_levels)
         #est_moments, est_vars = self.mlmc.estimate_moments(moments)
         est_moments = np.zeros(moments.size)
@@ -462,13 +751,9 @@ class ProcessMLMC:
         min_var, max_var = np.min(est_vars[1:]), np.max(est_vars[1:])
         print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
         moments_data = np.stack((est_moments, est_vars), axis=1)
-        distr_obj = SimpleDistribution(moments, moments_data, domain=moments.domain)
+        distr_obj = SimpleDistribution(moments_obj, moments_data, domain=moments_obj.domain)
         distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
         self._distribution = distr_obj
-
-
-
-
 
         # # [print("integral density ", integrate.simps(densities[index], x[index])) for index, density in
         # # enumerate(densities)]
@@ -588,7 +873,6 @@ class ProcessMLMC:
         level_mean_est = self.mlmc.estimate_level_means(moments_fn)
         return level_mean_est, level_var_est
 
-
     def _bs_get_estimates_regression(self):
         moments_fn = self.moments
         #mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
@@ -597,7 +881,6 @@ class ProcessMLMC:
         level_var_est = self.mlmc.estimate_diff_vars_regression(moments_fn, level_var_est)
         #var_est = np.sum(level_var_est[:, :]/self.n_samples[:,  None], axis=0)
         return level_mean_est, level_var_est
-
 
     def check_bias(self, a, b, var, label):
         diff = np.abs(a - b)
@@ -681,8 +964,6 @@ class ProcessMLMC:
 
         self.mlmc.clean_subsamples()
 
-
-
     def plot_moment_functions(self, moments_fn=None, fig_file=None):
         if moments_fn is None:
             moments_fn = self.moments
@@ -711,7 +992,7 @@ class ProcessMLMC:
             values[values < 0] = 10e-6
             ax.set_yscale('log')
             a, b = np.min(values), np.max(values)
-            ax.set_ylim( a / ( (b/a)**0.05 ), b *  (b/a)**0.05)
+            ax.set_ylim(a / ((b/a)**0.05), b * (b/a)**0.05)
         else:
             a, b = np.min(values), np.max(values)
             ax.set_ylim(a - 0.05 * (b - a), b + 0.05 * (b - a))
@@ -736,7 +1017,6 @@ class ProcessMLMC:
         print("Backend: ", plt.get_backend())
         fig.show()
         print("Continue")
-
 
     def _scatter_level_moment_data(self, ax, values, i_moments=None, marker='o'):
         """
@@ -800,7 +1080,6 @@ class ProcessMLMC:
         fig.savefig('bs_var_vs_var.pdf')
         plt.show()
 
-
     def plot_bs_variances(self, variances, y_label=None, log=True, y_lim=None):
         """
         Plot BS estimate of error of variances of other related quantities.
@@ -829,8 +1108,6 @@ class ProcessMLMC:
         fig.savefig('bs_var_var.pdf')
         plt.show()
 
-
-
     def plot_bs_var_error_contributions(self):
         """
         MSE of total variance and contribution of individual levels.
@@ -853,8 +1130,6 @@ class ProcessMLMC:
         l_var_var_scale = l_var[:, 1:] ** 2 * 2 / (self._bs_n_samples[:, None] - 1)
         total_var_var_scale = np.sum(l_var_var_scale[:, :] / self._bs_n_samples[:, None]**2, axis=0 )
 
-
-
         bs_var_var = self._bs_var_variance[:]
         bs_var_var[1:] /= total_var_var_scale
 
@@ -864,7 +1139,6 @@ class ProcessMLMC:
         bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
         self.plot_bs_variances(bs_variances, log=True,
                                y_label="MSE of level variances estimators scaled by $V_l^2/N_l$.")
-
 
     def plot_bs_var_log_var(self):
         """
@@ -879,24 +1153,20 @@ class ProcessMLMC:
                                y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
                                )#y_lim=(0.1, 20))
 
-
-    def plot_bs_var_reg_var(self):
-        """
-        Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).
-        """
-        vv = self.mlmc._variance_of_variance(self._bs_n_samples)
-        bs_l_var_var = (self._bs_level_var_variance[:, :]) / vv[:, None]
-        bs_var_var = self._bs_var_variance[:]  # - np.log(total_var_var_scale)
-        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
-        self.plot_bs_variances(bs_variances, log=True,
-                               y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
-                               y_lim=(0.1, 20))
-
+    # def plot_bs_var_reg_var(self):
+    #     """
+    #     Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).
+    #     """
+    #     vv = self.mlmc._variance_of_variance(self._bs_n_samples)
+    #     bs_l_var_var = (self._bs_level_var_variance[:, :]) / vv[:, None]
+    #     bs_var_var = self._bs_var_variance[:]  # - np.log(total_var_var_scale)
+    #     bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+    #     self.plot_bs_variances(bs_variances, log=True,
+    #                            y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
+    #                            y_lim=(0.1, 20))
 
 
-
-
-    def plot_means_and_vars(self, ax, ):
+    def plot_means_and_vars(self, moments_mean, moments_var, n_levels, exact_moments):
         """
         Plot means with variance whiskers to given axes.
         :param moments_mean: array, moments mean
@@ -906,8 +1176,7 @@ class ProcessMLMC:
         :param ex_moments: array, moments from distribution samples
         :return:
         """
-        moments_fn = self.moments
-        colors = iter(cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
+        colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
 
         x = np.arange(0, len(moments_mean[0]))
         x = x - 0.3
@@ -919,14 +1188,37 @@ class ProcessMLMC:
             else:
                 x = x + (1 / (len(moments_mean) * 1.5))
                 plt.errorbar(x, means, yerr=moments_var[index], fmt='o', capsize=3, color=next(colors),
-                             label="%dLMC" % n_levels[index])
-
+                             label = "%dLMC" % n_levels[index])
         if ex_moments is not None:
-            plt.plot(default_x - 0.125, ex_moments, 'ko', label="Exact moments")
-
+                plt.plot(default_x - 0.125, ex_moments, 'ko', label="Exact moments")
         plt.legend()
-        plt.show()
-        exit()
+        #plt.show()
+        #exit()
+
+
+
+
+
+
+colors = iter(cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
+
+print("moments mean ", moments_mean)
+print("exact momentss ", exact_moments)
+x = np.arange(0, len(moments_mean))
+x = x - 0.3
+default_x = x
+
+
+plt.plot(default_x, exact_moments, 'ro', label="Exact moments")
+
+plt.errorbar(x, moments_mean, yerr=moments_var, fmt='o', capsize=3, color=next(colors),
+                     label = "%dLMC" % n_levels)
+
+
+
+
+
+
 
 
     def plot_var_regression(self, i_moments = None):
@@ -949,11 +1241,9 @@ class ProcessMLMC:
 
         self.set_moments_color_bar(ax=ax)
 
-
         est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
         reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn) #/ self.n_samples[:, None]
         ref_diff_vars = self._ref_level_var #/ self.n_samples[:, None]
-
 
         self._scatter_level_moment_data(ax,  ref_diff_vars, i_moments, marker='o')
         self._scatter_level_moment_data(ax, est_diff_vars, i_moments, marker='d')
@@ -978,6 +1268,18 @@ class ProcessMLMC:
         plt.show()
 
 
+def create_color_bar(size, label, ax = None):
+    # Create colorbar
+    colormap = plt.cm.gist_ncar
+    normalize = plt.Normalize(vmin=0, vmax=size)
+    scalarmappaple = plt.cm.ScalarMappable(norm=normalize, cmap=colormap)
+    scalarmappaple.set_array(np.arange(size))
+    ticks = np.linspace(0, int(size/10)*10, 9)
+    clb = plt.colorbar(scalarmappaple, ticks=ticks, aspect=50, pad=0.01, ax=ax)
+    clb.set_label(label)
+    return lambda v: colormap(normalize(v))
+
+
 class CompareLevels:
     """
     Class to compare MLMC for different number of levels.
@@ -998,7 +1300,7 @@ class CompareLevels:
 
     def reinit(self, **kwargs):
         """
-        Re-create new ProcessMLMC objects from same original MLMC list.
+        Re-create new Estimate objects from same original MLMC list.
         Set new parameters in particular for moments.
         :return:
         """
@@ -1014,14 +1316,9 @@ class CompareLevels:
 
         self._moments = self.moment_class(self.n_moments, self.domain, self.log_scale)
 
-        self.mlmc = [ProcessMLMC(mc, self._moments) for mc in self._mlmc_list]
+        self.mlmc = [Estimate(mc, self._moments) for mc in self._mlmc_list]
         self.mlmc_dict = {mc.n_levels: mc for mc in self.mlmc}
-
-
-
         self._moments_params = None
-
-
 
     def common_domain(self):
         L = +np.inf
@@ -1032,10 +1329,8 @@ class CompareLevels:
             U = max(u, U)
         return (L, U)
 
-
     def __getitem__(self, n_levels):
         return self.mlmc_dict[n_levels]
-
 
     @property
     def moments(self):
@@ -1085,7 +1380,6 @@ class CompareLevels:
 
         Returns:
         """
-        import matplotlib.pyplot as plt
 
         fig = plt.figure(figsize=(30, 10))
         ax1 = fig.add_subplot(1, 2, 1)
@@ -1141,7 +1435,6 @@ class CompareLevels:
         ax2.legend()
         fig.savefig('compare_distributions.pdf')
         plt.show()
-
 
     def ref_estimates_bootstrap(self, n_samples, sample_vector=None):
         for mc in self.mlmc:

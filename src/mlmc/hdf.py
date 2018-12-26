@@ -83,6 +83,10 @@ class HDF5:
         # Job directory absolute path
         self.job_dir_abs_path = os.path.join(work_dir, job_dir)
 
+        # @TODO: Remove this and solve it complexly
+        #if os.path.exists(self.file_name):
+        #    os.remove(self.file_name)
+
         # h5py.File object - works generally like standard Python file objects, ppen with mode append
         self._hdf_file = h5py.File(self.file_name, 'a')
 
@@ -467,6 +471,9 @@ class LevelGroup:
         Get number of operations estimate
         :return: float
         """
+        if self._n_ops_estimate is None and 'n_ops_estimate' in self._level_group.attrs:
+            self._n_ops_estimate = self._level_group.attrs['n_ops_estimate']
+
         return self._n_ops_estimate
 
     @n_ops_estimate.setter

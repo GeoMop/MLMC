@@ -6,7 +6,6 @@ import numpy as np
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
-sys.path.append(os.path.join(src_path, '..', '..', 'test'))
 
 import mlmc.mlmc
 import mlmc.simulation
@@ -19,8 +18,6 @@ import mlmc.correlated_field as cf
 from mlmc import moments
 
 from mlmc.estimate import CompareLevels
-#import mlmc.postprocess as postprocess
-
 
 class FlowProcSim(flow_mc.FlowSim):
     """
@@ -34,7 +31,6 @@ class FlowProcSim(flow_mc.FlowSim):
         :return: None, inf or water balance result (float) and overall sample time
         """
         sample_dir = sample.directory
-        print("sample dir ", sample_dir)
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             # try:
             # extract the flux
@@ -61,21 +57,8 @@ class FlowProcSim(flow_mc.FlowSim):
             # Get flow123d computing time
             run_time = self.get_run_time(sample_dir)
 
-            # Get preprocess time, generating random fields etc.
-            #try:
-            # with open(os.path.join(sample_dir, "FINISHED"), "r") as f:
-            #     preprocess_time = float(f.readlines()[0])
-            # #except:
-            # print("preprocess time ", preprocess_time)
-
             if not found:
                 raise
-
-            # except Exception as e:
-            #     print(str(e))
-            #     return np.inf, [0, 0]
-
-            print("total flux ", total_flux)
 
             return -total_flux, run_time
         else:
@@ -220,9 +203,9 @@ class UglyMLMC:
 
         if clean:
             self.mc.create_new_execution()
-            # assert ProcessMLMC.is_exe(self.env['flow123d'])
-            assert ProcessMLMC.is_exe(self.env['gmsh'])
-            # assert ProcessMLMC.is_exe(self.pbs_config['qsub'])
+            # assert Estimate.is_exe(self.env['flow123d'])
+            assert Estimate.is_exe(self.env['gmsh'])
+            # assert Estimate.is_exe(self.pbs_config['qsub'])
         else:
             self.mc.load_from_file()
 
@@ -490,7 +473,7 @@ def all_collect(mlmc_list):
 def calculate_var(mlmc_list):
     """
     Calculate density, moments (means, vars)
-    :param mlmc_list: list of ProcessMLMC
+    :param mlmc_list: list of Estimate
     :return: None
     """
     level_moments_mean = []
@@ -1041,7 +1024,6 @@ def main():
                            n_moments=21,)
 
         process_analysis(cl)
-
 
         # statprof.start()
         # try:

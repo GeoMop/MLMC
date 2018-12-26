@@ -6,6 +6,9 @@ import scipy.integrate as integrate
 from mlmc.simulation import Simulation
 import mlmc.hdf as hdf
 
+import mlmc.estimate as est
+
+
 class MLMC:
     """
     Multilevel Monte Carlo method
@@ -105,38 +108,6 @@ class MLMC:
     def sim_steps(self):
         return np.array([Simulation.log_interpolation(self.step_range, lvl.step) for lvl in self.levels])
 
-
-    def estimate_diff_vars(self, moments_fn):
-        """
-        Estimate moments variance from samples
-        :param moments_fn: Moment evaluation functions
-        :return: (diff_variance, n_samples);
-            diff_variance - shape LxR, variances of diffs of moments
-            n_samples -  shape L, num samples for individual levels.
-
-            Returns simple variance for level 0.
-        """
-        vars = []
-        n_samples = []
-
-        for level in self.levels:
-            v, n = level.estimate_diff_var(moments_fn)
-            vars.append(v)
-            n_samples.append(n)
-        return np.array(vars), np.array(n_samples)
-
-    def estimate_level_means(self, moments_fn):
-        """
-        Estimate means on individual levels.
-        :param moments_fn: moments object of size R
-        :return: shape (L, R)
-        """
-        means = []
-        for level in self.levels:
-            means.append(level.estimate_diff_mean(moments_fn))
-        return np.array(means)
-
-
     def _variance_of_variance(self, n_samples = None):
         """
         Approximate variance of log(X) where
@@ -221,74 +192,6 @@ class MLMC:
         new_vars[1:, 1:] = np.exp(np.dot(X, params)).reshape(L - 1, -1)
         return new_vars
 
-    def _moment_varinace_regression(self, raw_vars, sim_steps):
-        """
-        Estimate level variance using separate model for every moment.
-
-        log(var_l) = A + B * log(h_l) + C * log^2(hl),
-                                            for l = 0, .. L-1
-        :param raw_vars: moments variances raws, shape (L,)
-        :param sim_steps: simulation steps, shape (L,)
-        :return: np.array  (L, )
-        """
-        L, = raw_vars.shape
-        L1 = L - 1
-        if L < 3:
-            return raw_vars
-
-        # estimate of variances of variances, compute scaling
-        W = 1.0 / np.sqrt(self._variance_of_variance())
-        W = W[1:]   # ignore level 0
-        W = np.ones((L - 1,))
-
-        # Use linear regresion to improve estimate of variances V1, ...
-        # model log var_{r,l} = a_r  + b * log step_l
-        # X_(r,l), j = dirac_{r,j}
-
-        K = 3 # number of parameters
-
-        X = np.zeros((L1, K))
-        log_step = np.log(sim_steps[1:])
-        X[:, 0] = np.ones(L1)
-        X[:, 1] = np.full(L1, log_step)
-        X[:, 2] = np.full(L1, log_step ** 2)
-
-
-        WX = X * W[:, None]    # scale
-
-        log_vars = np.log(raw_vars[1:])     # omit first variance
-        log_vars = W * log_vars       # scale RHS
-
-        params, res, rank, sing_vals = np.linalg.lstsq(WX, log_vars)
-        new_vars = raw_vars.copy()
-        new_vars[1:] = np.exp(np.dot(X, params))
-        return new_vars
-
-    def _all_moments_varinace_regression(self, raw_vars, sim_steps):
-        reg_vars = raw_vars.copy()
-        n_moments = raw_vars.shape[1]
-        for m in range(1, n_moments):
-            reg_vars[:, m] = self._moment_varinace_regression(raw_vars[:, m], sim_steps)
-        assert np.allclose( reg_vars[:, 0], 0.0)
-        return reg_vars
-
-
-    def estimate_diff_vars_regression(self, moments_fn=None, raw_vars=None):
-        """
-        Estimate variances using linear regression model.
-        Assumes increasing variance with moments, use only two moments with highest average variance.
-        :param moments_fn: Moment evaluation function
-        :return: array of variances, shape  L
-        """
-        # vars shape L x R
-        if raw_vars is None:
-            assert moments_fn is not None
-            raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
-        sim_steps = self.sim_steps
-        #vars = self._varinace_regression(raw_vars, sim_steps)
-        vars = self._all_moments_varinace_regression(raw_vars, sim_steps)
-        return vars
-
     def sample_range(self, n0, nL):
         """
         Geometric sequence of L elements decreasing from n0 to nL.
@@ -364,7 +267,7 @@ class MLMC:
         self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
 
         # New estimation according to already finished samples
-        n_estimated = np.ceil(np.max(self.estimate_n_samples_for_target_variance(target_var, moments_fn), axis=1))
+        n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
 
         # Loop until number of estimated samples is greater than the number of scheduled samples
         while not np.all(n_estimated[greater_items] == n_scheduled[greater_items]):
@@ -387,7 +290,7 @@ class MLMC:
             self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
 
             # New estimation according to already finished samples
-            n_estimated = np.ceil(np.max(self.estimate_n_samples_for_target_variance(target_var, moments_fn), axis=1))
+            n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
 
     def set_scheduled_and_wait(self, n_scheduled, greater_items, pbs, sleep, fin_sample_coef=0.5):
         """
@@ -432,33 +335,6 @@ class MLMC:
         for level, n in zip(self.levels, n_samples):
             level.set_target_n_samples(int(n * fraction))
 
-    def estimate_n_samples_for_target_variance(self, target_variance, moments_fn=None, prescribe_vars=None):
-        """
-        Estimate optimal number of samples for individual levels that should provide a target variance of
-        resulting moment estimate. Number of samples are directly set to levels.
-        This also set given moment functions to be used for further estimates if not specified otherwise.
-        TODO: separate target_variance per moment
-        :param target_variance: Constrain to achieve this variance.
-        :param moments_fn: moment evaluation functions
-        :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
-        :return: np.array with number of optimal samples for individual levels and moments, array (LxR)
-        """
-        if prescribe_vars is None:
-            vars = self.estimate_diff_vars_regression(moments_fn)
-        else:
-            vars = prescribe_vars
-
-        n_ops = np.array([lvl.n_ops_estimate for lvl in self.levels])
-
-        sqrt_var_n = np.sqrt(vars.T * n_ops)  # moments in rows, levels in cols
-        total = np.sum(sqrt_var_n, axis=1)  # sum over levels
-        n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)  # moments in cols
-
-        # Limit maximal number of samples per level
-        n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars * self.n_levels / target_variance), 2)
-        n_samples = np.max(n_samples_estimate_safe, axis=1).astype(int)
-        return n_samples
-
     def set_target_variance(self, target_variance, moments_fn=None, fraction=1.0, prescribe_vars=None):
         """
         Estimate optimal number of samples for individual levels that should provide a target variance of
@@ -472,7 +348,6 @@ class MLMC:
         :return: None
         """
         n_samples = self.estimate_n_samples_for_target_variance(target_variance, moments_fn, prescribe_vars)
-        n_samples = np.max(n_samples, axis=1)
         self.set_level_target_n_samples(n_samples, fraction)
 
     def refill_samples(self):
@@ -539,68 +414,6 @@ class MLMC:
     def update_moments(self, moments_fn):
         for level in self.levels:
             level.evaluate_moments(moments_fn, force=True)
-
-    def estimate_moments(self, moments_fn):
-        """
-        Use collected samples to estimate moments and variance of this estimate.
-        :param moments_fn: Vector moment function, gives vector of moments for given sample or sample vector.
-        :return: estimate_of_moment_means, estimate_of_variance_of_estimate ; arrays of length n_moments
-        """
-        means = []
-        vars = []
-        n_samples = []
-        for level in self.levels:
-            means.append(level.estimate_diff_mean(moments_fn))
-            l_vars, ns = level.estimate_diff_var(moments_fn)
-            vars.append(l_vars)
-            n_samples.append(ns)
-        means = np.sum(np.array(means), axis=0)
-        n_samples = np.array(n_samples, dtype=int)
-
-        vars = np.sum(np.array(vars) / n_samples[:, None], axis=0)
-
-        return np.array(means), np.array(vars)
-
-
-    def estimate_covariance(self, moments_fn, stable=False, mse=False):
-        """
-        MLMC estimate of covariance matrix of moments.
-        :return:
-        """
-        cov_mat = np.zeros((moments_fn.size, moments_fn.size))
-
-        for level in self.levels:
-            cov_mat += level.estimate_covariance(moments_fn, stable)
-
-        if mse:
-            mse_diag = np.zeros(moments_fn.size)
-            for level in self.levels:
-                mse_diag += level.estimate_cov_diag_err(moments_fn)/level.n_samples
-            return cov_mat, mse_diag
-        else:
-            return cov_mat
-
-
-    def estimate_level_cost(self):
-        """
-        For every level estimate of cost of evaluation of a single coarse-fine simulation pair.
-        TODO: Estimate simulation cost from collected times + regression similar to variance
-        :return:
-        """
-        return np.array([lvl.n_ops_estimate for lvl in self.levels])
-
-    def estimate_cost(self, level_times=None, n_samples=None):
-        """
-        Estimate total cost of mlmc
-        :param level_times: Cost estimate for single simulation for every level.
-        :param n_samples: Number of samples on each level
-        :return: total cost
-        """
-        if level_times is None:
-            level_times = self.estimate_level_cost()
-        if n_samples is None:
-            n_samples = self.n_samples
-        return np.sum(level_times * n_samples)
 
     def clean_levels(self):
         """

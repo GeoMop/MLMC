@@ -24,12 +24,10 @@ and given moment functions.
 
 
 """
-
 import os
 import sys
 import time
 import pytest
-
 
 import numpy as np
 import scipy.stats as stats
@@ -40,11 +38,12 @@ import matplotlib.cm as cm
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import mlmc.postprocess
+import mlmc.estimate
 import mlmc.distribution
-from mlmc.distribution import Distribution
 from mlmc import moments
 from test.fixtures.mlmc_test_run import TestMLMC
+
+
 
 
 class DistrPlot:
@@ -61,7 +60,6 @@ class DistrPlot:
 
     def plot_approximation(self, approx_obj, label):
         plots = []
-
         domain = approx_obj.domain
         d_size = domain[1] - domain[0]
         slack = 0 #0.05
@@ -78,7 +76,6 @@ class DistrPlot:
         plots.append(line)
         ax.plot(X, Y0, c='black', label="exact PDF")
         plots += self.plot_borders(ax, domain)
-
 
         ax = self.axes[1]
         ax.set_title("log(PDF)")
@@ -140,12 +137,12 @@ def domain_for_quantile(distr, quantile):
             force_decay[side] = True
     return domain, force_decay
 
-#@pytest.mark.skip
-@pytest.mark.parametrize("moment_fn, max_n_moments", [
-    (moments.Monomial, 10),
-    #(moments.Fourier, 61),
-    (moments.Legendre, 61)])
-@pytest.mark.parametrize("distribution",[
+
+
+
+
+distribution_list = [
+        # distibution, log_flag
         (stats.norm(loc=1, scale=2), False),
         (stats.norm(loc=1, scale=10), False),
         (stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
@@ -158,7 +155,15 @@ def domain_for_quantile(distr, quantile):
         (stats.weibull_min(c=2), False),  # Rayleigh distribution
         (stats.weibull_min(c=5, scale=4), False),   # close to normal
         (stats.weibull_min(c=1.5), True),  # Infinite derivative at zero
-    ])
+    ]
+
+
+#@pytest.mark.skip
+@pytest.mark.parametrize("moment_fn, max_n_moments", [
+    (moments.Monomial, 10),
+    #(moments.Fourier, 61),
+    (moments.Legendre, 61)])
+@pytest.mark.parametrize("distribution",)
 def test_pdf_approx_exact_moments(moment_fn, max_n_moments, distribution):
     """
     Test reconstruction of the density function from exact moments.
@@ -684,7 +689,7 @@ def test_distributions():
         # (stats.weibull_min(c=3), True, '_sample_fn_basic')  # Close to normal
          ]
     levels = [1]#, 2, 3, 5, 7, 9]
-    n_moments = 5
+    n_moments = 10
     # Loop through distributions and levels
     for distr in distributions:
         for level in levels:
@@ -703,12 +708,12 @@ def test_distributions():
     for test_mc in mlmc_list:
         test_mc.mc.clean_subsamples()
         test_mc.mc.update_moments(test_mc.moments_fn)
-        domain, est_domain, mc_test = mlmc.postprocess.compute_results(mlmc_list[0], n_moments, test_mc)
-        mlmc.postprocess.plot_pdf_approx(ax1, ax2, mc0_samples, mc_test, domain, est_domain)
+        domain, est_domain, mc_test = mlmc.estimate.compute_results(mlmc_list[0], n_moments, test_mc)
+        mlmc.estimate.plot_pdf_approx(ax1, ax2, mc0_samples, mc_test, domain, est_domain)
     ax1.legend()
     ax2.legend()
     fig.savefig('compare_distributions.pdf')
     plt.show()
 
 
-test_distributions()
+#test_distributions()

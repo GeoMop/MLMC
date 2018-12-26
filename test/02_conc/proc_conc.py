@@ -14,7 +14,7 @@ import pbs
 import glob
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
-import mlmc.postprocess as postprocess
+import mlmc.estimate
 
 
 class FlowConcSim(flow_mc.FlowSim):
@@ -690,8 +690,8 @@ def all_results(mlmc_list):
     for prmc in mlmc_list:
         prmc.domain = mlmc_list[0].ref_domain
         prmc.set_moments(n_moments, log=True)
-        domain, est_domain, mc_test = postprocess.compute_results(mlmc_list[0], n_moments, prmc)
-        postprocess.plot_pdf_approx(ax1, ax2, mc0_samples, prmc, domain, est_domain)
+        domain, est_domain, mc_test = mlmc.estimate.compute_results(mlmc_list[0], n_moments, prmc)
+        mlmc.estimate.plot_pdf_approx(ax1, ax2, mc0_samples, prmc, domain, est_domain)
 
     ax1.legend()
     ax1.legend()
