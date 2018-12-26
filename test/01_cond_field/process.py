@@ -2,10 +2,8 @@ import os
 import sys
 import shutil
 import yaml
-import statprof
 import numpy as np
-import scipy.integrate as integrate
-import scipy as sc
+
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
 sys.path.append(os.path.join(src_path, '..', '..', 'test'))
@@ -20,10 +18,8 @@ import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 from mlmc import moments
 
-from test.fixtures.process_mlmc import CompareLevels
+from mlmc.estimate import CompareLevels
 #import mlmc.postprocess as postprocess
-from mlmc.distribution import Distribution
-
 
 
 class FlowProcSim(flow_mc.FlowSim):
@@ -765,7 +761,6 @@ def normality_test(level_moments):
     :param level_moments: moments data
     :return: None
     """
-    import pylab
     import scipy.stats as st
     alpha = 1e-3
 
@@ -829,12 +824,15 @@ def analyze_pdf_approx(cl):
     # PDF approximation experiments
     np.random.seed(15)
     cl.set_common_domain(0)
-    cl.reinit(n_moments = 11)
+    print("cl domain:", cl.domain)
+
+    cl.reinit(n_moments = 35, domain=[0.1, 4])
     il = 7
     #ns = cl[il].mlmc.estimate_n_samples_for_target_variance(0.01, cl.moments)
     #cl[il].mlmc.subsample(ns)
-    #cl.construct_densities(tol = 1.0, reg_param = 1)
-    cl[il].construct_density(tol = 0.0001, reg_param = 1)
+    #cl.construct_densities(tol = 0.01, reg_param = 1)
+
+    cl[il].construct_density(tol = 0.01, reg_param = 1)
     cl.plot_densities(i_sample_mlmc=0)
 
 
@@ -1028,8 +1026,8 @@ def main():
     elif command == 'process':
         assert os.path.isdir(work_dir)
         mlmc_list = []
-        #for nl in [ 1,2,3,4,5, 7,9]:
-        for nl in [7]:
+        #for nl in [ 1,3,5,7,9]:
+        for nl in [7]:  # high resolution fields
             prmc = UglyMLMC(work_dir, options)
             prmc.setup(nl)
             prmc.initialize(clean=False)

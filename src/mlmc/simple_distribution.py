@@ -59,19 +59,21 @@ class SimpleDistribution:
 
 
         self._initialize_params(self.moments_fn.size, tol)
-        max_it = 200
+        max_it = 100
         method = 'trust-exact'
         #method ='Newton-CG'
+        #method = 'trust-ncg'
         result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
                                       jac=self._calculate_gradient,
                                       hess=self._calculate_jacobian_matrix,
                                       options={'tol': tol, 'xtol': tol,
-                                               'gtol': tol, 'disp': False,  'maxiter': max_it})
+                                               'gtol': tol, 'disp': True,  'maxiter': max_it})
         self.multipliers = result.x
         jac_norm = np.linalg.norm(result.jac)
         print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
            self.approx_size, result.nit, tol, jac_norm, result.message))
 
+        self._calculate_jacobian_matrix(self.multipliers)
         # Fix normalization
         gradient, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
         self.multipliers /= gradient
@@ -294,10 +296,10 @@ class SimpleDistribution:
                 penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
                 jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
 
-        #e_vals = np.linalg.eigvalsh(jacobian_matrix)
+        e_vals = np.linalg.eigvalsh(jacobian_matrix)
 
         #print(multipliers)
-        #print("jac spectra: ", e_vals[0], e_vals[-1], e_vals[-1]/e_vals[0])
+        print("jac spectra: ", e_vals)
         return jacobian_matrix
 
 

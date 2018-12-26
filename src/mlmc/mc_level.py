@@ -626,7 +626,7 @@ class Level:
         return mse_vec
 
 
-    def sample_range(self):
+    def sample_iqr(self):
         """
         Determine limits for outliers
         :return: tuple
@@ -643,6 +643,16 @@ class Level:
         right = min(np.max(fine_sample), quantile_3 + 1.5 * iqr)
 
         return left, right
+
+    def sample_range(self):
+        fine_sample = self.sample_values[:, 0]
+        return (np.min(fine_sample), np.max(fine_sample))
+
+    def sample_domain(self, quantile=None):
+        if quantile is None:
+            return self.sample_range()
+        fine_sample = self.sample_values[:, 0]
+        return np.percentile(fine_sample, [100*quantile, 100*(1-quantile)])
 
     def get_n_finished(self):
         """
