@@ -16,10 +16,10 @@ def create_color_bar(size, label, ax = None):
     # Create colorbar
     colormap = plt.cm.gist_ncar
     normalize = plt.Normalize(vmin=0, vmax=size)
-    scalarmappaple = plt.cm.ScalarMappable(norm=normalize, cmap=colormap)
-    scalarmappaple.set_array(np.arange(size))
+    scalar_mappable = plt.cm.ScalarMappable(norm=normalize, cmap=colormap)
+    scalar_mappable.set_array(np.arange(size))
     ticks = np.linspace(0, int(size/10)*10, 9)
-    clb = plt.colorbar(scalarmappaple, ticks=ticks, aspect=50, pad=0.01, ax=ax)
+    clb = plt.colorbar(scalar_mappable, ticks=ticks, aspect=50, pad=0.01, ax=ax)
     clb.set_label(label)
     return lambda v: colormap(normalize(v))
 
@@ -87,136 +87,285 @@ class ProcessMLMC:
         self._moments_cmap = create_color_bar(self.n_moments, "Moments", ax)
 
 
-    def detect_treshold(self, values, log=True, window=4):
+    # def detect_treshold(self, values, log=True, window=4):
+    #     """
+    #     Detect most significant change of slope in the sorted sequence.
+    #     Negative values are omitted for log==True.
+    #
+    #     Notes: not work well since the slope difference is weighted by residuum so for
+    #     points nearly perfectly in line even small changes of slope can be detected.
+    #     :param values: Increassing sequence.
+    #     :param log: Use logarithm of the sequence.
+    #     :return: Index K for which K: should have same slope.
+    #     """
+    #     values = np.array(values)
+    #     orig_len = len(values)
+    #     if log:
+    #         min_positive = np.min(values[values>0])
+    #         values = np.maximum(values, min_positive)
+    #         values = np.log(values)
+    #
+    #     # fit model for all valid window positions
+    #     X = np.empty((window, 2))
+    #     X[:, 0] = np.ones(window)
+    #     X[:, 1] = np.flip(np.arange(window))
+    #     fit_matrix = np.matmul(np.linalg.inv(np.matmul(X.T, X)), X.T)
+    #     intercept = np.convolve(values, fit_matrix[0], mode='valid')
+    #     assert len(intercept) == len(values) - window + 1
+    #     slope = np.convolve(values, fit_matrix[1], mode='valid')
+    #     fits = np.stack( (intercept, slope) ).T
+    #
+    #     # We test hypothesis of equality of slopes from two non-overlapping windows.
+    #     # https://www.itl.nist.gov/div898/software/dataplot/refman1/auxillar/equalslo.htm
+    #     # https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/PASS/Tests_for_the_Difference_Between_Two_Linear_Regression_Slopes.pdf
+    #     # Dupont and Plummer (1998)
+    #
+    #     df = 2 * window - 4
+    #     varX = np.var(np.arange(window)) * window
+    #     p_vals = np.ones_like(values)
+    #     for i, _ in enumerate(values):
+    #         ia = i - window + 1
+    #         ib = i
+    #         if ia < 0 or ib + window >= len(values):
+    #             p_vals[i] = 1.0
+    #             continue
+    #         res_a = values[ia:ia + window] - np.flip(np.dot(X, fits[ia]))
+    #         res_b = values[ib:ib + window] - np.flip(np.dot(X, fits[ib]))
+    #
+    #         varY = (np.sum(res_a**2) + np.sum(res_b**2)) / df
+    #         SS_r = varY * 2 / (window * varX)
+    #         T = (fits[ia, 1] -  fits[ib, 1]) / np.sqrt(SS_r)
+    #         # Single tail alternative: slope_a < slope_b
+    #         p_vals[i] = 1 - stats.t.cdf(T, df=df)
+    #         print(ia, ib, np.sqrt(SS_r), fits[ia, 1], fits[ib, 1], p_vals[i])
+    #
+    #
+    #     i_min = np.argmin(p_vals)
+    #     i_treshold = i_min + window + orig_len - len(values) - 1
+    #
+    #     self.plot_values(values, val2=p_vals, treshold=i_treshold)
+    #     return i_treshold, p_vals[i_min]
+
+    @staticmethod
+    def best_fit_all(values, range_a, range_b):
+        best_fit = None
+        best_fit_value = np.inf
+        for a in range_a:
+            for b in range_b:
+                if a < b and b - a > 2:
+                    try:
+                        Y = values[a:b]
+                    except IndexError:
+                        continue
+
+                    X = np.arange(a, b)
+                    fit, res, _, _, _ = np.polyfit(X, Y, deg=1, full=1)
+
+                    fit_value = res / ((b - a)**2)
+                    print("a b fit", a, b, fit_value)
+                    if fit_value < best_fit_value:
+                        best_fit = (a, b, fit)
+                        best_fit_value = fit_value
+        return best_fit
+
+
+    @staticmethod
+    def best_p1_fit(values):
         """
-        Detect most significant change of slope in the sorted sequence.
-        Negative values are omitted for log==True.
+        Find indices a < b such that linear fit for values[a:b]
+        have smallest residual / (b - a)** alpha
+        alpha is fixed parameter.
+        This should find longest fit with reasonably small residual.
+        :return: (a, b)
+        """
+        if len(values) > 12:
+            # downscale
+            end = len(values)  - len(values) % 2    # even size of result
+            avg_vals = np.mean(values[:end].reshape((-1, 2)), axis=1)
+            a, b, fit = ProcessMLMC.best_p1_fit(avg_vals)
+            # upscale
+            a, b = 2*a, 2*b
+
+            return ProcessMLMC.best_fit_all(values, [a-1,a, a+1], [b-1, b, b+1])
+        else:
+            v_range = range(len(values))
+            return ProcessMLMC.best_fit_all(values, v_range, v_range)
+
+
+
+
+    def detect_treshold_slope_change(self, values, log=True):
+        """
+        Find a longest subsequence with linear fit residual X% higher then the best
+        at least 4 point fit. Extrapolate this fit to the left.
+
         :param values: Increassing sequence.
         :param log: Use logarithm of the sequence.
         :return: Index K for which K: should have same slope.
         """
         values = np.array(values)
-        orig_len = len(values)
+        i_first_positive = 0
         if log:
-            min_positive = np.min(values[values>0])
-            values = np.maximum(values, min_positive)
-            values = np.log(values)
-        # fit model
-        X = np.empty((window, 2))
-        X[:, 0] = np.ones(window)
-        X[:, 1] = np.flip(np.arange(window))
-        fit_matrix = np.matmul(np.linalg.inv(np.matmul(X.T, X)), X.T)
-        intercept = np.convolve(values, fit_matrix[0], mode='valid')
-        assert len(intercept) == len(values) - window + 1
-        slope = np.convolve(values, fit_matrix[1], mode='valid')
-        fits = np.stack( (intercept, slope) ).T
+            i_first_positive = np.argmax(values > 0)
+            values[i_first_positive:] = np.log(values[i_first_positive:])
 
-        # We test hypothesis of equality of slopes from two non-overlapping windows.
-        # https://www.itl.nist.gov/div898/software/dataplot/refman1/auxillar/equalslo.htm
-        # https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/PASS/Tests_for_the_Difference_Between_Two_Linear_Regression_Slopes.pdf
-        # Dupont and Plummer (1998)
-
-        df = 2 * window - 4
-        varX = np.var(np.arange(window)) * window
-        p_vals = np.ones(len(fits))
-        for i in range(len(fits) - window + 1 ):
-            ia = i
-            ib = i + window - 1
-            res_a = values[ia:ia + window] - np.flip(np.dot(X, fits[ia]))
-            res_b = values[ib:ib + window] - np.flip(np.dot(X, fits[ib]))
-
-            varY = (np.sum(res_a**2) + np.sum(res_b**2)) / df
-            SS_r = varY * 2 / ( window * varX)
-            T = (fits[ia, 1] -  fits[ib, 1]) / np.sqrt(SS_r)
-            # Single tail alternative: slope_a < slope_b
-            p_vals[i] = 1 - stats.t.cdf(T, df=df)
-            print(ia, ib, np.sqrt(SS_r), fits[ia, 1], fits[ib, 1], p_vals[i])
-        i_min = np.argmin(p_vals)
-        i_treshold = i_min + window + orig_len - len(values) - 1
-        return i_treshold, p_vals[i_min]
+        print("i_pos: ", i_first_positive)
+        a, b, fit = ProcessMLMC.best_p1_fit(values[i_first_positive:])
+        p = np.poly1d(fit)
 
 
-    def detect_treshold_lm(self, values, log=True, window=4):
-        """
-        Detect most significant change of slope in the sorted sequence.
-        Negative values are omitted for log==True.
-
-        Just build a linear model for increasing number of values and find
-        the first one that do not fit significantly.
-
-        :param values: Increassing sequence.
-        :param log: Use logarithm of the sequence.
-        :return: Index K for which K: should have same slope.
-        """
-
-        values = np.array(values)
-        orig_len = len(values)
+        i_treshold = a + i_first_positive
+        mod_vals = values.copy()
+        mod_vals[:i_treshold] = p(np.arange(-i_first_positive, a))
+        #self.plot_values(values, val2=mod_vals, treshold=i_treshold)
         if log:
-            min_positive = np.min(values[values>0])
-            values = np.maximum(values, min_positive)
-            values = np.log(values)
-        values = np.flip(values)
-        i_break = 0
-        for i in range(2, len(values)):
-            # fit the mode
-            X = np.empty((i, 2))
-            X[:, 0] = np.ones(i)
-            X[:, 1] = np.arange(i)
-            fit_matrix = np.matmul(np.linalg.inv(np.matmul(X.T, X)), X.T)
-            Y = values[:i]
-            fit = np.dot(fit_matrix, Y)
-            i_val_model = fit[0] + fit[1]*i
-            diff =  i_val_model - values[i]
-            Y_model = np.matmul(X, fit)
-            if i > 3:
-                sigma = np.sqrt(np.sum((Y - Y_model)**2) / (i - 2))
-            else:
-                sigma = -fit[1]
-            #print(i, diff, fit[1], sigma)
-            if diff > 3*sigma and i_break == 0:
-                #print("break: ", i)
-                i_break = i
-        if i_break > 0:
-            i_break = len(values) - i_break
-        return i_break
-        #return i_treshold, p_vals[i_min]
+            mod_vals = np.exp(mod_vals)
+        return i_treshold, mod_vals
 
-    def optimal_n_moments(self):
-        """
-        Iteratively decrease number of used moments until no eigne values need to be removed.
-        :return:
-        """
-        reduced_moments = self.moments
-        i_eig_treshold = 1
-        while reduced_moments.size > 6 and i_eig_treshold > 0:
 
-            moments = reduced_moments
-            cov = self._covariance = self.mlmc.estimate_covariance(moments)
+    # def detect_treshold_lm(self, values, log=True, window=4):
+    #     """
+    #     Detect most significant change of slope in the sorted sequence.
+    #     Negative values are omitted for log==True.
+    #
+    #     Just build a linear model for increasing number of values and find
+    #     the first one that do not fit significantly.
+    #
+    #     :param values: Increassing sequence.
+    #     :param log: Use logarithm of the sequence.
+    #     :return: Index K for which K: should have same slope.
+    #     """
+    #
+    #     values = np.array(values)
+    #     orig_len = len(values)
+    #     if log:
+    #         min_positive = np.min(values[values>0])
+    #         values = np.maximum(values, min_positive)
+    #         values = np.log(values)
+    #     values = np.flip(values)
+    #     i_break = 0
+    #     for i in range(2, len(values)):
+    #         # fit the mode
+    #         X = np.empty((i, 2))
+    #         X[:, 0] = np.ones(i)
+    #         X[:, 1] = np.arange(i)
+    #         fit_matrix = np.matmul(np.linalg.inv(np.matmul(X.T, X)), X.T)
+    #         Y = values[:i]
+    #         fit = np.dot(fit_matrix, Y)
+    #         i_val_model = fit[0] + fit[1]*i
+    #         diff =  i_val_model - values[i]
+    #         Y_model = np.matmul(X, fit)
+    #         if i > 3:
+    #             sigma = np.sqrt(np.sum((Y - Y_model)**2) / (i - 2))
+    #         else:
+    #             sigma = -fit[1]
+    #         #print(i, diff, fit[1], sigma)
+    #         if diff > 3*sigma and i_break == 0:
+    #             #print("break: ", i)
+    #             i_break = i
+    #     if i_break > 0:
+    #         i_break = len(values) - i_break
+    #     return i_break
+    #     #return i_treshold, p_vals[i_min]
+    #
+    # def optimal_n_moments(self):
+    #     """
+    #     Iteratively decrease number of used moments until no eigne values need to be removed.
+    #     :return:
+    #     """
+    #     reduced_moments = self.moments
+    #     i_eig_treshold = 1
+    #     while reduced_moments.size > 6 and i_eig_treshold > 0:
+    #
+    #         moments = reduced_moments
+    #         cov = self._covariance = self.mlmc.estimate_covariance(moments)
+    #
+    #         # centered covarince
+    #         M = np.eye(moments.size)
+    #         M[:, 0] = -cov[:, 0]
+    #         cov_center = M @ cov @ M.T
+    #         eval, evec = np.linalg.eigh(cov_center)
+    #         i_first_positive = np.argmax(eval > 0)
+    #         pos_eval = eval[i_first_positive:]
+    #         treshold = self.detect_treshold_lm(pos_eval)
+    #         i_eig_treshold = i_first_positive + treshold
+    #         #self.plot_values(pos_eval, log=True, treshold=treshold)
+    #
+    #         reduced_moments = moments.change_size(moments.size - i_eig_treshold)
+    #         print("mm: ", i_eig_treshold, " s: ", reduced_moments.size)
+    #
+    #     # Possibly cut remaining negative eigen values
+    #     i_first_positive = np.argmax(eval > 0)
+    #     eval = eval[i_first_positive:]
+    #     evec = evec[:, i_first_positive:]
+    #     eval = np.flip(eval)
+    #     evec = np.flip(evec, axis=1)
+    #     L = -(1/np.sqrt(eval))[:, None] * (evec.T @ M)
+    #     natural_moments = mlmc.moments.TransformedMoments(moments, L)
+    #
+    #     return natural_moments
+    #
+    #
+    # def detect_treshold_mse(self, eval, std_evals):
+    #     """
+    #     Detect treshold of eigen values by its estimation error:
+    #     1. eval, evec decomposition
+    #     2. rotated moments using just evec as the rotation matrix
+    #     3. compute covariance for rotated moments with errors, use errors of diagonal entries
+    #        as errors of eigenvalue estimate.
+    #     4. Set treshold to the last eigenvalue with relative error larger then 0.3
+    #
+    #     Notes: Significant errors occures also for correct eigen values, so this is not good treshold detection.
+    #
+    #     :param eval:
+    #     :param std_evals:
+    #     :return:
+    #     """
+    #     i_first_positive = np.argmax(eval > 0)
+    #     rel_err = std_evals[i_first_positive:] / eval[i_first_positive:]
+    #     rel_tol = 0.3
+    #     large_rel_err = np.nonzero(rel_err > rel_tol)[0]
+    #     treshold = large_rel_err[-1] if len(large_rel_err) > 0 else 0
+    #     return i_first_positive + treshold
 
-            # centered covarince
-            M = np.eye(moments.size)
-            M[:, 0] = -cov[:, 0]
-            cov_center = M @ cov @ M.T
-            eval, evec = np.linalg.eigh(cov_center)
-            i_first_positive = np.argmax(eval > 0)
-            pos_eval = eval[i_first_positive:]
-            treshold = self.detect_treshold_lm(pos_eval)
-            i_eig_treshold = i_first_positive + treshold
-            #self.plot_values(pos_eval, log=True, treshold=treshold)
+    def eigenvalue_error(self, moments):
+        rot_cov, var_evals = self._covariance = self.mlmc.estimate_covariance(moments, mse=True)
+        var_evals = np.flip(var_evals)
+        var_evals[var_evals < 0] = np.max(var_evals)
+        std_evals = np.sqrt(var_evals)
+        return std_evals
 
-            reduced_moments = moments.change_size(moments.size - i_eig_treshold)
-            print("mm: ", i_eig_treshold, " s: ", reduced_moments.size)
 
-        # Possibly cut remaining negative eigen values
-        i_first_positive = np.argmax(eval > 0)
-        eval = eval[i_first_positive:]
-        evec = evec[:, i_first_positive:]
-        eval = np.flip(eval)
-        evec = np.flip(evec, axis=1)
-        L = -(1/np.sqrt(eval))[:, None] * (evec.T @ M)
-        natural_moments = mlmc.moments.TransformedMoments(moments, L)
+    def lsq_reconstruct(self, cov, eval, evec, treshold):
+        #eval = np.flip(eval)
+        #evec = np.flip(evec, axis=1)
 
-        return natural_moments
+        Q1 = evec[:, :treshold]
+        Q20 = evec[:, treshold:]
+        C = cov
+        D = np.diag(eval)
+        q_shape = Q20.shape
+        I = np.eye(q_shape[0])
+
+        def fun(x):
+            alpha_orto = 2
+            Q2 = x.reshape(q_shape)
+            Q = np.concatenate( (Q1, Q2), axis=1)
+            f = np.sum(np.abs(np.ravel(Q.T @ C @ Q - D))) + alpha_orto * np.sum(np.abs(np.ravel(Q @ Q.T - I)))
+            return f
+
+        result = sc.optimize.least_squares(fun, np.ravel(Q20))
+        print("LSQ res: ", result.nfev, result.njev, result.cost)
+        Q2 = result.x.reshape(q_shape)
+        Q = np.concatenate((Q1, Q2), axis=1)
+
+        print("D err", D - Q.T @ cov @ Q)
+        print("D", D)
+        print("QcovQT",  Q.T @ cov @ Q)
+        print("I err:", I - Q @ Q.T)
+        print("Q err:", Q20 - Q2)
+
+        return Q
 
     def construct_ortogonal_moments(self, moments=None):
         """
@@ -234,31 +383,63 @@ class ProcessMLMC:
         M[:, 0] = -cov[:, 0]
         cov_center = M @ cov @ M.T
         eval, evec = np.linalg.eigh(cov_center)
-        evec = np.flip(evec, axis=1)
 
-        # get error of estimate of the eigen values
-        L = (evec.T @ M)
+        D = np.diag(eval)
+        Q = evec
+        # Compute eigen value errors.
+        evec_flipped = np.flip(evec, axis=1)
+        L = (evec_flipped.T @ M)
         rot_moments = mlmc.moments.TransformedMoments(moments, L)
-        rot_cov, var_evals = self._covariance = self.mlmc.estimate_covariance(rot_moments, mse=True)
-        var_evals = np.flip(var_evals)
+        std_evals = self.eigenvalue_error(rot_moments)
 
-        # cut eigen values with relative error > rel_tol
-        i_first_positive = np.argmax(eval > 0)
-        err_pos_diag = np.sqrt(var_evals[i_first_positive:])
-        pos_eval = eval[i_first_positive:]
-        rel_err = err_pos_diag / pos_eval
-        rel_tol = 0.3
-        large = np.nonzero(rel_err > rel_tol)[0]
-        treshold = large[-1] if len(large) else 0
-        self.plot_values(pos_eval, log=True, treshold=treshold, errors = err_pos_diag)
-        i_eig_treshold = i_first_positive + treshold
+
+
+        # treshold by statistical test of same slopes of linear models
+        treshold, fixed_eval = self.detect_treshold_slope_change(eval, log=True)
+        treshold = np.argmax( eval - fixed_eval[0] > 0)
+        #treshold, _ = self.detect_treshold(eval, log=True, window=8)
+
+        # tresold by MSE of eigenvalues
+        #treshold = self.detect_treshold_mse(eval, std_evals)
+
+        # treshold
+
+        print("treshold: ", treshold)
+
+        #self.lsq_reconstruct(cov_center, fixed_eval, evec, treshold)
+
+        #use fixed
+        eval[:treshold] = fixed_eval[:treshold]
+        self.plot_values(eval, val2=eval, log=True, treshold=treshold)
 
         # set eig. values under the treshold to the treshold
-        eval[:i_eig_treshold] = eval[i_eig_treshold]
+        #eval[:treshold] = eval[treshold]
+
+        # cut eigen values under treshold
+        eval = eval[treshold:]
+        evec = evec[:, treshold:]
 
         eval = np.flip(eval)
-        L = -(1/np.sqrt(eval))[:, None] * L
+        evec_flipped = np.flip(evec, axis=1)
+        L = -(1/np.sqrt(eval))[:, None] * (evec_flipped.T @ M)
         ortogonal_moments = mlmc.moments.TransformedMoments(moments, L)
+
+        #################################
+        # cov = self.mlmc.estimate_covariance(ortogonal_moments)
+        # M = np.eye(ortogonal_moments.size)
+        # M[:, 0] = -cov[:, 0]
+        # cov_center = M @ cov @ M.T
+        # eval, evec = np.linalg.eigh(cov_center)
+        #
+        # # Compute eigen value errors.
+        # evec_flipped = np.flip(evec, axis=1)
+        # L = (evec_flipped.T @ M)
+        # rot_moments = mlmc.moments.TransformedMoments(moments, L)
+        # std_evals = self.eigenvalue_error(rot_moments)
+        #
+        # self.plot_values(eval, log=True, treshold=treshold)
+
+
         return ortogonal_moments
 
     def construct_density(self, tol=1.95, reg_param=0.01):
@@ -274,7 +455,10 @@ class ProcessMLMC:
 
 
         print("n levels: ", self.n_levels)
-        est_moments, est_vars = self.mlmc.estimate_moments(moments)
+        #est_moments, est_vars = self.mlmc.estimate_moments(moments)
+        est_moments = np.zeros(moments.size)
+        est_moments[0] = 1.0
+        est_vars = np.ones(moments.size)
         min_var, max_var = np.min(est_vars[1:]), np.max(est_vars[1:])
         print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
         moments_data = np.stack((est_moments, est_vars), axis=1)
@@ -515,15 +699,21 @@ class ProcessMLMC:
             fig.savefig(fig_file)
         plt.show()
 
-    def plot_values(self, values, errors=None, log=False, treshold=None, fig_file=None):
+
+
+    def plot_values(self, values, val2=None, errors=None, log=False, treshold=None, fig_file=None):
         fig = plt.figure(figsize=(30, 10))
         ax = fig.add_subplot(1, 1, 1)
         X = np.arange(len(values))
-        a, b = np.min(values), np.max(values)
+
         if log:
+            min_positive = np.min(values[values > 0])
+            values[values < 0] = 10e-6
             ax.set_yscale('log')
+            a, b = np.min(values), np.max(values)
             ax.set_ylim( a / ( (b/a)**0.05 ), b *  (b/a)**0.05)
         else:
+            a, b = np.min(values), np.max(values)
             ax.set_ylim(a - 0.05 * (b - a), b + 0.05 * (b - a))
         if errors is None:
             ax.scatter(X, values)
@@ -533,6 +723,11 @@ class ProcessMLMC:
             ax.annotate(str(x), (x+0.1, values[i]))
         if treshold is not None:
             ax.axvline(x=treshold-0.1)
+
+        if val2 is not None:
+            #ax2 = ax.twinx()
+            ax.plot(X, val2)
+
         # lbls = ['Total'] + [ 'L{:2d}'.format(l+1) for l in range(self.n_levels)]
         # ax.set_xticks(ticks = X)
         # ax.set_xticklabels(lbls)
@@ -815,7 +1010,7 @@ class CompareLevels:
         self.n_moments = kwargs.get('n_moments', 21)
 
         # Set domain to union of domains  of all mlmc:
-        self.domain = self.common_domain()
+        self.domain = kwargs.get('domain', self.common_domain())
 
         self._moments = self.moment_class(self.n_moments, self.domain, self.log_scale)
 
@@ -866,8 +1061,8 @@ class CompareLevels:
 
     def set_common_domain(self, i_mlmc, domain=None):
         if domain is not None:
-            self._domain = domain
-        self._domain = self.mlmc[i_mlmc].estimate_domain()
+            self.domain = domain
+        self.domain = self.mlmc[i_mlmc].estimate_domain()
 
     def plot_means(self, moments_fn):
         pass
@@ -913,6 +1108,7 @@ class CompareLevels:
         if i_sample_mlmc is not None:
             mc0_samples = self.mlmc[i_sample_mlmc].levels[0].sample_values[:, 0]
             domain = self.mlmc[i_sample_mlmc].estimate_domain()
+            print("hist: ", domain)
             if self.log_scale:
                 bins = np.exp(np.linspace(np.log(domain[0]), np.log(domain[1]), np.sqrt(len(mc0_samples))))
             else:
