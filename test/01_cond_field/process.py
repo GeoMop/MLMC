@@ -2,10 +2,8 @@ import os
 import sys
 import shutil
 import yaml
-import statprof
 import numpy as np
-import scipy.integrate as integrate
-import scipy as sc
+
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
 
@@ -20,10 +18,8 @@ import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 from mlmc import moments
 
-from test.fixtures.process_mlmc import CompareLevels
+from mlmc.estimate import CompareLevels
 #import mlmc.postprocess as postprocess
-from mlmc.distribution import Distribution
-
 
 
 class FlowProcSim(flow_mc.FlowSim):
@@ -754,7 +750,6 @@ def normality_test(level_moments):
     :param level_moments: moments data
     :return: None
     """
-    import pylab
     import scipy.stats as st
     alpha = 1e-3
 
