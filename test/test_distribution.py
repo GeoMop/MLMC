@@ -103,17 +103,7 @@ class DistrPlot:
     def clean(self):
         plt.close()
 
-def profile(fun, skip=False):
-    import statprof
-    if skip:
-        return fun()
-    statprof.start()
-    try:
-        result = fun()
-    finally:
-        statprof.stop()
-    statprof.display()
-    return result
+
 
 
 def domain_for_quantile(distr, quantile):
