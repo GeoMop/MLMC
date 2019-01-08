@@ -18,6 +18,187 @@ def create_color_bar(size, label, ax = None):
     return lambda v: colormap(normalize(v))
 
 
+class DistributionPlot:
+    """
+    Class for plotting distribution approximation.
+    Provides methods to add more plots.
+    """
+    def __init__(self, exact_distr=None, title="", quantity_name="X",
+                 log_density=False, cdf_plot=True, log_x=False, error_plot=True):
+        """
+        Plot configuration.
+        :param exact_distr: scipy.stats exact distribution object
+        :param title:
+        """
+        self._exact_distr = exact_distr
+        self._log_density = log_density
+        self._log_x = log_x
+        self._error_plot = error_plot
+        self._domain = None
+        self._title = title
+        self.plot_matrix = []
+
+
+        if cdf_plot:
+            self.fig, axes = plt.subplots(1, 2, figsize=(22, 10))
+            self.fig_cdf = None
+            self.ax_pdf = axes[0]
+            self.ax_cdf = axes[1]
+        else:
+            self.fig, self.ax_pdf = plt.subplots(1, 1, figsize=(12, 10))
+            self.fig_cdf, self.ax_cdf = plt.subplots(1, 1, figsize=(12, 10))
+
+
+        self.fig.suptitle(title)
+        x_axis_label = quantity_name
+
+        # PDF axes
+        self.ax_pdf.set_title("PDF approximations")
+        self.ax_pdf.set_ylabel("probability density")
+        self.ax_pdf.set_xlabel(x_axis_label)
+        if self._log_x:
+            self.ax_pdf.set_xscale('log')
+            x_axis_label = "log " + x_axis_label
+        if self._log_density:
+            self.ax_pdf.set_yscale('log')
+
+        # CDF axes
+        self.ax_cdf.set_title("CDF approximations")
+        self.ax_cdf.set_ylabel("probability")
+        self.ax_cdf.set_xlabel(x_axis_label)
+        if self._log_x:
+            self.ax_cdf.set_xscale('log')
+
+        if error_plot:
+            self.ax_pdf_err = self.ax_pdf.twinx()
+            self.ax_pdf_err.set_ylabel("error")
+            self.ax_cdf_err = self.ax_cdf.twinx()
+            self.ax_cdf_err.set_ylabel("error")
+
+
+    def _grid(self, size, domain=None):
+        if domain is None:
+            domain = self._domain
+        if self._log_x:
+            X = np.exp(np.linspace(np.log(domain[0]), np.log(domain[1]), size))
+        else:
+            X = np.linspace(domain[0], domain[1], size)
+        return X
+
+    @property
+    def domain(self):
+        return self._domain
+
+    @domain.setter
+    def domain(self, value):
+        """
+        Enlarge common domain by given bounds.
+        :param value: [lower_bound, upper_bound]
+        """
+        if self._domain is None:
+            self._domain = value
+        else:
+            self._domain = [ min(self._domain[0], value[0]), max(self._domain[1], value[1])]
+
+
+    def _add_exact_distr(self):
+        """
+        Plot exact
+        :return:
+        """
+        if self._exact_distr is None:
+            return
+
+        #with np.printoptions(precision=2):
+        #    lab = str(np.array(self._domain))
+        X = self._grid(1000)
+        Y = self._exact_distr.pdf(X)
+        self.ax_pdf.plot(X, Y, c='black', label="exact PDF")
+
+        Y = self._exact_distr.cdf(X)
+        self.ax_cdf.plot(X, Y, c='black', label="exact CDF")
+
+    def add_raw_samples(self, samples):
+        """
+        Add histogram and ecdf for raw samples.
+        :param samples:
+        """
+        bins = self._grid(np.sqrt(len(samples)))
+        self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
+        X = np.sort(samples)
+        Y = np.arange(1, len(xs) + 1) / float(len(xs))
+        self.ax_cdf.plot(X, Y, 'red')
+
+    def add_distribution(self, distr_object, label=None):
+        if label is None:
+            label = "size {}".format(distr_object.moments_fn.size)
+        domain = distr_object.domain
+        self.domain = domain
+        d_size = domain[1] - domain[0]
+        slack = 0  # 0.05
+        extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
+        X = self._grid(1000, domain=domain)
+
+        plots = []
+        print("pdf max: ", distr_object.density(0.0))
+        Y_pdf = distr_object.density(X)
+        line, = self.ax_pdf.plot(X, Y_pdf, label=label)
+        plots.append(line)
+        plots += self.plot_borders(self.ax_pdf, domain)
+
+        Y_cdf = distr_object.cdf(X)
+        line, = self.ax_cdf.plot(X, Y_cdf)
+        plots.append(line)
+        plots += self.plot_borders(self.ax_cdf, domain)
+
+        if self._error_plot and self._exact_distr is not None:
+            eY_pdf = Y_pdf - self._exact_distr.pdf(X)
+            line, = self.ax_pdf_err.plot(X, eY_pdf, linestyle="--")
+            plots.append(line)
+            eY_cdf = Y_cdf - self._exact_distr.cdf(X)
+            line, = self.ax_cdf_err.plot(X, eY_cdf, linestyle="--")
+            plots.append(line)
+        self.plot_matrix.append(plots)
+
+
+
+    def plot_borders(self, ax, domain=None):
+        if domain is None:
+            domain = self._domain
+        l1 = ax.axvline(x=domain[0], ymin=0, ymax=0.1)
+        l2 = ax.axvline(x=domain[1], ymin=0, ymax=0.1)
+        return [l1, l2]
+
+
+    def show(self, save=""):
+        """
+        Set colors according to the number of added plots.
+        Set domain from all plots.
+        Plot exact distribution.
+        show, possibly save to file.
+        :param save: None, or filename, default name is same as plot title.
+        """
+        if save == "":
+            save = self._title
+
+        self._add_exact_distr()
+
+
+        for i, plots in enumerate(self.plot_matrix):
+            col = plt.cm.jet(plt.Normalize(0, len(self.plot_matrix))(i))
+            for line in plots:
+                line.set_color(col)
+        self.fig.legend()
+        if save is not None:
+            self.fig.savefig(save)
+        #self.fig.show()
+
+    def reset(self):
+        plt.close()
+        self._domain = None
+
+
+
 def plot_pdf_approx(ax1, ax2, mc0_samples, mlmc_wrapper, domain, est_domain):
     """
     Plot density and distribution, plot contains density estimation from MLMC and histogram created from One level MC
@@ -101,10 +282,6 @@ def compute_results(mlmc_l0, n_moments, mlmc_wrapper):
 
     return domain, est_domain, mlmc_wrapper
 
-def ecdf(x):
-    xs = np.sort(x)
-    ys = np.arange(1, len(xs) + 1) / float(len(xs))
-    return xs, ys
 
 
 class Estimate:
@@ -1177,6 +1354,8 @@ class Estimate:
         :return:
         """
         colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
+        # print("moments mean ", moments_mean)
+        # print("exact momentss ", exact_moments)
 
         x = np.arange(0, len(moments_mean[0]))
         x = x - 0.3
@@ -1194,25 +1373,6 @@ class Estimate:
         plt.legend()
         #plt.show()
         #exit()
-
-
-
-
-
-
-colors = iter(cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
-
-print("moments mean ", moments_mean)
-print("exact momentss ", exact_moments)
-x = np.arange(0, len(moments_mean))
-x = x - 0.3
-default_x = x
-
-
-plt.plot(default_x, exact_moments, 'ro', label="Exact moments")
-
-plt.errorbar(x, moments_mean, yerr=moments_var, fmt='o', capsize=3, color=next(colors),
-                     label = "%dLMC" % n_levels)
 
 
 
@@ -1268,16 +1428,6 @@ plt.errorbar(x, moments_mean, yerr=moments_var, fmt='o', capsize=3, color=next(c
         plt.show()
 
 
-def create_color_bar(size, label, ax = None):
-    # Create colorbar
-    colormap = plt.cm.gist_ncar
-    normalize = plt.Normalize(vmin=0, vmax=size)
-    scalarmappaple = plt.cm.ScalarMappable(norm=normalize, cmap=colormap)
-    scalarmappaple.set_array(np.arange(size))
-    ticks = np.linspace(0, int(size/10)*10, 9)
-    clb = plt.colorbar(scalarmappaple, ticks=ticks, aspect=50, pad=0.01, ax=ax)
-    clb.set_label(label)
-    return lambda v: colormap(normalize(v))
 
 
 class CompareLevels:
@@ -1366,11 +1516,7 @@ class CompareLevels:
         for mc in self.mlmc:
             mc.construct_density(tol, reg_param)
 
-    @staticmethod
-    def ecdf(x):
-        xs = np.sort(x)
-        ys = np.arange(1, len(xs) + 1) / float(len(xs))
-        return xs, ys
+
 
     def plot_densities(self, i_sample_mlmc=0):
         """
@@ -1380,61 +1526,18 @@ class CompareLevels:
 
         Returns:
         """
-
-        fig = plt.figure(figsize=(30, 10))
-        ax1 = fig.add_subplot(1, 2, 1)
-        ax2 = fig.add_subplot(1, 2, 2)
-        x_axis_label = self.quantity_name
-        if self.log_scale:
-            ax1.set_xscale('log')
-            ax2.set_xscale('log')
-            x_axis_label = "log " + x_axis_label
-        # ax1.set_yscale('log')
-
-        ax1.set_title("PDF approximations")
-        ax2.set_title("CDF approximations")
-        ax1.set_ylabel("probability density")
-        ax2.set_ylabel("probability")
-        ax1.set_xlabel(x_axis_label)
-        ax2.set_xlabel(x_axis_label)
-
-        # Add histogram and ecdf
+        distr_plot = DistributionPlot(quantity_name=self.quantity_name, log_x=self.log_scale)
         if i_sample_mlmc is not None:
             mc0_samples = self.mlmc[i_sample_mlmc].levels[0].sample_values[:, 0]
-            domain = self.mlmc[i_sample_mlmc].estimate_domain()
-            print("hist: ", domain)
-            if self.log_scale:
-                bins = np.exp(np.linspace(np.log(domain[0]), np.log(domain[1]), np.sqrt(len(mc0_samples))))
-            else:
-                bins = np.linspace(domain[0], domain[1], np.sqrt(len(mc0_samples)))
-            ax1.hist(mc0_samples, density=True, bins=bins, alpha=0.3, label='full MC', color='red')
-            X, Y = self.ecdf(mc0_samples)
-            ax2.plot(X, Y, 'red')
+            distr_plot.add_raw_samples(mc0_samples)
 
         for mc in self.mlmc:
             if mc._distribution is None:
                 continue
-            domain = mc.distribution.domain
-            if self.log_scale:
-                X = np.exp(np.linspace(np.log(domain[0]), np.log(domain[1]), 1000))
-            else:
-                X = np.linspace(domain[0], domain[1], 1000)
-            color = "C{}".format(mc.n_levels)
             label = "L = {}".format(mc.n_levels)
-            Y = mc.approx_pdf(X)
-            ax1.plot(X, Y, c=color, label=label)
+            distr_plot.add_distribution(mc._distribution, label=label)
 
-            Y = mc.approx_cdf(X)
-            ax2.plot(X, Y, c=color, label=label)
-
-            ax1.set_ylim(0, 2)
-            ax1.axvline(x=domain[0], ymin=0, ymax=0.1, c=color)
-            ax1.axvline(x=domain[1], ymin=0, ymax=0.1, c=color)
-
-        ax1.legend()
-        ax2.legend()
-        fig.savefig('compare_distributions.pdf')
-        plt.show()
+        distr_plot.show(save='compare_distributions.pdf')
 
     def ref_estimates_bootstrap(self, n_samples, sample_vector=None):
         for mc in self.mlmc:

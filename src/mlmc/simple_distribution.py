@@ -336,8 +336,7 @@ def compute_exact_cov(moments_fn, density, tol=1e-10):
         for j in range(i+1):
             def fn(x):
                 moments = moments_fn.eval_all(x)
-                return (np.outer(moments, moments.T) * density(x))[i, j]
-            # @TODO: return moments[i] * moments[j] * density(x) should works instead
+                return moments[i] * moments[j] * density(x)
             integral[j][i] = integral[i][j] = integrate.quad(fn, a, b, epsabs=tol)[0]
 
     return integral
