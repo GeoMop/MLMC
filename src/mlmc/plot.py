@@ -20,8 +20,8 @@ class Distribution:
     Class for plotting distribution approximation: PDF and CDF (optional)
     Provides methods to: add more plots, add exact PDF, add ECDF/histogram from single level MC
     """
-    def __init__(self, exact_distr=None, title="", quantity_name="X",
-                 log_density=False, cdf_plot=True, log_x=False, error_plot=True):
+    def __init__(self, exact_distr=None, title="", quantity_name="X", legend_title="",
+                 log_density=False, cdf_plot=True, log_x=False, error_plot='l2'):
         """
         Plot configuration
         :param exact_distr:  Optional exact domain (for adding to plot and computing error)
@@ -30,7 +30,9 @@ class Distribution:
         :param log_density: Plot logarithm of density value.
         :param cdf_plot: Plot CDF as well (default)
         :param log_x: Use logarithmic scale for X axis.
-        :param error_plot: Plot also difference between approximation and exact, use a twin scale.
+        :param error_plot: None, 'diff', 'kl. Plot error of pdf using either difference or
+        integrand of KL divergence: exact_pdf * log(exact_pdf / approx_pdf).
+        Simple difference is used for CDF for both options.
         """
         self._exact_distr = exact_distr
         self._log_density = log_density
@@ -38,7 +40,9 @@ class Distribution:
         self._error_plot = error_plot
         self._domain = None
         self._title = title
+        self._legend_title = legend_title
         self.plot_matrix = []
+        self.i_plot = 0
 
 
         if cdf_plot:
@@ -73,9 +77,12 @@ class Distribution:
 
         if error_plot:
             self.ax_pdf_err = self.ax_pdf.twinx()
-            self.ax_pdf_err.set_ylabel("error")
+            pdf_err_title = "error - dashed"
+            if error_plot:
+                pdf_err_title = "kl-error - dashed"
+            self.ax_pdf_err.set_ylabel(pdf_err_title)
             self.ax_cdf_err = self.ax_cdf.twinx()
-            self.ax_cdf_err.set_ylabel("error")
+            self.ax_cdf_err.set_ylabel("error - dashed")
 
 
     def add_raw_samples(self, samples):
@@ -105,28 +112,29 @@ class Distribution:
         slack = 0  # 0.05
         extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
         X = self._grid(1000, domain=domain)
+        color = 'C{}'.format(self.i_plot)
 
         plots = []
         print("pdf max: ", distr_object.density(0.0))
         Y_pdf = distr_object.density(X)
-        line, = self.ax_pdf.plot(X, Y_pdf, label=label)
-        plots.append(line)
-        plots += self._plot_borders(self.ax_pdf, domain)
+        self.ax_pdf.plot(X, Y_pdf, label=label, color=color)
+        self._plot_borders(self.ax_pdf, color, domain)
 
         Y_cdf = distr_object.cdf(X)
-        line, = self.ax_cdf.plot(X, Y_cdf)
-        plots.append(line)
-        plots += self._plot_borders(self.ax_cdf, domain)
+        self.ax_cdf.plot(X, Y_cdf)
+        self._plot_borders(self.ax_cdf, color, domain)
 
         if self._error_plot and self._exact_distr is not None:
-            eY_pdf = Y_pdf - self._exact_distr.pdf(X)
-            line, = self.ax_pdf_err.plot(X, eY_pdf, linestyle="--")
-            plots.append(line)
+            if self._error_plot == 'kl':
+                exact_pdf = self._exact_distr.pdf(X)
+                eY_pdf = exact_pdf * np.log(exact_pdf / Y_pdf)
+            else:
+                eY_pdf = Y_pdf - self._exact_distr.pdf(X)
+            self.ax_pdf_err.plot(X, eY_pdf, linestyle="--", color=color)
             eY_cdf = Y_cdf - self._exact_distr.cdf(X)
-            line, = self.ax_cdf_err.plot(X, eY_cdf, linestyle="--")
-            plots.append(line)
-        self.plot_matrix.append(plots)
+            self.ax_cdf_err.plot(X, eY_cdf, linestyle="--", color=color)
 
+        self.i_plot += 1
 
     def show(self, save=""):
         """
@@ -139,28 +147,21 @@ class Distribution:
         if save == "":
             save = self._title
         self._add_exact_distr()
-
-        for i, plots in enumerate(self.plot_matrix):
-            col = plt.cm.jet(plt.Normalize(0, len(self.plot_matrix))(i))
-            for line in plots:
-                line.set_color(col)
-        self.fig.legend()
+        self.fig.legend(title=self._legend_title)
         if save is not None:
             self.fig.savefig(save)
-        #self.fig.show()
-
+        else:
+            self.fig.show()
 
     def reset(self):
         plt.close()
         self._domain = None
 
-
-
-    def _plot_borders(self, ax, domain=None):
+    def _plot_borders(self, ax, col, domain=None):
         if domain is None:
             domain = self._domain
-        l1 = ax.axvline(x=domain[0], ymin=0, ymax=0.1)
-        l2 = ax.axvline(x=domain[1], ymin=0, ymax=0.1)
+        l1 = ax.axvline(x=domain[0], ymin=0, ymax=0.1, color=col)
+        l2 = ax.axvline(x=domain[1], ymin=0, ymax=0.1, color=col)
         return [l1, l2]
 
     def adjust_domain(self, domain):
@@ -185,10 +186,10 @@ class Distribution:
         #    lab = str(np.array(self._domain))
         X = self._grid(1000)
         Y = self._exact_distr.pdf(X)
-        self.ax_pdf.plot(X, Y, c='black', label="exact PDF")
+        self.ax_pdf.plot(X, Y, c='black', label="exact")
 
         Y = self._exact_distr.cdf(X)
-        self.ax_cdf.plot(X, Y, c='black', label="exact CDF")
+        self.ax_cdf.plot(X, Y, c='black')
 
     def _grid(self, size, domain=None):
         if domain is None:

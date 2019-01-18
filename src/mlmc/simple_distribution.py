@@ -61,7 +61,7 @@ class SimpleDistribution:
         # Initialize domain, multipliers, ...
 
         self._initialize_params(self.approx_size, tol)
-        max_it = 100
+        max_it = 20
         #method = 'trust-exact'
         #method ='Newton-CG'
         method = 'trust-ncg'
@@ -69,7 +69,7 @@ class SimpleDistribution:
                                       jac=self._calculate_gradient,
                                       hess=self._calculate_jacobian_matrix,
                                       options={'tol': tol, 'xtol': tol,
-                                               'gtol': tol, 'disp': True,  'maxiter': max_it})
+                                               'gtol': tol, 'disp': False,  'maxiter': max_it})
         self.multipliers = result.x
         jac_norm = np.linalg.norm(result.jac)
         print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
@@ -77,8 +77,10 @@ class SimpleDistribution:
 
         self._calculate_jacobian_matrix(self.multipliers)
         # Fix normalization
-        gradient, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
-        self.multipliers /= gradient
+        moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
+        m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1])[0]
+        print("moment[0]: {} m0: {}".format(moment_0, m0))
+        self.multipliers[0] -= np.log(moment_0)
 
         if result.success or jac_norm < tol:
             result.success = True
@@ -88,17 +90,17 @@ class SimpleDistribution:
 
         return result
 
-    def density(self, value, moments_fn=None):
+    def density(self, value):
         """
         :param value: float or np.array
         :param moments_fn: counting moments function
         :return: density for passed value
         """
-        size = self.approx_size
-        if moments_fn is None:
-            moments_fn = self.moments_fn
-        moments = moments_fn.eval_all(value, size=size)
-        return np.exp(-np.sum(moments * self.multipliers / self._moment_errs, axis=1))
+        moms = self.eval_moments(value)
+        power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
+        power = np.minimum(np.maximum(power, -200), 200)
+        return np.exp(power)
+
 
     def cdf(self, values):
         values = np.atleast_1d(values)
@@ -127,15 +129,18 @@ class SimpleDistribution:
         assert self.domain is not None
 
         assert tol is not None
-        self._quad_tolerance = tol / 64
+        #self._quad_tolerance = tol / 1024
+        self._quad_tolerance = 1e-10
 
         #self.moment_errs[np.where(self.moment_errs == 0)] = np.min(self.moment_errs[np.where(self.moment_errs != 0)]/8)
         #self.moment_errs[0] = np.min(self.moment_errs[1:]) / 8
 
         self._moment_errs = self.moment_errs
+        self._moment_errs[0] = np.min(self.moment_errs[1:]) / 2
+
         # Start with uniform distribution
         self.multipliers = np.zeros(size)
-        self.multipliers[0] = -np.log(1/(self.domain[1] - self.domain[0])) * self.moment_errs[0]
+        self.multipliers[0] = -np.log(1/(self.domain[1] - self.domain[0]))
         # Log to store error messages from quad, report only on conv. problem.
         self._quad_log = []
 
@@ -144,7 +149,6 @@ class SimpleDistribution:
         self._update_quadrature(self.multipliers, force=True)
 
     def eval_moments(self, x):
-
         return self.moments_fn.eval_all(x, self.approx_size)
 
     def _calculate_exact_moment(self, multipliers, m=0, full_output=0):
@@ -162,31 +166,31 @@ class SimpleDistribution:
             return np.exp(power) * moms[:, m]
 
         result = sc.integrate.quad(integrand, self.domain[0], self.domain[1],
-                                   epsabs=self._quad_tolerance, full_output=full_output, limit=EXACT_QUAD_LIMIT)
+                                   epsabs=self._quad_tolerance, full_output=full_output)
 
         return result[0], result
 
-    def _calculate_exact_hessian(self, i, j, multipliers=None):
-        """
-        Compute exact jacobian element (i,j).
-        :param i:
-        :param j:
-        :param multipliers:
-        :return:
-        """
-        if multipliers is None:
-            multipliers = self.multipliers
-
-        def integrand(x):
-            moms = self.eval_moments(x)
-            power = -np.sum(moms * multipliers / self._moment_errs, axis=1)
-            power = np.minimum(np.maximum(power, -200), 200)
-            return np.exp(power) * moms[:,i] * moms[:,j]
-
-        result = sc.integrate.quad(integrand, self.domain[0], self.domain[1],
-                                   epsabs=self._quad_tolerance, full_output=False, limit=self._quad_limit)
-
-        return result[0], result
+    # def _calculate_exact_hessian(self, i, j, multipliers=None):
+    #     """
+    #     Compute exact jacobian element (i,j).
+    #     :param i:
+    #     :param j:
+    #     :param multipliers:
+    #     :return:
+    #     """
+    #     if multipliers is None:
+    #         multipliers = self.multipliers
+    #
+    #     def integrand(x):
+    #         moms = self.eval_moments(x)
+    #         power = -np.sum(moms * multipliers / self._moment_errs, axis=1)
+    #         power = np.minimum(np.maximum(power, -200), 200)
+    #         return np.exp(power) * moms[:,i] * moms[:,j]
+    #
+    #     result = sc.integrate.quad(integrand, self.domain[0], self.domain[1],
+    #                                epsabs=self._quad_tolerance, full_output=False)
+    #
+    #     return result[0], result
 
     def _update_quadrature(self, multipliers, force=False):
         """
@@ -204,7 +208,7 @@ class SimpleDistribution:
             if quad_err_estimate < self._quad_tolerance:
                 return
 
-        val, result = self._calculate_exact_moment(multipliers, m=0, full_output=1)
+        val, result = self._calculate_exact_moment(multipliers, m=self.approx_size-1, full_output=1)
 
         if len(result) > 3:
             y, abserr, info, message = result
@@ -320,6 +324,7 @@ class SimpleDistribution:
         return jacobian_matrix
 
 
+
 def compute_exact_moments(moments_fn, density, tol=1e-10):
     """
     Compute approximation of moments using exact density.
@@ -346,7 +351,7 @@ def compute_semiexact_moments(moments_fn, density, tol=1e-10):
         return density(x) * moms[m]
 
     result = sc.integrate.quad(integrand, a, b,
-                               epsabs=tol, full_output=True, limit=EXACT_QUAD_LIMIT)
+                               epsabs=tol, full_output=True)
 
     if len(result) > 3:
         y, abserr, info, message = result
@@ -407,7 +412,7 @@ def compute_semiexact_cov(moments_fn, density, tol=1e-10):
         return density(x) * moms[m] * moms[m]
 
     result = sc.integrate.quad(integrand, a, b,
-                               epsabs=tol, full_output=True, limit=EXACT_QUAD_LIMIT)
+                               epsabs=tol, full_output=True)
 
     if len(result) > 3:
         y, abserr, info, message = result
@@ -441,14 +446,14 @@ def KL_divergence(prior_density, posterior_density, a, b):
     :return: KL divergence value
     """
     def integrand(x):
-        return prior_density(x) * np.log(prior_density(x) / posterior_density(x))
-    value = integrate.quad(integrand, a, b, epsabs=1e-10, limit=EXACT_QUAD_LIMIT)
+        return prior_density(x) * np.log(prior_density(x) / max(posterior_density(x), 1e-300))
+    value = integrate.quad(integrand, a, b)
     return value[0]
 
 
 def L2_distance(prior_density, posterior_density, a, b):
     integrand = lambda x: (posterior_density(x) - prior_density(x)) ** 2
-    return np.sqrt(integrate.quad(integrand, a, b, limit=EXACT_QUAD_LIMIT))[0]
+    return np.sqrt(integrate.quad(integrand, a, b))[0]
 
 
 
@@ -740,7 +745,7 @@ def lsq_reconstruct(cov, eval, evec, treshold):
 
     return Q
 
-def construct_ortogonal_moments(moments, cov):
+def construct_ortogonal_moments(moments, cov, tol=None):
     """
     For given moments find the basis orthogonal with respect to the covariance matrix, estimated from samples.
     :param moments: moments object
@@ -753,6 +758,7 @@ def construct_ortogonal_moments(moments, cov):
     cov_center = M @ cov @ M.T
     #cov_center = cov
     eval, evec = np.linalg.eigh(cov_center)
+    # eval is in increasing order
 
 
     # Compute eigen value errors.
@@ -762,10 +768,13 @@ def construct_ortogonal_moments(moments, cov):
     #std_evals = eigenvalue_error(rot_moments)
 
 
-
-    # treshold by statistical test of same slopes of linear models
-    treshold, fixed_eval = detect_treshold_slope_change(eval, log=True)
-    treshold = np.argmax( eval - fixed_eval[0] > 0)
+    if tol is None:
+        # treshold by statistical test of same slopes of linear models
+        threshold, fixed_eval = detect_treshold_slope_change(eval, log=True)
+        threshold = np.argmax( eval - fixed_eval[0] > 0)
+    else:
+        # threshold given by eigenvalue magnitude
+        threshold = np.argmax(eval > tol)
 
     #treshold, _ = self.detect_treshold(eval, log=True, window=8)
 
@@ -785,8 +794,8 @@ def construct_ortogonal_moments(moments, cov):
     #eval[:treshold] = eval[treshold]
 
     # cut eigen values under treshold
-    new_eval = eval[treshold:]
-    new_evec = evec[:, treshold:]
+    new_eval = eval[threshold:]
+    new_evec = evec[:, threshold:]
 
     # we need highest eigenvalues first
     eval_flipped = np.flip(new_eval)
@@ -820,7 +829,7 @@ def construct_ortogonal_moments(moments, cov):
     # self.plot_values(eval, log=True, treshold=treshold)
 
 
-    info = (eval, treshold, L_mn)
+    info = (eval, threshold, L_mn)
     return ortogonal_moments, info
 
 
