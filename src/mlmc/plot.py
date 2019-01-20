@@ -77,13 +77,20 @@ class Distribution:
 
         if error_plot:
             self.ax_pdf_err = self.ax_pdf.twinx()
+            self.ax_pdf.set_zorder(10)
+            self.ax_pdf.patch.set_visible(False)
+
             pdf_err_title = "error - dashed"
-            if error_plot:
+            if error_plot == 'kl':
                 pdf_err_title = "kl-error - dashed"
             self.ax_pdf_err.set_ylabel(pdf_err_title)
             self.ax_cdf_err = self.ax_cdf.twinx()
-            self.ax_cdf_err.set_ylabel("error - dashed")
+            self.ax_cdf.set_zorder(10)
+            self.ax_cdf.patch.set_visible(False)
 
+            self.ax_cdf_err.set_ylabel("error - dashed")
+            self.ax_pdf_err.set_yscale('log')
+            self.ax_cdf_err.set_yscale('log')
 
     def add_raw_samples(self, samples):
         """
@@ -125,14 +132,14 @@ class Distribution:
         self._plot_borders(self.ax_cdf, color, domain)
 
         if self._error_plot and self._exact_distr is not None:
-            if self._error_plot == 'kl':
+            if self._error_plot == 'KL':
                 exact_pdf = self._exact_distr.pdf(X)
                 eY_pdf = exact_pdf * np.log(exact_pdf / Y_pdf)
             else:
                 eY_pdf = Y_pdf - self._exact_distr.pdf(X)
-            self.ax_pdf_err.plot(X, eY_pdf, linestyle="--", color=color)
+            self.ax_pdf_err.plot(X, eY_pdf, linestyle="--", color=color, linewidth=0.5)
             eY_cdf = Y_cdf - self._exact_distr.cdf(X)
-            self.ax_cdf_err.plot(X, eY_cdf, linestyle="--", color=color)
+            self.ax_cdf_err.plot(X, eY_cdf, linestyle="--", color=color, linewidth=0.5)
 
         self.i_plot += 1
 
@@ -147,7 +154,8 @@ class Distribution:
         if save == "":
             save = self._title
         self._add_exact_distr()
-        self.fig.legend(title=self._legend_title)
+        self.ax_pdf.legend(title=self._legend_title, loc = 1)
+        #self.fig.legend(title=self._legend_title)
         if save is not None:
             self.fig.savefig(save)
         else:
@@ -248,7 +256,7 @@ class Eigenvalues:
     def __init__(self, log_y = True, title = "eigenvalues"):
         self._ylim = None
         self.log_y = log_y
-        self.fig = plt.figure(figsize=(30, 10))
+        self.fig = plt.figure(figsize=(15, 10))
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.fig.suptitle(title)
         self.i_plot = 0
@@ -261,14 +269,14 @@ class Eigenvalues:
         Add set of eigenvalues into the plot.
         :param values: eigen values in increasing or decreasing ordred, automatically flipped to decreasing.
         :param errors: corresponding std errors
-        :param threshold: index to mark cut-off
+        :param threshold: horizontal line marking noise level or cut-off eigen value
         :return:
         """
         assert not errors or len(values) == len(errors)
         if values[0] < values[-1]:
             values = np.flip(values)
             errors = np.flip(errors)
-            threshold = len(values) - 1 - threshold
+            #threshold = len(values) - 1 - threshold
 
         if self.log_y:
             # plot only positive values
@@ -287,8 +295,7 @@ class Eigenvalues:
         else:
             self.ax.errorbar(X, values, yerr=errors, fmt='o', color=color, ecolor=color, capthick=2, label=label)
         if threshold is not None:
-            tx = threshold + self.i_plot * 0.1 + 0.05
-            self.ax.axvline(x=tx, color=color)
+            self.ax.axhline(y=threshold, color=color)
         self.i_plot += 1
 
     def add_linear_fit(self, values):
@@ -300,7 +307,7 @@ class Eigenvalues:
         :param filename: filename base, None for show.
         :return:
         """
-        self.fig.legend()
+        self.ax.legend(title="Noise level")
         if file == "":
             file = self.title
         if file[-3:] != "pdf":
@@ -321,3 +328,26 @@ class Eigenvalues:
             self._ylim = [min(self._ylim[0], ylim[0]), max(self._ylim[1], ylim[1])]
 
 
+def moments(moments_fn, size=None, title="", file=""):
+    if size == None:
+        size = max(moments_fn.size, 21)
+    fig = plt.figure(figsize=(15, 8))
+    fig.suptitle(title)
+    ax = fig.add_subplot(1, 1, 1)
+    cmap = create_color_bar(size, 'moments', ax)
+    n_pt = 1000
+    X = np.linspace(moments_fn.domain[0], moments_fn.domain[1], n_pt)
+    Y = moments_fn._eval_all(X, size=size)
+    central_band = Y[int(n_pt*0.1):int(n_pt*0.9), :]
+    ax.set_ylim((np.min(central_band), np.max(central_band)))
+    for m, y in enumerate(Y.T):
+        color = cmap(m)
+        ax.plot(X, y, color=color, linewidth=0.5)
+    if file == "":
+        file = title
+    if file[-3:] != "pdf":
+        file = file + ".pdf"
+    if file is None:
+        fig.show()
+    else:
+        fig.savefig(file)

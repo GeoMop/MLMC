@@ -913,21 +913,6 @@ class Estimate:
 
         self.mlmc.clean_subsamples()
 
-    def plot_moment_functions(self, moments_fn=None, fig_file=None):
-        if moments_fn is None:
-            moments_fn = self.moments
-        fig = plt.figure(figsize=(30, 10))
-        ax = fig.add_subplot(1, 1, 1)
-        cmap = create_color_bar(moments_fn.size, 'moments', ax)
-        X = np.linspace(moments_fn.domain[0], moments_fn.domain[1], 1000)
-        Y = moments_fn(X)
-        for m, y in enumerate(Y.T):
-            color = cmap(m)
-            ax.plot(X, y, c=color)
-        #ax.set_yscale('log')
-        if fig_file is not None:
-            fig.savefig(fig_file)
-        plt.show()
 
 
 
