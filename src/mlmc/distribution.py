@@ -8,7 +8,8 @@ class Distribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True)):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True),
+                 monitor=False):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -37,7 +38,7 @@ class Distribution:
         # Number of basis functions to approximate the density.
         # In future can be smaller then number of provided approximative moments.
         self.approx_size = len(self.moment_means)
-        assert moments_obj.size == self.approx_size
+        assert moments_obj.size >= self.approx_size
         self.moments_fn = moments_obj
 
         # Degree of Gauss quad to use on every subinterval determined by adaptive quad.
@@ -45,6 +46,8 @@ class Distribution:
         # Panalty coef for endpoint derivatives
         self._penalty_coef = 10
 
+        # Flag for monitoring convergence on stdout.
+        self.monitor = monitor
     # def choose_parameters_from_samples(self, samples):
     #     """
     #     Determine model hyperparameters, in particular domain of the density function,
@@ -104,7 +107,7 @@ class Distribution:
                 if odd_size != sizes[-1]:
                     sizes.append(odd_size)
             sizes.reverse()
-        print(sizes)
+        #print("sizes: ", sizes)
 
         self.approx_size = sizes[0]
         self._initialize_params(self.approx_size, tol)
@@ -118,8 +121,9 @@ class Distribution:
             t0 = max(tol, init_error / 10)
             t = (np.array(sizes) - sizes[0]) / ( sizes[-1] - sizes[0])
             tolerances = np.exp(np.log(t1) * t + np.log(t0) * (1-t))
-        print(tolerances)
+        #print("tolerances: ", tolerances)
 
+        total_nit = 0
         for approx_size, approx_tol in  zip(sizes, tolerances):
             self._quad_tolerance = approx_tol / 16
             self.extend_size(approx_size)
@@ -137,8 +141,10 @@ class Distribution:
                                                    'gtol': approx_tol, 'disp': False,  'maxiter': max_it})
             self.multipliers = result.x
             jac_norm = np.linalg.norm(result.jac)
-            print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
-               self.approx_size, result.nit, approx_tol, jac_norm, result.message))
+            total_nit += result.nit
+            if self.monitor:
+                print("Iteration: size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
+                   self.approx_size, result.nit, approx_tol, jac_norm, result.message))
 
         # Fix normalization
         gradient, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
@@ -146,7 +152,7 @@ class Distribution:
 
         if result.success or jac_norm < tol:
             result.success = True
-        result.nit = max(result.nit, 1)
+        result.nit = total_nit
         result.fun_norm = jac_norm
         return result
 
@@ -181,10 +187,10 @@ class Distribution:
         :param moments_fn: counting moments function
         :return: density for passed value
         """
+        size = self.approx_size
         if moments_fn is None:
-            moments = self.moments_fn(value)
-        else:
-            moments = moments_fn(value)
+            moments_fn = self.moments_fn
+        moments = moments_fn.eval_all(value, size=size)
         return np.exp(-np.sum(moments * self.multipliers / self._moment_errs, axis=1))
 
     def cdf(self, values):

@@ -11,11 +11,8 @@ class Level:
     Call Simulation methods
     There are information about random variable - average, dispersion, number of simulation, ...
     TODO:
-    workflow:
-    - queue simulations ( need simulation object for prepare input, need pbs as executor
-    - check for finished simulations (need pbs
-    - estimates for collected samples ... this can be in separate class as it is independent of simulation
-    .. have to reconsider in context of Analysis
+    - have HDF level either permanently (do not copy values), or use just for load and save
+    - fix consistency for: n_ops, n_ops_estimate, _n_ops_estimate
     """
 
     def __init__(self, sim_factory, previous_level, precision, level_idx, hdf_level_group, regen_failed=False,
@@ -619,7 +616,7 @@ class Level:
         mse_vec = np.var(mom_fine**2 - mom_coarse**2, axis=0, ddof=1)
         return mse_vec
 
-    def sample_range(self):
+    def sample_iqr(self):
         """
         Determine limits for outliers
         :return: tuple
@@ -636,6 +633,16 @@ class Level:
         right = min(np.max(fine_sample), quantile_3 + 1.5 * iqr)
 
         return left, right
+
+    def sample_range(self):
+        fine_sample = self.sample_values[:, 0]
+        return (np.min(fine_sample), np.max(fine_sample))
+
+    def sample_domain(self, quantile=None):
+        if quantile is None:
+            return self.sample_range()
+        fine_sample = self.sample_values[:, 0]
+        return np.percentile(fine_sample, [100*quantile, 100*(1-quantile)])
 
     def get_n_finished(self):
         """

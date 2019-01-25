@@ -84,8 +84,8 @@ class HDF5:
         self.job_dir_abs_path = os.path.join(work_dir, job_dir)
 
         # @TODO: Remove this and solve it complexly
-        if os.path.exists(self.file_name):
-            os.remove(self.file_name)
+        #if os.path.exists(self.file_name):
+        #    os.remove(self.file_name)
 
         # h5py.File object - works generally like standard Python file objects, ppen with mode append
         self._hdf_file = h5py.File(self.file_name, 'a')
