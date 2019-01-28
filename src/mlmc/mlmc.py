@@ -1,12 +1,9 @@
 import time
 import numpy as np
 from mlmc.mc_level import Level
-import scipy.stats as st
-import scipy.integrate as integrate
 from mlmc.simulation import Simulation
 import mlmc.hdf as hdf
-
-import mlmc.estimate as est
+from mlmc.estimate import Estimate
 
 
 class MLMC:
@@ -36,6 +33,8 @@ class MLMC:
         self.target_time = None
         # Total variance
         self.target_variance = None
+
+        self._estimator = Estimate(self)
 
         # Create hdf5 file - contains metadata and samples at levels
         self._hdf_object = hdf.HDF5(file_name="mlmc_{}.hdf5".format(n_levels), work_dir=self._process_options['output_dir'])
@@ -108,40 +107,7 @@ class MLMC:
     def sim_steps(self):
         return np.array([Simulation.log_interpolation(self.step_range, lvl.step) for lvl in self.levels])
 
-    def _variance_of_variance(self, n_samples = None):
-        """
-        Approximate variance of log(X) where
-        X is from ch-squared with df=n_samples - 1.
-        Return array of variances for actual n_samples array.
 
-        :param n_samples: Optional array with n_samples.
-        :return: array of variances of variance estimate.
-        """
-        if n_samples is None:
-            n_samples = self.n_samples
-        if hasattr(self, "_saved_var_var"):
-            ns, var_var = self._saved_var_var
-            if np.sum(np.abs(ns - n_samples)) == 0:
-                return var_var
-
-        vars = []
-        for ns in n_samples:
-            df = ns - 1
-
-            def log_chi_pdf(x):
-                return np.exp(x) * df * st.chi2.pdf(np.exp(x) * df, df=df)
-
-            def compute_moment(moment):
-                std_est = np.sqrt(2 / df)
-                fn = lambda x, m=moment: x ** m * log_chi_pdf(x)
-                return integrate.quad(fn, -100 * std_est, 100 * std_est)[0]
-
-            mean = compute_moment(1)
-            second = compute_moment(2)
-            vars.append(second - mean ** 2)
-
-        self._saved_var_var = (n_samples, np.array(vars))
-        return np.array(vars)
 
     def _variance_regression(self, raw_vars, sim_steps):
         """
@@ -161,7 +127,7 @@ class MLMC:
             return raw_vars
 
         # estimate of variances of variances, compute scaling
-        W = 1.0 / np.sqrt(self._variance_of_variance())
+        W = 1.0 / np.sqrt(self._estimator._variance_of_variance())
         W = W[1:]  # ignore level 0
         # W = np.ones((L - 1,))
 
@@ -267,7 +233,7 @@ class MLMC:
         self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
 
         # New estimation according to already finished samples
-        n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
+        n_estimated = self._estimator.estimate_n_samples_for_target_variance(target_var, moments_fn)
 
         # Loop until number of estimated samples is greater than the number of scheduled samples
         while not np.all(n_estimated[greater_items] == n_scheduled[greater_items]):
@@ -290,7 +256,7 @@ class MLMC:
             self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
 
             # New estimation according to already finished samples
-            n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
+            n_estimated = self._estimator.estimate_n_samples_for_target_variance(target_var, moments_fn)
 
     def set_scheduled_and_wait(self, n_scheduled, greater_items, pbs, sleep, fin_sample_coef=0.5):
         """
@@ -347,7 +313,7 @@ class MLMC:
         :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
         :return: None
         """
-        n_samples = self.estimate_n_samples_for_target_variance(target_variance, moments_fn, prescribe_vars)
+        n_samples = self._estimator.estimate_n_samples_for_target_variance(target_variance, moments_fn, prescribe_vars)
         self.set_level_target_n_samples(n_samples, fraction)
 
     def refill_samples(self):

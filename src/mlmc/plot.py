@@ -44,7 +44,6 @@ class Distribution:
         self.plot_matrix = []
         self.i_plot = 0
 
-
         if cdf_plot:
             self.fig, axes = plt.subplots(1, 2, figsize=(22, 10))
             self.fig_cdf = None
@@ -53,7 +52,6 @@ class Distribution:
         else:
             self.fig, self.ax_pdf = plt.subplots(1, 1, figsize=(12, 10))
             self.fig_cdf, self.ax_cdf = plt.subplots(1, 1, figsize=(12, 10))
-
 
         self.fig.suptitle(title)
         x_axis_label = quantity_name
@@ -84,7 +82,6 @@ class Distribution:
             self.ax_cdf_err = self.ax_cdf.twinx()
             self.ax_cdf_err.set_ylabel("error - dashed")
 
-
     def add_raw_samples(self, samples):
         """
         Add histogram and ecdf for raw samples.
@@ -93,9 +90,8 @@ class Distribution:
         bins = self._grid(np.sqrt(len(samples)))
         self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
         X = np.sort(samples)
-        Y = np.arange(1, len(xs) + 1) / float(len(xs))
+        Y = np.arange(1, len(samples) + 1) / float(len(samples))
         self.ax_cdf.plot(X, Y, 'red')
-
 
     def add_distribution(self, distr_object, label=None):
         """
@@ -245,13 +241,14 @@ class Eigenvalues:
     Colors are chosen automatically. Slight X shift is used to avoid point overlapping.
     For log Y scale only positive values are plotted.
     """
-    def __init__(self, log_y = True, title = "eigenvalues"):
+    def __init__(self, log_y=True, title="eigenvalues"):
         self._ylim = None
         self.log_y = log_y
         self.fig = plt.figure(figsize=(30, 10))
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.fig.suptitle(title)
         self.i_plot = 0
+        self.title = title
         # index of eignevalues dataset
         if self.log_y:
             self.ax.set_yscale('log')
@@ -266,13 +263,14 @@ class Eigenvalues:
         """
         assert not errors or len(values) == len(errors)
         if values[0] < values[-1]:
-            values = np.flip(values)
-            errors = np.flip(errors)
+            values = np.flip(values, axis=0)
+            if errors is not None:
+                errors = np.flip(errors, axis=0)
             threshold = len(values) - 1 - threshold
 
         if self.log_y:
             # plot only positive values
-            i_last_positive = len(values) - np.argmax(np.flip(values) > 0)
+            i_last_positive = len(values) - np.argmax(np.flip(values, axis=0) > 0)
             values = values[:i_last_positive + 1]
             a, b = np.min(values), np.max(values)
             self.adjust_ylim( (a / ((b/a)**0.05), b * (b/a)**0.05) )
@@ -294,20 +292,21 @@ class Eigenvalues:
     def add_linear_fit(self, values):
         pass
 
-    def show(self, file=""):
+    def show(self, file=None):
         """
         Show the plot or save to file.
-        :param filename: filename base, None for show.
+        :param file: filename base, None for show.
         :return:
         """
         self.fig.legend()
-        if file == "":
-            file = self.title
-        if file[-3:] != "pdf":
-            file = file + ".pdf"
         if file is None:
             self.fig.show()
         else:
+            if file == "":
+                file = self.title
+            if file[-3:] != "pdf":
+                file = file + ".pdf"
+
             self.fig.savefig(file)
 
     def adjust_ylim(self, ylim):

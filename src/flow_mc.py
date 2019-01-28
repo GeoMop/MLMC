@@ -279,15 +279,15 @@ class FlowSim(simulation.Simulation):
         """
         out_subdir = os.path.join("samples", str(sample_tag))
         sample_dir = os.path.join(self.work_dir, out_subdir)
-        if not os.path.isdir(sample_dir):
-            force_mkdir(sample_dir)
+
+        force_mkdir(sample_dir, True)
         fields_file = os.path.join(sample_dir, self.FIELDS_FILE)
 
         gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
         prepare_time = (t.time() - start_time)
         package_dir = self.run_sim_sample(out_subdir)
 
-        return sample.Sample(directory=sample_dir,sample_id=sample_id,
+        return sample.Sample(directory=sample_dir, sample_id=sample_id,
                              job_id=package_dir, prepare_time=prepare_time)
 
     def run_sim_sample(self, out_subdir):

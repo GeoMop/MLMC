@@ -2,8 +2,9 @@ import os.path
 import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
-from mlmc import mlmc
+from mlmc.mlmc import MLMC
 from mlmc import moments
+import mlmc.estimate
 from test.fixtures.synth_simulation import SimulationTest
 
 
@@ -18,6 +19,7 @@ class TestMLMC:
         self.n_moments = n_moments
         self.is_log = is_log
 
+
         # print("var: ", distr.var())
         step_range = (0.8, 0.01)
 
@@ -29,6 +31,7 @@ class TestMLMC:
 
         # All levels simulations objects and MLMC object
         self.mc, self.sims = self.make_simulation_mc(step_range, sim_method)
+        self.estimator = mlmc.estimate.Estimate(self.mc)
 
         # reference variance
         if quantile is not None:
@@ -73,7 +76,7 @@ class TestMLMC:
         mlmc_options = {'output_dir': os.path.dirname(os.path.realpath(__file__)),
                         'keep_collected': True,
                         'regen_failed': False}
-        mc = mlmc.MLMC(self.n_levels, simultion_factory, step_range, mlmc_options)
+        mc = MLMC(self.n_levels, simultion_factory, step_range, mlmc_options)
         mc.create_new_execution()
         sims = [level.fine_simulation for level in mc.levels]
         return mc, sims
@@ -185,8 +188,8 @@ class TestMLMC:
         for i in range(n_times):
             self.mc.subsample(n_samples)
             # Moments as tuple (means, vars)
-            means, vars = self.mc.estimate_moments(self.moments_fn)
-            diff_vars, n_samples = self.mc.estimate_diff_vars(self.moments_fn)
+            means, vars = self.estimator.estimate_moments(self.moments_fn)
+            diff_vars, n_samples = self.estimator.estimate_diff_vars(self.moments_fn)
             # Remove first moment
             means = means[1:]
             vars = vars[1:]
@@ -237,7 +240,7 @@ class TestMLMC:
         """
         if self.n_levels > 2 and np.amax(self.ref_level_vars) > 1e-16:
             # Variance of level diff variances estimate should behave like log chi-squared
-            est_var_of_var_est = np.sqrt(self.mc._variance_of_variance()[1:])
+            est_var_of_var_est = np.sqrt(self.estimator._variance_of_variance()[1:])
             for i_mom in range(self.n_moments-1):
                 # omit abs var of level 0
                 mom_level_vars = np.array([v[1:, i_mom] for v in self.all_level_vars])
@@ -424,7 +427,7 @@ class TestMLMC:
             n_samples = np.maximum(n_samples, 1)
             for i in range(n_loops):
                 self.mc.subsample(n_samples)
-                means_est, vars_est = self.mc.estimate_moments(self.moments_fn)
+                means_est, vars_est = self.estimator.estimate_moments(self.moments_fn)
                 means_el.append(means_est)
                 vars_el.append(vars_est)
         self.means_est = np.array(means_el).reshape(len(target_var), n_loops, self.n_moments)
@@ -513,7 +516,7 @@ class TestMLMC:
         t_var = 0.0002
         ref_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=self.ref_mc_diff_vars)
         ref_n_samples = np.max(ref_n_samples, axis=1)
-        ref_cost = self.mc.estimate_cost(n_samples=ref_n_samples.astype(int))
+        ref_cost = self.estimator.estimate_cost(n_samples=ref_n_samples.astype(int))
         ref_total_var = np.sum(self.ref_mc_diff_vars / ref_n_samples[:, None]) / self.n_moments
         n_samples = self.n_levels*[100]
         n_loops = 10
@@ -538,10 +541,10 @@ class TestMLMC:
                 # n_samples = np.maximum(n_samples, 1)
 
                 self.mc.subsample(n_samples)
-                est_diff_vars, _ = self.mc.estimate_diff_vars(self.moments_fn)
+                est_diff_vars, _ = self.estimator.estimate_diff_vars(self.moments_fn)
                 est_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=est_diff_vars)
                 max_est_n_samples = np.max(est_n_samples, axis=1)
-                est_cost = self.mc.estimate_cost(n_samples=max_est_n_samples.astype(int))
+                est_cost = self.estimator.estimate_cost(n_samples=max_est_n_samples.astype(int))
                 est_total_var = np.sum(self.ref_mc_diff_vars / max_est_n_samples[:, None]) / self.n_moments
 
                 n_samples_err = np.min( (max_est_n_samples - ref_n_samples) /ref_n_samples)

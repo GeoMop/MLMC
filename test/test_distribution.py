@@ -2,7 +2,7 @@
 
 
 Implementation TODO:
-- support for possitive distributions
+- support for positive distributions
 - compute approximation of more moments then used for approximation, turn problem into
   overdetermined non-linear least square problem
 - Make TestMLMC a production class to test validity of MLMC estimatioon on any sampleset
@@ -40,6 +40,7 @@ import mlmc.plot
 import mlmc.estimate
 import mlmc.distribution
 import mlmc.simple_distribution
+from mlmc.simple_distribution import SimpleDistribution
 from mlmc import moments
 from test.fixtures.mlmc_test_run import TestMLMC
 
@@ -142,7 +143,6 @@ class DistributionDomainCase:
         # domain_str = "({:5.2}, {:5.2})".format(*self.domain)
         self.eigenvalues_plot = None
 
-
     @property
     def title(self):
         cov = "_cov" if self.use_covariance else ""
@@ -172,7 +172,6 @@ class DistributionDomainCase:
         #self.moment_sizes = [3,4,5,6,7]
         self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
 
-
         if self.use_covariance:
             size = self.moments_fn.size
             base_moments = self.moments_fn
@@ -192,6 +191,7 @@ class DistributionDomainCase:
             print("threshold: ", threshold, " from N: ", size)
             if self.eigenvalues_plot:
                 self.eigenvalues_plot.add_values(evals, threshold=threshold, label=str(noise_level))
+
             self.tol_density_approx = 0.01
         else:
             self.exact_moments += noise_level * np.random.randn(self.moments_fn.size)
@@ -199,7 +199,6 @@ class DistributionDomainCase:
 
         self.exact_moments = mlmc.simple_distribution.compute_semiexact_moments(self.moments_fn,
                                 self.pdf, tol=tol_exact_moments)
-
 
 
     def check_convergence(self, results):
@@ -266,8 +265,6 @@ class DistributionDomainCase:
         #print("vals: ", density_vals)
         #print("exact: ", exact_vals)
         return result, distr_obj
-
-
 
     def exact_conv(self):
         """
@@ -408,7 +405,6 @@ distribution_list = [
     ]
 
 
-
 #@pytest.mark.skip
 @pytest.mark.parametrize("moments", [
     # moments_class, min and max number of moments, use_covariance flag
@@ -462,8 +458,6 @@ def test_pdf_approx_exact_moments(moments, distribution):
     #         print(warn)
 
 
-
-
 distr_sublist = [
         (stats.norm(loc=1, scale=10), False),
         (stats.lognorm(scale=np.exp(1), s=1), False),    # # No D_KL convergence under 1e-3.
@@ -490,7 +484,6 @@ def test_pdf_approx_iexact_moments(distribution):
     moments_fn = moments.Legendre(21, domain, log=log_flag, safe_eval=False)
 
 
-
     # Approximation for exact moments
     tol_exact_moments = 1e-6
     density = lambda x: distr.pdf(x)
@@ -502,7 +495,7 @@ def test_pdf_approx_iexact_moments(distribution):
 
     # fail: 1, 6
     # fine: 4
-    distr_plot = DistrPlot(distr, distr_name+", for inexact moments")
+    distr_plot = plot.Distribution(distr, distr_name+", for inexact moments")
     moment_errors = np.exp(np.linspace(np.log(0.01), np.log(0.000001), 20))
     kl_collected = np.empty( len(moment_errors) )
     l2_collected = np.empty_like(kl_collected)
@@ -559,8 +552,6 @@ def test_pdf_approx_iexact_moments(distribution):
     #distr_plot.show()
     distr_plot.clean()
 
-
-
     def plot_convergence():
         plt.plot(moment_errors, kl_collected, ls='solid', c='red')
         plt.plot(moment_errors, l2_collected, ls='dashed', c='blue')
@@ -570,293 +561,6 @@ def test_pdf_approx_iexact_moments(distribution):
         plt.show()
 
     #plot_convergence()
-
-    # if warn_log:
-    #     for warn in warn_log:
-    #         print(warn)
-
-
-
-
-
-
-
-
-
-
-# shape = 0.1
-# values = np.random.lognormal(0, shape, 100000)
-#
-# moments_number = 10
-# bounds = [0, 2]
-# toleration = 0.05
-# eps = 1e-6
-#
-# bounds = sc.stats.mstats.mquantiles(values, prob=[eps, 1 - eps])
-# print(bounds)
-#
-#
-# mean = np.mean(values)
-# print(mean)0
-#
-# basis_function = FourierFunctions(mean)
-# basis_function.set_bounds(bounds)
-# basis_function.fixed_quad_n = moments_number * 2
-# """
-# basis_function = Monomials(mean)
-# basis_function.set_bounds(bounds)
-# basis_function.fixed_quad_n = moments_number + 1
-# """
-# #print(np.mean(np.sin(values)))
-# moments = []
-# for k in range(moments_number):
-#     val = []
-#
-#     for value in values:
-#         val.append(basis_function.get_moments(value, k))
-#
-#     moments.append(np.mean(val))
-#
-# print("momenty", moments)
-#
-#
-# zacatek = t.time()
-# # Run distribution
-# distribution = DistributionFixedQuad(basis_function, moments_number, moments, toleration)
-# #d.set_values(values)
-# lagrangian_parameters = distribution.estimate_density()
-#
-# konec = t.time()
-#
-# print("celkovy cas", konec- zacatek)
-# print(lagrangian_parameters)
-#
-#
-# ## Difference between approximate and exact density
-# sum = 0
-# X = np.linspace(bounds[0], bounds[1], 100)
-# for x in X:
-#    sum += abs(distribution.density(x) - sc.stats.lognorm.pdf(x, shape))**2
-# print(sum)
-#
-#
-# ## Set approximate density values
-# approximate_density = []
-# X = np.linspace(bounds[0], bounds[1], 100)
-# for x in X:
-#     approximate_density.append(distribution.density(x))
-#
-#
-# ## Show approximate and exact density
-# plt.plot(X, approximate_density, 'r')
-# plt.plot(X, [sc.stats.lognorm.pdf(x, shape) for x in X])
-# plt.ylim((0, 10))
-# plt.show()
-#
-# """
-# ## Show approximate and exact density in logaritmic scale
-# X = np.linspace(bounds[0], bounds[1], 100)
-# plt.plot(X, -np.log(approximate_density), 'r')
-# plt.plot(X, -np.log([sc.stats.lognorm.pdf(x, shape) for x in X]))
-# plt.ylim((-10, 10))
-# plt.show()
-# """
-#
-#
-#
-# import numpy as np
-# import scipy as sc
-# import matplotlib.pyplot as plt
-# import sys
-# sys.path.insert(0, '/home/martin/Documents/MLMC/src')
-# from distribution import Distribution
-# from distribution_fixed_quad import DistributionFixedQuad
-# from monomials import Monomials
-# from fourier_functions import FourierFunctions
-#
-# shape = 0.1
-# values = np.random.normal(0, shape, 100000)
-#
-# moments_number = 15
-# bounds = [0, 2]
-# toleration = 0.05
-# eps = 1e-6
-#
-# bounds = sc.stats.mstats.mquantiles(values, prob=[eps, 1 - eps])
-#
-# mean = np.mean(values)
-#
-# basis_function = FourierFunctions(mean)
-# basis_function.set_bounds(bounds)
-# basis_function.fixed_quad_n = moments_number * 2
-# """
-# basis_function = Monomials(mean)
-# basis_function.set_bounds(bounds)
-# basis_function.fixed_quad_n = moments_number + 1
-# """
-#
-# moments = []
-# for k in range(moments_number):
-#     val = []
-#
-#     for value in values:
-#         val.append(basis_function.get_moments(value, k))
-#
-#     moments.append(np.mean(val))
-#
-#
-# # Run distribution
-# distribution = DistributionFixedQuad(basis_function, moments_number, moments, toleration)
-# #d.set_values(values)
-# lagrangian_parameters = distribution.estimate_density()
-#
-# print(moments)
-# print(lagrangian_parameters)
-#
-#
-# ## Difference between approximate and exact density
-# sum = 0
-# X = np.linspace(bounds[0], bounds[1], 100)
-# for x in X:
-#    sum += abs(distribution.density(x) - sc.stats.norm.pdf(x))
-# print(sum)
-#
-#
-# ## Set approximate density values
-# approximate_density = []
-# X = np.linspace(bounds[0], bounds[1], 100)
-# for x in X:
-#     approximate_density.append(distribution.density(x))
-#
-#
-# ## Show approximate and exact density
-# plt.plot(X, approximate_density, 'r')
-# plt.plot(X, [sc.stats.norm.pdf(x, 0, shape) for x in X])
-# plt.ylim((0, 10))
-# plt.show()
-#
-# """
-# ## Show approximate and exact density in logaritmic scale
-# X = np.linspace(bounds[0], bounds[1], 100)
-# plt.plot(X, -np.log(approximate_density), 'r')
-# plt.plot(X, -np.log([sc.stats.norm.pdf(x) for x in X]))
-# plt.ylim((-10, 10))
-# plt.show()
-# """
-
-def compute_mlmc_distribution(nl, distr, nm):
-    """
-    Test approximation moments from first estimate and from final number of samples
-    :param nl: int. Number of levels
-    :param distr: Distributions as [distr obj, log (bool), simulation function]
-    :return: TestMLMC instance
-    """
-    n_moments = nm
-    repet_number = 1
-    start_moments_n = nm
-    all_variances = []
-    all_means = []
-    d = distr[0]
-    for i in range(repet_number):
-        mc_test = TestMLMC(nl, n_moments, d, distr[1], distr[2])
-        # number of samples on each level
-        mc_test.mc.set_initial_n_samples()
-        mc_test.mc.refill_samples()
-        mc_test.mc.wait_for_simulations()
-        mc_test.mc.set_target_variance(1e-5, mc_test.moments_fn)
-        mc_test.mc.refill_samples()
-        mc_test.mc.wait_for_simulations()
-
-        # Moments as tuple (means, vars)
-        moments = mc_test.mc.estimate_moments(mc_test.moments_fn)
-        # Variances
-        variances = np.sqrt(moments[1]) * 3
-
-        all_variances.append(variances)
-        all_means.append(moments[0])
-
-    # Exact moments from distribution
-    exact_moments = mlmc.distribution.compute_exact_moments(mc_test.moments_fn, d.pdf, 1e-10)
-
-    means = (np.mean(all_means, axis=0))
-    vars = np.mean(all_variances, axis=0)
-    moments_data = np.empty((len(exact_moments[0:start_moments_n]), 2))
-
-    rnd = [np.random.normal(0, 0.01) for v in vars]
-    exact_moments = exact_moments + rnd
-
-    moments_data[:, 0] = exact_moments[0:start_moments_n]
-    moments_data[:, 1] = np.zeros(len(exact_moments[0:start_moments_n]))
-
-    moments_data[:, 0] = means[:start_moments_n]
-    moments_data[:, 1] = vars[:start_moments_n]
-
-    mc_test.moments_fn.size = start_moments_n
-
-    distr_obj = mlmc.distribution.Distribution(mc_test.moments_fn, moments_data)
-    # distr_obj.choose_parameters_from_samples()
-    distr_obj.domain = mc_test.moments_fn.domain
-    # result = distr_obj.estimate_density(tol=0.0001)
-    result = distr_obj.estimate_density_minimize(tol=1)
-
-    mc_test.distr_obj = distr_obj
-    # density = density_from_prior_estimate(distr_obj, mc_test, exact_moments, d, moments_data)
-
-    return mc_test
-
-
-def density_from_prior_estimate(distr_obj, mc_test, exact_moments, exact_density_object, moments_data):
-    """
-    Estimate current density from prior one
-    :param distr_obj: Distribution object
-    :param mc_test: TestMLMC instance
-    :param exact_moments: list, exact moments
-    :param exact_density_object: Exact density object for artificial distributions
-    :param moments_data: Moments data from MLMC
-    :return: Density values
-    """
-    size = 1e5
-    x = np.linspace(distr_obj.domain[0], distr_obj.domain[1], size)
-    density = distr_obj.density(x)
-    # exact_density = exact_density_object.pdf(x)
-    # tol = 1e-5
-    # last_density = density
-    # last_distr_obj = distr_obj
-
-    while True: # Now there is no termination criterion !!
-        # Last multipliers and density
-        multipliers = distr_obj.multipliers
-        multipliers = np.append(multipliers, 0)
-
-        # Add new moment, default zero
-        moments = np.empty((len(moments_data) + 1, 2))
-        moments[:, 0] = exact_moments[0:len(moments_data) + 1]
-        moments[:, 1] = np.zeros(len(moments_data) + 1)
-        moments_data = moments
-
-        # Set new moments size
-        mc_test.moments_fn.size = len(moments_data)
-
-        # Compute new density
-        distr_obj = mlmc.distribution.Distribution(mc_test.moments_fn, moments_data)
-        distr_obj.multipliers = multipliers
-        distr_obj.domain = mc_test.moments_fn.domain
-        distr_obj.estimate_density_minimize(tol=1e-15)
-        density = distr_obj.density(x)
-
-        kl_div = mlmc.distribution.KL_divergence(exact_density_object.pdf, distr_obj.density,
-                                                 mc_test.moments_fn.domain[0],
-                                                 mc_test.moments_fn.domain[1])
-        L2_norm = mlmc.distribution.L2_distance(exact_density_object.pdf, distr_obj.density,
-                                                mc_test.moments_fn.domain[0],
-                                                mc_test.moments_fn.domain[1])
-
-        plt.plot(x, density, label="entropy density")
-        plt.plot(x, exact_density_object.pdf(x), label="pdf")
-        plt.legend()
-        plt.show()
-
-    return density
 
 
 @pytest.mark.skip
@@ -879,15 +583,12 @@ def test_distributions():
     levels = [1]#, 2, 3, 5, 7, 9]
     n_moments = 10
     # Loop through distributions and levels
-    for distr in distributions:
+    for distr, is_log, sim_method in distributions:
         for level in levels:
-            mlmc_list.append(compute_mlmc_distribution(level, distr, n_moments))
+            test_mc = TestMLMC(level, n_moments, distr, is_log, sim_method)
+            test_mc.generate_samples([100000])
+            mlmc_list.append(test_mc)
 
-    fig = plt.figure(figsize=(30, 10))
-    ax1 = fig.add_subplot(1, 2, 1)
-    ax2 = fig.add_subplot(1, 2, 2)
-
-    n_moments = 5
     # One level MC samples
     mc0_samples = mlmc_list[0].mc.levels[0].sample_values[:, 0]
     mlmc_list[0].ref_domain = (np.min(mc0_samples), np.max(mc0_samples))
@@ -896,12 +597,96 @@ def test_distributions():
     for test_mc in mlmc_list:
         test_mc.mc.clean_subsamples()
         test_mc.mc.update_moments(test_mc.moments_fn)
-        domain, est_domain, mc_test = mlmc.estimate.compute_results(mlmc_list[0], n_moments, test_mc)
-        mlmc.estimate.plot_pdf_approx(ax1, ax2, mc0_samples, mc_test, domain, est_domain)
-    ax1.legend()
-    ax2.legend()
-    fig.savefig('compare_distributions.pdf')
-    plt.show()
+        estimator = mlmc.estimate.Estimate(test_mc.mc, test_mc.moments_fn)
+        estimator.construct_density()
+        distr_plot = mlmc.plot.Distribution()
+        distr_plot.add_distribution(estimator._distribution)
+        distr_plot.show(None)
 
 
-#test_distributions()
+@pytest.mark.skip
+def test_pdf_eval():
+    """
+    Test reconstruction of the density function from exact moments.
+    - various distributions
+    - various moments functions
+    - test convergency with increasing number of moments
+    :return:
+    """
+    #np.random.seed(3)  # To be reproducible
+    n_levels = [4]  # [1, 2, 3, 5, 7]
+    moment_size = 20
+
+    distr = [
+        (stats.norm(loc=1, scale=2), False, '_sample_fn', "(loc=1, scale=2)"),
+        # (stats.norm(loc=1, scale=10), False, '_sample_fn'),
+        #(stats.lognorm(scale=np.exp(5), s=1), True, '_sample_fn', "(scale=np.exp(5), s=1)"),# not from exact zero
+        # (stats.lognorm(scale=np.exp(-3), s=2), True, '_sample_fn'),  # worse conv of higher moments
+        #(stats.chi2(df=10), True, '_sample_fn', "(df=10)"),
+         #(stats.chi2(df=5), True, '_sample_fn'),
+        #WORSE (stats.weibull_min(c=0.5), False, '_sample_fn'),  # Exponential
+        #(stats.weibull_min(c=1), False, '_sample_fn', "(c=1)"),  # Exponential
+        # (stats.weibull_min(c=2), False, '_sample_fn'),  # Rayleigh distribution
+        #(stats.weibull_min(c=5, scale=4), False, '_sample_fn', "(c=5, scale=4)"),  # close to normal
+        # (stats.weibull_min(c=1.5), True, '_sample_fn'),  # Infinite derivative at zero
+        # (stats.lognorm(scale=np.exp(-5), s=1), True, '_sample_fn_no_error'),
+        #(stats.weibull_min(c=20), True, '_sample_fn_no_error', "(c=20)"),   # Exponential
+        # (stats.weibull_min(c=20), True, '_sample_fn_no_error'),   # Exponential
+        #(stats.weibull_min(c=3), True, '_sample_fn_no_error', "(c=3)")    # Close to normal
+    ]
+
+    # Save to csv file object
+    quantile_list = [0.0001]#, 0.001, 0.0001, 0.000001]
+
+    # Plot objects
+    distr_plot = mlmc.plot.Distribution()
+    eval_plot = mlmc.plot.Eigenvalues()
+
+    for nl in n_levels:
+        for d, log_flag, sim, params in distr:
+            for quantile in quantile_list:
+                # Use TestMLMC object
+                mc_test = TestMLMC(nl, moment_size, d, log_flag, sim, quantile=quantile)
+                # number of samples on each level
+                var = 1e-6
+                #total_samples = mc_test.mc.sample_range(10000, 100)
+                mc_test.mc.set_initial_n_samples()
+                mc_test.mc.target_var_adding_samples(var, mc_test.moments_fn)
+                mc_test.mc.update_moments(mc_test.moments_fn)
+
+                fn_name = "Legendre"
+                distr_name = d.dist.name
+                print("Testing moments: {} for distribution: {}".format(fn_name, distr_name))
+                tol_density_approx = 1e-15
+
+                # Estimate covariance, eigenvalues, ...
+                mlmc_est = mlmc.estimate.Estimate(mc_test.mc)
+                est_cov = mlmc_est.estimate_covariance(mc_test.moments_fn, mlmc_est.mlmc.levels)
+                moments_obj = mlmc_est.construct_ortogonal_moments(mc_test.moments_fn)
+                eval, _, threshold, _ = mlmc_est.compute_eval_evec(mc_test.moments_fn, est_cov)
+
+                # Get exact eigenvalues
+                exact_cov = mlmc.simple_distribution.compute_exact_cov(mc_test.moments_fn, d.pdf)
+                exact_eval, _, _, _ = mlmc_est.compute_eval_evec(mc_test.moments_fn, exact_cov)
+
+                # Format moments values
+                moments = mlmc_est.estimate_moments(moments_obj)
+                moments_data = np.empty((len(moments[0]), 2))
+                moments_data[:, 0] = moments[0]
+                moments_data[:, 1] = moments[1]
+
+                # Estimate density
+                distr_obj = SimpleDistribution(moments_obj, moments_data, domain=moments_obj.domain)
+                distr_obj.estimate_density_minimize(tol_density_approx)
+
+                # Transform eigenvalues
+                transform_cov = mlmc_est.estimate_covariance(moments_obj, mlmc_est.mlmc.levels)
+                eval_transform, _, _, _ = mlmc_est.compute_eval_evec(moments_obj, transform_cov)
+
+                eval_plot.add_values(eval, label="estimated eigenvalues")
+                eval_plot.add_values(eval_transform, label="transform eigenvalues")
+                eval_plot.add_values(exact_eval, label="exact eigenvalues")
+                distr_plot.add_distribution(distr_obj)
+
+                eval_plot.show(None)
+                distr_plot.show(None)
