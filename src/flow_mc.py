@@ -316,11 +316,10 @@ class FlowSim(simulation.Simulation):
         try:
             with open(profiler, "r") as f:
                 prof_content = json.load(f)
-            dt_obj_start = dt.strptime(prof_content["run-started-at"], "%m/%d/%y %H:%M:%S")
-            dt_obj_end = dt.strptime(prof_content["run-finished-at"], "%m/%d/%y %H:%M:%S")
-            run_time = (dt_obj_end - dt_obj_start).total_seconds()
+
+            run_time = float(prof_content['children'][0]['cumul-time-sum'])
         except:
-             print("Extract run time failed")
+            print("Extract run time failed")
 
         return run_time
 

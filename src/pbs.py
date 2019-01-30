@@ -118,7 +118,7 @@ class Pbs:
         script_content = "\n".join(self.pbs_script)
         pbs_file = os.path.join(self._job_dir, "{:04d}.sh".format(self._job_count))
 
-        pbs_file_pom = os.path.join("/storage/liberec1-tul/home/martin_spetlik",
+        pbs_file_pom = os.path.join("/storage/liberec3-tul/home/martin_spetlik",
                                     "{:04d}.sh".format(self._job_count))
         self._job_count += 1
         with open(pbs_file_pom, "w") as file_writer:

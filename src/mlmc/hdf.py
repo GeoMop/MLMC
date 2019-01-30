@@ -78,14 +78,14 @@ class HDF5:
         self.work_dir = work_dir
         # Absolute path to mlmc HDF5 file
         self.file_name = os.path.join(work_dir, file_name)
-        # Job directroy relative path
+        # Job directory relative path
         self.job_dir = job_dir
         # Job directory absolute path
         self.job_dir_abs_path = os.path.join(work_dir, job_dir)
 
         # @TODO: Remove this and solve it complexly
         # if os.path.exists(self.file_name):
-        #    os.remove(self.file_name)
+        #         #    os.remove(self.file_name)
 
         # h5py.File object - works generally like standard Python file objects, ppen with mode append
         self._hdf_file = h5py.File(self.file_name, 'a')
@@ -93,6 +93,9 @@ class HDF5:
         # Class attributes necessary for mlmc
         self.n_levels = None
         self.step_range = None
+
+    def close_file(self):
+        self._hdf_file.close()
 
     def load_from_file(self):
         """
@@ -170,7 +173,10 @@ class LevelGroup:
                        "result": {'name': 'collected_values', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
                                   'dtype': np.float64},
                        "time": {'name': 'collected_times', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
-                                'dtype': np.float64}}
+                                'dtype': np.float64},
+                       "running_time": {'name': 'running_times', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
+                                'dtype': np.float64}
+                       }
 
     def __init__(self, hdf_group, level_id, job_dir):
         """

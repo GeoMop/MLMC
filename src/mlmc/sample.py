@@ -23,15 +23,6 @@ class Sample:
         self.running_time = kwargs.get('running_time', 0.0)
         self._time = kwargs.get('time', None)
 
-    # def set_values(self, attributes):
-    #     """
-    #     Set sample attributes
-    #     :param attributes:
-    #     :return:
-    #     """
-    #     for name, value in attributes.items():
-    #         setattr(self, name, value)
-
     @property
     def time(self):
         """

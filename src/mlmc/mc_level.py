@@ -662,3 +662,10 @@ class Level:
         times = times[(times < 1e5)]
 
         return np.mean(times)
+
+    def avg_sample_running_time(self):
+        """
+        Get average sample simulation running time per samples
+        :return: float
+        """
+        return np.mean([sample.running_time for sample, _ in self.collected_samples])

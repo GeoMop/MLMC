@@ -131,8 +131,6 @@ class Fourier(Moments):
         else:
             return np.cos(i / 2 * t)
 
-
-
 class Legendre(Moments):
 
     def __init__(self, size, domain, log=False, safe_eval=True):
