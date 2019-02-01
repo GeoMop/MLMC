@@ -11,6 +11,8 @@ import mlmc.moments
 import mlmc.distribution
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
+
+sys.path.append(os.path.join(src_path, '..'))
 import base_process
 
 
@@ -68,9 +70,12 @@ class CondField(base_process.Process):
         """
         os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
 
+        self.n_moments = 10
+
         mlmc_list = []
         for nl in [1]:  # , 2, 3, 4,5, 7, 9]:
             mlmc = self.setup_config(nl, clean=True)
+            # self.n_sample_estimate(mlmc)
             self.generate_jobs(mlmc, n_samples=[8])
             mlmc_list.append(mlmc)
 

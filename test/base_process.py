@@ -206,11 +206,15 @@ class Process:
         :param target_variance: float, target variance of moments
         :return: None
         """
-        mlmc.set_initial_n_samples([30, 3])
+        mlmc.set_initial_n_samples()
         mlmc.refill_samples()
         self.pbs_obj.execute()
         mlmc.wait_for_simulations(sleep=self.sample_sleep, timeout=self.init_sample_timeout)
-        mlmc.target_var_adding_samples(target_variance, self.moments_fn, 2.0)
+
+        self.domain = mlmc.estimate_domain()
+        self.set_moments(self.n_moments, log=True)
+
+        mlmc.target_var_adding_samples(target_variance, self.moments_fn, pbs=self.pbs_obj)
 
     def all_collect(self, mlmc_list):
         """

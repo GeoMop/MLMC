@@ -14,7 +14,6 @@ import flow_mc as flow_mc
 import mlmc.correlated_field as cf
 import mlmc.estimate
 
-src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..'))
 import base_process
 
@@ -83,6 +82,7 @@ class ProcConc(base_process.Process):
         mlmc_list = []
         for nl in [5]:  # , 2, 3, 4,5, 7, 9]:
             mlmc = self.setup_config(nl, clean=True)
+            # self.n_sample_estimate(mlmc)
             self.generate_jobs(mlmc, n_samples=[5, 5, 5, 5, 5])
             mlmc_list.append(mlmc)
 
@@ -95,7 +95,6 @@ class ProcConc(base_process.Process):
         :param clean: bool
         :return: None
         """
-
         # Set pbs config, flow123d, gmsh, ...
         self.set_environment_variables()
         output_dir = os.path.join(self.work_dir, "output_{}".format(n_levels))

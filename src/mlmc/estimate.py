@@ -235,7 +235,6 @@ class Estimate:
     def estimate_domain(self):
         """
         Estimate domain of the density function.
-        TODO: compute mean and variance and use quantiles of normal or lognormal distribution (done in Distribution)
         :return:
         """
         ranges = np.array([l.sample_range() for l in self.levels])
