@@ -810,12 +810,12 @@ def analyze_pdf_approx(cl):
     print("cl domain:", cl.domain)
 
     cl.reinit(n_moments = 35, domain=[0.1, 4])
-    il = 7
+    il = 1
     #ns = cl[il].mlmc.estimate_n_samples_for_target_variance(0.01, cl.moments)
     #cl[il].mlmc.subsample(ns)
     #cl.construct_densities(tol = 0.01, reg_param = 1)
 
-    cl[il].construct_density(tol = 0.01, reg_param = 1)
+    cl[il].construct_density(tol = 0.01, reg_param = 0)
     cl.plot_densities(i_sample_mlmc=0)
 
 
@@ -1010,7 +1010,7 @@ def main():
         assert os.path.isdir(work_dir)
         mlmc_list = []
         #for nl in [ 1,3,5,7,9]:
-        for nl in [7]:  # high resolution fields
+        for nl in [1]:  # high resolution fields
             prmc = UglyMLMC(work_dir, options)
             prmc.setup(nl)
             prmc.initialize(clean=False)

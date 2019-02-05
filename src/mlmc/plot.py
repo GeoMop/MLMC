@@ -82,7 +82,7 @@ class Distribution:
 
             pdf_err_title = "error - dashed"
             if error_plot == 'kl':
-                pdf_err_title = "kl-error - dashed"
+                pdf_err_title = "KL-error - dashed"
             self.ax_pdf_err.set_ylabel(pdf_err_title)
             self.ax_cdf_err = self.ax_cdf.twinx()
             self.ax_cdf.set_zorder(10)
@@ -97,10 +97,12 @@ class Distribution:
         Add histogram and ecdf for raw samples.
         :param samples:
         """
+        domain = (np.min(samples), np.max(samples))
+        self.adjust_domain(domain)
         bins = self._grid(np.sqrt(len(samples)))
         self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
         X = np.sort(samples)
-        Y = np.arange(1, len(xs) + 1) / float(len(xs))
+        Y = np.arange(1, len(X) + 1) / float(len(X))
         self.ax_cdf.plot(X, Y, 'red')
 
 
@@ -122,7 +124,6 @@ class Distribution:
         color = 'C{}'.format(self.i_plot)
 
         plots = []
-        print("pdf max: ", distr_object.density(0.0))
         Y_pdf = distr_object.density(X)
         self.ax_pdf.plot(X, Y_pdf, label=label, color=color)
         self._plot_borders(self.ax_pdf, color, domain)
@@ -132,9 +133,10 @@ class Distribution:
         self._plot_borders(self.ax_cdf, color, domain)
 
         if self._error_plot and self._exact_distr is not None:
-            if self._error_plot == 'KL':
+            if self._error_plot == 'kl':
                 exact_pdf = self._exact_distr.pdf(X)
-                eY_pdf = exact_pdf * np.log(exact_pdf / Y_pdf)
+                eY_pdf = exact_pdf * np.log(exact_pdf / Y_pdf) - exact_pdf + Y_pdf
+                #eY_pdf = exact_pdf / Y_pdf #* np.log(exact_pdf / Y_pdf) / Y_pdf
             else:
                 eY_pdf = Y_pdf - self._exact_distr.pdf(X)
             self.ax_pdf_err.plot(X, eY_pdf, linestyle="--", color=color, linewidth=0.5)

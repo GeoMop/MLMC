@@ -75,7 +75,11 @@ class SimpleDistribution:
         print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
            self.approx_size, result.nit, tol, jac_norm, result.message))
 
-        self._calculate_jacobian_matrix(self.multipliers)
+        jac = self._calculate_jacobian_matrix(self.multipliers)
+        result.eigvals = np.linalg.eigvalsh(jac)
+        #result.residual = jac[0] * self._moment_errs
+        #result.residual[0] *= self._moment_errs[0]
+        result.solver_res = result.jac
         # Fix normalization
         moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
         m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1])[0]
@@ -136,7 +140,7 @@ class SimpleDistribution:
         #self.moment_errs[0] = np.min(self.moment_errs[1:]) / 8
 
         self._moment_errs = self.moment_errs
-        self._moment_errs[0] = np.min(self.moment_errs[1:]) / 2
+        #self._moment_errs[0] = np.min(self.moment_errs[1:]) / 2
 
         # Start with uniform distribution
         self.multipliers = np.zeros(size)
@@ -446,9 +450,15 @@ def KL_divergence(prior_density, posterior_density, a, b):
     :return: KL divergence value
     """
     def integrand(x):
-        return prior_density(x) * np.log(prior_density(x) / max(posterior_density(x), 1e-300))
-    value = integrate.quad(integrand, a, b)
-    return value[0]
+        # prior
+        p = prior_density(x)
+        # posterior
+        q = max(posterior_density(x), 1e-300)
+        # modified integrand to provide positive value even in the case of imperfect normalization
+        return  p * np.log(p / q) - p + q
+
+    value = integrate.quad(integrand, a, b, epsabs=1e-10)
+    return max(value[0], 1e-10)
 
 
 def L2_distance(prior_density, posterior_density, a, b):

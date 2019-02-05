@@ -119,8 +119,8 @@ class ConvResult:
         self.success = False
 
     def __str__(self):
-        return "#{} it:{} err:{} kl:{:6.2g} l2:{:6.2g}".format(self.size, self.nit, self.residual_norm,
-                                                               self.kl, self.l2)
+        return "#{} it:{} err:{:6.2g} kl:{:6.2g} l2:{:6.2g} lambda_0:{:4.2} bound:{:6.2g}".format(self.size, self.nit, self.residual_norm,
+                                                               self.kl, self.l2, self.lambda_0, self.theory_bound)
 
 class DistributionDomainCase:
     """
@@ -168,7 +168,7 @@ class DistributionDomainCase:
         tol_exact_moments = 1e-6
         moment_class, min_n_moments, max_n_moments, self.use_covariance = moments_data
         log = self.log_flag
-        self.moment_sizes = np.round(np.exp(np.linspace(np.log(min_n_moments), np.log(max_n_moments), 8))).astype(int)
+        self.moment_sizes = np.round(np.exp(np.linspace(np.log(min_n_moments), np.log(max_n_moments), 4))).astype(int)
         #self.moment_sizes = [3,4,5,6,7]
         self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
 
@@ -240,7 +240,6 @@ class DistributionDomainCase:
 
     def make_approx(self, distr_class, noise, moments_data, tol):
         result = ConvResult()
-
         distr_obj = distr_class(self.moments_fn, moments_data,
                                 domain=self.domain, force_decay=self.cut_distr.force_decay)
         t0 = time.time()
@@ -261,6 +260,11 @@ class DistributionDomainCase:
         a, b = self.domain
         result.kl = mlmc.simple_distribution.KL_divergence(self.pdf, distr_obj.density, a, b)
         result.l2 = mlmc.simple_distribution.L2_distance(self.pdf, distr_obj.density, a, b)
+        #assert np.linalg.norm(min_result.residual - min_result.solver_res) < 1e-10
+        moments_diff = self.exact_moments[:result.size] - (moments[:result.size] - min_result.solver_res)
+        result.theory_bound = np.linalg.norm(moments_diff)**2 / min_result.eigvals[0]
+        result.lambda_0 = min_result.eigvals[0]
+        #print("noise: {} diff: {}", np.linalg.norm(moments_diff))
         print(result)
         X = np.linspace(self.cut_distr.domain[0], self.cut_distr.domain[1] , 10)
         density_vals = distr_obj.density(X)
@@ -322,14 +326,14 @@ class DistributionDomainCase:
         and varying amount of noise added to covariance matrix.
         :return:
         """
-        min_noise = 1e-6
+        min_noise = 1e-4
         max_noise = 0.01
         results = []
         distr_plot = mlmc.plot.Distribution(exact_distr=self.cut_distr, legend_title="noise level", title="Density, " + self.title,
                                             log_x=self.log_flag, error_plot='kl')
         self.eigenvalues_plot = mlmc.plot.Eigenvalues(title = "Eigenvalues, " + self.title)
 
-        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 5))
+        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 6))
         noise_levels = np.flip(np.concatenate(([0.0], geom_seq)))
         for noise in noise_levels:
             print("======================")
@@ -354,7 +358,7 @@ class DistributionDomainCase:
                     print("Violated ASSERT: {} < {}".format(mom_err/(noise + 1e-10), 50))
 
                 result, distr_obj = self.make_approx(mlmc.simple_distribution.SimpleDistribution, noise, moments_data,
-                                                     tol=1e-5)
+                                                     tol=max(0.1*noise, 1e-10))
             else:
                 # TODO:
                 # Use SimpleDistribution only as soon as it use regularization that improve convergency even without
@@ -386,11 +390,13 @@ def plot_convergence(quantiles, conv_val, title):
         X = np.arange(len(results))
         kl = [r.kl for r in results]
         l2 = [r.l2 for r in results]
+        bound = [r.theory_bound for r in results]
         col = plt.cm.tab10(plt.Normalize(0,10)(iq))
         ax.plot(X, kl, ls='solid', c=col, label="kl_q="+str(q), marker='o')
         ax.plot(X, l2, ls='dashed', c=col, label="l2_q=" + str(q), marker='d')
+        ax.plot(X, bound, ls='dotted', c=col, label="bound_q=" + str(q), marker='d')
     ax.set_yscale('log')
-    ax.set_xscale('log')
+    #ax.set_xscale('log')
     fig.legend()
     fig.suptitle(title)
     fname = title + ".pdf"
@@ -470,122 +476,122 @@ def test_pdf_approx_exact_moments(moments, distribution):
 
 
 
-distr_sublist = [
-        (stats.norm(loc=1, scale=10), False),
-        (stats.lognorm(scale=np.exp(1), s=1), False),    # # No D_KL convergence under 1e-3.
-        #(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
-        (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
-        (stats.chi2(df=5), True), # Monomial: s1=-10, Fourier: s1=-1.6, Legendre: OK
-        # (stats.weibull_min(c=0.5), False),  # No D_KL convergence under 1e-1.
-        (stats.weibull_min(c=1), False),  # Exponential
-        (stats.weibull_min(c=2), False),  # D_KL steady under 1e-6.
-        (stats.weibull_min(c=1.5), True),  # Infinite derivative at zero
-    ]
-
-@pytest.mark.skip
-@pytest.mark.parametrize("distribution", distribution_list)
-def test_pdf_approx_iexact_moments(distribution):
-    np.random.seed(67)
-
-    distr, log_flag = distribution
-    distr_name = distr.dist.name
-    print("Inexact PDF approx for distribution: {}".format(distr_name))
-
-    domain_quantile = 0
-    domain, force_decay = domain_for_quantile(distr, domain_quantile)
-    moments_fn = moments.Legendre(21, domain, log=log_flag, safe_eval=False)
-
-
-
-    # Approximation for exact moments
-    tol_exact_moments = 1e-6
-    density = lambda x: distr.pdf(x)
-    exact_moments = mlmc.distribution.compute_exact_moments(moments_fn, density, tol=tol_exact_moments)
-    # Estimate variances
-    X = distr.rvs(size=1000)
-    est_moment_vars = np.var(moments_fn(X), axis=0, ddof=1)
-    #print(est_moment_vars)
-
-    # fail: 1, 6
-    # fine: 4
-    distr_plot = DistrPlot(distr, distr_name+", for inexact moments")
-    moment_errors = np.exp(np.linspace(np.log(0.01), np.log(0.000001), 20))
-    kl_collected = np.empty( len(moment_errors) )
-    l2_collected = np.empty_like(kl_collected)
-    warn_log = []
-    n_failed = 0
-    cum_time = 0
-    cum_it = 0
-    for i_m, err in enumerate(moment_errors):
-        perturb = 0* stats.norm.rvs(size = moments_fn.size) * err * np.sqrt(est_moment_vars)
-        moments_data = np.empty((moments_fn.size, 2))
-        moments_data[:, 0] = exact_moments + perturb
-        moments_data[:, 1] = est_moment_vars
-        distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data,
-                                                   domain=domain, force_decay=force_decay)
-        t0 = time.time()
-        # result = distr_obj.estimate_density(tol_exact_moments)
-        result = distr_obj.estimate_density_minimize(err*4)
-        #result = profile(lambda : distr_obj.estimate_density_minimize(tol_exact_moments))
-        t1 = time.time()
-        cum_time += t1 - t0
-        nit = getattr(result, 'nit', result.njev)
-        cum_it += nit
-        fn_norm = result.fun_norm
-        if result.success:
-            kl_div = mlmc.distribution.KL_divergence(density, distr_obj.density, domain[0], domain[1])
-            l2_dist = mlmc.distribution.L2_distance(distr_obj.density, density, domain[0], domain[1])
-            kl_collected[i_m] = kl_div
-            l2_collected[i_m] = l2_dist
-            #print("q: {}, err: {:7.3g} :: nit: {} fn: {} ; kl: {} l2: {}".format(
-            #    domain_quantile, err, nit, fn_norm, kl_div, l2_dist))
-            distr_plot.plot_approximation(distr_obj, str(err))
-        else:
-            n_failed+=1
-            print("q: {}, err {} :: nit: {} fn:{} ; msg: {}".format(
-                domain_quantile, err, nit, fn_norm, result.message))
-
-            kl_collected[i_m] = np.nan
-            l2_collected[i_m] = np.nan
-
-    # Check convergence
-    #print(kl_collected)
-    s1, s0 = np.polyfit(np.log(moment_errors), np.log(kl_collected), 1)
-    max_err = np.max(kl_collected)
-    min_err = np.min(kl_collected)
-    if not (n_failed == 0 and (max_err < 1e-6 or s1 > 0)):
-        warn_log.append((domain_quantile, n_failed,  s1, s0, max_err))
-        fail = 'NQ'
-    else:
-        fail = ' q'
-    fail = ' q'
-    print(fail + ": ({:5.3g}, {:5.3g});  failed: {} tavg: {:5.3g};  s1: {:5.3g} s0: {:5.3g} kl: ({:5.3g}, {:5.3g})".format(
-        domain[0], domain[1], n_failed, cum_time/cum_it, s1, s0, min_err, max_err))
-
-    #distr_plot.show()
-    distr_plot.clean()
-
-
-
-    def plot_convergence():
-        plt.plot(moment_errors, kl_collected, ls='solid', c='red')
-        plt.plot(moment_errors, l2_collected, ls='dashed', c='blue')
-        plt.yscale('log')
-        plt.xscale('log')
-        plt.legend()
-        plt.show()
-
-    #plot_convergence()
-
-    # if warn_log:
-    #     for warn in warn_log:
-    #         print(warn)
-
-
-
-
-
-
+# distr_sublist = [
+#         (stats.norm(loc=1, scale=10), False),
+#         (stats.lognorm(scale=np.exp(1), s=1), False),    # # No D_KL convergence under 1e-3.
+#         #(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
+#         (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
+#         (stats.chi2(df=5), True), # Monomial: s1=-10, Fourier: s1=-1.6, Legendre: OK
+#         # (stats.weibull_min(c=0.5), False),  # No D_KL convergence under 1e-1.
+#         (stats.weibull_min(c=1), False),  # Exponential
+#         (stats.weibull_min(c=2), False),  # D_KL steady under 1e-6.
+#         (stats.weibull_min(c=1.5), True),  # Infinite derivative at zero
+#     ]
+#
+# @pytest.mark.skip
+# @pytest.mark.parametrize("distribution", distribution_list)
+# def test_pdf_approx_iexact_moments(distribution):
+#     np.random.seed(67)
+#
+#     distr, log_flag = distribution
+#     distr_name = distr.dist.name
+#     print("Inexact PDF approx for distribution: {}".format(distr_name))
+#
+#     domain_quantile = 0
+#     domain, force_decay = domain_for_quantile(distr, domain_quantile)
+#     moments_fn = moments.Legendre(21, domain, log=log_flag, safe_eval=False)
+#
+#
+#
+#     # Approximation for exact moments
+#     tol_exact_moments = 1e-6
+#     density = lambda x: distr.pdf(x)
+#     exact_moments = mlmc.distribution.compute_exact_moments(moments_fn, density, tol=tol_exact_moments)
+#     # Estimate variances
+#     X = distr.rvs(size=1000)
+#     est_moment_vars = np.var(moments_fn(X), axis=0, ddof=1)
+#     #print(est_moment_vars)
+#
+#     # fail: 1, 6
+#     # fine: 4
+#     distr_plot = DistrPlot(distr, distr_name+", for inexact moments")
+#     moment_errors = np.exp(np.linspace(np.log(0.01), np.log(0.000001), 20))
+#     kl_collected = np.empty( len(moment_errors) )
+#     l2_collected = np.empty_like(kl_collected)
+#     warn_log = []
+#     n_failed = 0
+#     cum_time = 0
+#     cum_it = 0
+#     for i_m, err in enumerate(moment_errors):
+#         perturb = 0* stats.norm.rvs(size = moments_fn.size) * err * np.sqrt(est_moment_vars)
+#         moments_data = np.empty((moments_fn.size, 2))
+#         moments_data[:, 0] = exact_moments + perturb
+#         moments_data[:, 1] = est_moment_vars
+#         distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data,
+#                                                    domain=domain, force_decay=force_decay)
+#         t0 = time.time()
+#         # result = distr_obj.estimate_density(tol_exact_moments)
+#         result = distr_obj.estimate_density_minimize(err*4)
+#         #result = profile(lambda : distr_obj.estimate_density_minimize(tol_exact_moments))
+#         t1 = time.time()
+#         cum_time += t1 - t0
+#         nit = getattr(result, 'nit', result.njev)
+#         cum_it += nit
+#         fn_norm = result.fun_norm
+#         if result.success:
+#             kl_div = mlmc.distribution.KL_divergence(density, distr_obj.density, domain[0], domain[1])
+#             l2_dist = mlmc.distribution.L2_distance(distr_obj.density, density, domain[0], domain[1])
+#             kl_collected[i_m] = kl_div
+#             l2_collected[i_m] = l2_dist
+#             #print("q: {}, err: {:7.3g} :: nit: {} fn: {} ; kl: {} l2: {}".format(
+#             #    domain_quantile, err, nit, fn_norm, kl_div, l2_dist))
+#             distr_plot.plot_approximation(distr_obj, str(err))
+#         else:
+#             n_failed+=1
+#             print("q: {}, err {} :: nit: {} fn:{} ; msg: {}".format(
+#                 domain_quantile, err, nit, fn_norm, result.message))
+#
+#             kl_collected[i_m] = np.nan
+#             l2_collected[i_m] = np.nan
+#
+#     # Check convergence
+#     #print(kl_collected)
+#     s1, s0 = np.polyfit(np.log(moment_errors), np.log(kl_collected), 1)
+#     max_err = np.max(kl_collected)
+#     min_err = np.min(kl_collected)
+#     if not (n_failed == 0 and (max_err < 1e-6 or s1 > 0)):
+#         warn_log.append((domain_quantile, n_failed,  s1, s0, max_err))
+#         fail = 'NQ'
+#     else:
+#         fail = ' q'
+#     fail = ' q'
+#     print(fail + ": ({:5.3g}, {:5.3g});  failed: {} tavg: {:5.3g};  s1: {:5.3g} s0: {:5.3g} kl: ({:5.3g}, {:5.3g})".format(
+#         domain[0], domain[1], n_failed, cum_time/cum_it, s1, s0, min_err, max_err))
+#
+#     #distr_plot.show()
+#     distr_plot.clean()
+#
+#
+#
+#     def plot_convergence():
+#         plt.plot(moment_errors, kl_collected, ls='solid', c='red')
+#         plt.plot(moment_errors, l2_collected, ls='dashed', c='blue')
+#         plt.yscale('log')
+#         plt.xscale('log')
+#         plt.legend()
+#         plt.show()
+#
+#     #plot_convergence()
+#
+#     # if warn_log:
+#     #     for warn in warn_log:
+#     #         print(warn)
+#
+#
+#
+#
+#
+#
 
 
 
