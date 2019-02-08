@@ -749,13 +749,14 @@ class CompareLevels:
         """
 
         print("\n#Levels |     N collected samples")
+        print("\n        |     Average sample time")
         for mlmc in self.mlmc:
-            tab_fields = ["{:8}".format(n) for n in mlmc.n_samples]
-            print("{:7} | {}".format(mlmc.n_levels, " ".join(tab_fields)))
+            samples_tabs = ["{:8}".format(n) for n in mlmc.n_samples]
+            times_tabs = ["{:8.2f}s".format(t) for t in mlmc.mlmc.get_sample_times()]
+            print("{:7} | {}".format(mlmc.n_levels, " ".join(samples_tabs)))
+            print("{:7} | {}".format(mlmc.n_levels, " ".join(times_tabs)))
         print("\n")
 
-        print("sample times")
-        print([mlmc.mlmc.get_sample_times() for mlmc in self.mlmc])
 
     def set_common_domain(self, i_mlmc, domain=None):
         if domain is not None:
