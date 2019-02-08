@@ -86,7 +86,6 @@ def test_mlmc():
         if re.search(r".\.hdf5", f):
             os.remove(os.path.join(work_dir, f))
 
-
     distr = [
         (stats.norm(loc=1, scale=2), False, '_sample_fn'),
         (stats.norm(loc=1, scale=10), False, '_sample_fn'),
@@ -715,17 +714,17 @@ def test_save_load_samples():
         shutil.rmtree(work_dir)
     os.makedirs(work_dir)
 
-    n_levels = 5
+    n_levels = 10
     distr = stats.norm()
     step_range = (0.8, 0.01)
 
     simulation_config = dict(
-        distr=distr, complexity=2, nan_fraction=0.0, sim_method='_sample_fn')
+        distr=distr, complexity=2, nan_fraction=0.2, sim_method='_sample_fn')
     simulation_factory = SimulationTest.factory(step_range, config=simulation_config)
 
     mlmc_options = {'output_dir': work_dir,
                     'keep_collected': True,
-                    'regen_failed': True}
+                    'regen_failed': False}
 
     mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
     mc.create_new_execution()
@@ -735,6 +734,7 @@ def test_save_load_samples():
     mc.wait_for_simulations()
     check_estimates_for_nans(mc, distr)
 
+
     level_data = []
     # Levels collected samples
     for level in mc.levels:
@@ -743,6 +743,7 @@ def test_save_load_samples():
                   level.sample_values)
         assert not np.isnan(level.sample_values).any()
         level_data.append(l_data)
+
 
     mc.clean_levels()
     # Check NaN values
@@ -759,7 +760,6 @@ def test_save_load_samples():
         # Collected sample results must be same
         scheduled, collected, values = data
         # Compare scheduled and collected samples with saved one
-        _compare_samples(scheduled, level.scheduled_samples)
         _compare_samples(collected, level.collected_samples)
 
 
@@ -846,7 +846,7 @@ def _test_regression(distr_cfg, n_levels, n_moments):
 #                 _test_regression(distr, n_levels, n_moments)
 
 if __name__ == '__main__':
-    test_mlmc()
-    #test_save_load_samples()
+    #test_mlmc()
+    test_save_load_samples()
     #_test_shooting()
 
