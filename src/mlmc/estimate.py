@@ -1,8 +1,7 @@
 import mlmc
 import numpy as np
-import scipy.stats as stats
-import matplotlib.pyplot as plt
-
+import scipy.stats as st
+import scipy.integrate as integrate
 from mlmc import simple_distribution
 from mlmc import plot
 
@@ -67,6 +66,42 @@ class Estimate:
     explicitely provided datasets.
     """
 
+
+    def _variance_of_variance(self, n_samples = None):
+        """
+        Approximate variance of log(X) where
+        X is from ch-squared with df=n_samples - 1.
+        Return array of variances for actual n_samples array.
+
+        :param n_samples: Optional array with n_samples.
+        :return: array of variances of variance estimate.
+        """
+        if n_samples is None:
+            n_samples = self.n_samples
+        if hasattr(self, "_saved_var_var"):
+            ns, var_var = self._saved_var_var
+            if np.sum(np.abs(ns - n_samples)) == 0:
+                return var_var
+
+        vars = []
+        for ns in n_samples:
+            df = ns - 1
+
+            def log_chi_pdf(x):
+                return np.exp(x) * df * st.chi2.pdf(np.exp(x) * df, df=df)
+
+            def compute_moment(moment):
+                std_est = np.sqrt(2 / df)
+                fn = lambda x, m=moment: x ** m * log_chi_pdf(x)
+                return integrate.quad(fn, -100 * std_est, 100 * std_est)[0]
+
+            mean = compute_moment(1)
+            second = compute_moment(2)
+            vars.append(second - mean ** 2)
+
+        self._saved_var_var = (n_samples, np.array(vars))
+        return np.array(vars)
+
     def __init__(self, mlmc, moments=None):
         self.mlmc = mlmc
         self.moments = moments
@@ -119,9 +154,27 @@ class Estimate:
     def estimate_domain(self):
         return self.mlmc.estimate_domain()
 
-    def set_moments_color_bar(self, ax):
-        self._moments_cmap = create_color_bar(self.n_moments, "Moments", ax)
-
+    def estimate_level_vars(self, moments_fn=None):
+        """
+        Estimate variances for moments of X approximations on individual levels.
+        i.t. Var \phi_r( X^l ).
+        :param moments_fn:
+        :return:
+        """
+        if moments_fn is None:
+            moments_fn = self.moments
+        sim_steps = self.sim_steps
+        #n_samples = mlmc.n_samples
+        vars = []
+        steps = []
+        for il, level in enumerate(self.levels):
+            var_coarse, var_fine = level.estimate_level_var(moments_fn)
+            if il > 0:
+                vars.append(var_coarse)
+                steps.append(sim_steps[il-1])
+            vars.append(var_fine)
+            steps.append(sim_steps[il])
+        return np.array(steps), np.array(vars)
 
     def estimate_diff_vars_regression(self, moments_fn=None, raw_vars=None):
         """
@@ -138,6 +191,42 @@ class Estimate:
         #vars = self._varinace_regression(raw_vars, sim_steps)
         vars = self._all_moments_varinace_regression(raw_vars, sim_steps)
         return vars
+
+
+    def _variance_of_variance(self, n_samples = None):
+        """
+        Approximate variance of log(X) where
+        X is from ch-squared with df=n_samples - 1.
+        Return array of variances for actual n_samples array.
+
+        :param n_samples: Optional array with n_samples.
+        :return: array of variances of variance estimate.
+        """
+        if n_samples is None:
+            n_samples = self.n_samples
+        if hasattr(self, "_saved_var_var"):
+            ns, var_var = self._saved_var_var
+            if np.sum(np.abs(ns - n_samples)) == 0:
+                return var_var
+
+        vars = []
+        for ns in n_samples:
+            df = ns - 1
+
+            def log_chi_pdf(x):
+                return np.exp(x) * df * st.chi2.pdf(np.exp(x) * df, df=df)
+
+            def compute_moment(moment):
+                std_est = np.sqrt(2 / df)
+                fn = lambda x, m=moment: x ** m * log_chi_pdf(x)
+                return integrate.quad(fn, -100 * std_est, 100 * std_est)[0]
+
+            mean = compute_moment(1)
+            second = compute_moment(2)
+            vars.append(second - mean ** 2)
+
+        self._saved_var_var = (n_samples, np.array(vars))
+        return np.array(vars)
 
     def _moment_varinace_regression(self, raw_vars, sim_steps):
         """
@@ -190,7 +279,7 @@ class Estimate:
         assert np.allclose( reg_vars[:, 0], 0.0)
         return reg_vars
 
-    def estimate_diff_vars(self, moments_fn):
+    def estimate_diff_vars(self, moments_fn=None):
         """
         Estimate moments variance from samples
         :param moments_fn: Moment evaluation functions
@@ -200,6 +289,8 @@ class Estimate:
 
             Returns simple variance for level 0.
         """
+        if moments_fn is None:
+            moments_fn = self.moments
         vars = []
         n_samples = []
 
@@ -231,6 +322,8 @@ class Estimate:
         :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
         :return: np.array with number of optimal samples for individual levels and moments, array (LxR)
         """
+        if moments_fn is None:
+            moments_fn = self.moments
         if prescribe_vars is None:
             vars = self.estimate_diff_vars_regression(moments_fn)
         else:
@@ -349,16 +442,16 @@ class Estimate:
     def _bs_get_estimates(self):
         moments_fn = self.moments
         #mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
-        level_var_est, _ = self.mlmc.estimate_diff_vars(moments_fn)
-        level_mean_est = self.mlmc.estimate_level_means(moments_fn)
+        level_var_est, _ = self.estimate_diff_vars(moments_fn)
+        level_mean_est = self.estimate_level_means(moments_fn)
         return level_mean_est, level_var_est
 
     def _bs_get_estimates_regression(self):
         moments_fn = self.moments
         #mean_est, var_est = self.mlmc.estimate_moments(moments_fn)
-        level_var_est, _ = self.mlmc.estimate_diff_vars(moments_fn)
-        level_mean_est = self.mlmc.estimate_level_means(moments_fn)
-        level_var_est = self.mlmc.estimate_diff_vars_regression(moments_fn, level_var_est)
+        level_var_est, _ = self.estimate_diff_vars(moments_fn)
+        level_mean_est = self.estimate_level_means(moments_fn)
+        level_var_est = self.estimate_diff_vars_regression(moments_fn, level_var_est)
         #var_est = np.sum(level_var_est[:, :]/self.n_samples[:,  None], axis=0)
         return level_mean_est, level_var_est
 
@@ -448,237 +541,6 @@ class Estimate:
 
 
 
-    def _scatter_level_moment_data(self, ax, values, i_moments=None, marker='o'):
-        """
-        Scatter plot of given table of data for moments and levels.
-        X coordinate is given by level, and slight shift is applied to distinguish the moments.
-        Moments are colored using self._moments_cmap.
-        :param ax: Axis where to add the scatter.
-        :param values: data to plot, array n_levels x len(i_moments)
-        :param i_moments: Indices of moments to use, all moments grater then 0 are used.
-        :param marker: Scatter marker to use.
-        :return:
-        """
-        cmap = self._moments_cmap
-        if i_moments is None:
-            i_moments = range(1, self.n_moments)
-        values = values[:, i_moments[:]]
-        n_levels = values.shape[0]
-        n_moments = values.shape[1]
-
-        moments_x_step = 0.5/n_moments
-        for m in range(n_moments):
-            color = cmap(i_moments[m])
-            X = np.arange(n_levels) + moments_x_step * m
-            Y = values[:, m]
-            col = np.ones(n_levels)[:, None] * np.array(color)[None, :]
-            ax.scatter(X, Y, c=col, marker=marker, label="var, m=" + str(i_moments[m]))
-
-    def plot_bootstrap_variance_compare(self):
-        """
-        Plot fraction (MLMC var est) / (BS var set) for the total variance and level variances.
-        :param moments_fn:
-        :return:
-        """
-        moments_fn = self.moments
-        mean, var, l_mean, l_var = self._bs_get_estimates(moments_fn)
-        l_var = l_var / self.n_samples[: , None]
-        est_variances = np.concatenate((var[None, 1:], l_var[:, 1:]), axis=0)
-
-        bs_var = self._bs_mean_variance
-        bs_l_var = self._bs_level_mean_variance / self.n_samples[:, None]
-        bs_variances = np.concatenate((bs_var[None, 1:], bs_l_var[:, 1:]), axis=0)
-
-        fraction = est_variances / bs_variances
-
-        fig = plt.figure(figsize=(30, 10))
-        ax = fig.add_subplot(1, 1, 1)
-
-        #self._scatter_level_moment_data(ax, bs_variances, marker='.')
-        #self._scatter_level_moment_data(ax, est_variances, marker='d')
-        self._scatter_level_moment_data(ax, fraction, marker='o')
-
-        #ax.legend(loc=6)
-        lbls = ['Total'] + [ 'L{:2d}'.format(l+1) for l in range(self.n_levels)]
-        ax.set_xticks(ticks = np.arange(self.n_levels + 1))
-        ax.set_xticklabels(lbls)
-        ax.set_yscale('log')
-        ax.set_ylim((0.3, 3))
-
-        self.color_bar(moments_fn.size, 'moments')
-
-        fig.savefig('bs_var_vs_var.pdf')
-        plt.show()
-
-    def plot_bs_variances(self, variances, y_label=None, log=True, y_lim=None):
-        """
-        Plot BS estimate of error of variances of other related quantities.
-        :param variances: Data, shape: (n_levels + 1, n_moments).
-        :return:
-        """
-        if y_lim is None:
-            y_lim = (np.min(variances[:, 1:]), np.max(variances[:, 1:]))
-        if y_label is None:
-            y_label = "Error of variance estimates"
-
-        fig = plt.figure(figsize=(8, 5))
-        ax = fig.add_subplot(1, 1, 1)
-        self.set_moments_color_bar(ax)
-        self._scatter_level_moment_data(ax, variances, marker='.')
-
-        lbls = ['Total'] + ['L{:2d}\n{}\n{}'.format(l + 1, nsbs, ns)
-                            for l, (nsbs, ns) in enumerate(zip(self._bs_n_samples, self.n_samples))]
-        ax.set_xticks(ticks = np.arange(self.n_levels + 1))
-        ax.set_xticklabels(lbls)
-        if log:
-            ax.set_yscale('log')
-        ax.set_ylim(y_lim)
-        ax.set_ylabel(y_label)
-
-        fig.savefig('bs_var_var.pdf')
-        plt.show()
-
-    def plot_bs_var_error_contributions(self):
-        """
-        MSE of total variance and contribution of individual levels.
-        """
-        bs_var_var = self._bs_var_variance[:]
-        bs_l_var_var = self._bs_level_var_variance[:, :]
-        bs_l_var_var[:, 1:] /= self._bs_n_samples[:, None]**2
-
-        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
-        self.plot_bs_variances(bs_variances, log=True,
-                               y_label="MSE of total variance and contributions from individual levels.",
-                               )
-
-    def plot_bs_level_variances_error(self):
-        """
-        Plot error of estimates of V_l. Scaled as V_l^2 / N_l
-        """
-        l_var = self._ref_level_var
-
-        l_var_var_scale = l_var[:, 1:] ** 2 * 2 / (self._bs_n_samples[:, None] - 1)
-        total_var_var_scale = np.sum(l_var_var_scale[:, :] / self._bs_n_samples[:, None]**2, axis=0 )
-
-        bs_var_var = self._bs_var_variance[:]
-        bs_var_var[1:] /= total_var_var_scale
-
-        bs_l_var_var = self._bs_level_var_variance[:, :]
-        bs_l_var_var[:, 1:] /= l_var_var_scale
-
-        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
-        self.plot_bs_variances(bs_variances, log=True,
-                               y_label="MSE of level variances estimators scaled by $V_l^2/N_l$.")
-
-    def plot_bs_var_log_var(self):
-        """
-        Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).
-        """
-        #vv = 1/ self.mlmc._variance_of_variance(self._bs_n_samples)
-        vv = self._bs_n_samples
-        bs_l_var_var = np.sqrt((self._bs_level_var_variance[:, :]) * vv[:, None])
-        bs_var_var = self._bs_var_variance[:]  # - np.log(total_var_var_scale)
-        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
-        self.plot_bs_variances(bs_variances, log=True,
-                               y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
-                               )#y_lim=(0.1, 20))
-
-    # def plot_bs_var_reg_var(self):
-    #     """
-    #     Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).
-    #     """
-    #     vv = self.mlmc._variance_of_variance(self._bs_n_samples)
-    #     bs_l_var_var = (self._bs_level_var_variance[:, :]) / vv[:, None]
-    #     bs_var_var = self._bs_var_variance[:]  # - np.log(total_var_var_scale)
-    #     bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
-    #     self.plot_bs_variances(bs_variances, log=True,
-    #                            y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
-    #                            y_lim=(0.1, 20))
-
-
-    def plot_means_and_vars(self, moments_mean, moments_var, n_levels, exact_moments):
-        """
-        Plot means with variance whiskers to given axes.
-        :param moments_mean: array, moments mean
-        :param moments_var: array, moments variance
-        :param n_levels: array, number of levels
-        :param exact_moments: array, moments from distribution
-        :param ex_moments: array, moments from distribution samples
-        :return:
-        """
-        colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
-        # print("moments mean ", moments_mean)
-        # print("exact momentss ", exact_moments)
-
-        x = np.arange(0, len(moments_mean[0]))
-        x = x - 0.3
-        default_x = x
-
-        for index, means in enumerate(moments_mean):
-            if index == int(len(moments_mean) / 2) and exact_moments is not None:
-                plt.plot(default_x, exact_moments, 'ro', label="Exact moments")
-            else:
-                x = x + (1 / (len(moments_mean) * 1.5))
-                plt.errorbar(x, means, yerr=moments_var[index], fmt='o', capsize=3, color=next(colors),
-                             label = "%dLMC" % n_levels[index])
-        if ex_moments is not None:
-                plt.plot(default_x - 0.125, ex_moments, 'ko', label="Exact moments")
-        plt.legend()
-        #plt.show()
-        #exit()
-
-
-
-
-
-
-
-
-    def plot_var_regression(self, i_moments = None):
-        """
-        Plot total and level variances and their regression and errors of regression.
-        :param i_moments: List of moment indices to plot. If it is an int M, the range(M) is used.
-                       If None, self.moments.size is used.
-        """
-        moments_fn = self.moments
-
-        fig = plt.figure(figsize=(30, 10))
-        ax = fig.add_subplot(1, 2, 1)
-        ax_err = fig.add_subplot(1, 2, 2)
-
-        if i_moments is None:
-            i_moments = moments_fn.size
-        if type(i_moments) is int:
-            i_moments = list(range(i_moments))
-        i_moments = np.array(i_moments, dtype=int)
-
-        self.set_moments_color_bar(ax=ax)
-
-        est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
-        reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn) #/ self.n_samples[:, None]
-        ref_diff_vars = self._ref_level_var #/ self.n_samples[:, None]
-
-        self._scatter_level_moment_data(ax,  ref_diff_vars, i_moments, marker='o')
-        self._scatter_level_moment_data(ax, est_diff_vars, i_moments, marker='d')
-        # add regression curves
-        moments_x_step = 0.5 / self.n_moments
-        for m in i_moments:
-            color = self._moments_cmap(m)
-            X = np.arange(self.n_levels) + moments_x_step * m
-            Y = reg_diff_vars[1:, m]
-            ax.plot(X[1:], Y, c=color)
-            ax_err.plot(X[:], reg_diff_vars[:, m]/ref_diff_vars[:,m], c=color)
-
-        ax.set_yscale('log')
-        ax.set_ylabel("level variance $V_l$")
-        ax.set_xlabel("step h_l")
-
-        ax_err.set_yscale('log')
-        ax_err.set_ylabel("regresion var. / reference var.")
-
-        #ax.legend(loc=2)
-        fig.savefig('level_vars_regression.pdf')
-        plt.show()
 
 
 
@@ -794,7 +656,32 @@ class CompareLevels:
             label = "L = {}".format(mc.n_levels)
             distr_plot.add_distribution(mc._distribution, label=label)
 
-        distr_plot.show(save='compare_distributions.pdf')
+        distr_plot.show('compare_distributions.pdf')
+
+    def plot_variances(self):
+        var_plot = plot.VarianceBreakdown()
+        for mc in self.mlmc:
+            #sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+            sample_vec = mc.estimate_n_samples_for_target_variance(0.0001)
+            print("L", mc.n_levels, sample_vec)
+
+            mc.ref_estimates_bootstrap(300, sample_vector=sample_vec)
+            #sample_vec = [10000, 10000, 3000, 1200, 400, 140, 50, 18, 6]
+            mc.mlmc.subsample(sample_vec)
+            mc.mlmc.update_moments(self.moments)
+
+            vars, n_samples = mc.estimate_diff_vars()
+            var_plot.add_variances(vars, n_samples, ref_level_vars=mc._bs_level_mean_variance)
+        var_plot.show()
+
+    def plot_level_variances(self):
+        var_plot = plot.Variance()
+        moments = np.array([1, 2, 3, 4, 6, 8, 12, 20, 28, 44])
+        moments = moments[moments < self.n_moments]
+        for mc in self.mlmc:
+            steps, vars = mc.estimate_level_vars()
+            var_plot.add_level_variances(steps, vars[:, moments], mc.n_levels)
+        var_plot.show()
 
     def ref_estimates_bootstrap(self, n_samples, sample_vector=None):
         for mc in self.mlmc:

@@ -3,6 +3,7 @@ import sys
 import shutil
 import yaml
 import numpy as np
+import statprof
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
@@ -18,6 +19,7 @@ import mlmc.correlated_field as cf
 from mlmc import moments
 
 from mlmc.estimate import CompareLevels
+from mlmc import plot
 
 class FlowProcSim(flow_mc.FlowSim):
     """
@@ -817,7 +819,7 @@ def analyze_pdf_approx(cl):
     cl.construct_densities(tol = 0.001, reg_param = 1)
 
     #cl[il].construct_density(tol = 0.01, reg_param = 0)
-    cl.plot_densities(i_sample_mlmc=0)
+    cl.plot_densities()
 
 
 def analyze_regression_of_variance(cl):
@@ -830,22 +832,27 @@ def analyze_regression_of_variance(cl):
 
 def analyze_error_of_variance(cl):
     # Error of total variance estimator and contribution form individual levels.
-
-    mc = cl[9]
-    sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
-    #n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
-    #sample_vec = np.max(n_samples, axis=1).astype(int)
-
-    mc.ref_estimates_bootstrap(300, sample_vector=sample_vec)
-    mc.mlmc.update_moments(cl.moments)
-    mc.mlmc.subsample()
-
+    np.random.seed(20)
+    #cl.plot_variances()
+    cl.plot_level_variances()
+    # mc = cl[9]
+    # sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+    # #n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
+    # #sample_vec = np.max(n_samples, axis=1).astype(int)
+    #
+    # mc.ref_estimates_bootstrap(300, sample_vector=sample_vec)
+    # sample_vec = [10000, 10000, 3000, 1200, 400, 140, 50, 18, 6]
+    # mc.mlmc.subsample(sample_vec)
+    # mc.mlmc.update_moments(cl.moments)
+    #
+    # vars, n_samples = mc.estimate_diff_vars()
+    # plot.variance_brakedown(vars, n_samples, ref_level_vars=mc._bs_level_mean_variance, title="9_all")
     #print("std var. est / var. est.\n", np.sqrt(mc._bs_var_variance) / mc._bs_mean_variance)
     #vv_components = mc._bs_level_mean_variance[:, :] ** 2 / mc._bs_n_samples[:,None] ** 3
     #vv = np.sum(vv_components, axis=0) / mc.n_levels
     #print("err. var. composition\n", vv_components  - vv)
     # cl.plot_var_compare(9)
-    mc.plot_bs_var_error_contributions()
+    #mc.plot_bs_var_error_contributions()
 
 def analyze_error_of_regression_variance(cl):
     # Demonstrate that variance of varaince estimates is proportional to
@@ -929,9 +936,9 @@ def process_analysis(cl):
     """
     cl.collected_report()
 
-    analyze_pdf_approx(cl)
+    #analyze_pdf_approx(cl)
     #analyze_regression_of_variance(cl)
-    #analyze_error_of_variance(cl)
+    analyze_error_of_variance(cl)
     #analyze_error_of_regression_variance(cl)
     #analyze_error_of_level_variances(cl)
     #analyze_error_of_regression_level_variances(cl)
@@ -1009,13 +1016,16 @@ def main():
 
     elif command == 'process':
         assert os.path.isdir(work_dir)
+        #nl_list = [1, 2,3, 5, 7, 9 ]
+        nl_list = [9]
+
         mlmc_list = []
-        #for nl in [ 1,3,5,7,9]:
-        for nl in [1, 2,3, 5, 7, 9 ]:  # high resolution fields
+        for nl in nl_list:  # high resolution fields
             prmc = UglyMLMC(work_dir, options)
             prmc.setup(nl)
             prmc.initialize(clean=False)
             mlmc_list.append(prmc)
+
 
         cl = CompareLevels([pm.mc for pm in mlmc_list],
                            output_dir=src_path,
@@ -1025,13 +1035,5 @@ def main():
                            n_moments=21,)
 
         process_analysis(cl)
-
-        # statprof.start()
-        # try:
-        #     cl.ref_estimates_bootstrap(10)
-        #     cl.plot_var_var(9)
-        # finally:
-        #     statprof.stop()
-        #     statprof.display()
 
 main()

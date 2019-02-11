@@ -1,16 +1,48 @@
 import numpy as np
+import scipy.stats as st
 import matplotlib.pyplot as plt
 
-def create_color_bar(size, label, ax = None):
+def create_color_bar(range, label, ax = None):
+    """
+    Create colorbar for a variable with given range and add it to given axes.
+    :param range: single value as high bound or tuple (low bound, high bound)
+    :param label: Label of the colorbar.
+    :param ax:
+    :return: Function to map values to colors. (normalize + cmap)
+    """
     # Create colorbar
     colormap = plt.cm.gist_ncar
-    normalize = plt.Normalize(vmin=0, vmax=size)
+    try:
+        min_r, max_r = range
+    except TypeError:
+        min_r, max_r = 0, range
+    normalize = plt.Normalize(vmin=min_r, vmax=max_r)
     scalar_mappable = plt.cm.ScalarMappable(norm=normalize, cmap=colormap)
-    scalar_mappable.set_array(np.arange(size))
-    ticks = np.linspace(0, int(size/10)*10, 9)
+    if type(max_r) is int:
+        cb_values = np.arange(min_r, max_r)
+        #ticks = np.linspace(min_r, int(size / 10) * 10, 9)
+    else:
+        cb_values = np.linspace(min_r, max_r, 100)
+        #ticks = np.linspace(min_r, int(size / 10) * 10, 9)
+    ticks = None
+    scalar_mappable.set_array(cb_values)
     clb = plt.colorbar(scalar_mappable, ticks=ticks, aspect=50, pad=0.01, ax=ax)
     clb.set_label(label)
     return lambda v: colormap(normalize(v))
+
+
+def _show_and_save(fig, file, title):
+    """
+    Internal function to show the figure and/or save it into a file.
+    """
+    if file is None:
+        fig.show()
+    else:
+        if file == "":
+            file = title
+        if file[-3:] != "pdf":
+            file = file + ".pdf"
+        fig.savefig(file)
 
 
 class Distribution:
@@ -145,33 +177,31 @@ class Distribution:
 
         self.i_plot += 1
 
-    def show(self, save=""):
+    def show(self, file=""):
         """
         Set colors according to the number of added plots.
         Set domain from all plots.
         Plot exact distribution.
         show, possibly save to file.
-        :param save: None, or filename, default name is same as plot title.
+        :param file: None, or filename, default name is same as plot title.
         """
-        if save == "":
-            save = self._title
         self._add_exact_distr()
         self.ax_pdf.legend(title=self._legend_title, loc = 1)
-        #self.fig.legend(title=self._legend_title)
-        if save is not None:
-            self.fig.savefig(save)
-        else:
-            self.fig.show()
+        _show_and_save(self.fig, file, self._title)
 
     def reset(self):
         plt.close()
         self._domain = None
 
-    def _plot_borders(self, ax, col, domain=None):
+    def _plot_borders(self, ax, color, domain=None):
+        """
+        Add vertical lines to the plot for endpoints of the 'domain'.
+        :return: Pair of line objects.
+        """
         if domain is None:
             domain = self._domain
-        l1 = ax.axvline(x=domain[0], ymin=0, ymax=0.1, color=col)
-        l2 = ax.axvline(x=domain[1], ymin=0, ymax=0.1, color=col)
+        l1 = ax.axvline(x=domain[0], ymin=0, ymax=0.1, color=color)
+        l2 = ax.axvline(x=domain[1], ymin=0, ymax=0.1, color=color)
         return [l1, l2]
 
     def adjust_domain(self, domain):
@@ -202,6 +232,9 @@ class Distribution:
         self.ax_cdf.plot(X, Y, c='black')
 
     def _grid(self, size, domain=None):
+        """
+        X values grid for given domain. Optionally use the log scale.
+        """
         if domain is None:
             domain = self._domain
         if self._log_x:
@@ -211,41 +244,6 @@ class Distribution:
         return X
 
 
-# def plot_pdf_approx(ax1, ax2, mc0_samples, mlmc_wrapper, domain, est_domain):
-#     """
-#     Plot density and distribution, plot contains density estimation from MLMC and histogram created from One level MC
-#     TODO: merge with similar method in clss estimate
-#     :param ax1: First figure subplot
-#     :param ax2: Second figure subplot
-#     :param mc0_samples: One level MC samples
-#     :param mlmc_wrapper: Object with mlmc instance, must contains distribution object
-#     :param domain: Domain from one level MC
-#     :param est_domain: Domain from MLMC
-#     :return: None
-#     """
-#     # X = np.exp(np.linspace(np.log(domain[0]), np.log(domain[1]), 1000))
-#     # bins = np.exp(np.linspace(np.log(domain[0]), np.log(10), 60))
-#     X = np.linspace(domain[0], domain[1], 1000)
-#     bins = np.linspace(domain[0], domain[1], len(mc0_samples)/15)
-#
-#     distr_obj = mlmc_wrapper.distr_obj
-#
-#     n_levels = mlmc_wrapper.mc.n_levels
-#     color = "C{}".format(n_levels)
-#     label = "l {}".format(n_levels)
-#     Y = distr_obj.density(X)
-#     ax1.plot(X, Y, c=color, label=label)
-#
-#     Y = distr_obj.cdf(X)
-#     ax2.plot(X, Y, c=color, label=label)
-#
-#     if n_levels == 1:
-#         ax1.hist(mc0_samples, normed=True, bins=bins, alpha=0.3, label='full MC', color=color)
-#         X, Y = ecdf(mc0_samples)
-#         ax2.plot(X, Y, 'red')
-#
-#     ax1.axvline(x=domain[0], c=color)
-#     ax1.axvline(x=domain[1], c=color)
 
 
 class Eigenvalues:
@@ -255,7 +253,7 @@ class Eigenvalues:
     Colors are chosen automatically. Slight X shift is used to avoid point overlapping.
     For log Y scale only positive values are plotted.
     """
-    def __init__(self, log_y = True, title = "eigenvalues"):
+    def __init__(self, log_y = True, title = "Eigenvalues"):
         self._ylim = None
         self.log_y = log_y
         self.fig = plt.figure(figsize=(15, 10))
@@ -310,14 +308,7 @@ class Eigenvalues:
         :return:
         """
         self.ax.legend(title="Noise level")
-        if file == "":
-            file = self.title
-        if file[-3:] != "pdf":
-            file = file + ".pdf"
-        if file is None:
-            self.fig.show()
-        else:
-            self.fig.savefig(file)
+        _show_and_save(self.fig, file, self.title)
 
     def adjust_ylim(self, ylim):
         """
@@ -331,6 +322,14 @@ class Eigenvalues:
 
 
 def moments(moments_fn, size=None, title="", file=""):
+    """
+    Plot moment functions.
+    :param moments_fn:
+    :param size:
+    :param title:
+    :param file:
+    :return:
+    """
     if size == None:
         size = max(moments_fn.size, 21)
     fig = plt.figure(figsize=(15, 8))
@@ -345,11 +344,378 @@ def moments(moments_fn, size=None, title="", file=""):
     for m, y in enumerate(Y.T):
         color = cmap(m)
         ax.plot(X, y, color=color, linewidth=0.5)
-    if file == "":
-        file = title
-    if file[-3:] != "pdf":
-        file = file + ".pdf"
-    if file is None:
-        fig.show()
-    else:
-        fig.savefig(file)
+    _show_and_save(fig, file, title)
+
+
+
+
+
+class VarianceBreakdown:
+    """
+    Plot total variance average over moments and variances of individual moments,
+    Brake down to contribution of individual levels and optionally comparison to the reference level variances using
+    error bars for the (signed) difference: ref_level_vars - level_vars
+    """
+    def __init__(self):
+        self.fig =  plt.figure(figsize=(15, 8))
+        self.title = "Variance brakedown"
+        self.fig.suptitle(self.title)
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.X_list = []
+        self.X_labels = []
+        self.x_shift = 0
+
+    def add_variances(self, level_vars, n_samples, ref_level_vars=None):
+        """
+        Add plot of variances for single MLMC instance.
+
+        :param level_vars: Array (n_levels, n_moments) of level variances.
+        :param n_samples: Array (n_levels,) of numberf of samples on levels
+        :param ref_level_vars: reference level vars (e.g. from bootstrapping)
+        :return:
+        """
+        n_levels, n_moments = level_vars.shape
+        assert n_samples.shape == (n_levels, )
+
+        width=0.1
+
+        X = self.x_shift + (width*1.1)*np.arange(n_moments)
+        self.x_shift = X[-1] + 3*width
+        self.X_list.append(X)
+        X_labels = ['$\overline{x}$'] + [str(m) for m in range(n_moments-1)]
+        self.X_labels.extend(X_labels)
+        #plots = []
+        sum_Y = np.zeros(n_moments)
+        yerr = None
+        total_Y0 = np.sum(np.mean(level_vars[:, :] / n_samples[:, None], axis=1))
+        for il in reversed(range(n_levels)):
+            vars = level_vars[il, 1:]
+            Y = np.concatenate(( [np.mean(vars)], vars))
+            Y /= n_samples[il]
+
+            if ref_level_vars is not None:
+                rvars = ref_level_vars[il, 1:]
+                rY = np.concatenate(([np.mean(rvars)], rvars))
+                rY /= n_samples[il]
+                yerr = np.array([(-diff, 0) if diff < 0 else (0, diff) for diff in rY - Y]).T
+            level_col = plt.cm.tab20(il)
+            self.ax.bar(X, Y, width, bottom=sum_Y, yerr=yerr,
+                        color=level_col)
+            level_label = "L{} {:5}".format(il, n_samples[il])
+            aX = X[0] - width/2
+            aY = Y[0]/2 + sum_Y[0]
+            tY = total_Y0 * ((n_levels - 0.5 - il) / n_levels)
+            self.ax.annotate(level_label,
+                xy=(aX, aY), xytext=(-50, tY),
+                arrowprops=dict(arrowstyle='->', color=level_col),
+                textcoords=('offset pixels', 'data'),
+                )
+
+            sum_Y += Y
+
+
+    def show(self, file=""):
+        """
+        Show the plot or save to file.
+        :param filename: filename base, None for show.
+        :return:
+        """
+        self.ax.set_xlabel("moments")
+        self.ax.set_xticks(np.concatenate(self.X_list))
+        self.ax.set_xticklabels(self.X_labels)
+        _show_and_save(self.fig, file, self.title)
+
+
+class Variance:
+    """
+    Plot level variances, i.e. Var X^l as a function of the mesh step.
+    Selected moments are plotted.
+    """
+    def __init__(self):
+        self.fig = plt.figure(figsize=(15, 8))
+        self.title = "Level variances"
+        self.fig.suptitle(self.title)
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.ax.set_xlabel("Step size")
+        self.ax.set_ylabel("Variance size")
+        self.ax.set_xscale('log')
+        self.ax.set_yscale('log')
+
+        self.colorbar = None
+
+
+    def add_level_variances(self, steps, variances, n_levels):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        n_vars, n_moments = variances.shape
+        #if self.colorbar is None:
+        #    self.colorbar = create_color_bar(n_moments, "Moments")
+
+        markers = ['o', 'v', 's', '^', '1', '2','D', '+', '4', 'X']
+        # ''<', '>', '1', '2', '3', '4',
+        #          '8': 'octagon', 's': 'square', 'p': 'pentagon', '*': 'star', 'h': 'hexagon1',
+        #            'H': 'hexagon2', '+': 'plus', 'x': 'x', 'D': 'diamond', 'd': 'thin_diamond', '|': 'vline',
+        #            '_': 'hline', 'P': 'plus_filled', 'X': 'x_filled', 0: 'tickleft', 1: 'tickright', 2: 'tickup',
+        #            3: 'tickdown', 4: 'caretleft', 5: 'caretright', 6: 'caretup', 7: 'caretdown', 8: 'caretleftbase',
+        #            9: 'caretrightbase', 10: 'caretupbase', 11: 'caretdownbase', 'None': 'nothing', None: 'nothing',
+        #            ' ': 'nothing', '': 'nothing'}
+        step_range = steps[0] / steps[-1]
+        log_scale = step_range ** 0.001 - 1
+        rv = st.lognorm(scale=1, s=log_scale)
+        for m, vars in enumerate(variances.T):
+            col = plt.cm.tab20(m)
+            X = steps * rv.rvs(size=len(steps))
+            label = "L{} M{}".format(n_levels, m+1)
+            self.ax.scatter(X, vars, color=col, marker=markers[n_levels], label=label)
+
+    def add_diff_variances(self, step, variances):
+        pass
+
+    def show(self, file=""):
+        self.fig.legend()
+        _show_and_save(self.fig, file, self.title)
+
+
+
+
+
+
+
+
+
+
+class Aux:
+    def _scatter_level_moment_data(self, ax, values, i_moments=None, marker='o'):
+        """
+        Scatter plot of given table of data for moments and levels.
+        X coordinate is given by level, and slight shift is applied to distinguish the moments.
+        Moments are colored using self._moments_cmap.
+        :param ax: Axis where to add the scatter.
+        :param values: data to plot, array n_levels x len(i_moments)
+        :param i_moments: Indices of moments to use, all moments grater then 0 are used.
+        :param marker: Scatter marker to use.
+        :return:
+        """
+        cmap = self._moments_cmap
+        if i_moments is None:
+            i_moments = range(1, self.n_moments)
+        values = values[:, i_moments[:]]
+        n_levels = values.shape[0]
+        n_moments = values.shape[1]
+
+        moments_x_step = 0.5/n_moments
+        for m in range(n_moments):
+            color = cmap(i_moments[m])
+            X = np.arange(n_levels) + moments_x_step * m
+            Y = values[:, m]
+            col = np.ones(n_levels)[:, None] * np.array(color)[None, :]
+            ax.scatter(X, Y, c=col, marker=marker, label="var, m=" + str(i_moments[m]))
+
+    def plot_bootstrap_variance_compare(self):
+        """
+        Plot fraction (MLMC var est) / (BS var set) for the total variance and level variances.
+        :param moments_fn:
+        :return:
+        """
+        moments_fn = self.moments
+        mean, var, l_mean, l_var = self._bs_get_estimates(moments_fn)
+        l_var = l_var / self.n_samples[: , None]
+        est_variances = np.concatenate((var[None, 1:], l_var[:, 1:]), axis=0)
+
+        bs_var = self._bs_mean_variance
+        bs_l_var = self._bs_level_mean_variance / self.n_samples[:, None]
+        bs_variances = np.concatenate((bs_var[None, 1:], bs_l_var[:, 1:]), axis=0)
+
+        fraction = est_variances / bs_variances
+
+        fig = plt.figure(figsize=(30, 10))
+        ax = fig.add_subplot(1, 1, 1)
+
+        #self._scatter_level_moment_data(ax, bs_variances, marker='.')
+        #self._scatter_level_moment_data(ax, est_variances, marker='d')
+        self._scatter_level_moment_data(ax, fraction, marker='o')
+
+        #ax.legend(loc=6)
+        lbls = ['Total'] + [ 'L{:2d}'.format(l+1) for l in range(self.n_levels)]
+        ax.set_xticks(ticks = np.arange(self.n_levels + 1))
+        ax.set_xticklabels(lbls)
+        ax.set_yscale('log')
+        ax.set_ylim((0.3, 3))
+
+        self.color_bar(moments_fn.size, 'moments')
+
+        fig.savefig('bs_var_vs_var.pdf')
+        plt.show()
+
+    def plot_bs_variances(self, variances, y_label=None, log=True, y_lim=None):
+        """
+        Plot BS estimate of error of variances of other related quantities.
+        :param variances: Data, shape: (n_levels + 1, n_moments).
+        :return:
+        """
+        if y_lim is None:
+            y_lim = (np.min(variances[:, 1:]), np.max(variances[:, 1:]))
+        if y_label is None:
+            y_label = "Error of variance estimates"
+
+        fig = plt.figure(figsize=(8, 5))
+        ax = fig.add_subplot(1, 1, 1)
+        self.set_moments_color_bar(ax)
+        self._scatter_level_moment_data(ax, variances, marker='.')
+
+        lbls = ['Total'] + ['L{:2d}\n{}\n{}'.format(l + 1, nsbs, ns)
+                            for l, (nsbs, ns) in enumerate(zip(self._bs_n_samples, self.n_samples))]
+        ax.set_xticks(ticks = np.arange(self.n_levels + 1))
+        ax.set_xticklabels(lbls)
+        if log:
+            ax.set_yscale('log')
+        ax.set_ylim(y_lim)
+        ax.set_ylabel(y_label)
+
+        fig.savefig('bs_var_var.pdf')
+        plt.show()
+
+    def plot_bs_var_error_contributions(self):
+        """
+        MSE of total variance and contribution of individual levels.
+        """
+        bs_var_var = self._bs_var_variance[:]
+        bs_l_var_var = self._bs_level_var_variance[:, :]
+        bs_l_var_var[:, 1:] /= self._bs_n_samples[:, None]**2
+
+        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+        self.plot_bs_variances(bs_variances, log=True,
+                               y_label="MSE of total variance and contributions from individual levels.",
+                               )
+
+    def plot_bs_level_variances_error(self):
+        """
+        Plot error of estimates of V_l. Scaled as V_l^2 / N_l
+        """
+        l_var = self._ref_level_var
+
+        l_var_var_scale = l_var[:, 1:] ** 2 * 2 / (self._bs_n_samples[:, None] - 1)
+        total_var_var_scale = np.sum(l_var_var_scale[:, :] / self._bs_n_samples[:, None]**2, axis=0 )
+
+        bs_var_var = self._bs_var_variance[:]
+        bs_var_var[1:] /= total_var_var_scale
+
+        bs_l_var_var = self._bs_level_var_variance[:, :]
+        bs_l_var_var[:, 1:] /= l_var_var_scale
+
+        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+        self.plot_bs_variances(bs_variances, log=True,
+                               y_label="MSE of level variances estimators scaled by $V_l^2/N_l$.")
+
+    def plot_bs_var_log_var(self):
+        """
+        Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).
+        """
+        #vv = 1/ self.mlmc._variance_of_variance(self._bs_n_samples)
+        vv = self._bs_n_samples
+        bs_l_var_var = np.sqrt((self._bs_level_var_variance[:, :]) * vv[:, None])
+        bs_var_var = self._bs_var_variance[:]  # - np.log(total_var_var_scale)
+        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+        self.plot_bs_variances(bs_variances, log=True,
+                               y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
+                               )#y_lim=(0.1, 20))
+
+    # def plot_bs_var_reg_var(self):
+    #     """
+    #     Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).
+    #     """
+    #     vv = self.mlmc._variance_of_variance(self._bs_n_samples)
+    #     bs_l_var_var = (self._bs_level_var_variance[:, :]) / vv[:, None]
+    #     bs_var_var = self._bs_var_variance[:]  # - np.log(total_var_var_scale)
+    #     bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+    #     self.plot_bs_variances(bs_variances, log=True,
+    #                            y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
+    #                            y_lim=(0.1, 20))
+
+
+    def plot_means_and_vars(self, moments_mean, moments_var, n_levels, exact_moments):
+        """
+        Plot means with variance whiskers to given axes.
+        :param moments_mean: array, moments mean
+        :param moments_var: array, moments variance
+        :param n_levels: array, number of levels
+        :param exact_moments: array, moments from distribution
+        :param ex_moments: array, moments from distribution samples
+        :return:
+        """
+        colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
+        # print("moments mean ", moments_mean)
+        # print("exact momentss ", exact_moments)
+
+        x = np.arange(0, len(moments_mean[0]))
+        x = x - 0.3
+        default_x = x
+
+        for index, means in enumerate(moments_mean):
+            if index == int(len(moments_mean) / 2) and exact_moments is not None:
+                plt.plot(default_x, exact_moments, 'ro', label="Exact moments")
+            else:
+                x = x + (1 / (len(moments_mean) * 1.5))
+                plt.errorbar(x, means, yerr=moments_var[index], fmt='o', capsize=3, color=next(colors),
+                             label = "%dLMC" % n_levels[index])
+        if ex_moments is not None:
+                plt.plot(default_x - 0.125, ex_moments, 'ko', label="Exact moments")
+        plt.legend()
+        #plt.show()
+        #exit()
+
+
+
+
+
+
+
+
+    def plot_var_regression(self, i_moments = None):
+        """
+        Plot total and level variances and their regression and errors of regression.
+        :param i_moments: List of moment indices to plot. If it is an int M, the range(M) is used.
+                       If None, self.moments.size is used.
+        """
+        moments_fn = self.moments
+
+        fig = plt.figure(figsize=(30, 10))
+        ax = fig.add_subplot(1, 2, 1)
+        ax_err = fig.add_subplot(1, 2, 2)
+
+        if i_moments is None:
+            i_moments = moments_fn.size
+        if type(i_moments) is int:
+            i_moments = list(range(i_moments))
+        i_moments = np.array(i_moments, dtype=int)
+
+        self.set_moments_color_bar(ax=ax)
+
+        est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
+        reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn) #/ self.n_samples[:, None]
+        ref_diff_vars = self._ref_level_var #/ self.n_samples[:, None]
+
+        self._scatter_level_moment_data(ax,  ref_diff_vars, i_moments, marker='o')
+        self._scatter_level_moment_data(ax, est_diff_vars, i_moments, marker='d')
+        # add regression curves
+        moments_x_step = 0.5 / self.n_moments
+        for m in i_moments:
+            color = self._moments_cmap(m)
+            X = np.arange(self.n_levels) + moments_x_step * m
+            Y = reg_diff_vars[1:, m]
+            ax.plot(X[1:], Y, c=color)
+            ax_err.plot(X[:], reg_diff_vars[:, m]/ref_diff_vars[:,m], c=color)
+
+        ax.set_yscale('log')
+        ax.set_ylabel("level variance $V_l$")
+        ax.set_xlabel("step h_l")
+
+        ax_err.set_yscale('log')
+        ax_err.set_ylabel("regresion var. / reference var.")
+
+        #ax.legend(loc=2)
+        fig.savefig('level_vars_regression.pdf')
+        plt.show()

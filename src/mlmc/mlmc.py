@@ -1,8 +1,8 @@
 import time
 import numpy as np
 from mlmc.mc_level import Level
-import scipy.stats as st
-import scipy.integrate as integrate
+
+
 from mlmc.simulation import Simulation
 import mlmc.hdf as hdf
 
@@ -108,89 +108,55 @@ class MLMC:
     def sim_steps(self):
         return np.array([Simulation.log_interpolation(self.step_range, lvl.step) for lvl in self.levels])
 
-    def _variance_of_variance(self, n_samples = None):
-        """
-        Approximate variance of log(X) where
-        X is from ch-squared with df=n_samples - 1.
-        Return array of variances for actual n_samples array.
 
-        :param n_samples: Optional array with n_samples.
-        :return: array of variances of variance estimate.
-        """
-        if n_samples is None:
-            n_samples = self.n_samples
-        if hasattr(self, "_saved_var_var"):
-            ns, var_var = self._saved_var_var
-            if np.sum(np.abs(ns - n_samples)) == 0:
-                return var_var
-
-        vars = []
-        for ns in n_samples:
-            df = ns - 1
-
-            def log_chi_pdf(x):
-                return np.exp(x) * df * st.chi2.pdf(np.exp(x) * df, df=df)
-
-            def compute_moment(moment):
-                std_est = np.sqrt(2 / df)
-                fn = lambda x, m=moment: x ** m * log_chi_pdf(x)
-                return integrate.quad(fn, -100 * std_est, 100 * std_est)[0]
-
-            mean = compute_moment(1)
-            second = compute_moment(2)
-            vars.append(second - mean ** 2)
-
-        self._saved_var_var = (n_samples, np.array(vars))
-        return np.array(vars)
-
-    def _variance_regression(self, raw_vars, sim_steps):
-        """
-        Estimate level variance by regression from model:
-
-        log(var_l,r) = A_r + B * log(h_l) + C * log^2(hl),
-                                            for l = 0, .. L-1
-
-
-        :param raw_vars: moments variances raws, shape (L, R)
-        :param sim_steps: simulation steps, shape L
-        :return: np.array  (L, R)
-        """
-        L, R = raw_vars.shape
-        L1 = L - 1
-        if L < 3:
-            return raw_vars
-
-        # estimate of variances of variances, compute scaling
-        W = 1.0 / np.sqrt(self._variance_of_variance())
-        W = W[1:]  # ignore level 0
-        # W = np.ones((L - 1,))
-
-        # Use linear regresion to improve estimate of variances V1, ...
-        # model log var_{r,l} = a_r  + b * log step_l
-        # X_(r,l), j = dirac_{r,j}
-
-        K = R + 1  # number of parameters
-        R1 = R - 1
-        X = np.zeros((L1, R1, K))
-        X[:, :, :-2] = np.eye(R1)[None, :, :]
-        log_step = np.log(sim_steps[1:])
-        # X[:, :, -1] = np.repeat(log_step ** 2, R1).reshape((L1, R1))[:, :, None] * np.eye(R1)[None, :, :]
-        X[:, :, -2] = np.repeat(log_step ** 2, R1).reshape((L1, R1))
-        X[:, :, -1] = np.repeat(log_step, R1).reshape((L1, R1))
-
-        WX = X * W[:, None, None]  # scale
-        WX.shape = (-1, K)
-        X.shape = (-1, K)
-        # solve X.T * X = X.T * V
-
-        log_vars = np.log(raw_vars[1:, 1:])  # omit first variance, and first moment that is constant 1.0
-        log_vars = W[:, None] * log_vars  # scale RHS
-
-        params, res, rank, sing_vals = np.linalg.lstsq(WX, log_vars.ravel())
-        new_vars = raw_vars.copy()
-        assert np.allclose(raw_vars[:, 0], 0.0)
-        new_vars[1:, 1:] = np.exp(np.dot(X, params)).reshape(L - 1, -1)
-        return new_vars
+    # def _variance_regression(self, raw_vars, sim_steps):
+    #     """
+    #     Estimate level variance by regression from model:
+    #
+    #     log(var_l,r) = A_r + B * log(h_l) + C * log^2(hl),
+    #                                         for l = 0, .. L-1
+    #
+    #
+    #     :param raw_vars: moments variances raws, shape (L, R)
+    #     :param sim_steps: simulation steps, shape L
+    #     :return: np.array  (L, R)
+    #     """
+    #     L, R = raw_vars.shape
+    #     L1 = L - 1
+    #     if L < 3:
+    #         return raw_vars
+    #
+    #     # estimate of variances of variances, compute scaling
+    #     W = 1.0 / np.sqrt(self._variance_of_variance())
+    #     W = W[1:]  # ignore level 0
+    #     # W = np.ones((L - 1,))
+    #
+    #     # Use linear regresion to improve estimate of variances V1, ...
+    #     # model log var_{r,l} = a_r  + b * log step_l
+    #     # X_(r,l), j = dirac_{r,j}
+    #
+    #     K = R + 1  # number of parameters
+    #     R1 = R - 1
+    #     X = np.zeros((L1, R1, K))
+    #     X[:, :, :-2] = np.eye(R1)[None, :, :]
+    #     log_step = np.log(sim_steps[1:])
+    #     # X[:, :, -1] = np.repeat(log_step ** 2, R1).reshape((L1, R1))[:, :, None] * np.eye(R1)[None, :, :]
+    #     X[:, :, -2] = np.repeat(log_step ** 2, R1).reshape((L1, R1))
+    #     X[:, :, -1] = np.repeat(log_step, R1).reshape((L1, R1))
+    #
+    #     WX = X * W[:, None, None]  # scale
+    #     WX.shape = (-1, K)
+    #     X.shape = (-1, K)
+    #     # solve X.T * X = X.T * V
+    #
+    #     log_vars = np.log(raw_vars[1:, 1:])  # omit first variance, and first moment that is constant 1.0
+    #     log_vars = W[:, None] * log_vars  # scale RHS
+    #
+    #     params, res, rank, sing_vals = np.linalg.lstsq(WX, log_vars.ravel())
+    #     new_vars = raw_vars.copy()
+    #     assert np.allclose(raw_vars[:, 0], 0.0)
+    #     new_vars[1:, 1:] = np.exp(np.dot(X, params)).reshape(L - 1, -1)
+    #     return new_vars
 
     def sample_range(self, n0, nL):
         """

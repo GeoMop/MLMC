@@ -556,6 +556,12 @@ class Level:
         # New moments without outliers
         self.last_moments_eval = self.last_moments_eval[0][ok_fine_coarse, :], self.last_moments_eval[1][ok_fine_coarse, :]
 
+    def estimate_level_var(self, moments_fn):
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        var_fine = np.var(mom_fine, axis=0, ddof=1)
+        var_coarse = np.var(mom_coarse, axis=0, ddof=1)
+        return var_coarse, var_fine
+
     def estimate_diff_var(self, moments_fn):
         """
         Estimate moments variance
