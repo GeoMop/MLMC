@@ -213,50 +213,51 @@ class MLMC:
     #     for level in self.levels:
     #         level.reset_moment_fn(moments_fn)
 
-    def target_var_adding_samples(self, target_var, moments_fn, pbs=None, sleep=20, add_coef=0.1):
-        """
-        Set level target number of samples according to improving estimates.  
-        We assume set_initial_n_samples method was called before.
-        :param target_var: float, whole mlmc target variance
-        :param moments_fn: Object providing calculating moments
-        :param pbs: Pbs script generator object
-        :param sleep: Time waiting for samples
-        :param add_coef: Coefficient for adding samples
-        :return: None
-        """
-        # Get default scheduled samples
-        n_scheduled = np.array(self.l_scheduled_samples())
-        # Scheduled samples that are greater than already done samples
-        greater_items = np.arange(0, len(n_scheduled))
-
-        # Scheduled samples and wait until at least half of the samples are done
-        self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
-
-        # New estimation according to already finished samples
-        n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
-
-        # Loop until number of estimated samples is greater than the number of scheduled samples
-        while not np.all(n_estimated[greater_items] == n_scheduled[greater_items]):
-            # New scheduled sample will be 10 percent of difference
-            # between current number of target samples and new estimated one
-            # If 10 percent of estimated samples is greater than difference between estimated and scheduled samples,
-            # set scheduled samples to estimated samples
-
-            new_scheduled = np.where((n_estimated * add_coef) > (n_estimated - n_scheduled),
-                             n_estimated,
-                             n_scheduled + (n_estimated - n_scheduled) * add_coef)
-
-            n_scheduled = np.ceil(np.where(n_estimated < n_scheduled,
-                                           n_scheduled,
-                                           new_scheduled))
-            # Levels where estimated are greater than scheduled
-            greater_items = np.where(np.greater(n_estimated, n_scheduled))[0]
-
-            # Scheduled samples and wait until at least half of the samples are done
-            self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
-
-            # New estimation according to already finished samples
-            n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
+    # def target_var_adding_samples(self, target_samples, moments_fn, pbs=None, sleep=20, add_coef=0.1):
+    #     """
+    #     Set level target number of samples according to improving estimates.
+    #     We assume set_initial_n_samples method was called before.
+    #     :param target_var: float, whole mlmc target variance
+    #     :param moments_fn: Object providing calculating moments
+    #     :param pbs: Pbs script generator object
+    #     :param sleep: Time waiting for samples
+    #     :param add_coef: Coefficient for adding samples
+    #     :return: None
+    #     """
+    #     # Get default scheduled samples
+    #     n_scheduled = np.array(self.l_scheduled_samples())
+    #     # Scheduled samples that are greater than already done samples
+    #     greater_items = np.arange(0, len(n_scheduled))
+    #
+    #     # Scheduled samples and wait until at least half of the samples are done
+    #     self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
+    #
+    #     # New estimation according to already finished samples
+    #     n_estimated = target_samples
+    #     self._estimator.estimate_n_samples_for_target_variance(target_var, moments_fn)
+    #
+    #     # Loop until number of estimated samples is greater than the number of scheduled samples
+    #     while not np.all(n_estimated[greater_items] == n_scheduled[greater_items]):
+    #         # New scheduled sample will be 10 percent of difference
+    #         # between current number of target samples and new estimated one
+    #         # If 10 percent of estimated samples is greater than difference between estimated and scheduled samples,
+    #         # set scheduled samples to estimated samples
+    #
+    #         new_scheduled = np.where((n_estimated * add_coef) > (n_estimated - n_scheduled),
+    #                          n_estimated,
+    #                          n_scheduled + (n_estimated - n_scheduled) * add_coef)
+    #
+    #         n_scheduled = np.ceil(np.where(n_estimated < n_scheduled,
+    #                                        n_scheduled,
+    #                                        new_scheduled))
+    #         # Levels where estimated are greater than scheduled
+    #         greater_items = np.where(np.greater(n_estimated, n_scheduled))[0]
+    #
+    #         # Scheduled samples and wait until at least half of the samples are done
+    #         self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
+    #
+    #         # New estimation according to already finished samples
+    #         n_estimated = self._estimator.estimate_n_samples_for_target_variance(target_var, moments_fn)
 
     def set_scheduled_and_wait(self, n_scheduled, greater_items, pbs, sleep, fin_sample_coef=0.5):
         """
@@ -301,20 +302,20 @@ class MLMC:
         for level, n in zip(self.levels, n_samples):
             level.set_target_n_samples(int(n * fraction))
 
-    def set_target_variance(self, target_variance, moments_fn=None, fraction=1.0, prescribe_vars=None):
-        """
-        Estimate optimal number of samples for individual levels that should provide a target variance of
-        resulting moment estimate. Number of samples are directly set to levels.
-        This also set given moment functions to be used for further estimates if not specified otherwise.
-        TODO: separate target_variance per moment
-        :param target_variance: Constrain to achieve this variance.
-        :param moments_fn: moment evaluation functions
-        :param fraction: Plan only this fraction of computed counts.
-        :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
-        :return: None
-        """
-        n_samples = self.estimate_n_samples_for_target_variance(target_variance, moments_fn, prescribe_vars)
-        self.set_level_target_n_samples(n_samples, fraction)
+    # def set_target_variance(self, target_variance, moments_fn=None, fraction=1.0, prescribe_vars=None):
+    #     """
+    #     Estimate optimal number of samples for individual levels that should provide a target variance of
+    #     resulting moment estimate. Number of samples are directly set to levels.
+    #     This also set given moment functions to be used for further estimates if not specified otherwise.
+    #     TODO: separate target_variance per moment
+    #     :param target_variance: Constrain to achieve this variance.
+    #     :param moments_fn: moment evaluation functions
+    #     :param fraction: Plan only this fraction of computed counts.
+    #     :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
+    #     :return: None
+    #     """
+    #     n_samples = self._estimator.estimate_n_samples_for_target_variance(target_variance, moments_fn, prescribe_vars)
+    #     self.set_level_target_n_samples(n_samples, fraction)
 
     def refill_samples(self):
         """
