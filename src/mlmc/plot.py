@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.stats as st
+from scipy import interpolate
 import matplotlib.pyplot as plt
 
 def create_color_bar(range, label, ax = None):
@@ -43,6 +44,13 @@ def _show_and_save(fig, file, title):
         if file[-3:] != "pdf":
             file = file + ".pdf"
         fig.savefig(file)
+
+
+def make_monotone(X, Y):
+
+    sX, iX = np.unique(X, return_index=True)
+    sY = np.array(Y)[iX]
+    return sX, sY
 
 
 class Distribution:
@@ -129,13 +137,27 @@ class Distribution:
         Add histogram and ecdf for raw samples.
         :param samples:
         """
+        # Histogram
         domain = (np.min(samples), np.max(samples))
         self.adjust_domain(domain)
-        bins = self._grid(np.sqrt(len(samples)))
+        N = len(samples)
+        bins = self._grid(0.5 * np.sqrt(N))
         self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
+
+        # Ecdf
         X = np.sort(samples)
-        Y = np.arange(1, len(X) + 1) / float(len(X))
+        Y = (np.arange(len(X)) + 0.5) / float(len(X))
+        X, Y = make_monotone(X, Y)
         self.ax_cdf.plot(X, Y, 'red')
+
+        # PDF approx as derivative of Bspline CDF approx
+        size_8 = int(N / 8)
+        w = np.ones_like(X)
+        w[:size_8] = 1 / (Y[:size_8])
+        w[N - size_8:] = 1 / (1 - Y[N - size_8:])
+        spl = interpolate.UnivariateSpline(X, Y, w, k=3, s=1)
+        sX = np.linspace(domain[0], domain[1], 1000)
+        self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4)
 
 
     def add_distribution(self, distr_object, label=None):
@@ -238,7 +260,7 @@ class Distribution:
         if domain is None:
             domain = self._domain
         if self._log_x:
-            X = np.exp(np.linspace(np.log(domain[0]), np.log(domain[1]), size))
+            X = np.geomspace(domain[0], domain[1], size)
         else:
             X = np.linspace(domain[0], domain[1], size)
         return X
@@ -382,7 +404,7 @@ class VarianceBreakdown:
         X = self.x_shift + (width*1.1)*np.arange(n_moments)
         self.x_shift = X[-1] + 3*width
         self.X_list.append(X)
-        X_labels = ['$\overline{x}$'] + [str(m) for m in range(n_moments-1)]
+        X_labels = ['$\overline{x}$'] + [str(m) for m in range(1, n_moments)]
         self.X_labels.extend(X_labels)
         #plots = []
         sum_Y = np.zeros(n_moments)
@@ -435,13 +457,18 @@ class Variance:
         self.fig = plt.figure(figsize=(15, 8))
         self.title = "Level variances"
         self.fig.suptitle(self.title)
+
         self.ax = self.fig.add_subplot(1, 1, 1)
-        self.ax.set_xlabel("Step size")
-        self.ax.set_ylabel("Variance size")
+        self.ax.set_xlabel("$h$ - mesh step")
+        self.ax.set_ylabel("Var $X^h$")
         self.ax.set_xscale('log')
         self.ax.set_yscale('log')
 
+        self.n_plots = 0
         self.colorbar = None
+        self.min_step = 1e300
+        self.max_step = 0
+        self.data = {}
 
 
     def add_level_variances(self, steps, variances, n_levels):
@@ -450,11 +477,11 @@ class Variance:
         :param steps, variances : as returned by Estimate.estimate_level_vars
         :param n_levels:
         """
-        n_vars, n_moments = variances.shape
+        #n_vars, n_moments = variances.shape
         #if self.colorbar is None:
         #    self.colorbar = create_color_bar(n_moments, "Moments")
 
-        markers = ['o', 'v', 's', '^', '1', '2','D', '+', '4', 'X']
+        #markers = ['o', 'v', 's', '^', '1', '2','D', '+', '4', 'X']
         # ''<', '>', '1', '2', '3', '4',
         #          '8': 'octagon', 's': 'square', 'p': 'pentagon', '*': 'star', 'h': 'hexagon1',
         #            'H': 'hexagon2', '+': 'plus', 'x': 'x', 'D': 'diamond', 'd': 'thin_diamond', '|': 'vline',
@@ -462,19 +489,39 @@ class Variance:
         #            3: 'tickdown', 4: 'caretleft', 5: 'caretright', 6: 'caretup', 7: 'caretdown', 8: 'caretleftbase',
         #            9: 'caretrightbase', 10: 'caretupbase', 11: 'caretdownbase', 'None': 'nothing', None: 'nothing',
         #            ' ': 'nothing', '': 'nothing'}
-        step_range = steps[0] / steps[-1]
-        log_scale = step_range ** 0.001 - 1
-        rv = st.lognorm(scale=1, s=log_scale)
+        self.min_step = min(self.min_step, steps[-1])
+        self.max_step = max(self.max_step, steps[0])
         for m, vars in enumerate(variances.T):
-            col = plt.cm.tab20(m)
-            X = steps * rv.rvs(size=len(steps))
-            label = "L{} M{}".format(n_levels, m+1)
-            self.ax.scatter(X, vars, color=col, marker=markers[n_levels], label=label)
+            X, Y = self.data.get(m, ([], []))
+            X.extend(steps.tolist())
+            Y.extend(vars.tolist())
+            self.data[m] = (X, Y)
 
-    def add_diff_variances(self, step, variances):
-        pass
+
+
+
+    # def add_diff_variances(self, step, variances):
+    #     pass
 
     def show(self, file=""):
+        step_range = self.max_step / self.min_step
+        log_scale = step_range ** 0.001 - 1
+        rv = st.lognorm(scale=1, s=log_scale)
+        for m, (X, Y) in self.data.items():
+            col = plt.cm.tab20(m)
+            label = "M{}".format(m+1)
+            XX = np.array(X) * rv.rvs(size=len(X))
+            self.ax.scatter(XX, Y, color=col, label=label)
+            #f = interpolate.interp1d(X, Y, kind='cubic')
+
+            XX, YY = make_monotone(X, Y)
+
+            #f = interpolate.PchipInterpolator(XX[1:], YY[1:])
+            m = len(XX)-1
+            spl = interpolate.splrep(XX[1:], YY[1:], k=3, s=m - np.sqrt(2*m))
+            xf = np.geomspace(self.min_step, self.max_step, 100)
+            yf = interpolate.splev(xf, spl)
+            self.ax.plot(xf, yf, color=col)
         self.fig.legend()
         _show_and_save(self.fig, file, self.title)
 

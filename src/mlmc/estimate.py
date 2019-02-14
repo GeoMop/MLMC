@@ -102,6 +102,20 @@ class Estimate:
         self._saved_var_var = (n_samples, np.array(vars))
         return np.array(vars)
 
+
+    @classmethod
+    def estimate_domain(cls, mlmc, quantile=None):
+        """
+        Estimate density domain from MLMC samples.
+        :parameter mlmc: MLMC object that provides the samples
+        :parameter quantile: float in interval (0, 1), None means whole sample range.
+        :return: lower_bound, upper_bound
+        """
+        ranges = np.array([l.sample_domain(quantile) for l in mlmc.levels])
+        return np.min(ranges[:, 0]), np.max(ranges[:, 1])
+
+
+
     def __init__(self, mlmc, moments=None):
         self.mlmc = mlmc
         self.moments = moments
@@ -151,8 +165,7 @@ class Estimate:
     def approx_cdf(self, x):
         return self.distribution.cdf(x)
 
-    def estimate_domain(self):
-        return self.mlmc.estimate_domain()
+
 
     def estimate_level_vars(self, moments_fn=None):
         """
@@ -341,15 +354,6 @@ class Estimate:
 
         return n_samples
 
-    def estimate_domain(self):
-        """
-        Estimate domain of the density function.
-        TODO: compute mean and variance and use quantiles of normal or lognormal distribution (done in Distribution)
-        :return:
-        """
-        ranges = np.array([l.sample_range() for l in self.levels])
-
-        return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
     def estimate_moments(self, moments_fn):
         """
@@ -589,7 +593,7 @@ class CompareLevels:
         L = +np.inf
         U = -np.inf
         for mc in self._mlmc_list:
-            l, u = mc.estimate_domain()
+            l, u = Estimate.estimate_domain(mc)
             L = min(l, L)
             U = max(u, U)
         return (L, U)
@@ -623,7 +627,7 @@ class CompareLevels:
     def set_common_domain(self, i_mlmc, domain=None):
         if domain is not None:
             self.domain = domain
-        self.domain = self.mlmc[i_mlmc].estimate_domain()
+        self.domain = Estimate.estimate_domain(self._mlmc_list[i_mlmc])
 
     def plot_means(self, moments_fn):
         pass

@@ -812,7 +812,7 @@ def analyze_pdf_approx(cl):
     cl.set_common_domain(0)
     print("cl domain:", cl.domain)
 
-    cl.reinit(n_moments = 31, domain=[0.5, 3])
+    #cl.reinit(n_moments = 31, domain=[0.01, 100])
     #il = 1
     #ns = cl[il].mlmc.estimate_n_samples_for_target_variance(0.01, cl.moments)
     #cl[il].mlmc.subsample(ns)
@@ -833,7 +833,7 @@ def analyze_regression_of_variance(cl):
 def analyze_error_of_variance(cl):
     # Error of total variance estimator and contribution form individual levels.
     np.random.seed(20)
-    #cl.plot_variances()
+    cl.plot_variances()
     cl.plot_level_variances()
     # mc = cl[9]
     # sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
@@ -1017,7 +1017,7 @@ def main():
     elif command == 'process':
         assert os.path.isdir(work_dir)
         #nl_list = [1, 2,3, 5, 7, 9 ]
-        nl_list = [9]
+        nl_list = [1, 5, 7]
 
         mlmc_list = []
         for nl in nl_list:  # high resolution fields
