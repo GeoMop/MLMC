@@ -85,5 +85,5 @@ class SimulationTest(mlmc.simulation.Simulation):
 
     def _extract_result(self, sample):
         # sample time, not implemented in this simulation
-        time = 0
+        time = np.random.random()
         return self._result_dict[sample.directory], time

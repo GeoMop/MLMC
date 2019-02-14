@@ -633,8 +633,8 @@ class CompareLevels:
         pass
 
     def construct_densities(self, tol=1.95, reg_param=0.01):
-        for mc in self.mlmc:
-            mc.construct_density(tol, reg_param)
+        for mc_est in self.mlmc:
+            mc_est.construct_density(tol, reg_param)
 
 
 

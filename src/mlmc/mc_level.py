@@ -248,13 +248,14 @@ class Level:
         else:
             return len(self.sample_indices)
 
-    def _get_sample_tag(self, char):
+    def _get_sample_tag(self, char, sample_id):
         """
         Create sample tag
         :param char: 'C' or 'F' depending on the type of simulation
+        :param sample_id: int, identifier of current sample
         :return: str
         """
-        return "L{:02d}_{}_S{:07d}".format(int(self._level_idx), char, self._n_total_samples)
+        return "L{:02d}_{}_S{:07d}".format(int(self._level_idx), char, sample_id)
 
     @property
     def n_ops_estimate(self):
@@ -285,7 +286,7 @@ class Level:
             self.fine_simulation.set_coarse_sim(self.coarse_simulation)
             self.n_ops_estimate = self.fine_simulation.n_ops_estimate()
 
-    def _make_sample_pair(self):
+    def _make_sample_pair(self, sample_pair_id=None):
         """
         Generate new random samples for fine and coarse simulation objects
         :return: list
@@ -293,42 +294,34 @@ class Level:
         start_time = t.time()
         self.set_coarse_sim()
         # All levels have fine simulation
-        idx = self._n_total_samples
+        if sample_pair_id is None:
+            sample_pair_id = self._n_total_samples
         self.fine_simulation.generate_random_sample()
-        tag = self._get_sample_tag('F')
-        fine_sample = self.fine_simulation.simulation_sample(tag, idx, start_time)
+        tag = self._get_sample_tag('F', sample_pair_id)
+        fine_sample = self.fine_simulation.simulation_sample(tag, sample_pair_id, start_time)
 
         start_time = t.time()
         if self.coarse_simulation is not None:
-            tag = self._get_sample_tag('C')
-            coarse_sample = self.coarse_simulation.simulation_sample(tag, idx, start_time)
+            tag = self._get_sample_tag('C', sample_pair_id)
+            coarse_sample = self.coarse_simulation.simulation_sample(tag, sample_pair_id, start_time)
         else:
-            # Zero level have no coarse simulation.
-            coarse_sample = Sample(sample_id=idx)
+            # Zero level have no coarse simulation
+            coarse_sample = Sample(sample_id=sample_pair_id)
             coarse_sample.result = 0.0
 
         self._n_total_samples += 1
 
-        return [(idx, (fine_sample, coarse_sample))]
+        return [(sample_pair_id, (fine_sample, coarse_sample))]
 
     def _run_failed_samples(self):
         """
         Run already generated simulations again
         :return: None
         """
-        for sample_id, (fine_sim, coarse_sim) in self.scheduled_samples.items():
-            if sample_id in self.failed_samples:
-                self.set_coarse_sim()
-                # All levels have fine simulation
-                self.fine_simulation.generate_random_sample()
-                if self.coarse_simulation is not None:
-                    coarse_sample = self.coarse_simulation.simulation_sample(sample_id=coarse_sim.sample_id)
-                else:
-                    coarse_sample = coarse_sim
-                    coarse_sample.result = 0.0
-                fine_sample = self.fine_simulation.simulation_sample(sample_id=fine_sim.sample_id)
-
-            self.scheduled_samples[sample_id] = (fine_sample, coarse_sample)
+        for sample_id, _ in self.scheduled_samples.items():
+            # Run simulations again
+            if sample_id in self._failed_sample_ids:
+                self.scheduled_samples.update(self._make_sample_pair(sample_id))
 
         # Empty failed samples set
         self.failed_samples = set()
@@ -446,7 +439,7 @@ class Level:
     def _log_scheduled(self, samples):
         """
         Log scheduled samples
-        :param samples: dict {sample_id : (fine sample, coarse sample), ...}, samples are Sample() instances 
+        :param samples: dict {sample_id : (fine sample, coarse sample), ...}, samples are Sample() instances
         :return: None
         """
         if not samples:
@@ -519,6 +512,7 @@ class Level:
             samples = self.sample_values
             # Moments from fine samples
             moments_fine = moments_fn(samples[:, 0])
+
 
             # For first level moments from coarse samples are zeroes
             if self.is_zero_level:
@@ -610,6 +604,7 @@ class Level:
             cov_fine = np.matmul(mom_fine.T,   mom_fine)
             cov_coarse = np.matmul(mom_coarse.T, mom_coarse)
             cov = (cov_fine - cov_coarse) / self.n_samples
+
         return cov
 
     def estimate_cov_diag_err(self, moments_fn, ):
@@ -673,3 +668,10 @@ class Level:
         times = times[(times < 1e5)]
 
         return np.mean(times)
+
+    def avg_sample_running_time(self):
+        """
+        Get average sample simulation running time per samples
+        :return: float
+        """
+        return np.mean([sample.running_time for sample, _ in self.collected_samples])

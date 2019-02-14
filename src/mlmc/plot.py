@@ -84,7 +84,6 @@ class Distribution:
         self.plot_matrix = []
         self.i_plot = 0
 
-
         if cdf_plot:
             self.fig, axes = plt.subplots(1, 2, figsize=(22, 10))
             self.fig_cdf = None
@@ -93,7 +92,6 @@ class Distribution:
         else:
             self.fig, self.ax_pdf = plt.subplots(1, 1, figsize=(12, 10))
             self.fig_cdf, self.ax_cdf = plt.subplots(1, 1, figsize=(12, 10))
-
 
         self.fig.suptitle(title)
         x_axis_label = quantity_name
@@ -275,13 +273,14 @@ class Eigenvalues:
     Colors are chosen automatically. Slight X shift is used to avoid point overlapping.
     For log Y scale only positive values are plotted.
     """
-    def __init__(self, log_y = True, title = "Eigenvalues"):
+    def __init__(self, log_y=True, title="Eigenvalues"):
         self._ylim = None
         self.log_y = log_y
         self.fig = plt.figure(figsize=(15, 10))
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.fig.suptitle(title)
         self.i_plot = 0
+        self.title = title
         # index of eignevalues dataset
         if self.log_y:
             self.ax.set_yscale('log')
@@ -289,16 +288,17 @@ class Eigenvalues:
     def add_values(self, values, errors=None, threshold=None, label=""):
         """
         Add set of eigenvalues into the plot.
-        :param values: eigen values in increasing or decreasing ordred, automatically flipped to decreasing.
-        :param errors: corresponding std errors
+        :param values: array (n,); eigen values in increasing or decreasing ordred, automatically flipped to decreasing.
+        :param errors: array (n,); corresponding std errors
         :param threshold: horizontal line marking noise level or cut-off eigen value
         :return:
         """
         assert not errors or len(values) == len(errors)
         if values[0] < values[-1]:
             values = np.flip(values)
-            errors = np.flip(errors)
-            #threshold = len(values) - 1 - threshold
+            if errors is not None:
+                errors = np.flip(errors)
+            threshold = len(values) - 1 - threshold
 
         if self.log_y:
             # plot only positive values
@@ -326,11 +326,13 @@ class Eigenvalues:
     def show(self, file=""):
         """
         Show the plot or save to file.
-        :param filename: filename base, None for show.
+        :param file: filename base, None for show.
         :return:
         """
         self.ax.legend(title="Noise level")
         _show_and_save(self.fig, file, self.title)
+            self.fig.show()
+        else:
 
     def adjust_ylim(self, ylim):
         """

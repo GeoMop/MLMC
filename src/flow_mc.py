@@ -279,15 +279,15 @@ class FlowSim(simulation.Simulation):
         """
         out_subdir = os.path.join("samples", str(sample_tag))
         sample_dir = os.path.join(self.work_dir, out_subdir)
-        if not os.path.isdir(sample_dir):
-            force_mkdir(sample_dir)
+
+        force_mkdir(sample_dir, True)
         fields_file = os.path.join(sample_dir, self.FIELDS_FILE)
 
         gmsh_io.GmshIO().write_fields(fields_file, self.ele_ids, self._input_sample)
         prepare_time = (t.time() - start_time)
         package_dir = self.run_sim_sample(out_subdir)
 
-        return sample.Sample(directory=sample_dir,sample_id=sample_id,
+        return sample.Sample(directory=sample_dir, sample_id=sample_id,
                              job_id=package_dir, prepare_time=prepare_time)
 
     def run_sim_sample(self, out_subdir):
@@ -316,11 +316,10 @@ class FlowSim(simulation.Simulation):
         try:
             with open(profiler, "r") as f:
                 prof_content = json.load(f)
-            dt_obj_start = dt.strptime(prof_content["run-started-at"], "%m/%d/%y %H:%M:%S")
-            dt_obj_end = dt.strptime(prof_content["run-finished-at"], "%m/%d/%y %H:%M:%S")
-            run_time = (dt_obj_end - dt_obj_start).total_seconds()
+
+            run_time = float(prof_content['children'][0]['cumul-time-sum'])
         except:
-             print("Extract run time failed")
+            print("Extract run time failed")
 
         return run_time
 
