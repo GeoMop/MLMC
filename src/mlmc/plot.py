@@ -270,7 +270,7 @@ class Eigenvalues:
 
         if self.log_y:
             # plot only positive values
-            i_last_positive = len(values) - np.argmax(np.flip(values, axis=0) > 0)
+            i_last_positive = len(values) - np.argmax(np.flip(values) > 0)
             values = values[:i_last_positive + 1]
             a, b = np.min(values), np.max(values)
             self.adjust_ylim( (a / ((b/a)**0.05), b * (b/a)**0.05) )

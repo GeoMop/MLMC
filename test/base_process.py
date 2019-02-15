@@ -119,7 +119,8 @@ class Process:
             n_nodes=1,
             select_flags=['cgroups=cpuacct'],
             mem='4gb',
-            queue='charon')
+            queue='charon',
+            home_dir='/storage/liberec3-tul/home/martin_spetlik/')
 
         if tail == 'storage':
             # Metacentrum

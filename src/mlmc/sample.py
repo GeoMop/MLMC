@@ -88,6 +88,8 @@ class Sample:
                self.result == other.result
 
     def __str__(self):
-        return "sample id: {}, result: {}, prepare time: {}, queued time: {} ".format(self.sample_id, self.result,
+        return "sample id: {}, result: {}, running time: {}, prepare time: {}, queued time: {} ".format(self.sample_id,
+                                                                                                        self.result,
+                                                                                                        self.running_time,
                                                                                       self.prepare_time,
                                                                                       self.queued_time)

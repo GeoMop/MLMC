@@ -2,13 +2,10 @@ import os
 import os.path
 import shutil
 import subprocess
-import json
-import glob
-import numpy as np
 
 
 class Pbs:
-    def __init__(self, work_dir=None, job_weight=200000, job_count=0, qsub=None, clean=False):
+    def __init__(self, work_dir=None, job_weight=200000, job_count=0, qsub=None, clean=False, home_dir="/home"):
         """
         :param work_dir: if None, means no logging and just direct execution.
         :param job_weight: Number of simulation elements per job script
@@ -33,6 +30,7 @@ class Pbs:
         self.qsub_cmd = qsub
         self._pbs_config = None
         self._pbs_header_template = None
+        self._home_dir = home_dir
 
         if work_dir is not None:
             if clean:
@@ -118,8 +116,8 @@ class Pbs:
         script_content = "\n".join(self.pbs_script)
         pbs_file = os.path.join(self._job_dir, "{:04d}.sh".format(self._job_count))
 
-        pbs_file_pom = os.path.join("/storage/liberec3-tul/home/martin_spetlik",
-                                    "{:04d}.sh".format(self._job_count))
+        pbs_file_pom = os.path.join(self._home_dir, "{:04d}.sh".format(self._job_count))
+
         self._job_count += 1
         with open(pbs_file_pom, "w") as file_writer:
             file_writer.write(script_content)
