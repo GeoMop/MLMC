@@ -31,6 +31,25 @@ def create_color_bar(range, label, ax = None):
     clb.set_label(label)
     return lambda v: colormap(normalize(v))
 
+def moments_subset(n_moments, moments=None):
+    """
+    Return subset of range(n_moments) for ploting.
+    :param n_moments: Actual number of moments.
+    :param moments: Type of subset:
+        None - all moments
+        int - size of subset, formed by geometrical sequence
+    :return:
+    """
+    if moments is None:
+        subset =  np.arange(1, n_moments)
+    else:
+        assert type(moments) is int
+        subset =  np.round(np.geomspace(1, n_moments-1, moments)).astype(int)
+        # make indices unique by increasing
+        for i in range(1,len(subset)):
+            subset[i] = max(subset[i], subset[i-1]+1)
+    return subset
+
 
 def _show_and_save(fig, file, title):
     """
@@ -331,8 +350,6 @@ class Eigenvalues:
         """
         self.ax.legend(title="Noise level")
         _show_and_save(self.fig, file, self.title)
-            self.fig.show()
-        else:
 
     def adjust_ylim(self, ylim):
         """
@@ -380,7 +397,10 @@ class VarianceBreakdown:
     Brake down to contribution of individual levels and optionally comparison to the reference level variances using
     error bars for the (signed) difference: ref_level_vars - level_vars
     """
-    def __init__(self):
+    def __init__(self, moments=None):
+        """
+        :param moments: Size or type of moments subset, see moments_subset function.
+        """
         self.fig =  plt.figure(figsize=(15, 8))
         self.title = "Variance brakedown"
         self.fig.suptitle(self.title)
@@ -388,6 +408,8 @@ class VarianceBreakdown:
         self.X_list = []
         self.X_labels = []
         self.x_shift = 0
+        self.n_moments = None
+        self.subset_type = moments
 
     def add_variances(self, level_vars, n_samples, ref_level_vars=None):
         """
@@ -401,12 +423,20 @@ class VarianceBreakdown:
         n_levels, n_moments = level_vars.shape
         assert n_samples.shape == (n_levels, )
 
-        width=0.1
+        if self.n_moments is None:
+            self.n_moments = n_moments
+            self.moments_subset = moments_subset(n_moments, self.subset_type)
+        else:
+            assert self.n_moments == n_moments
 
+        level_vars = level_vars[:, self.moments_subset]
+        n_levels, n_moments = level_vars.shape
+
+        width=0.1
         X = self.x_shift + (width*1.1)*np.arange(n_moments)
         self.x_shift = X[-1] + 3*width
         self.X_list.append(X)
-        X_labels = ['$\overline{x}$'] + [str(m) for m in range(1, n_moments)]
+        X_labels = ['avg'] + [str(self.moments_subset[m]) for m in range(1, n_moments)]
         self.X_labels.extend(X_labels)
         #plots = []
         sum_Y = np.zeros(n_moments)
@@ -455,7 +485,10 @@ class Variance:
     Plot level variances, i.e. Var X^l as a function of the mesh step.
     Selected moments are plotted.
     """
-    def __init__(self):
+    def __init__(self, moments=None):
+        """
+        :param moments: Size or type of moments subset, see moments_subset function.
+        """
         self.fig = plt.figure(figsize=(15, 8))
         self.title = "Level variances"
         self.fig.suptitle(self.title)
@@ -466,31 +499,27 @@ class Variance:
         self.ax.set_xscale('log')
         self.ax.set_yscale('log')
 
-        self.n_plots = 0
-        self.colorbar = None
+        self.n_moments = None
+        self.subset_type = moments
         self.min_step = 1e300
         self.max_step = 0
         self.data = {}
 
 
-    def add_level_variances(self, steps, variances, n_levels):
+    def add_level_variances(self, steps, variances):
         """
         Add variances for single MLMC instance.
         :param steps, variances : as returned by Estimate.estimate_level_vars
         :param n_levels:
         """
-        #n_vars, n_moments = variances.shape
-        #if self.colorbar is None:
-        #    self.colorbar = create_color_bar(n_moments, "Moments")
+        n_levels, n_moments = variances.shape
+        if self.n_moments is None:
+            self.n_moments = n_moments
+            self.moments_subset = moments_subset(n_moments, self.subset_type)
+        else:
+            assert self.n_moments == n_moments
 
-        #markers = ['o', 'v', 's', '^', '1', '2','D', '+', '4', 'X']
-        # ''<', '>', '1', '2', '3', '4',
-        #          '8': 'octagon', 's': 'square', 'p': 'pentagon', '*': 'star', 'h': 'hexagon1',
-        #            'H': 'hexagon2', '+': 'plus', 'x': 'x', 'D': 'diamond', 'd': 'thin_diamond', '|': 'vline',
-        #            '_': 'hline', 'P': 'plus_filled', 'X': 'x_filled', 0: 'tickleft', 1: 'tickright', 2: 'tickup',
-        #            3: 'tickdown', 4: 'caretleft', 5: 'caretright', 6: 'caretup', 7: 'caretdown', 8: 'caretleftbase',
-        #            9: 'caretrightbase', 10: 'caretupbase', 11: 'caretdownbase', 'None': 'nothing', None: 'nothing',
-        #            ' ': 'nothing', '': 'nothing'}
+        variances = variances[:, self.moments_subset]
         self.min_step = min(self.min_step, steps[-1])
         self.max_step = max(self.max_step, steps[0])
         for m, vars in enumerate(variances.T):
@@ -511,7 +540,7 @@ class Variance:
         rv = st.lognorm(scale=1, s=log_scale)
         for m, (X, Y) in self.data.items():
             col = plt.cm.tab20(m)
-            label = "M{}".format(m+1)
+            label = "M{}".format(self.moments_subset[m])
             XX = np.array(X) * rv.rvs(size=len(X))
             self.ax.scatter(XX, Y, color=col, label=label)
             #f = interpolate.interp1d(X, Y, kind='cubic')

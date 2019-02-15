@@ -316,7 +316,7 @@ class DistributionDomainCase:
             results.append(result)
 
         #self.check_convergence(results)
-        distr_plot.show(save=self.pdfname("_pdf_exact"))
+        distr_plot.show(file=self.pdfname("_pdf_exact"))
         distr_plot.reset()
         return results
 
@@ -369,7 +369,7 @@ class DistributionDomainCase:
 
         #self.check_convergence(results)
         self.eigenvalues_plot.show(file = self.pdfname("_eigenvalues"))
-        distr_plot.show(save=self.pdfname("_pdf_iexact"))
+        distr_plot.show(file=self.pdfname("_pdf_iexact"))
         distr_plot.reset()
         return results
 

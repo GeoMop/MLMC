@@ -25,3 +25,5 @@ doc/Bproject.pdf
 test/01_*/output*
 test/02_*/output*
 test/_output/*
+
+_*

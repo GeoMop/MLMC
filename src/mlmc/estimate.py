@@ -680,11 +680,9 @@ class CompareLevels:
 
     def plot_level_variances(self):
         var_plot = plot.Variance()
-        moments = np.array([1, 2, 3, 4, 6, 8, 12, 20, 28, 44])
-        moments = moments[moments < self.n_moments]
         for mc in self.mlmc:
             steps, vars = mc.estimate_level_vars()
-            var_plot.add_level_variances(steps, vars[:, moments], mc.n_levels)
+            var_plot.add_level_variances(steps, vars, moments)
         var_plot.show()
 
     def ref_estimates_bootstrap(self, n_samples, sample_vector=None):
