@@ -2,9 +2,6 @@ import os
 import os.path
 import shutil
 import subprocess
-import json
-import glob
-import numpy as np
 
 
 class Pbs:
@@ -122,6 +119,8 @@ class Pbs:
         with open(pbs_file, "w") as file_writer:
             file_writer.write(script_content)
 
+        os.chmod(pbs_file, 0o774)  # Make executable to allow direct call.
+        
 
 
         if self.qsub_cmd is None:

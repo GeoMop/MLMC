@@ -433,25 +433,28 @@ class VarianceBreakdown:
         n_levels, n_moments = level_vars.shape
 
         width=0.1
-        X = self.x_shift + (width*1.1)*np.arange(n_moments)
+        X = self.x_shift + (width*1.1)*np.arange(n_moments+1)
         self.x_shift = X[-1] + 3*width
         self.X_list.append(X)
-        X_labels = ['avg'] + [str(self.moments_subset[m]) for m in range(1, n_moments)]
+        X_labels = ['avg'] + [str(m) for m in self.moments_subset]
         self.X_labels.extend(X_labels)
         #plots = []
-        sum_Y = np.zeros(n_moments)
+        sum_Y = np.zeros(n_moments+1)
         yerr = None
         total_Y0 = np.sum(np.mean(level_vars[:, :] / n_samples[:, None], axis=1))
         for il in reversed(range(n_levels)):
-            vars = level_vars[il, 1:]
+            vars = level_vars[il, :]
             Y = np.concatenate(( [np.mean(vars)], vars))
             Y /= n_samples[il]
 
             if ref_level_vars is not None:
-                rvars = ref_level_vars[il, 1:]
-                rY = np.concatenate(([np.mean(rvars)], rvars))
-                rY /= n_samples[il]
-                yerr = np.array([(-diff, 0) if diff < 0 else (0, diff) for diff in rY - Y]).T
+                ref_vars = ref_level_vars[il, self.moments_subset]
+                ref_Y = np.concatenate(([np.mean(ref_vars)], ref_vars))
+                ref_Y /= n_samples[il]
+                diff_Y = ref_Y - Y
+                yerr_lower_lim = -np.minimum(diff_Y, 0)
+                yerr_upper_lim = np.maximum(diff_Y, 0)
+                yerr = np.stack((yerr_lower_lim, yerr_upper_lim), axis=0)
             level_col = plt.cm.tab20(il)
             self.ax.bar(X, Y, width, bottom=sum_Y, yerr=yerr,
                         color=level_col)

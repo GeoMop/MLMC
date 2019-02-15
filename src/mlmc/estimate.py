@@ -663,7 +663,7 @@ class CompareLevels:
         distr_plot.show('compare_distributions.pdf')
 
     def plot_variances(self):
-        var_plot = plot.VarianceBreakdown()
+        var_plot = plot.VarianceBreakdown(10)
         for mc in self.mlmc:
             #sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
             sample_vec = mc.estimate_n_samples_for_target_variance(0.0001)
@@ -679,10 +679,10 @@ class CompareLevels:
         var_plot.show()
 
     def plot_level_variances(self):
-        var_plot = plot.Variance()
+        var_plot = plot.Variance(10)
         for mc in self.mlmc:
             steps, vars = mc.estimate_level_vars()
-            var_plot.add_level_variances(steps, vars, moments)
+            var_plot.add_level_variances(steps, vars)
         var_plot.show()
 
     def ref_estimates_bootstrap(self, n_samples, sample_vector=None):

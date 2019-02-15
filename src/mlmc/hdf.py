@@ -87,32 +87,28 @@ class HDF5:
         # if os.path.exists(self.file_name):
         #         #    os.remove(self.file_name)
 
-        # h5py.File object - works generally like standard Python file objects, ppen with mode append
-        self._hdf_file = h5py.File(self.file_name, 'a')
-
         # Class attributes necessary for mlmc
         self.n_levels = None
         self.step_range = None
-
-    def close_file(self):
-        self._hdf_file.close()
 
     def load_from_file(self):
         """
         Load root group attributes from existing HDF5 file
         :return: None
         """
-        # Set class attributes from hdf file
-        for attr_name, value in self._hdf_file.attrs.items():
-            self.__dict__[attr_name] = value
+        with h5py.File(self.file_name, "r") as hdf_file:
+            # Set class attributes from hdf file
+            for attr_name, value in hdf_file.attrs.items():
+                self.__dict__[attr_name] = value
 
     def clear_groups(self):
         """
         Remove HDF5 group Levels, it allows run same mlmc object more times
         :return: None
         """
-        for item in self._hdf_file.keys():
-            del self._hdf_file[item]
+        with h5py.File(self.file_name, "a") as hdf_file:
+            for item in hdf_file.keys():
+                del hdf_file[item]
 
     def init_header(self, step_range, n_levels):
         """
@@ -125,15 +121,16 @@ class HDF5:
         self.step_range = step_range
         self.n_levels = n_levels
 
-        # Set global attributes to root group (h5py.Group)
-        self._hdf_file.attrs['version'] = '1.0.1'
-        self._hdf_file.attrs['work_dir'] = self.work_dir
-        self._hdf_file.attrs['job_dir'] = self.job_dir
-        self._hdf_file.attrs['step_range'] = step_range
-        self._hdf_file.attrs.create("n_levels", n_levels, dtype=np.int8)
+        with h5py.File(self.file_name, "a") as hdf_file:
+            # Set global attributes to root group (h5py.Group)
+            hdf_file.attrs['version'] = '1.0.1'
+            hdf_file.attrs['work_dir'] = self.work_dir
+            hdf_file.attrs['job_dir'] = self.job_dir
+            hdf_file.attrs['step_range'] = step_range
+            hdf_file.attrs.create("n_levels", n_levels, dtype=np.int8)
 
-        # Create h5py.Group Levels, it contains other groups with mlmc.Level data
-        self._hdf_file.create_group("Levels")
+            # Create h5py.Group Levels, it contains other groups with mlmc.Level data
+            hdf_file.create_group("Levels")
 
     def add_level_group(self, level_id):
         """
@@ -143,12 +140,14 @@ class HDF5:
         """
         # HDF5 path to particular level group
         level_group_hdf_path = '/Levels/' + level_id
-        # Create group (h5py.Group) if it has not yet been created
-        if level_group_hdf_path not in self._hdf_file:
-            # Create group for level named by level id (e.g. 0, 1, 2, ...)
-            self._hdf_file['Levels'].create_group(level_id)
 
-        return LevelGroup(self._hdf_file[level_group_hdf_path], level_id, job_dir=self.job_dir_abs_path)
+        with h5py.File(self.file_name, "a") as hdf_file:
+            # Create group (h5py.Group) if it has not yet been created
+            if level_group_hdf_path not in hdf_file:
+                # Create group for level named by level id (e.g. 0, 1, 2, ...)
+                hdf_file['Levels'].create_group(level_id)
+
+        return LevelGroup(self.file_name, level_group_hdf_path, level_id, job_dir=self.job_dir_abs_path)
 
 
 class LevelGroup:
@@ -174,28 +173,33 @@ class LevelGroup:
                                   'dtype': np.float64},
                        "time": {'name': 'collected_times', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
                                 'dtype': np.float64},
-                       "running_time": {'name': 'running_times', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
-                                'dtype': np.float64}
+                       # "running_time": {'name': 'running_times', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
+                       #          'dtype': np.float64}
                        }
 
-    def __init__(self, hdf_group, level_id, job_dir):
+    def __init__(self, file_name, hdf_group_path, level_id, job_dir):
         """
         Create LevelGroup instance, each mlmc.Level has access to corresponding LevelGroup to save data
-        :param hdf_group: h5py.Group instance, can contains other groups and dataset (h5py.Dataset)
+        :param file_name: Name of hdf file
+        :param hdf_group_path: h5py.Group path
         :param level_id: Unambiguous identifier of mlmc.Level object 
         :param job_dir: Absolute path to jobs directory which contains pbs scripts of samples
         """
+        # HDF file name
+        self.file_name = file_name
         # mlmc.Level identifier
         self.level_id = level_id
         # HDF Group object (h5py.Group)
-        self._level_group = hdf_group
+        self.level_group_path = hdf_group_path
         # Absolute path to the job directory
         self.job_dir = job_dir
 
         # Attribute necessary for mlmc run
         self._n_ops_estimate = None
+
         # Set group attribute 'level_id'
-        self._level_group.attrs['level_id'] = self.level_id
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            hdf_file[self.level_group_path].attrs['level_id'] = self.level_id
 
         # Create necessary datasets (h5py.Dataset) a groups (h5py.Group)
         self._make_groups_datasets()
@@ -229,42 +233,43 @@ class LevelGroup:
                               which the dataset may be resized. Axes with None are unlimited.
                     chunks: Tuple giving the chunk shape, or True if we want to use chunks but not specify the size or 
                             None if chunked storage is not used
-        :return: h5py.Dataset
+        :return: Dataset name
         """
-        # Check if dataset exists
-        if kwargs.get('name') not in self._level_group:
-            self._level_group.create_dataset(
-                kwargs.get('name'),
-                shape=kwargs.get('shape'),
-                dtype=kwargs.get('dtype'),
-                maxshape=kwargs.get('maxshape'),
-                chunks=kwargs.get('chunks'))
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            # Check if dataset exists
+            if kwargs.get('name') not in hdf_file[self.level_group_path]:
+                hdf_file[self.level_group_path].create_dataset(
+                    kwargs.get('name'),
+                    shape=kwargs.get('shape'),
+                    dtype=kwargs.get('dtype'),
+                    maxshape=kwargs.get('maxshape'),
+                    chunks=kwargs.get('chunks'))
 
-        return self._level_group[kwargs.get('name')]
+        return kwargs.get('name')
 
     @property
     def collected_ids_dset(self):
         """
         Collected ids dataset
-        :return: h5py.Dataset
+        :return: Dataset name
         """
-        return self._level_group['collected_ids']
+        return "collected_ids"
 
     @property
     def scheduled_dset(self):
         """
         Dataset with scheduled samples
-        :return: h5py.Dataset
+        :return: Dataset name
         """
-        return self._level_group['scheduled']
+        return "scheduled"
 
     @property
     def failed_ids_dset(self):
         """
         Dataset of ids of failed samples
-        :return: h5py.Dataset
+        :return: Dataset name
         """
-        return self._level_group['failed_ids']
+        return "failed_ids"
 
     def append_scheduled(self, scheduled_samples):
         """
@@ -329,7 +334,7 @@ class LevelGroup:
                 data = np.expand_dims(data, axis=len(LevelGroup.COLLECTED_ATTRS[attr_name]['maxshape']) - 1)
 
             # Append dataset
-            self._append_dataset(self._level_group[LevelGroup.COLLECTED_ATTRS[attr_name]['name']], data)
+            self._append_dataset(LevelGroup.COLLECTED_ATTRS[attr_name]['name'], data)
 
     def _sample_attr_pairs(self, fine_coarse_samples):
         """
@@ -355,36 +360,41 @@ class LevelGroup:
         :param failed_samples: set; Level sample ids
         :return: None
         """
-        self.failed_ids_dset.resize((len(failed_samples), ))
-        self.failed_ids_dset[:] = list(failed_samples)
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            hdf_file[self.level_group_path][self.failed_ids_dset].resize((len(failed_samples), ))
+            hdf_file[self.level_group_path][self.failed_ids_dset][:] = list(failed_samples)
 
-    def _append_dataset(self, dataset, values):
+    def _append_dataset(self, dataset_name, values):
         """
         Append values to existing dataset
-        :param dataset: h5py.Dataset
+        :param dataset_name: str, dataset name
         :param values: list of values (tuple, NumPy array or single value)
         :return: None
         """
-        # Resize dataset
-        dataset.resize(dataset.shape[0] + len(values), axis=0)
-        # Append new values to the end of dataset
-        dataset[-len(values):] = values
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            dataset = hdf_file[self.level_group_path][dataset_name]
+            # Resize dataset
+            dataset.resize(dataset.shape[0] + len(values), axis=0)
+            # Append new values to the end of dataset
+            dataset[-len(values):] = values
 
     def scheduled(self):
         """
         Read level dataset with scheduled samples
         :return: generator, each item is in form (Sample(), Sample())
         """
-        # Create fine and coarse samples
-        for sample_id, (fine, coarse) in enumerate(self.scheduled_dset):
-            yield (Sample(sample_id=sample_id,
-                          directory=fine[0].decode('UTF-8'),
-                          job_id=fine[1].decode('UTF-8'),
-                          prepare_time=fine[2], queued_time=fine[3]),
-                   Sample(sample_id=sample_id,
-                          directory=coarse[0].decode('UTF-8'),
-                          job_id=coarse[1].decode('UTF-8'),
-                          prepare_time=coarse[2], queued_time=coarse[3]))
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
+            # Create fine and coarse samples
+            for sample_id, (fine, coarse) in enumerate(scheduled_dset):
+                yield (Sample(sample_id=sample_id,
+                              directory=fine[0].decode('UTF-8'),
+                              job_id=fine[1].decode('UTF-8'),
+                              prepare_time=fine[2], queued_time=fine[3]),
+                       Sample(sample_id=sample_id,
+                              directory=coarse[0].decode('UTF-8'),
+                              job_id=coarse[1].decode('UTF-8'),
+                              prepare_time=coarse[2], queued_time=coarse[3]))
 
     def collected(self):
         """
@@ -392,29 +402,30 @@ class LevelGroup:
         create fine and coarse samples as Sample() instances
         :return: generator; one item is tuple (Sample(), Sample())
         """
-        # Number of collected samples
-        num_collected_samples = self.collected_ids_dset.len()
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            # Number of collected samples
+            num_collected_samples = hdf_file[self.level_group_path][self.collected_ids_dset].len()
 
-        # Collected data as dictionary according to lookup table COLLECTED_ATTRS
-        # dictionary format -> {COLLECTED_ATTRS key: corresponding dataset values generator, ...}
-        collected_data = {sample_attr_name: self._dataset_values(self._level_group[dset_params['name']])
-                          for sample_attr_name, dset_params in LevelGroup.COLLECTED_ATTRS.items()}
+            # Collected data as dictionary according to lookup table COLLECTED_ATTRS
+            # dictionary format -> {COLLECTED_ATTRS key: corresponding dataset values generator, ...}
+            collected_data = {sample_attr_name: self._dataset_values(hdf_file[self.level_group_path][dset_params['name']])
+                              for sample_attr_name, dset_params in LevelGroup.COLLECTED_ATTRS.items()}
 
-        # For each item create two Sample() instances - fine sample and coarse sample
-        for _ in range(num_collected_samples):
-            fine_values = {}
-            coarse_values = {}
-            # Loop through all datasets (in form of generator) with collected data
-            for sample_attr_name, values_generator in collected_data.items():
-                value = next(values_generator)
-                # Sample id is store like single value for both samples
-                if sample_attr_name == 'sample_id':
-                    coarse_values[sample_attr_name] = fine_values[sample_attr_name] = value
-                else:
-                    fine_values[sample_attr_name] = value[0]
-                    coarse_values[sample_attr_name] = value[1]
-            # Create tuple of Sample() instances
-            yield (Sample(**fine_values), Sample(**coarse_values))
+            # For each item create two Sample() instances - fine sample and coarse sample
+            for _ in range(num_collected_samples):
+                fine_values = {}
+                coarse_values = {}
+                # Loop through all datasets (in form of generator) with collected data
+                for sample_attr_name, values_generator in collected_data.items():
+                    value = next(values_generator)
+                    # Sample id is store like single value for both samples
+                    if sample_attr_name == 'sample_id':
+                        coarse_values[sample_attr_name] = fine_values[sample_attr_name] = value
+                    else:
+                        fine_values[sample_attr_name] = value[0]
+                        coarse_values[sample_attr_name] = value[1]
+                # Create tuple of Sample() instances
+                yield (Sample(**fine_values), Sample(**coarse_values))
 
     def _dataset_values(self, dataset):
         """
@@ -431,7 +442,8 @@ class LevelGroup:
         Get level job ids
         :return: list of job ids - in this case it is equivalent to h5py.Group.keys() (h5py.Dataset names)
         """
-        return list(self._level_group['Jobs'].keys())
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            return list(hdf_file[self.level_group_path]['Jobs'].keys())
 
     def job_samples(self, job_dataset_names):
         """
@@ -439,17 +451,18 @@ class LevelGroup:
         :param job_dataset_names: Job dataset names
         :return: NumPy array of unique sample ids
         """
-        # HDF path to level Jobs group
-        if 'Jobs' not in self._level_group:
-            self.level_group.create_group('Jobs')
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            # HDF path to level Jobs group
+            if 'Jobs' not in hdf_file[self.level_group_path]:
+                hdf_file[self.level_group_path].create_group('Jobs')
 
-        # Path 'Jobs' group
-        jobs_group_hdf_path = "/".join([self._level_group.name, 'Jobs'])
-        sample_ids = []
-        # Get job samples
-        for dset_name in job_dataset_names:
-            dataset = self._level_group["/".join([jobs_group_hdf_path, dset_name])]
-            sample_ids.extend(dataset.value)
+            # Path 'Jobs' group
+            jobs_group_hdf_path = "/".join([self.level_group_path, 'Jobs'])
+            sample_ids = []
+            # Get job samples
+            for dset_name in job_dataset_names:
+                dataset = hdf_file[self.level_group_path]["/".join([jobs_group_hdf_path, dset_name])]
+                sample_ids.extend(dataset.value)
 
         return np.unique(np.array(sample_ids))
 
@@ -458,18 +471,19 @@ class LevelGroup:
         Get collected and failed samples ids
         :return: NumPy array
         """
-        return np.concatenate((self.collected_ids_dset.value, np.array(self.get_failed_ids(True))), axis=0)
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            failed_ids = hdf_file[self.level_group_path]['failed_ids'].value
+            return np.concatenate((hdf_file[self.level_group_path][self.collected_ids_dset].value, np.array(failed_ids)),
+                                  axis=0)
 
-    def get_failed_ids(self, to_array=False):
+    def get_failed_ids(self):
         """
         Failed samples ids
-        :param to_array: need numpy array instead of set()
-        :return: set() or NumPy array
+        :return: set() of failed sample ids
         """
-        # Return NumPy array otherwise return set()
-        if to_array is True:
-            return self._level_group['failed_ids'].value
-        return set(self._level_group['failed_ids'])
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            # Return NumPy array otherwise return set()
+            return set(hdf_file[self.level_group_path]['failed_ids'])
 
     @property
     def n_ops_estimate(self):
@@ -477,8 +491,9 @@ class LevelGroup:
         Get number of operations estimate
         :return: float
         """
-        if self._n_ops_estimate is None and 'n_ops_estimate' in self._level_group.attrs:
-            self._n_ops_estimate = self._level_group.attrs['n_ops_estimate']
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            if self._n_ops_estimate is None and 'n_ops_estimate' in hdf_file[self.level_group_path].attrs:
+                self._n_ops_estimate = hdf_file[self.level_group_path].attrs['n_ops_estimate']
 
         return self._n_ops_estimate
 
@@ -489,4 +504,5 @@ class LevelGroup:
         :param n_ops_estimate: number of operations
         :return: None
         """
-        self._n_ops_estimate = self._level_group.attrs['n_ops_estimate'] = float(n_ops_estimate)
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            self._n_ops_estimate = hdf_file[self.level_group_path].attrs['n_ops_estimate'] = float(n_ops_estimate)

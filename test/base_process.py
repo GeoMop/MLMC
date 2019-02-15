@@ -1,67 +1,55 @@
 import os
 import sys
-import yaml
+import shutil
+import numpy as np
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
 
-import mlmc.mlmc
-import mlmc.simulation
-import mlmc.moments
-import mlmc.distribution
-import flow_mc as flow_mc
-import mlmc.correlated_field as cf
-
-sys.path.append(os.path.join(src_path, '..'))
-import base_process
+import pbs
+from  mlmc.moments import Legendre
+from mlmc.estimate import Estimate
+from mlmc.estimate import CompareLevels
 
 
-class FlowProcSim(flow_mc.FlowSim):
+class Process:
     """
-    Child from FlowSimulation that defines extract method
+    Parent class for particular simulation processes
     """
+    def __init__(self):
+        args = self.get_arguments(sys.argv[1:])
 
-    def _extract_result(self, sample):
+        self.step_range = (1, 0.01)
+
+        self.work_dir = args.work_dir
+        self.options = {'keep_collected': args.keep_collected,
+                        'regen_failed': args.regen_failed}
+
+        if args.command == 'run':
+            self.run()
+        elif args.command == 'collect':
+            self.collect()
+        elif args.command == 'process':
+            self.process()
+
+    def get_arguments(self, arguments):
         """
-        Extract the observed value from the Flow123d output.
-        :param sample: Sample instance
-        :return: None, inf or water balance result (float) and overall sample time
+        Getting arguments from console
+        :param arguments: list of arguments
+        :return: namespace
         """
-        sample_dir = sample.directory
-        if os.path.exists(os.path.join(sample_dir, "FINISHED")):
-            # try:
-            # extract the flux
-            balance_file = os.path.join(sample_dir, "water_balance.yaml")
+        import argparse
+        parser = argparse.ArgumentParser()
 
-            with open(balance_file, "r") as f:
-                balance = yaml.load(f)
+        parser.add_argument('command', choices=['run', 'collect', 'process'], help='Run, collect or process')
+        parser.add_argument('work_dir', help='Work directory')
+        parser.add_argument("-r", "--regen-failed", default=False, action='store_true',
+                            help="Regenerate failed samples", )
+        parser.add_argument("-k", "--keep-collected", default=False, action='store_true',
+                            help="Keep sample dirs")
 
-            flux_regions = ['.bc_outflow']
-            total_flux = 0.0
-            found = False
-            for flux_item in balance['data']:
-                if flux_item['time'] > 0:
-                    break
-
-                if flux_item['region'] in flux_regions:
-                    flux = float(flux_item['data'][0])
-                    flux_in = float(flux_item['data'][1])
-                    if flux_in > 1e-10:
-                        raise Exception("Possitive inflow at outlet region.")
-                    total_flux += flux  # flux field
-                    found = True
-
-            # Get flow123d computing time
-            run_time = self.get_run_time(sample_dir)
-
-            if not found:
-                raise Exception
-            return -total_flux, run_time
-        else:
-            return None, 0
-
-
-class CondField(base_process.Process):
+        args = parser.parse_args(arguments)
+        return args
 
     def run(self):
         """
@@ -70,64 +58,338 @@ class CondField(base_process.Process):
         """
         os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
 
-        self.n_moments = 10
-
         mlmc_list = []
         for nl in [1]:  # , 2, 3, 4,5, 7, 9]:
             mlmc = self.setup_config(nl, clean=True)
-            # self.n_sample_estimate(mlmc)
-            self.generate_jobs(mlmc, n_samples=[8])
+            self.generate_jobs(mlmc, n_samples=[8], sample_sleep=self.sample_sleep, sample_timeout=self.sample_timeout)
             mlmc_list.append(mlmc)
 
         self.all_collect(mlmc_list)
 
+    def collect(self):
+        """
+        Collect samples
+        :return: None
+        """
+        assert os.path.isdir(self.work_dir)
+        mlmc_list = []
+
+        for nl in [1, 2, 3, 4, 5, 7]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
+            mlmc = self.setup_config(nl, clean=False)
+            mlmc_list.append(mlmc)
+        self.all_collect(mlmc_list)
+        self.calculate_var(mlmc_list)
+        # show_results(mlmc_list)
+
+    def process(self):
+        """
+        Use collected data
+        :return: None
+        """
+        assert os.path.isdir(self.work_dir)
+        mlmc_est_list = []
+        # for nl in [ 1,3,5,7,9]:
+        for nl in [3]:  # high resolution fields
+            mlmc = self.setup_config(nl, clean=False)
+            # Use wrapper object for working with collected data
+            mlmc_est_list.append(mlmc)
+
+        cl = CompareLevels(mlmc_est_list,
+                           output_dir=src_path,
+                           quantity_name="Q [m/s]",
+                           moment_class=Legendre,
+                           log_scale=False,
+                           n_moments=21, )
+
+        self.process_analysis(cl)
+
+    def set_environment_variables(self):
+        """
+        Set pbs config, flow123d, gmsh
+        :return: None
+        """
+        root_dir = os.path.abspath(self.work_dir)
+        while root_dir != '/':
+            root_dir, tail = os.path.split(root_dir)
+
+        self.pbs_config = dict(
+            job_weight=250000,  # max number of elements per job
+            n_cores=1,
+            n_nodes=1,
+            select_flags=['cgroups=cpuacct'],
+            mem='4gb',
+            queue='charon',
+            home_dir='/storage/liberec3-tul/home/martin_spetlik/')
+
+        if tail == 'storage':
+            # Metacentrum
+            self.sample_sleep = 30
+            self.init_sample_timeout = 600
+            self.sample_timeout = 0
+            self.pbs_config['qsub'] = '/usr/bin/qsub'
+            self.flow123d = 'flow123d'  # "/storage/praha1/home/jan_brezina/local/flow123d_2.2.0/flow123d"
+            self.gmsh = "/storage/liberec3-tul/home/martin_spetlik/astra/gmsh/bin/gmsh"
+        else:
+            # Local
+            self.sample_sleep = 1
+            self.init_sample_timeout = 60
+            self.sample_timeout = 60
+            self.pbs_config['qsub'] = None
+            self.flow123d = "/home/jb/workspace/flow123d/bin/fterm flow123d dbg"
+            self.gmsh = "/home/jb/local/gmsh-3.0.5-git-Linux/bin/gmsh"
+
     def setup_config(self, n_levels, clean):
         """
-        Simulation dependent configuration
+        Set simulation configuration depends on particular task
         :param n_levels: Number of levels
-        :param clean: bool, If True remove existing files
-        :return: mlmc.MLMC instance
+        :param clean: bool, if False use existing files
+        :return: mlmc.MLMC
         """
+        raise NotImplementedError("Simulation configuration is not set")
 
-        fields = cf.Fields([
-            cf.Field('conductivity', cf.FourierSpatialCorrelatedField('gauss', dim=2, corr_length=0.125, log=True)),
-        ])
+    def rm_files(self, output_dir):
+        """
+        Rm files and dirs
+        :param output_dir: Output directory path
+        :return:
+        """
+        if os.path.isdir(output_dir):
+            shutil.rmtree(output_dir, ignore_errors=True)
+        os.makedirs(output_dir, mode=0o775, exist_ok=True)
 
-        # Set pbs config, flow123d, gmsh, ...
-        self.set_environment_variables()
-        output_dir = os.path.join(self.work_dir, "output_{}".format(n_levels))
-        # remove existing files
-        if clean:
-            self.rm_files(output_dir)
+    def create_pbs_object(self, output_dir, clean):
+        """
+        Initialize object for PBS execution
+        :param output_dir: Output directory
+        :param clean: bool, if True remove existing files
+        :return: None
+        """
+        pbs_work_dir = os.path.join(output_dir, "scripts")
+        num_jobs = 0
+        if os.path.isdir(pbs_work_dir):
+            num_jobs = len([_ for _ in os.listdir(pbs_work_dir)])
 
-        # Init pbs object
-        self.create_pbs_object(output_dir, clean)
+        self.pbs_obj = pbs.Pbs(pbs_work_dir,
+                               job_count=num_jobs,
+                               qsub=self.pbs_config['qsub'],
+                               clean=clean)
+        self.pbs_obj.pbs_common_setting(flow_3=True, **self.pbs_config)
 
-        simulation_config = {
-            'env': dict(flow123d=self.flow123d, gmsh=self.gmsh, pbs=self.pbs_obj),  # The Environment.
-            'output_dir': output_dir,
-            'fields': fields,  # correlated_field.FieldSet object
-            'yaml_file': os.path.join(self.work_dir, '01_conductivity.yaml'),  # The template with a mesh and field placeholders
-            'sim_param_range': self.step_range,  # Range of MLMC simulation parametr. Here the mesh step.
-            'geo_file': os.path.join(self.work_dir, 'square_1x1.geo'),  # The file with simulation geometry (independent of the step)
-            # 'field_template': "!FieldElementwise {mesh_data_file: \"${INPUT}/%s\", field_name: %s}"
-            'field_template': "!FieldElementwise {mesh_data_file: \"$INPUT_DIR$/%s\", field_name: %s}"
-        }
+    def generate_jobs(self, mlmc, n_samples=None):
+        """
+        Generate level samples
+        :param n_samples: None or list, number of samples for each level
+        :return: None
+        """
+        if n_samples is not None:
+            mlmc.set_initial_n_samples(n_samples)
+        mlmc.refill_samples()
 
-        FlowProcSim.total_sim_id = 0
+        if self.pbs_obj is not None:
+            self.pbs_obj.execute()
+        mlmc.wait_for_simulations(sleep=self.sample_sleep, timeout=self.sample_timeout)
 
-        self.options['output_dir'] = output_dir
-        mlmc_obj = mlmc.mlmc.MLMC(n_levels, FlowProcSim.factory(self.step_range, config=simulation_config, clean=clean),
-                                  self.step_range, self.options)
+    def set_moments(self, n_moments, log=False):
+        """
+        Create moments function instance
+        :param n_moments: int, number of moments
+        :param log: bool, If true then apply log transform
+        :return:
+        """
+        self.moments_fn = Legendre(n_moments, self.domain, safe_eval=True, log=log)
+        return self.moments_fn
 
-        if clean:
-            # Create new execution of mlmc
-            mlmc_obj.create_new_execution()
-        else:
-            # Use existing mlmc HDF file
-            mlmc_obj.load_from_file()
-        return mlmc_obj
+    def n_sample_estimate(self, mlmc, target_variance=0.001):
+        """
+        Estimate number of level samples considering target variance
+        :param mlmc: MLMC object
+        :param target_variance: float, target variance of moments
+        :return: None
+        """
+        mlmc.set_initial_n_samples()
+        mlmc.refill_samples()
+        self.pbs_obj.execute()
+        mlmc.wait_for_simulations(sleep=self.sample_sleep, timeout=self.init_sample_timeout)
 
+        self.domain = mlmc.estimate_domain()
+        self.set_moments(self.n_moments, log=True)
 
-if __name__ == "__main__":
-    pr = CondField()
+        mlmc.target_var_adding_samples(target_variance, self.moments_fn, pbs=self.pbs_obj)
+
+    def all_collect(self, mlmc_list):
+        """
+        Collect samples
+        :param mlmc_list: List of mlmc.MLMC objects
+        :return: None
+        """
+        running = 1
+        while running > 0:
+            running = 0
+            for mc in mlmc_list:
+                running += mc.wait_for_simulations(sleep=self.sample_sleep, timeout=0.1)
+            print("N running: ", running)
+
+    def process_analysis(self, cl):
+        """
+        Main analysis function. Particular types of analysis called from here.
+        :param cl: Instance of CompareLevels - list of Estimate objects
+        :return:
+        """
+        cl.collected_report()
+        mlmc_level = 1
+
+        #self.analyze_pdf_approx(cl)
+        # analyze_regression_of_variance(cl, mlmc_level)
+        self.analyze_error_of_variance(cl, mlmc_level)
+        # analyze_error_of_regression_variance(cl, mlmc_level)
+        # analyze_error_of_level_variances(cl, mlmc_level)
+        # analyze_error_of_regression_level_variances(cl, mlmc_level)
+        # analyze_error_of_log_variance(cl, mlmc_level)
+
+    def analyze_pdf_approx(self, cl):
+        """
+        Plot densities
+        :param cl: mlmc.estimate.CompareLevels
+        :return: None
+        """
+        # PDF approximation experiments
+        np.random.seed(15)
+        cl.set_common_domain(0)
+        print("cl domain:", cl.domain)
+
+        cl.reinit(n_moments=35)
+        il = 1
+        # ns = cl[il].mlmc.estimate_n_samples_for_target_variance(0.01, cl.moments)
+        # cl[il].mlmc.subsample(ns)
+        cl.construct_densities(tol=0.01, reg_param=1)
+        # cl[il].construct_density(tol = 0.01, reg_param = 1)
+        cl.plot_densities(i_sample_mlmc=0)
+
+    def analyze_regression_of_variance(self, cl, mlmc_level):
+        """
+        Analyze regression of variance
+        :param cl: mlmc.estimate.CompareLevels instance
+        :param mlmc_level: selected MC method
+        :return: None
+        """
+        mc = cl[mlmc_level]
+        # Plot reference variances as scater and line plot of regression result.
+        mc.ref_estimates_bootstrap(10)
+        sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        mc.mlmc.subsample(sample_vec[mc.n_levels])
+        mc.plot_var_regression([1, 2, 4, 8, 16, 20])
+
+    def analyze_error_of_variance(self, cl, mlmc_level):
+        """
+        Analyze error of variance for particular mlmc method or for all collected methods
+        :param cl: mlmc.estimate.CompareLevels instance
+        :param mlmc_level: selected MC method
+        :return: None
+        """
+        np.random.seed(20)
+        cl.plot_variances()
+        cl.plot_level_variances()
+
+        # # Error of total variance estimator and contribution form individual levels.
+        # sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        # mc = cl[mlmc_level]
+        # mc.ref_estimates_bootstrap(300, sample_vector=sample_vec[:mc.n_levels])
+        # mc.mlmc.update_moments(cl.moments)
+        # mc.mlmc.subsample()
+
+        # print("std var. est / var. est.\n", np.sqrt(mc._bs_var_variance) / mc._bs_mean_variance)
+        # vv_components = mc._bs_level_mean_variance[:, :] ** 2 / mc._bs_n_samples[:,None] ** 3
+        # vv = np.sum(vv_components, axis=0) / mc.n_levels
+        # print("err. var. composition\n", vv_components  - vv)
+        # cl.plot_var_compare(9)
+        mc.plot_bs_var_error_contributions()
+
+    def analyze_error_of_regression_variance(self, cl, mlmc_level):
+        """
+        Analyze error of regression variance
+        :param cl: CompareLevels
+        :param mlmc_level: selected MC method
+        :return:
+        """
+        # Demonstrate that variance of varaince estimates is proportional to
+        sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        mc = cl[mlmc_level]
+
+        # sample_vec = 9*[80]
+        mc.ref_estimates_bootstrap(300, sample_vector=sample_vec[mc.n_levels], regression=True)
+        # print(mc._bs_level_mean_variance)
+        mc.mlmc.update_moments(cl.moments)
+        mc.mlmc.subsample()
+        # cl.plot_var_compare(9)
+        mc.plot_bs_var_error_contributions()
+
+    def analyze_error_of_level_variances(self, cl, mlmc_level):
+        """
+        Analyze error of level variances
+        :param cl: mlmc.estimate.CompareLevels instance
+        :param mlmc_level: selected MC method
+        :return: None
+        """
+        # Demonstrate that variance of varaince estimates is proportional to
+
+        mc = cl[mlmc_level]
+        # sample_vec = 9*[8]
+        sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        # n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
+        # sample_vec = np.max(n_samples, axis=1).astype(int)
+        # print(sample_vec)
+
+        mc.ref_estimates_bootstrap(300, sample_vector=sample_vec[:mc.n_levels])
+        mc.mlmc.update_moments(cl.moments)
+        mc.mlmc.subsample()
+
+        # print("std var. est / var. est.\n", np.sqrt(mc._bs_var_variance) / mc._bs_mean_variance)
+        # vv_components = mc._bs_level_mean_variance[:, :] ** 2 / mc._bs_n_samples[:,None] ** 3
+        # vv = np.sum(vv_components, axis=0) / mc.n_levels
+        # print("err. var. composition\n", vv_components  - vv)
+        # cl.plot_var_compare(9)
+        mc.plot_bs_level_variances_error()
+
+    def analyze_error_of_regression_level_variances(self, cl, mlmc_level):
+        """
+        Analyze error of level variances
+        :param cl: mlmc.estimate.CompareLevels instance
+        :param mlmc_level: selected MC method
+        :return: None
+        """
+        # Demonstrate that variance of varaince estimates is proportional to
+        mc = cl[mlmc_level]
+        # sample_vec = 9*[8]
+        sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        # n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
+        # sample_vec = np.max(n_samples, axis=1).astype(int)
+        # print(sample_vec)
+
+        mc.ref_estimates_bootstrap(10, sample_vector=sample_vec[:mc.n_levels], regression=True)
+        mc.mlmc.update_moments(cl.moments)
+        mc.mlmc.subsample()
+
+        # print("std var. est / var. est.\n", np.sqrt(mc._bs_var_variance) / mc._bs_mean_variance)
+        # vv_components = mc._bs_level_mean_variance[:, :] ** 2 / mc._bs_n_samples[:,None] ** 3
+        # vv = np.sum(vv_components, axis=0) / mc.n_levels
+        # print("err. var. composition\n", vv_components  - vv)
+        # cl.plot_var_compare(9)
+        mc.plot_bs_level_variances_error()
+
+    def analyze_error_of_log_variance(self, cl, mlmc_level):
+        """
+        Analyze error of level variances
+        :param cl: mlmc.estimate.CompareLevels instance
+        :param mlmc_level: selected MC method
+        :return: None
+        """
+        # Demonstrate that variance of varaince estimates is proportional to
+        # sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+        # sample_vec = 9*[80]
+        mc = cl[mlmc_level]
+        mc.ref_estimates_bootstrap(300, sample_vector=sample_vec[:mc.n_levels], log=True)
+        mc.mlmc.update_moments(cl.moments)
+        mc.mlmc.subsample()
+        # cl.plot_var_compare(9)
+        mc.plot_bs_var_log_var()
