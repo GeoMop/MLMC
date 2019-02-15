@@ -191,6 +191,9 @@ class DistributionDomainCase:
 
             print("threshold: ", threshold, " from N: ", size)
             if self.eigenvalues_plot:
+                threshold = evals[threshold]
+                noise_label = "{:5.2e}".format(noise_level)
+                self.eigenvalues_plot.add_values(evals, threshold=threshold, label=noise_label)
             self.tol_density_approx = 0.01
         else:
             self.exact_moments += noise_level * np.random.randn(self.moments_fn.size)
