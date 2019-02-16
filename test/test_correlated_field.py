@@ -1,4 +1,6 @@
 # TEST OF CONSISTENCY in the field values generated
+import matplotlib
+matplotlib.use("agg")
 import os
 import sys
 import pytest
@@ -8,11 +10,12 @@ import numpy.linalg as la
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 from mlmc.correlated_field import SpatialCorrelatedField
 from mlmc.correlated_field import FourierSpatialCorrelatedField
+from mlmc.correlated_field import OrigFourierSpatialCorrelatedField
+from mlmc.correlated_field import TPLFourierSpatialCorrelatedField
 
 # Only for debugging
 #import statprof
-import matplotlib
-#matplotlib.use("agg")
+
 import matplotlib.pyplot as plt
 #plt.switch_backend('agg')
 
@@ -151,8 +154,12 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, fourier=Fals
     corr_length = 2
     mu = 3.14
     sigma = 1.5
-    field = field_impl(corr_exp, dim=points.dim, corr_length=corr_length)
 
+    # mu = 0
+    # sigma = 4
+    # corr_length = 0.1
+
+    field = field_impl(corr_exp, dim=points.dim, corr_length=corr_length)
 
     field.set_points(points.points, mu, sigma)
     if isinstance(field, SpatialCorrelatedField):
@@ -162,7 +169,7 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, fourier=Fals
     #points.plot_field_2d(field.sample(), "Single sample exp: {}".format(corr_exp))
 
     # Estimate mu and sigma by Monte Carlo
-    n_samples = 2300
+    n_samples = 1000#2300
 
     cum_mean = Cumul(n_pt)
     cum_sigma = Cumul(n_pt)
@@ -173,6 +180,9 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, fourier=Fals
         centered = sample - mu
         cum_sigma += centered * centered
 
+    print("avg array ", cum_mean.avg_array())
+
+
     #### Mean plots and tests
     mu_err = np.abs(cum_mean.avg_array() - mu)  # cum_mean.avg%array has size [log 2 N * n] but its one value along n axis
     #plot_mc(cum_mean.n_array(), mu_err, "Error of 'mu' estimate as func of samples.")   # convergence plot
@@ -181,11 +191,19 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, fourier=Fals
     # check convergence
     means = np.mean(mu_err, axis=1)
 
+    print("mu err ", np.abs(cum_mean.avg_array() - mu))
+    print("np mean avg array ", np.mean(cum_mean.avg_array(), axis=1))
+    print("np mean mean avg array ", np.mean(np.mean(cum_mean.avg_array(), axis=1)))
+    return np.mean(np.mean(cum_mean.avg_array(), axis=1))
+    print("means ", means)
+
     m1, _ = np.polyfit(np.log(cum_mean.n_array()), np.log(means), 1)
     log_mean = np.average(np.log(means))
 
+    print("m1 ", m1)
     assert -m1 > 0.4    # convergence rate close to 0.5 (optimal for MC)
     print("Mean fit: {} {} {}".format(m1, log_mean, np.exp(log_mean)))
+    print("np exp log mean ", np.exp(log_mean))
     assert np.exp(log_mean) < 0.2     # should be about 0.1
 
     ### Sigma plot and test
@@ -221,8 +239,8 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, fourier=Fals
 #@pytest.mark.skip
 @pytest.mark.parametrize('seed', [2, 5, 6])
 def test_field_mean_std_convergence(seed):
-    np.random.seed(seed)
-    np.random.rand(1000)
+    # np.random.seed(seed)
+    # np.random.rand(1000)
     # ===========  A structured grid of points: =====================================
     bounds = ([13, 3], [40, 32])
     grid_size = [10, 15]
@@ -232,9 +250,17 @@ def test_field_mean_std_convergence(seed):
     gauss = 2.0
     n_terms = (np.inf, np.inf)  # Use full expansion to avoid error in approximation.
 
-    for impl in [SpatialCorrelatedField, FourierSpatialCorrelatedField]:
+    import time
+    for impl in [SpatialCorrelatedField]:#, FourierSpatialCorrelatedField]:
         print("Test exponential, grid points.")
-        impl_test_mu_sigma(impl, exponential, grid_points, n_terms_range=n_terms)
+        start = time.time()
+        means = []
+        for _ in range(25):
+            means.append(impl_test_mu_sigma(impl, exponential, grid_points, n_terms_range=n_terms))
+        print("OVERALL MEAN ", np.mean(means))
+        print("OVERALL VAR ", np.var(means))
+        print("Celkový čas ", time.time() - start)
+        exit()
         print("Test Gauss, grid points.")
         impl_test_mu_sigma(impl, gauss, grid_points, n_terms_range=n_terms)
         print("Test exponential, random points.")
@@ -255,10 +281,9 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
     corr_length = 10.0
     field = field_impl(corr_exp, dim=points.dim, corr_length=corr_length)
 
-
     field.set_points(points.points)
     if isinstance(field, SpatialCorrelatedField):
-        field.svd_dcmp(precision=0.01, n_terms_range=n_terms_range)
+        field.svd_dcmp(precision=0.01)#, n_terms_range=n_terms_range)
     # # plot single sample
     #points.plot_field_2d(field.sample(), "Single sample exp: {}".format(corr_exp))
 
@@ -274,7 +299,6 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
     pair_dists = pair_dists[indices].reshape(n_cells, n_fn_samples)
     cell_lists = np.transpose(pairs[indices, :].reshape(n_cells, n_fn_samples, 2), axes=(1, 0, 2))
     lengths = np.mean(pair_dists, axis=1)
-
 
     # Estimate statistics by Monte Carlo
     # correlation function - stationary, isotropic
@@ -304,7 +328,6 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
         plt.plot(X, Y)
         plt.show()
 
-
     def plot_variogram():
         # For sigma == 1 variogram is 1-correlation function
         # Plot mean of every cell.
@@ -318,8 +341,9 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
     Y = np.std(errors.avg_array(), axis=1)
     X = errors.n_array()
     m1, m0 = np.polyfit(np.log(X), np.log(Y), 1)
+    #print("m1 ", m1)
+    #print("m0 ", m0)
     log_mean = np.average(np.log(Y))
-
 
     def plot_fit():
         legend = "rate: {}".format(m1)
@@ -335,6 +359,8 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
         plt.show()
 
     #plot_fit()
+
+    return m0, m1, log_mean, np.exp(log_mean)
 
     # @TODO determine the parameters more precisely
     assert -m1 > 0.3    # convergence rate close to 0.5 (optimal for MC)
@@ -363,14 +389,32 @@ def test_cov_func_convergence(seed):
     gauss = 2.0
     n_terms = (np.inf, np.inf)  # Use full expansion to avoid error in approximation.
 
-    impl_test_cov_func(FourierSpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms)
-    impl_test_cov_func(FourierSpatialCorrelatedField, exponential, random_points, n_terms_range=n_terms)
+    #impl_test_cov_func(FourierSpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms)
+
+    m0_arr = []
+    m1_arr = []
+    log_mean_arr = []
+    exp_log_mean_arr = []
+    for _ in range(100):
+        m0, m1, log_mean, exp_log_mean = impl_test_cov_func(FourierSpatialCorrelatedField, exponential, random_points, n_terms_range=n_terms)
+        m0_arr.append(m0)
+        m1_arr.append(m1)
+        log_mean_arr.append(log_mean)
+        exp_log_mean_arr.append(exp_log_mean)
+
+    print("m0 ", np.mean(m0_arr))
+    print("m1 ", np.mean(m1_arr))
+
+    print("log mean ", np.mean(log_mean_arr))
+    print("exp log mean ", np.mean(exp_log_mean_arr))
+
+    exit()
 
     impl_test_cov_func(SpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms)
     impl_test_cov_func(SpatialCorrelatedField, exponential, random_points, n_terms_range=n_terms)
 
 
 if __name__ == "__main__":
-    test_field_mean_std_convergence(2)
+    #test_field_mean_std_convergence(2)
     test_cov_func_convergence(2)
 

@@ -167,6 +167,7 @@ class TestMLMC:
         self.mc.set_initial_n_samples(n_samples)
         self.mc.refill_samples()
         self.mc.wait_for_simulations()
+        self.estimator.target_var_adding_samples(1e-3, self.moments_fn)
         # Force moments evaluation to deal with bug in subsampling.
         self.mc.update_moments(self.moments_fn)
         print("Collected n_samples: ", self.mc.n_samples)
@@ -279,7 +280,7 @@ class TestMLMC:
         vars = np.zeros((self.n_levels, self.n_moments))
         for vars_sample in self.all_level_vars:
             vars[:, 1:] = vars_sample
-            reg_vars = self.mc._variance_regression(vars, sim_steps)
+            reg_vars = self.estimator._variance_regression(vars, sim_steps)
             #diff = reg_vars[:, 1:] - mean_level_vars[1:, :]
             diff = reg_vars[:, 1:] - self.ref_level_vars[:, 1:]
             all_diffs.append(diff)
@@ -419,7 +420,7 @@ class TestMLMC:
         vars_el = []
         n_loops = 30
         for t_var in target_var:
-            n_samples = self.mc.set_target_variance(t_var, prescribe_vars=self.ref_mc_diff_vars)
+            n_samples = self.estimator.set_target_variance(t_var, prescribe_vars=self.ref_mc_diff_vars)
             n_samples = np.max(n_samples, axis=1).astype(int)
 
             print(t_var, n_samples)
@@ -514,7 +515,7 @@ class TestMLMC:
         #self.plot_diff_var()
 
         t_var = 0.0002
-        ref_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=self.ref_mc_diff_vars)
+        ref_n_samples = self.estimator.set_target_variance(t_var, prescribe_vars=self.ref_mc_diff_vars)
         ref_n_samples = np.max(ref_n_samples, axis=1)
         ref_cost = self.estimator.estimate_cost(n_samples=ref_n_samples.astype(int))
         ref_total_var = np.sum(self.ref_mc_diff_vars / ref_n_samples[:, None]) / self.n_moments
@@ -542,7 +543,7 @@ class TestMLMC:
 
                 self.mc.subsample(n_samples)
                 est_diff_vars, _ = self.estimator.estimate_diff_vars(self.moments_fn)
-                est_n_samples = self.mc.set_target_variance(t_var, prescribe_vars=est_diff_vars)
+                est_n_samples = self.estimator.set_target_variance(t_var, prescribe_vars=est_diff_vars)
                 max_est_n_samples = np.max(est_n_samples, axis=1)
                 est_cost = self.estimator.estimate_cost(n_samples=max_est_n_samples.astype(int))
                 est_total_var = np.sum(self.ref_mc_diff_vars / max_est_n_samples[:, None]) / self.n_moments

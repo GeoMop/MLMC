@@ -83,6 +83,9 @@ class HDF5:
         # Job directory absolute path
         self.job_dir_abs_path = os.path.join(work_dir, job_dir)
 
+        # Load from file flag
+        self._loaded_from_file = False
+
         # @TODO: Remove this and solve it complexly
         # if os.path.exists(self.file_name):
         #         #    os.remove(self.file_name)
@@ -96,6 +99,7 @@ class HDF5:
         Load root group attributes from existing HDF5 file
         :return: None
         """
+        self._loaded_from_file = True
         with h5py.File(self.file_name, "r") as hdf_file:
             # Set class attributes from hdf file
             for attr_name, value in hdf_file.attrs.items():
@@ -147,7 +151,8 @@ class HDF5:
                 # Create group for level named by level id (e.g. 0, 1, 2, ...)
                 hdf_file['Levels'].create_group(level_id)
 
-        return LevelGroup(self.file_name, level_group_hdf_path, level_id, job_dir=self.job_dir_abs_path)
+        return LevelGroup(self.file_name, level_group_hdf_path, level_id, job_dir=self.job_dir_abs_path,
+                          loaded_from_file=self._loaded_from_file)
 
 
 class LevelGroup:
@@ -177,7 +182,7 @@ class LevelGroup:
                        #          'dtype': np.float64}
                        }
 
-    def __init__(self, file_name, hdf_group_path, level_id, job_dir):
+    def __init__(self, file_name, hdf_group_path, level_id, job_dir, loaded_from_file=False):
         """
         Create LevelGroup instance, each mlmc.Level has access to corresponding LevelGroup to save data
         :param file_name: Name of hdf file
@@ -202,7 +207,8 @@ class LevelGroup:
             hdf_file[self.level_group_path].attrs['level_id'] = self.level_id
 
         # Create necessary datasets (h5py.Dataset) a groups (h5py.Group)
-        self._make_groups_datasets()
+        if not loaded_from_file:
+            self._make_groups_datasets()
 
     def _make_groups_datasets(self):
         """
@@ -386,7 +392,7 @@ class LevelGroup:
         with h5py.File(self.file_name, 'r') as hdf_file:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             # Create fine and coarse samples
-            for sample_id, (fine, coarse) in enumerate(scheduled_dset):
+            for sample_id, (fine, coarse) in enumerate(scheduled_dset[:]):
                 yield (Sample(sample_id=sample_id,
                               directory=fine[0].decode('UTF-8'),
                               job_id=fine[1].decode('UTF-8'),
@@ -398,44 +404,51 @@ class LevelGroup:
 
     def collected(self):
         """
-        Read all level datasets with collected data (reading dataset values via self._dataset_values() method),
-        create fine and coarse samples as Sample() instances
+        Read all level datasets with collected data, create fine and coarse samples as Sample() instances
         :return: generator; one item is tuple (Sample(), Sample())
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             # Number of collected samples
-            num_collected_samples = hdf_file[self.level_group_path][self.collected_ids_dset].len()
+            num_samples = hdf_file[self.level_group_path][self.collected_ids_dset].len()
 
-            # Collected data as dictionary according to lookup table COLLECTED_ATTRS
-            # dictionary format -> {COLLECTED_ATTRS key: corresponding dataset values generator, ...}
-            collected_data = {sample_attr_name: self._dataset_values(hdf_file[self.level_group_path][dset_params['name']])
-                              for sample_attr_name, dset_params in LevelGroup.COLLECTED_ATTRS.items()}
+            # Empty datasets cannot be read
+            if num_samples == 0:
+                return
 
-            # For each item create two Sample() instances - fine sample and coarse sample
-            for _ in range(num_collected_samples):
-                fine_values = {}
-                coarse_values = {}
-                # Loop through all datasets (in form of generator) with collected data
-                for sample_attr_name, values_generator in collected_data.items():
-                    value = next(values_generator)
-                    # Sample id is store like single value for both samples
-                    if sample_attr_name == 'sample_id':
-                        coarse_values[sample_attr_name] = fine_values[sample_attr_name] = value
-                    else:
-                        fine_values[sample_attr_name] = value[0]
-                        coarse_values[sample_attr_name] = value[1]
-                # Create tuple of Sample() instances
-                yield (Sample(**fine_values), Sample(**coarse_values))
+            # Initialize matrix of all collected values
+            sample_matrix = np.empty((num_samples, (len(LevelGroup.COLLECTED_ATTRS) * 2) - 1), dtype=np.float)
 
-    def _dataset_values(self, dataset):
-        """
-        Read dataset values
-        :param dataset: h5py.Dataset Level group
-        :return: generator; item - row in dataset (Numpy array or single value)
-        """
-        # Return dataset item
-        for dset_value in dataset:
-            yield dset_value
+            # Auxiliary dictionaries for Sample instance creation
+            fine_attribute_column = {}
+            coarse_attribute_column = {}
+
+            column_index = 0
+            # Loop through all collected datasets and put its values into matrix
+            for sample_attr_name, dset_params in LevelGroup.COLLECTED_ATTRS.items():
+                # Skip not used datasets
+                if dset_params['name'] not in hdf_file[self.level_group_path]:
+                    continue
+                dataset = hdf_file["/".join([self.level_group_path, dset_params['name']])]
+
+                # Collected ids is used for both - fine and coarse sample
+                if dset_params['name'] == 'collected_ids':
+                    dataset.read_direct(sample_matrix, np.s_[:, ], np.s_[:, column_index])
+                    # Attribute name with corresponding column index in sample matrix
+                    fine_attribute_column[sample_attr_name] = column_index
+                    coarse_attribute_column[sample_attr_name] = column_index
+                else:
+                    # Read dataset values to matrix
+                    dataset.read_direct(sample_matrix, np.s_[:, 0, 0], np.s_[:, column_index])
+                    fine_attribute_column[sample_attr_name] = column_index
+                    column_index += 1
+                    coarse_attribute_column[sample_attr_name] = column_index
+                    dataset.read_direct(sample_matrix, np.s_[:, 1, 0], np.s_[:, column_index])
+                column_index += 1
+
+            # Create fine and coarse Sample
+            for row in sample_matrix:
+                yield Sample(**{attr_name: row[index] for attr_name, index in fine_attribute_column.items()}), \
+                      Sample(**{attr_name: row[index] for attr_name, index in coarse_attribute_column.items()})
 
     def level_jobs(self):
         """
