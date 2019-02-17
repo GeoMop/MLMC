@@ -6,6 +6,7 @@ import mlmc.moments
 import mlmc.distribution
 import scipy.integrate as integrate
 import scipy.stats as stats
+import pytest
 #import matplotlib.pyplot as plt
 
 
@@ -69,6 +70,23 @@ def test_legendre():
     ref = [np.ones_like(values), values, (3*values**2 - 1.0) / 2.0, (5*values**3 - 3 * values) / 2.0]
 
     assert np.allclose(np.array(ref).T, moments)
+
+    # test derivative
+    moments_diff = moments_fn.eval_diff(values[:-1])
+    eps = 1e-7
+    moments_eps = moments_fn(values[:-1] + eps)
+    moments_ndiff = (moments_eps - moments[:-1]) / eps
+    # print(moments_ndiff - moments_diff)
+    assert np.allclose(moments_ndiff, moments_diff, atol=6*eps)
+
+    # test second deriv
+    moments_diff2 = moments_fn.eval_diff2(values[1:-1])
+    eps = 1e-5
+    moments_meps = moments_fn(values[1:-1] - eps)
+    moments_peps = moments_fn(values[1:-1] + eps)
+    moments_ndiff = (moments_meps + moments_peps - 2*moments[1:-1]) / eps / eps
+    #print(moments_ndiff -  moments_diff2)
+    assert np.allclose(moments_ndiff, moments_diff2, atol=6*eps)
 
 
 def test_moments():
@@ -252,6 +270,7 @@ def plot_distribution():
     exit()
 
 
+@pytest.mark.skip
 def test_transform():
     distr = stats.norm(loc=-5, scale=1)
     #distr = stats.lognorm(scale=np.exp(-5), s=1)

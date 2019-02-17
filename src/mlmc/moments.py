@@ -82,6 +82,16 @@ class Moments:
             size = self.size
         return self._eval_all(value, size)
 
+    def eval_diff(self, value, size=None):
+        if size is None:
+            size = self.size
+        return self._eval_diff(value, size)
+
+    def eval_diff2(self, value, size=None):
+        if size is None:
+            size = self.size
+        return self._eval_diff2(value, size)
+
 
 class Monomial(Moments):
     def __init__(self, size, domain=(0, 1), log=False, safe_eval=True):
@@ -135,12 +145,25 @@ class Legendre(Moments):
 
     def __init__(self, size, domain, log=False, safe_eval=True):
         self.ref_domain = (-1, 1)
+        self.diff_mat = np.zeros((size, size))
+        for n in range(size-1):
+            self.diff_mat[n, n+1::2] = 2*n+1
+        self.diff2_mat = self.diff_mat @ self.diff_mat
         super().__init__(size, domain, log, safe_eval)
 
     def _eval_all(self, value, size):
         t = self.transform(np.atleast_1d(value))
         return np.polynomial.legendre.legvander(t, deg=size - 1)
 
+    def _eval_diff(self, value, size):
+        t = self.transform(np.atleast_1d(value))
+        P_n = np.polynomial.legendre.legvander(t, deg=size - 1)
+        return P_n @ self.diff_mat
+
+    def _eval_diff2(self, value, size):
+        t = self.transform(np.atleast_1d(value))
+        P_n = np.polynomial.legendre.legvander(t, deg=size - 1)
+        return P_n @ self.diff2_mat
 
 class TransformedMoments(Moments):
     def __init__(self, other_moments, matrix):
@@ -173,6 +196,18 @@ class TransformedMoments(Moments):
 
     def _eval_all(self, value, size):
         orig_moments = self._origin._eval_all(value, self._origin.size)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        #x2 = np.linalg.solve(self._inv, orig_moments.T).T
+        return x1[:, :size]
+
+    def _eval_diff(self, value, size):
+        orig_moments = self._origin.eval_diff(value, self._origin.size)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        #x2 = np.linalg.solve(self._inv, orig_moments.T).T
+        return x1[:, :size]
+
+    def _eval_diff2(self, value, size):
+        orig_moments = self._origin.eval_diff2(value, self._origin.size)
         x1 = np.matmul(orig_moments, self._transform.T)
         #x2 = np.linalg.solve(self._inv, orig_moments.T).T
         return x1[:, :size]
