@@ -4,7 +4,11 @@ import scipy.integrate as integrate
 import mlmc.moments
 import mlmc.plot
 
+import autograd.numpy as anp
+import autograd
+
 EXACT_QUAD_LIMIT = 1000
+
 
 class SimpleDistribution:
     """
@@ -48,9 +52,16 @@ class SimpleDistribution:
         # Degree of Gauss quad to use on every subinterval determined by adaptive quad.
         self._gauss_degree = 21
         # Panalty coef for endpoint derivatives
-        self._penalty_coef = 0
+        self._penalty_coef = 0.0
+        self._fixed_quad = False
 
-    def estimate_density_minimize(self, tol=1e-5, reg_param =0.01):
+    def set_quadrature(self, other_distr):
+        self._quad_points = other_distr._quad_points
+        self._quad_weights = other_distr._quad_weights
+        self._quad_moments = other_distr._quad_moments
+        self._fixed_quad = True
+
+    def estimate_density_minimize(self, tol=1e-5):
         """
         Optimize density estimation
         :param tol: Tolerance for the nonlinear system residual, after division by std errors for
@@ -65,26 +76,31 @@ class SimpleDistribution:
         #method = 'trust-exact'
         #method ='Newton-CG'
         method = 'trust-ncg'
+        #method = 'dogleg'
         result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
                                       jac=self._calculate_gradient,
                                       hess=self._calculate_jacobian_matrix,
                                       options={'tol': tol, 'xtol': tol,
                                                'gtol': tol, 'disp': False,  'maxiter': max_it})
+
+        #self.minimize_newton(tol=tol, maxit=max_it)
         self.multipliers = result.x
         jac_norm = np.linalg.norm(result.jac)
         print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
            self.approx_size, result.nit, tol, jac_norm, result.message))
+
+        # freeze quadrature.
+        self._update_quadrature(self.multipliers, True)
+        # Fix normalization
+        moments = self.moments_by_quadrature()
+        self.multipliers[0] -= np.log(moments[0])
+        self.moments = self.moments_by_quadrature()
 
         jac = self._calculate_jacobian_matrix(self.multipliers)
         result.eigvals = np.linalg.eigvalsh(jac)
         #result.residual = jac[0] * self._moment_errs
         #result.residual[0] *= self._moment_errs[0]
         result.solver_res = result.jac
-        # Fix normalization
-        moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
-        m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1])[0]
-        print("moment[0]: {} m0: {}".format(moment_0, m0))
-        self.multipliers[0] -= np.log(moment_0)
 
         if result.success or jac_norm < tol:
             result.success = True
@@ -93,6 +109,9 @@ class SimpleDistribution:
         result.fun_norm = jac_norm
 
         return result
+
+    def minimize_newton(self):
+        pass
 
     def density(self, value):
         """
@@ -134,7 +153,7 @@ class SimpleDistribution:
 
         assert tol is not None
         #self._quad_tolerance = tol / 1024
-        self._quad_tolerance = 1e-10
+        self._quad_tolerance = 1e-13
 
         #self.moment_errs[np.where(self.moment_errs == 0)] = np.min(self.moment_errs[np.where(self.moment_errs != 0)]/8)
         #self.moment_errs[0] = np.min(self.moment_errs[1:]) / 8
@@ -143,14 +162,17 @@ class SimpleDistribution:
         #self._moment_errs[0] = np.min(self.moment_errs[1:]) / 2
 
         # Start with uniform distribution
-        self.multipliers = np.zeros(size)
-        self.multipliers[0] = -np.log(1/(self.domain[1] - self.domain[0]))
+        self.multipliers = anp.zeros(size)
+        self.multipliers[0] = -anp.log(1/(self.domain[1] - self.domain[0]))
         # Log to store error messages from quad, report only on conv. problem.
         self._quad_log = []
 
         # Evaluate endpoint derivatives of the moments.
         self._end_point_diff = self.end_point_derivatives()
         self._update_quadrature(self.multipliers, force=True)
+        self._grad_fun = autograd.grad(self._functional)
+        self._grad_grad_fun = autograd.jacobian(self._grad_fun)
+        self._regularity_coef = tol
 
     def eval_moments(self, x):
         return self.moments_fn.eval_all(x, self.approx_size)
@@ -201,6 +223,8 @@ class SimpleDistribution:
         Update quadrature points and their moments and weights based on integration of the density.
         return: True if update of gradient is necessary
         """
+        if self._fixed_quad:
+            return
         if not force:
             mult_norm = np.linalg.norm(multipliers - self._last_multipliers)
             grad_norm = np.linalg.norm(self._last_gradient)
@@ -222,14 +246,16 @@ class SimpleDistribution:
             message =""
         pt, w = np.polynomial.legendre.leggauss(self._gauss_degree)
         K = info['last']
-        #print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
         a = info['alist'][:K, None]
         b = info['blist'][:K, None]
         points = (pt[None, :] + 1) / 2 * (b - a) + a
         weights = w[None, :] * (b - a) / 2
+        print("Update Quad: {} {} {} {}".format(points.size, y, abserr, message))
         self._quad_points = points.flatten()
         self._quad_weights = weights.flatten()
         self._quad_moments = self.eval_moments(self._quad_points)
+        self._quad_moment_diffs = self.moments_fn.eval_diff(self._quad_points)
+        self._quad_moment_diffs2 = self.moments_fn.eval_diff2(self._quad_points)
 
         power = -np.dot(self._quad_moments, multipliers/self._moment_errs)
         power = np.minimum(np.maximum(power, -200), 200)
@@ -253,9 +279,26 @@ class SimpleDistribution:
         return np.stack((left_diff[0,:], right_diff[0,:]), axis=0)/eps/self._moment_errs[None, :]
 
     def _density_in_quads(self, multipliers):
-        power = -np.dot(self._quad_moments, multipliers / self._moment_errs)
-        power = np.minimum(np.maximum(power, -200), 200)
-        return np.exp(power)
+        power = -anp.dot(self._quad_moments, multipliers / self._moment_errs)
+        power = anp.minimum(anp.maximum(power, -200), 200)
+        return anp.exp(power)
+
+    def _functional(self, multipliers):
+        q_density = self._density_in_quads(multipliers)
+        integral = anp.dot(q_density, self._quad_weights)
+        sum = anp.sum(self.moment_means * multipliers / self._moment_errs)
+
+        end_diff = anp.dot(self._end_point_diff, multipliers)
+        penalty = anp.sum(np.maximum(end_diff, 0)**2)
+        fun = sum + integral
+        fun = fun + np.abs(fun) * self._penalty_coef * penalty
+
+        #regularization = q_density * (self._quad_moment_diffs @ multipliers ) ** 2
+        #regularization = (q_density * (self._quad_moment_diffs @ (multipliers / self._moment_errs))) ** 2
+        log_rho_diff = self._quad_moment_diffs @ (multipliers / self._moment_errs)
+        regularization = (q_density * (log_rho_diff ** 2 + self._quad_moment_diffs2 @ (multipliers / self._moment_errs))) ** 2
+        fun += self._regularity_coef * self._quad_weights @ regularization
+        return fun
 
     def _calculate_functional(self, multipliers):
         """
@@ -264,16 +307,13 @@ class SimpleDistribution:
         :return: float
         """
         self._update_quadrature(multipliers)
-        q_density = self._density_in_quads(multipliers)
-        integral = np.dot(q_density, self._quad_weights)
-        sum = np.sum(self.moment_means * multipliers / self._moment_errs)
+        return self._functional(multipliers)
 
-        end_diff = np.dot(self._end_point_diff, multipliers)
-        penalty = np.sum(np.maximum(end_diff, 0)**2)
-        fun = sum + integral
-        fun = fun + np.abs(fun) * self._penalty_coef * penalty
+    def moments_by_quadrature(self):
+        q_density = self._density_in_quads(self.multipliers)
+        q_gradient = self._quad_moments.T * q_density
+        return np.dot(q_gradient, self._quad_weights) / self._moment_errs
 
-        return fun
 
     def _calculate_gradient(self, multipliers):
         """
@@ -281,6 +321,8 @@ class SimpleDistribution:
         :return: array, shape (n_moments,)
         """
         self._update_quadrature(multipliers)
+        return self._grad_fun(multipliers)
+
         q_density = self._density_in_quads(multipliers)
         q_gradient = self._quad_moments.T * q_density
         integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
@@ -289,6 +331,11 @@ class SimpleDistribution:
         penalty = 2 * np.dot( np.maximum(end_diff, 0), self._end_point_diff)
         fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
         gradient = self.moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
+
+        #TODO
+        #regularization = q_density * (self._quad_moment_diffs @ multipliers )
+        #fun += self._ragularity_coef * self._quad_weights @ regularization
+
         return gradient
 
     def _calculate_jacobian_matrix(self, multipliers):
@@ -296,6 +343,8 @@ class SimpleDistribution:
         :return: jacobian matrix, symmetric, (n_moments, n_moments)
         """
         self._update_quadrature(multipliers)
+        return self._grad_grad_fun(multipliers)
+
         q_density = self._density_in_quads(multipliers)
         q_density_w = q_density * self._quad_weights
         q_mom = self._quad_moments / self._moment_errs
@@ -457,8 +506,11 @@ def KL_divergence(prior_density, posterior_density, a, b):
         # modified integrand to provide positive value even in the case of imperfect normalization
         return  p * np.log(p / q) - p + q
 
-    value = integrate.quad(integrand, a, b, epsabs=1e-10)
-    return max(value[0], 1e-10)
+    value = integrate.quad(integrand, a, b, epsabs=1e-14)
+    return max(value[0], 1e-16)
+
+
+
 
 
 def L2_distance(prior_density, posterior_density, a, b):

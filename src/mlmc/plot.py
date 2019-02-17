@@ -185,15 +185,15 @@ class Distribution:
         :return:
         """
         if label is None:
-            label = "size {}".format(distr_object.moments_fn.size)
+            label = "I: {}".format(self.i_plot)
         domain = distr_object.domain
         self.adjust_domain(domain)
         d_size = domain[1] - domain[0]
         slack = 0  # 0.05
         extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
         X = self._grid(1000, domain=domain)
-        color = 'C{}'.format(self.i_plot)
-
+        #color = 'C{}'.format(self.i_plot)
+        color = plt.cm.tab20(self.i_plot)
         plots = []
         Y_pdf = distr_object.density(X)
         self.ax_pdf.plot(X, Y_pdf, label=label, color=color)
@@ -215,6 +215,17 @@ class Distribution:
             self.ax_cdf_err.plot(X, eY_cdf, linestyle="--", color=color, linewidth=0.5)
 
         self.i_plot += 1
+
+    def add_points(self, points):
+        """
+        Plot quad points.
+        :param points:
+        :return:
+        """
+        y = -0.1 *self.i_plot
+        Y = y*np.ones_like(points)
+        color = plt.cm.tab20(self.i_plot)
+        self.ax_pdf.scatter(points, Y, c=color)
 
     def show(self, file=""):
         """
