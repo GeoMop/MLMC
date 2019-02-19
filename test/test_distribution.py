@@ -45,24 +45,81 @@ from mlmc import moments
 from test.fixtures.mlmc_test_run import TestMLMC
 
 
+
+
+class GaussTwo(stats.rv_continuous):
+    def __init__(self):
+        self._pa = stats.norm(loc=5, scale=3)
+        self._pb = stats.norm(loc=0, scale=0.5)
+        super().__init__(name="GaussTwo")
+        self.dist = self
+        self._cdf_points = self.rvs(10000)
+
+    def _pdf(self, x):
+        return (9 * self._pa.pdf(x) + 1 * self._pb.pdf(x)) / 10
+
+    def _cdf(self, x):
+        return (9 * self._pa.cdf(x) + 1 * self._pb.cdf(x)) / 10
+
+
+class GaussFive(stats.rv_continuous):
+    def __init__(self):
+        super().__init__(name="GaussFive")
+        self.dist = self
+
+    def _pdf(self, x):
+        w = 0.5
+        val = 0
+        for l in np.arange(1, 10, 2):
+            val += stats.norm.pdf(x, loc=l/10, scale=1/100)
+        return w * val / 5 + (1 - w) * stats.uniform.pdf(x)
+
+    def _cdf(self, x):
+        w = 0.5
+        val = 0
+        for l in np.arange(1, 10, 2):
+            val += stats.norm.cdf(x, loc=l/10, scale=1/100)
+        return w * val / 5 + (1 - w) * stats.uniform.cdf(x)
+
+class Rampart(stats.rv_continuous):
+    def __init__(self):
+        super().__init__(name="Rampart")
+        self.dist = self
+
+    def _pdf(self, x):
+        return 16.0 / 20 * stats.uniform.pdf(x) + \
+            4.5 / 20 * stats.uniform.pdf(x, loc=0.3, scale=0.5) - \
+            0.5 / 20 * stats.uniform.pdf(x, loc=0.4, scale=0.1)
+
+
+    def _cdf(self, x):
+        return 16.0 / 20 * stats.uniform.cdf(x) + \
+            4.5 / 20 * stats.uniform.cdf(x, loc=0.3, scale=0.5) - \
+            0.5 / 20 * stats.uniform.cdf(x, loc=0.4, scale=0.1)
+
+
 class CutDistribution:
     """
     Renormalization of PDF, CDF for exact distribution
     restricted to given finite domain.
     """
 
-    def __init__(self, distr, quantile):
+    def __init__(self, distr_cfg, quantile):
         """
 
-        :param distr: scipy.stat distribution object.
+        :param distr_cfg: scipy.stat distribution object.
         :param quantile: float, define lower bound for approx. distr. domain.
         """
-        self.distr = distr
+        self.idx, distr_cfg = distr_cfg
+        self.distr, self.log_flag = distr_cfg
         self.quantile = quantile
-        self.domain, self.force_decay = self.domain_for_quantile(distr, quantile)
-        p0, p1 = distr.cdf(self.domain)
+        self.domain, self.force_decay = self.domain_for_quantile(self.distr, quantile)
+        p0, p1 = self.distr.cdf(self.domain)
         self.shift = p0
         self.scale = 1 / (p1 - p0)
+
+    def __str__(self):
+        return "{:02}_{} Q:{:4.0g}".format(self.idx, self.distr.dist.name, self.quantile)
 
     @staticmethod
     def domain_for_quantile(distr, quantile):
@@ -98,8 +155,166 @@ class CutDistribution:
     def cdf(self, x):
         return (self.distr.cdf(x) - self.shift) * self.scale
 
+    def var(self):
+        N = 10000
+        dsize = self.domain[1] - self.domain[0]
+        x = np.linspace(self.domain[0], self.domain[1], N)
+        px = self.pdf(x)
+        avg = np.mean(x * px) * dsize
+        return np.mean( (x - avg) ** 2 * px) * dsize
+
+class DistrTestCase:
+    """
+    Common code for single combination of cut distribution and moments configuration.
+    """
+    def __init__(self, distr_cfg, quantile, moments_cfg):
+        self.distr = CutDistribution(distr_cfg, quantile)
+
+        self.moment_class, self.min_n_moments, self.max_n_moments = moments_cfg
+        self.moments_fn = self.moment_class(self.max_n_moments, self.distr.domain, log=self.distr.log_flag, safe_eval=False)
+
+        self.exact_covariance = mlmc.simple_distribution.compute_semiexact_cov(self.moments_fn, self.distr.pdf)
+        self.eigenvalues_plot = mlmc.plot.Eigenvalues(title="Eigenvalues, " + self.title)
+
+    @property
+    def title(self):
+        fn_name = str(self.moment_class.__name__)
+        return "distr: {} moment_fn: {}".format(self.distr, fn_name)
 
 
+    def noise_cov(self, noise):
+        noise_mat = np.random.randn(self.moments_fn.size, self.moments_fn.size)
+        noise_mat = 0.5 * noise * (noise_mat + noise_mat.T)
+        noise_mat[0, 0] = 0
+        return self.exact_covariance + noise_mat
+
+
+    def make_orto_moments(self, noise):
+        cov = self.noise_cov(noise)
+        orto_moments_fn, info = mlmc.simple_distribution.construct_ortogonal_moments(self.moments_fn, cov)
+        evals, threshold, L = info
+        print("threshold: ", threshold, " from N: ", self.moments_fn.size)
+        self.eigenvalues_plot.add_values(evals, threshold=evals[threshold], label="{:5.2e}".format(noise))
+        eye_approx = L @ cov @ L.T
+        # test that the decomposition is done well
+        assert np.linalg.norm(eye_approx - np.eye(*eye_approx.shape)) < 1e-10
+        # TODO: test deviance from exact covariance in some sense
+        self.exact_orto_moments = mlmc.simple_distribution.compute_semiexact_moments(orto_moments_fn, self.distr.pdf, tol=1e-13)
+
+        tol_density_approx = 0.01
+        moments_data = np.ones((orto_moments_fn.size, 2))
+        moments_data[1:, 0] = 0.0
+        #moments_data[0,1] = 0.01
+        return orto_moments_fn, moments_data
+
+
+class TestDistr(mlmc.simple_distribution.SimpleDistribution):
+    # Auxiliary fixture for plotting convergence of nonlin solve.
+    def _calculate_jacobian_matrix(self, multipliers):
+        jac = super()._calculate_jacobian_matrix(multipliers)
+        self._normalize = jac[0,0]
+        self.multipliers = multipliers
+        self._plot_distr.add_distribution(self)
+        return jac
+
+    def density(self, x):
+        vals = super().density(x)
+        return vals / self._normalize
+
+distribution_list = [
+        # distibution, log_flag
+        #(stats.norm(loc=1, scale=2), False),
+        (stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
+    ]
+moments_list = [
+    (moments.Legendre, 7, 61),
+    ]
+@pytest.mark.skip
+@pytest.mark.parametrize("moments", moments_list)
+@pytest.mark.parametrize("distribution", enumerate(distribution_list))
+def test_nonlin_solver_convergence(moments, distribution):
+    """
+    1. compute covariance matrix
+    2. for given noise construct orthogonal moments
+    3. find distribution, plot density and quad intervals for every Jacobian evaluation
+    Plot convergence in terms of densities for every case.
+    """
+    quantile = 0.001
+
+    case = DistrTestCase(distribution, quantile, moments)
+    noise_levels = np.geomspace(1e-5, 1e-3, 6)
+    noise_levels = [0.00039810717055349735]
+    for noise in noise_levels:
+        print("======================")
+        print("noise: ", noise)
+        orto_moments, moment_data = case.make_orto_moments(noise)
+        distr_obj = TestDistr(orto_moments, moment_data,
+                                domain=case.distr.domain, force_decay=case.distr.force_decay)
+        distr_obj._plot_distr = mlmc.plot.Distribution(exact_distr=case.distr, error_plot=None)
+        min_result = distr_obj.estimate_density_minimize(tol=3*noise)
+        # print("lambda: ", distr_obj.multipliers)
+        distr_obj._plot_distr.show(file="NonlinSolve_{}_{}".format(case.title, noise))
+
+
+
+
+
+
+
+# 24m without update; trust-ncg
+# 24m 21s with update; trust-ncg
+# 8m 15 s with updates, dogleg, diff2
+# 7m 43s with updates, diff, - better error
+
+distribution_list = [
+        # distibution, log_flag
+        (stats.norm(loc=1, scale=2), False),            # 9-13, 9-27, 7-9
+        # (stats.norm(loc=1, scale=10), False),           # 8-18, 8-14, 7-10
+        (stats.lognorm(scale=np.exp(1), s=1), False),   # >50 it, , 3-11,  some errors as non-SPD
+        # (stats.lognorm(scale=np.exp(-3), s=2), False),  # > 50 it, , errors non-SPD
+        # (stats.lognorm(scale=np.exp(-3), s=2), True),   # > 50 it  , errors non-SPD
+        # (stats.chi2(df=10), False),                     # 13-39, 10-21, 4-14
+        # (stats.chi2(df=5), True),                       # 12-48, 14 -50, 9-11
+        # (stats.weibull_min(c=0.5), False),              # >50, , non-SPD
+        # (stats.weibull_min(c=1), False),                # 21->50, 19-50, non-SPD, Exponential
+        # (stats.weibull_min(c=2), False),                # 11-22, 11-35, 5-8 1x nonSPD, Rayleigh distribution
+        # (stats.weibull_min(c=5, scale=4), False),       # 9-16, 10-18, 6-7, (1x>50) close to normal
+        # (stats.weibull_min(c=1.5), True),               # 14-39, 14-37, 6-7, Infinite derivative at zero
+        (stats.gamma(a=1), False),
+        (GaussTwo(), False),
+        (GaussFive(), False),
+        (stats.cauchy(scale=0.5), False),
+        (Rampart(), False)
+    ]
+
+moments_list = [
+    # moments_class, min and max number of moments, use_covariance flag
+    #(moments.Monomial, 3, 10),
+    #(moments.Fourier, 5, 61),
+    #(moments.Legendre, 7, 61, False),
+    (moments.Legendre, 7, 61),
+    ]
+#@pytest.mark.skip
+@pytest.mark.parametrize("moments", moments_list)
+@pytest.mark.parametrize("distribution", enumerate(distribution_list))
+def test_nonlin_solver_robustness(moments, distribution):
+    quantile = 0.01
+
+    case = DistrTestCase(distribution, quantile, moments)
+    plot_distr = mlmc.plot.Distribution(exact_distr=case.distr, error_plot="kl", legend_title="noise",
+                                        log_x=case.distr.log_flag)
+    n_samples = np.geomspace(2**8, 2**20, 4)
+    noise_levels = np.sqrt( case.distr.var() / n_samples)
+    for noise in noise_levels:
+        print("======================")
+        print("noise: ", noise)
+        orto_moments, moment_data = case.make_orto_moments(noise)
+        distr_obj = mlmc.simple_distribution.SimpleDistribution(orto_moments, moment_data,
+                                domain=case.distr.domain, force_decay=case.distr.force_decay)
+
+        min_result = distr_obj.estimate_density_minimize(tol=noise)
+        plot_distr.add_distribution(distr_obj, label=str(noise))
+    plot_distr.show(file="NSolve_rob_{}".format(case.title))
 
 
 
@@ -497,76 +712,6 @@ moments_list = [
     #(moments.Legendre, 7, 61, False),
     (moments.Legendre, 7, 61),
     ]
-
-
-class TestDistr(mlmc.simple_distribution.SimpleDistribution):
-
-    def _calculate_jacobian_matrix(self, multipliers):
-        jac = super()._calculate_jacobian_matrix(multipliers)
-        self._normalize = jac[0,0]
-        self.multipliers = multipliers
-        #self._plot_distr.add_points(self._quad_points)
-        self._plot_distr.add_distribution(self)
-        return jac
-
-    def density(self, x):
-        vals = super().density(x)
-        return vals / self._normalize
-
-@pytest.mark.parametrize("moments", moments_list)
-@pytest.mark.parametrize("distribution", enumerate(distribution_list))
-def test_nonlin_solver(moments, distribution):
-    """
-    1. compute covariance matrix
-    2. for given noise construct orthogonal moments
-    3. find distribution, plot density and quad intervals for every Jacobian evaluation
-    """
-    quantile = 0.001
-
-    i_distr, distribution = distribution
-    distribution, log_flag = distribution
-    distr = CutDistribution(distribution, quantile)
-    moment_class, min_n_moments, max_n_moments = moments
-    moments_fn = moment_class(max_n_moments, distr.domain, safe_eval=False)
-    distr_name = "{:02}_{}".format(i_distr, distr.distr.dist.name)
-    title = "distr: {} quantile: {} moment_fn: {}".format(distr_name, quantile, str(moment_class.__name__))
-
-    exact_covariance = mlmc.simple_distribution.compute_semiexact_cov(moments_fn, distr.pdf)
-    eigenvalues_plot = mlmc.plot.Eigenvalues(title="Eigenvalues, " + title)
-    noise_levels = np.geomspace(1e-5, 1e-3, 6)
-    #noise_levels =[1e-4, 1e-3]
-    for noise in noise_levels:
-        print("======================")
-        print("noise: ", noise)
-
-        noise_mat = np.random.randn(moments_fn.size, moments_fn.size)
-        noise_mat = 0.5 * noise * (noise_mat + noise_mat.T)
-        noise_mat[0, 0] = 0
-        cov = exact_covariance + noise_mat
-
-        orto_moments_fn, info = mlmc.simple_distribution.construct_ortogonal_moments(moments_fn, cov, noise)
-        evals, threshold, L = info
-        print("threshold: ", threshold, " from N: ", moments_fn.size)
-        eigenvalues_plot.add_values(evals, threshold=evals[threshold], label="{:5.2e}".format(noise))
-        eye_approx = L @ cov @ L.T
-        # test that the decomposition is done well
-        assert np.linalg.norm(eye_approx - np.eye(*eye_approx.shape)) < 1e-10
-        # TODO: test deviance from exact covariance in some sense
-        exact_orot_moments = mlmc.simple_distribution.compute_semiexact_moments(orto_moments_fn, distr.pdf, tol=1e-13)
-
-        tol_density_approx = 0.01
-        moments_data = np.ones((orto_moments_fn.size, 2))
-        moments_data[1:, 0] = 0.0
-        #moments_data[0,1] = 0.01
-
-
-        distr_obj = TestDistr(orto_moments_fn, moments_data,
-                                domain=distr.domain, force_decay=distr.force_decay)
-        distr_obj._plot_distr = mlmc.plot.Distribution(distr, error_plot=None)
-        min_result = distr_obj.estimate_density_minimize(tol=3*noise)
-        # print("lambda: ", distr_obj.multipliers)
-        distr_obj._plot_distr.show(file="NonlinSolve_{}_{}".format(title, noise))
-
 
 
 
