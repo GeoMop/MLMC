@@ -1,5 +1,4 @@
 import numpy as np
-import numpy.ma as ma
 from mlmc.sample import Sample
 import os
 import shutil
@@ -413,6 +412,7 @@ class Level:
         """
         if not samples:
             return
+
         self._hdf_level_group.append_collected(samples)
 
         # If not keep collected remove samples
@@ -510,6 +510,7 @@ class Level:
         same_shapes = self.last_moments_eval is not None
         if force or not same_moments or not same_shapes:
             samples = self.sample_values
+
             # Moments from fine samples
             moments_fine = moments_fn(samples[:, 0])
 
@@ -590,6 +591,8 @@ class Level:
         :return: cov covariance matrix  with shape (n_moments, n_moments)
         """
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        print("mom fine ", mom_fine)
+        print("mom coarse ", mom_coarse)
         assert len(mom_fine) == len(mom_coarse)
         assert len(mom_fine) >= 2
         assert self.n_samples == len(mom_fine)
@@ -642,7 +645,9 @@ class Level:
 
     def sample_range(self):
         fine_sample = self.sample_values[:, 0]
-        return (np.min(fine_sample), np.max(fine_sample))
+        if len(fine_sample) > 0:
+            return np.min(fine_sample), np.max(fine_sample)
+        return 0, 0
 
     def sample_domain(self, quantile=None):
         if quantile is None:
@@ -675,3 +680,24 @@ class Level:
         :return: float
         """
         return np.mean([sample.running_time for sample, _ in self.collected_samples])
+
+    def avg_sample_prepare_time(self):
+        """
+        Get average sample simulation running time per samples
+        :return: float
+        """
+        return np.mean([sample.time - sample.running_time for sample, _ in self.collected_samples])
+
+    def avg_level_running_time(self):
+        """
+        Get average level (fine + coarse) running time per samples
+        :return: float
+        """
+        return np.mean([fine_sample.running_time + coarse_sample.running_time for fine_sample, coarse_sample in self.collected_samples])
+
+    def avg_level_prepare_time(self):
+        """
+        Get average level (fine + coarse) prepare time per samples
+        :return: float
+        """
+        return np.mean([fine_sample.time - coarse_sample.running_time for fine_sample, coarse_sample in self.collected_samples])
