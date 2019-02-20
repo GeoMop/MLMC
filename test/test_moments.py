@@ -3,11 +3,10 @@ Test class monomials
 """
 import numpy as np
 import mlmc.moments
-import mlmc.distribution
 import scipy.integrate as integrate
 import scipy.stats as stats
 import pytest
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 
 def test_monomials():
@@ -115,52 +114,6 @@ def test_moments():
     moments = moments_fn(values)
     assert np.abs(np.mean(moments[:, 1])) < 0.1
 
-
-# def compare_norm_lognorm():
-#     """
-#     Compare moments from lognorm and equivalent norm distribution
-#     :return: None
-#     """
-#     # from statsmodels.distributions.empirical_distribution import ECDF
-#
-#     norm = stats.norm(loc=-5, scale=1)
-#     lognorm = stats.lognorm(scale=np.exp(-5), s=1)
-#
-#     size = 9
-#     samples_size = 10000
-#     #Moments function domain for norm distribution
-#     domain = norm.ppf([0.001, 0.999])
-#     norm_mean_moments, norm_var_moments, moments_fn_norm = get_moments(norm, size, domain, False, True, samples_size)
-#
-#     # Exact norm moments
-#     exact_norm_moments = get_exact_moments(norm, moments_fn_norm)
-#     #print("exact norm moments ", exact_norm_moments)
-#
-#     # Moments function domain for lognorm distribution
-#     domain = lognorm.ppf([0.001, 0.999])
-#     lognorm_mean_moments, lognorm_var_moments, moments_fn_lognorm = get_moments(lognorm, size, domain, True, True, samples_size)
-#
-#
-#     # Exact lognorm moments
-#     exact_lognorm_moments = get_exact_moments(lognorm, moments_fn_lognorm)
-#
-#     x = np.arange(0, len(lognorm_mean_moments), 1)
-#
-#     mc_mean, mc_var = test_one_level()
-#     print(mc_var)
-#
-#     test_mlmc_moments()
-#
-#     plt.plot(x, norm_mean_moments, 'bo', label="norm")
-#     plt.errorbar(x, norm_mean_moments, yerr=norm_var_moments, fmt='o', capsize=3, color='blue')
-#     plt.plot(x, lognorm_mean_moments, 'ro', label="lognorm")
-#     plt.errorbar(x, lognorm_mean_moments, yerr=lognorm_var_moments, fmt='o', capsize=3, color='red')
-#     plt.plot(x, exact_norm_moments, 'o', label="norm exact")
-#     plt.plot(x, exact_lognorm_moments, 'o', label="lognorm exact")
-#     plt.plot(x, mc_mean, 'og', label="MC")
-#     plt.errorbar(x, mc_mean, yerr=mc_var, fmt='o', capsize=3, color='green')
-#     plt.legend()
-#     plt.show()
 
 
 def get_moments(distr, size, domain, log=False, safe_eval=True, samples_size=10000):

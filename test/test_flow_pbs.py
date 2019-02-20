@@ -11,7 +11,6 @@ import mlmc.correlated_field as correlated_field
 import mlmc.moments
 import mlmc.mlmc
 # from result import Result
-import mlmc.distribution
 from pbs import Pbs
 
 

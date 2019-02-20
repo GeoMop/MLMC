@@ -13,7 +13,7 @@ sys.path.insert(0, src_path + '/../src/')
 import mlmc.mlmc
 import mlmc.simulation
 import mlmc.moments
-import mlmc.distribution
+import mlmc.simple_distribution
 import mlmc.estimate
 import mlmc.correlated_field as cf
 from test.fixtures.mlmc_test_run import TestMLMC
@@ -277,7 +277,7 @@ def var_subsample_independent():
     # if len(level_variance_diff) > 0:
     #     plot_diff_var(level_variance_diff, n_levels)
 
-    exact_moments = mlmc.distribution.compute_exact_moments(mc_test.moments_fn, d.pdf, 1e-10)[1:]
+    exact_moments = mlmc.simple_distribution.compute_exact_moments(mc_test.moments_fn, d.pdf, 1e-10)[1:]
     # Plot moment values
     #plot_vars(level_moments_mean, level_moments_var, n_levels, exact_moments)
 
@@ -459,7 +459,7 @@ def _test_shooting():
             print("moments function size ", moments_fn.size)
 
             # print("moments data ", moments_data)
-            distr_obj = mlmc.distribution.Distribution(moments_fn, moments_data)
+            distr_obj = mlmc.simple_distribution.Distribution(moments_fn, moments_data)
             # distr_obj.choose_parameters_from_samples()
             distr_obj.domain = moments_fn.domain
             # result = distr_obj.estimate_density(tol=0.0001)
@@ -494,7 +494,7 @@ def _test_shooting():
                 distr = stats.norm(loc=avg, scale=np.sqrt(var))
 
             # Exact moments from distribution
-            exact_moments = mlmc.distribution.compute_exact_moments(moments_fn, distr.pdf, 1e-10)[1:]
+            exact_moments = mlmc.simple_distribution.compute_exact_moments(moments_fn, distr.pdf, 1e-10)[1:]
 
             means = np.mean(all_means, axis=0)
             vars = np.mean(all_variances, axis=0)
