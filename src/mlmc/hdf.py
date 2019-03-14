@@ -389,6 +389,7 @@ class LevelGroup:
         Read level dataset with scheduled samples
         :return: generator, each item is in form (Sample(), Sample())
         """
+
         with h5py.File(self.file_name, 'r') as hdf_file:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             # Create fine and coarse samples
@@ -472,10 +473,11 @@ class LevelGroup:
             # Path 'Jobs' group
             jobs_group_hdf_path = "/".join([self.level_group_path, 'Jobs'])
             sample_ids = []
+
             # Get job samples
             for dset_name in job_dataset_names:
-                dataset = hdf_file[self.level_group_path]["/".join([jobs_group_hdf_path, dset_name])]
-                sample_ids.extend(dataset.value)
+                dataset = hdf_file["/".join([jobs_group_hdf_path, dset_name])]
+                sample_ids.extend(dataset[()])
 
         return np.unique(np.array(sample_ids))
 
@@ -485,8 +487,8 @@ class LevelGroup:
         :return: NumPy array
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
-            failed_ids = hdf_file[self.level_group_path]['failed_ids'].value
-            return np.concatenate((hdf_file[self.level_group_path][self.collected_ids_dset].value, np.array(failed_ids)),
+            failed_ids = hdf_file[self.level_group_path]['failed_ids'][()]
+            return np.concatenate((hdf_file[self.level_group_path][self.collected_ids_dset][()], np.array(failed_ids)),
                                   axis=0)
 
     def get_failed_ids(self):

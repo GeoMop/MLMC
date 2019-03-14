@@ -373,6 +373,7 @@ class Level:
                 # 'Remove' from scheduled
                 self.scheduled_samples[sample_id] = False
                 # Failed sample
+
                 if fine_sample.result is np.inf or coarse_sample.result is np.inf:
                     coarse_sample.result = fine_sample.result = np.inf
                     self.failed_samples.add(sample_id)
@@ -514,7 +515,6 @@ class Level:
             # Moments from fine samples
             moments_fine = moments_fn(samples[:, 0])
 
-
             # For first level moments from coarse samples are zeroes
             if self.is_zero_level:
                 moments_coarse = np.zeros((len(moments_fine), moments_fn.size))
@@ -563,6 +563,7 @@ class Level:
         :param moments_fn: Moments evaluation function
         :return: tuple (variance vector, length of moments)
         """
+
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
         assert len(mom_fine) == len(mom_coarse)
         assert len(mom_fine) >= 2
@@ -591,8 +592,6 @@ class Level:
         :return: cov covariance matrix  with shape (n_moments, n_moments)
         """
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
-        print("mom fine ", mom_fine)
-        print("mom coarse ", mom_coarse)
         assert len(mom_fine) == len(mom_coarse)
         assert len(mom_fine) >= 2
         assert self.n_samples == len(mom_fine)

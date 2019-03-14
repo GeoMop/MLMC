@@ -41,6 +41,7 @@ import mlmc.estimate
 import mlmc.distribution
 import mlmc.simple_distribution
 from mlmc import moments
+import mlmc.plot
 from test.fixtures.mlmc_test_run import TestMLMC
 
 
@@ -328,7 +329,7 @@ class DistributionDomainCase:
         self.eigenvalues_plot = mlmc.plot.Eigenvalues(title = "Eigenvalues, " + self.title)
 
         geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 5))
-        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)))
+        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
         for noise in noise_levels:
             print("======================")
             print("INEXACT CONV - ", self.title)
@@ -366,33 +367,6 @@ class DistributionDomainCase:
         return results
 
 
-def plot_convergence(quantiles, conv_val, title):
-    """
-    Plot convergence with moment size for various quantiles.
-    :param quantiles: iterable with quantiles
-    :param conv_val: matrix of ConvResult, n_quantiles x n_moments
-    :param title: plot title and filename used to save
-    :return:
-    """
-    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-
-    for iq, q in enumerate(quantiles):
-        results = conv_val[iq]
-        #X = [r.size for r in results]
-        X = np.arange(len(results))
-        kl = [r.kl for r in results]
-        l2 = [r.l2 for r in results]
-        col = plt.cm.tab10(plt.Normalize(0,10)(iq))
-        ax.plot(X, kl, ls='solid', c=col, label="kl_q="+str(q), marker='o')
-        ax.plot(X, l2, ls='dashed', c=col, label="l2_q=" + str(q), marker='d')
-    ax.set_yscale('log')
-    ax.set_xscale('log')
-    fig.legend()
-    fig.suptitle(title)
-    fname = title + ".pdf"
-    fig.savefig(fname)
-
-
 distribution_list = [
         # distibution, log_flag
         (stats.norm(loc=1, scale=2), False),
@@ -408,8 +382,6 @@ distribution_list = [
         # (stats.weibull_min(c=5, scale=4), False),   # close to normal
         # (stats.weibull_min(c=1.5), True),  # Infinite derivative at zero
     ]
-
-
 
 #@pytest.mark.skip
 @pytest.mark.parametrize("moments", [
@@ -446,7 +418,7 @@ def test_pdf_approx_exact_moments(moments, distribution):
         title, results = values
         title = "{}_conv_{}".format(title, key)
         if results[0] is not None:
-            plot_convergence(quantiles, results, title=title)
+            mlmc.plot.plot_convergence(quantiles, results, title=title)
 
     # kl_collected = np.empty( (len(quantiles), len(moment_sizes)) )
     # l2_collected = np.empty_like(kl_collected)
@@ -462,8 +434,6 @@ def test_pdf_approx_exact_moments(moments, distribution):
     # if warn_log:
     #     for warn in warn_log:
     #         print(warn)
-
-
 
 
 @pytest.mark.skip
