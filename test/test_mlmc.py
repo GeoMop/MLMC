@@ -101,7 +101,7 @@ def test_mlmc():
                 mc_test.test_variance_regression()
 
 
-def test_shooting():
+def _test_shooting():
     """
     Test mlmc with shooting simulation
     :return: None
@@ -158,7 +158,7 @@ def test_shooting():
                 estimator = mlmc.estimate.Estimate(mc)
 
                 moments_fn = mlmc.moments.Legendre(nm, true_domain, False)
-                estimator.target_var_adding_samples(1e-6, moments_fn)
+                estimator.target_var_adding_samples(1e-3, moments_fn)
                 print("N samples ", mc.n_samples)
 
                 # Moments as tuple (means, vars)
@@ -426,5 +426,3 @@ def _test_regression(distr_cfg, n_levels, n_moments):
 if __name__ == '__main__':
     #test_mlmc()
     test_save_load_samples()
-    #test_shooting()
-
