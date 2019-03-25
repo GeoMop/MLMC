@@ -153,6 +153,8 @@ class Level:
             self.fine_times.append(fine_sample.time)
             self.coarse_times.append(coarse_sample.time)
 
+        finished_ids = self._hdf_level_group.get_finished_ids()
+
         # Recover scheduled
         for fine_sample, coarse_sample in log_scheduled_samples:
             # Regenerate failed samples
@@ -161,7 +163,7 @@ class Level:
                 if fine_sample.sample_id not in collected_samples:
                     self.scheduled_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
             # Not collected and not failed sample to scheduled
-            elif fine_sample.sample_id not in collected_samples and fine_sample.sample_id not in self._failed_sample_ids:
+            elif fine_sample.sample_id not in finished_ids:
                     self.scheduled_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
 
         self.collected_samples = list(collected_samples.values())
