@@ -3,6 +3,7 @@ build/*
 .tox/*
 .cache/*
 doc/.doctrees
+doc/build
 src/mlmc.egg-info/*
 
 # PyCharm IDE
