@@ -1,14 +1,14 @@
 ====
 MLMC
 ====
-|circleci| |codecov| |version|
+|circleci| |version| |supported-versions|
 
 
-..  |docs| image:: https://readthedocs.org/projects/python-nameless/badge/?style=flat
-    :target: https://readthedocs.org/projects/python-nameless
+..  |docs| image:: https://readthedocs.org/projects/mlmc/badge/?style=flat
+    :target: https://readthedocs.org/projects/python-mlmc
     :alt: Documentation Status
 
-.. |circleci| image:: https://circleci.com/gh/GeoMop/MLMC/tree/master.svg?style=svg
+..  |circleci| image:: https://circleci.com/gh/GeoMop/MLMC/tree/master.svg?style=svg
     :alt: CircleCI Build Status
     :target: https://circleci.com/gh/GeoMop/MLMC/tree/master
 
@@ -24,23 +24,23 @@ MLMC
     :alt: Coverage Status
     :target: https://codecov.io/github/ionelmc/python-nameless
 
-..  |version| image:: https://img.shields.io/pypi/v/nameless.svg
+..  |version| image:: https://img.shields.io/pypi/v/mlmc.svg
     :alt: PyPI Package latest release
     :target: https://pypi.org/project/mlmc/
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/ionelmc/python-nameless/v0.1.0.svg
+..  |commits-since| image:: https://img.shields.io/github/commits-since/ionelmc/python-mlmc/v0.1.0.svg
     :alt: Commits since latest release
-    :target: https://github.com/ionelmc/python-nameless/compare/v0.1.0...master
+    :target: https://github.com/ionelmc/python-mlmc/compare/v0.1.0...master
 
-..  |wheel| image:: https://img.shields.io/pypi/wheel/nameless.svg
+..  |wheel| image:: https://img.shields.io/pypi/wheel/mlmc.svg
     :alt: PyPI Wheel
     :target: https://pypi.org/project/mlmc/
 
-.. |supported-versions| image:: https://img.shields.io/pypi/pyversions/nameless.svg
+..  |supported-versions| image:: https://img.shields.io/pypi/pyversions/mlmc.svg
     :alt: Supported versions
     :target: https://pypi.org/project/mlmc/
 
-.. |supported-implementations| image:: https://img.shields.io/pypi/implementation/nameless.svg
+..  |supported-implementations| image:: https://img.shields.io/pypi/implementation/mlmc.svg
     :alt: Supported implementations
     :target: https://pypi.org/project/mlmc/
 
@@ -52,7 +52,8 @@ It is meant as part of GeoMop project in particular Analysis component.
 
 Installation
 ============
-Package can be installed via pip
+Package can be installed via pip.
+
 ::
 
     pip install mlmc

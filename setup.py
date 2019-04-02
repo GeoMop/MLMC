@@ -32,7 +32,7 @@ long_description='%s\n%s' % (
 setup(
     # Project (package) name
     name='mlmc',
-    version='0.1.0',
+    version='0.1.post0',
     license='GPL 3.0',
     description='Multilevel Monte Carlo method.',
     long_description=long_description,
