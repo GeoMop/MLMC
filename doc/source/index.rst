@@ -6,7 +6,9 @@
 Welcome to mlmc's documentation!
 ================================
 
+
+
 .. toctree::
    :maxdepth: 2
 
-   readme
+   contents
