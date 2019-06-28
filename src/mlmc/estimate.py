@@ -62,54 +62,6 @@ class Estimate:
     TODO: try to move plotting methods into separate file, allowing independent usage of the plots for
     explicitely provided datasets.
     """
-
-
-    def _variance_of_variance(self, n_samples = None):
-        """
-        Approximate variance of log(X) where
-        X is from ch-squared with df=n_samples - 1.
-        Return array of variances for actual n_samples array.
-
-        :param n_samples: Optional array with n_samples.
-        :return: array of variances of variance estimate.
-        """
-        if n_samples is None:
-            n_samples = self.n_samples
-        if hasattr(self, "_saved_var_var"):
-            ns, var_var = self._saved_var_var
-            if np.sum(np.abs(ns - n_samples)) == 0:
-                return var_var
-
-        vars = []
-        for ns in n_samples:
-            df = ns - 1
-
-            def log_chi_pdf(x):
-                return np.exp(x) * df * st.chi2.pdf(np.exp(x) * df, df=df)
-
-            def compute_moment(moment):
-                std_est = np.sqrt(2 / df)
-                fn = lambda x, m=moment: x ** m * log_chi_pdf(x)
-                return integrate.quad(fn, -100 * std_est, 100 * std_est)[0]
-
-            mean = compute_moment(1)
-            second = compute_moment(2)
-            vars.append(second - mean ** 2)
-
-        self._saved_var_var = (n_samples, np.array(vars))
-        return np.array(vars)
-
-    @classmethod
-    def estimate_domain(cls, mlmc, quantile=None):
-        """
-        Estimate density domain from MLMC samples.
-        :parameter mlmc: MLMC object that provides the samples
-        :parameter quantile: float in interval (0, 1), None means whole sample range.
-        :return: lower_bound, upper_bound
-        """
-        ranges = np.array([l.sample_domain(quantile) for l in mlmc.levels])
-        return np.min(ranges[:, 0]), np.max(ranges[:, 1])
-
     def __init__(self, mlmc, moments=None):
         self.mlmc = mlmc
         self.moments = moments
@@ -159,8 +111,6 @@ class Estimate:
     def approx_cdf(self, x):
         return self.distribution.cdf(x)
 
-
-
     def estimate_level_vars(self, moments_fn=None):
         """
         Estimate variances for moments of X approximations on individual levels.
@@ -170,6 +120,7 @@ class Estimate:
         """
         if moments_fn is None:
             moments_fn = self.moments
+
         sim_steps = self.sim_steps
         #n_samples = mlmc.n_samples
         vars = []
@@ -196,7 +147,7 @@ class Estimate:
             raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
         sim_steps = self.sim_steps
         #vars = self._varinace_regression(raw_vars, sim_steps)
-        vars = self._all_moments_varinace_regression(raw_vars, sim_steps)
+        vars = self._all_moments_variance_regression(raw_vars, sim_steps)
         return vars
 
     def _variance_regression(self, raw_vars, sim_steps):
@@ -248,7 +199,6 @@ class Estimate:
         new_vars[1:, 1:] = np.exp(np.dot(X, params)).reshape(L - 1, -1)
         return new_vars
 
-
     def _variance_of_variance(self, n_samples = None):
         """
         Approximate variance of log(X) where
@@ -284,7 +234,7 @@ class Estimate:
         self._saved_var_var = (n_samples, np.array(vars))
         return np.array(vars)
 
-    def _moment_varinace_regression(self, raw_vars, sim_steps):
+    def _moment_variance_regression(self, raw_vars, sim_steps):
         """
         Estimate level variance using separate model for every moment.
 
@@ -316,7 +266,6 @@ class Estimate:
         X[:, 1] = np.full(L1, log_step)
         X[:, 2] = np.full(L1, log_step ** 2)
 
-
         WX = X * W[:, None]    # scale
 
         log_vars = np.log(raw_vars[1:])     # omit first variance
@@ -327,12 +276,12 @@ class Estimate:
         new_vars[1:] = np.exp(np.dot(X, params))
         return new_vars
 
-    def _all_moments_varinace_regression(self, raw_vars, sim_steps):
+    def _all_moments_variance_regression(self, raw_vars, sim_steps):
         reg_vars = raw_vars.copy()
         n_moments = raw_vars.shape[1]
         for m in range(1, n_moments):
-            reg_vars[:, m] = self._moment_varinace_regression(raw_vars[:, m], sim_steps)
-        assert np.allclose( reg_vars[:, 0], 0.0)
+            reg_vars[:, m] = self._moment_variance_regression(raw_vars[:, m], sim_steps)
+        assert np.allclose(reg_vars[:, 0], 0.0)
         return reg_vars
 
     def estimate_diff_vars(self, moments_fn=None):
@@ -378,6 +327,12 @@ class Estimate:
         :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
         :return: np.array with number of optimal samples for individual levels and moments, array (LxR)
         """
+        _, n_samples_estimate_safe = self.n_sample_estimate_moments(target_variance, moments_fn, prescribe_vars)
+        n_samples = np.max(n_samples_estimate_safe, axis=1).astype(int)
+
+        return n_samples
+
+    def n_sample_estimate_moments(self, target_variance, moments_fn=None, prescribe_vars=None):
         if moments_fn is None:
             moments_fn = self.moments
         if prescribe_vars is None:
@@ -393,24 +348,8 @@ class Estimate:
 
         # Limit maximal number of samples per level
         n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars * self.n_levels / target_variance), 2)
-        n_samples = np.max(n_samples_estimate_safe, axis=1).astype(int)
 
-        return n_samples
-
-    def set_target_variance(self, target_variance, moments_fn=None, fraction=1.0, prescribe_vars=None):
-        """
-        Estimate optimal number of samples for individual levels that should provide a target variance of
-        resulting moment estimate. Number of samples are directly set to levels.
-        This also set given moment functions to be used for further estimates if not specified otherwise.
-        TODO: separate target_variance per moment
-        :param target_variance: Constrain to achieve this variance.
-        :param moments_fn: moment evaluation functions
-        :param fraction: Plan only this fraction of computed counts.
-        :param prescribe_vars: vars[ L, M] for all levels L and moments M safe the (zeroth) constant moment with zero variance.
-        :return: None
-        """
-        n_samples = self._estimator.estimate_n_samples_for_target_variance(target_variance, moments_fn, prescribe_vars)
-        self.set_level_target_n_samples(n_samples, fraction)
+        return n_samples_estimate, n_samples_estimate_safe
 
     def target_var_adding_samples(self, target_var, moments_fn, pbs=None, sleep=20, add_coef=0.1):
         """
@@ -419,40 +358,14 @@ class Estimate:
         :param target_var: float, whole mlmc target variance
         :param moments_fn: Object providing calculating moments
         :param pbs: Pbs script generator object
-        :param sleep: Time waiting for samples
+        :param sleep: Sample waiting time
         :param add_coef: Coefficient for adding samples
         :return: None
         """
-        # Get default scheduled samples
-        n_scheduled = np.array(self.mlmc.l_scheduled_samples())
-        # Scheduled samples that are greater than already done samples
-        greater_items = np.arange(0, len(n_scheduled))
-
-        # Scheduled samples and wait until at least half of the samples are done
-        self.mlmc.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
-
         # New estimation according to already finished samples
         n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
-
         # Loop until number of estimated samples is greater than the number of scheduled samples
-        while not np.all(n_estimated[greater_items] == n_scheduled[greater_items]):
-            # New scheduled sample will be 10 percent of difference
-            # between current number of target samples and new estimated one
-            # If 10 percent of estimated samples is greater than difference between estimated and scheduled samples,
-            # set scheduled samples to estimated samples
-            new_scheduled = np.where((n_estimated * add_coef) > (n_estimated - n_scheduled),
-                             n_estimated,
-                             n_scheduled + (n_estimated - n_scheduled) * add_coef)
-
-            n_scheduled = np.ceil(np.where(n_estimated < n_scheduled,
-                                           n_scheduled,
-                                           new_scheduled))
-            # Levels where estimated are greater than scheduled
-            greater_items = np.where(np.greater(n_estimated, n_scheduled))[0]
-
-            # Scheduled samples and wait until at least half of the samples are done
-            self.mlmc.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
-
+        while not self.mlmc.process_adding_samples(n_estimated, pbs, sleep, add_coef):
             # New estimation according to already finished samples
             n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
 
@@ -496,6 +409,7 @@ class Estimate:
             level_times = self.estimate_level_cost()
         if n_samples is None:
             n_samples = self.mlmc.n_samples
+
         return np.sum(level_times * n_samples)
 
     def estimate_covariance(self, moments_fn, levels, stable=False, mse=False):
@@ -559,7 +473,7 @@ class Estimate:
     def check_bias(self, a, b, var, label):
         diff = np.abs(a - b)
         tol = 2*np.sqrt(var) + 1e-20
-        if np.any( diff > tol):
+        if np.any(diff > tol):
             print("Bias ", label)
             it = np.nditer(diff, flags=['multi_index'])
             while not it.finished:
@@ -569,7 +483,7 @@ class Estimate:
                     str(midx), diff[midx], sign, tol[midx], a[midx], b[midx]))
                 it.iternext()
 
-    def ref_estimates_bootstrap(self, n_subsamples=100, sample_vector=None, regression=False, log=False):
+    def ref_estimates_bootstrap(self, n_subsamples=100, sample_vector=None, regression=False, log=False, moments_fn=None):
         """
         Use current MLMC sample_vector to compute reference estimates for: mean, var, level_means, leval_vars.
 
@@ -581,7 +495,11 @@ class Estimate:
         :param sample_vector: By default same as the original sampling.
         :return: None. Set reference and BS estimates.
         """
-        moments_fn = self.moments
+        if moments_fn is not None:
+            self.moments = moments_fn
+        else:
+            moments_fn = self.moments
+
         if sample_vector is None:
             sample_vector = self.mlmc.n_samples
         if len(sample_vector) > self.n_levels:
@@ -604,7 +522,8 @@ class Estimate:
 
         self.mlmc.update_moments(moments_fn)
         estimates = estimate_fn()
-        est_samples = [ np.zeros(n_subsamples) * est[..., None]  for est in estimates]
+
+        est_samples = [np.zeros(n_subsamples) * est[..., None] for est in estimates]
         for i in range(n_subsamples):
             self.mlmc.subsample(sample_vector)
             sub_estimates = estimate_fn()
@@ -638,12 +557,91 @@ class Estimate:
 
         self.mlmc.clean_subsamples()
 
+        return mmean, vmean
 
+    def estimate_exact_mean(self, distr, moments_fn, size=200000):
+        """
+        Calculate exact means using MC method.
+        :param distr: Distribution object
+        :param moments_fn: Moments object
+        :param size: Number of samples
+        :return: Mean of moments function
+        """
+        X = distr.rvs(size=size)
+        return np.nanmean(moments_fn(X), axis=0)
 
+    def estimate_diff_var(self, levels_sims, distr, moments_fn, size=10000):
+        """
+        Calculate variances of level differences using MC method.
+        :param levels_sims: Levels simulation objects
+        :param moments_fn: Moments function
+        :param distr: Distribution obj
+        :param size: Number of samples from distribution
+        :return: means, vars ; shape = (n_levels, n_moments)
+        """
+        means = []
+        vars = []
+        sim_l = None
+        # Loop through levels simulation objects
+        for l in range(len(levels_sims)):
+            # Previous level simulations
+            sim_0 = sim_l
+            # Current level simulations
+            sim_l = lambda x, h=levels_sims[l].step: levels_sims[l]._sample_fn(x, h)
+            # Samples from distribution
+            X = distr.rvs(size=size)
+            if l == 0:
+                MD = moments_fn(sim_l(X))
+            else:
+                MD = (moments_fn(sim_l(X)) - moments_fn(sim_0(X)))
 
+            moment_means = np.nanmean(MD, axis=0)
+            moment_vars = np.nanvar(MD, axis=0, ddof=1)
+            means.append(moment_means)
+            vars.append(moment_vars)
+        return np.array(means), np.array(vars)
 
+    def direct_estimate_diff_var(self, level_sims, distr, moments_fn):
+        """
+        Used in mlmc_test_run
+        Calculate variances of level differences using numerical quadrature.
+        :param moments_fn:
+        :param domain:
+        :return:
+        """
+        mom_domain = moments_fn.domain
 
+        means = []
+        vars = []
+        sim_l = None
+        for l in range(len(level_sims)):
+            # TODO: determine integration domain as _sample_fn ^{-1} (  mom_domain )
+            domain = mom_domain
 
+            sim_0 = sim_l
+            sim_l = lambda x, h=level_sims[l].step: level_sims[l]._sample_fn(x, h)
+            if l == 0:
+                md_fn = lambda x: moments_fn(sim_l(x))
+            else:
+                md_fn = lambda x: moments_fn(sim_l(x)) - moments_fn(sim_0(x))
+            fn = lambda x: (md_fn(x)).T * distr.pdf(x)
+            moment_means = integrate.fixed_quad(fn, domain[0], domain[1], n=100)[0]
+            fn2 = lambda x: ((md_fn(x) - moment_means[None, :]) ** 2).T * distr.pdf(x)
+            moment_vars = integrate.fixed_quad(fn2, domain[0], domain[1], n=100)[0]
+            means.append(moment_means)
+            vars.append(moment_vars)
+        return means, vars
+
+    @classmethod
+    def estimate_domain(cls, mlmc, quantile=None):
+        """
+        Estimate density domain from MLMC samples.
+        :parameter mlmc: MLMC object that provides the samples
+        :parameter quantile: float in interval (0, 1), None means whole sample range.
+        :return: lower_bound, upper_bound
+        """
+        ranges = np.array([l.sample_domain(quantile) for l in mlmc.levels])
+        return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
 
 class CompareLevels:
