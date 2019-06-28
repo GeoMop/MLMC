@@ -1,35 +1,14 @@
+====
+MLMC
+====
+|circleci| |version| |supported-versions|
 
 
-
-========
-Overview
-========
-
-start-badges
-
-  list-table::
-    :stub-columns: 1
-
-    * - tests
-      - | |circleci|
-
-..  Original table
-    list-table::
-    :stub-columns: 1
-    * - docs
-      - |docs|
-    * - tests
-      - | |circleci| |appveyor| |requires|
-        | |codecov|
-    * - package
-      - | |version| |wheel| |supported-versions| |supported-implementations|
-        | |commits-since|
-
-..  |docs| image:: https://readthedocs.org/projects/python-nameless/badge/?style=flat
-    :target: https://readthedocs.org/projects/python-nameless
+..  |docs| image:: https://readthedocs.org/projects/mlmc/badge/?style=flat
+    :target: https://readthedocs.org/projects/python-mlmc
     :alt: Documentation Status
 
-.. |circleci| image:: https://circleci.com/gh/GeoMop/MLMC/tree/master.svg?style=svg
+..  |circleci| image:: https://circleci.com/gh/GeoMop/MLMC/tree/master.svg?style=svg
     :alt: CircleCI Build Status
     :target: https://circleci.com/gh/GeoMop/MLMC/tree/master
 
@@ -45,25 +24,25 @@ start-badges
     :alt: Coverage Status
     :target: https://codecov.io/github/ionelmc/python-nameless
 
-..  |version| image:: https://img.shields.io/pypi/v/nameless.svg
+..  |version| image:: https://img.shields.io/pypi/v/mlmc.svg
     :alt: PyPI Package latest release
-    :target: https://pypi.python.org/pypi/nameless
+    :target: https://pypi.org/project/mlmc/
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/ionelmc/python-nameless/v0.1.0.svg
+..  |commits-since| image:: https://img.shields.io/github/commits-since/ionelmc/python-mlmc/v0.1.0.svg
     :alt: Commits since latest release
-    :target: https://github.com/ionelmc/python-nameless/compare/v0.1.0...master
+    :target: https://github.com/ionelmc/python-mlmc/compare/v0.1.0...master
 
-..  |wheel| image:: https://img.shields.io/pypi/wheel/nameless.svg
+..  |wheel| image:: https://img.shields.io/pypi/wheel/mlmc.svg
     :alt: PyPI Wheel
-    :target: https://pypi.python.org/pypi/nameless
+    :target: https://pypi.org/project/mlmc/
 
-.. |supported-versions| image:: https://img.shields.io/pypi/pyversions/nameless.svg
+..  |supported-versions| image:: https://img.shields.io/pypi/pyversions/mlmc.svg
     :alt: Supported versions
-    :target: https://pypi.python.org/pypi/nameless
+    :target: https://pypi.org/project/mlmc/
 
-.. |supported-implementations| image:: https://img.shields.io/pypi/implementation/nameless.svg
+..  |supported-implementations| image:: https://img.shields.io/pypi/implementation/mlmc.svg
     :alt: Supported implementations
-    :target: https://pypi.python.org/pypi/nameless
+    :target: https://pypi.org/project/mlmc/
 
 
 .. end-badges
@@ -71,10 +50,9 @@ start-badges
 Multi-level Monte Carlo method with approximation of distribution function and quantiles.
 It is meant as part of GeoMop project in particular Analysis component.
 
-* Free software: GPL 3.0  License
-
 Installation
 ============
+Package can be installed via pip.
 
 ::
 
@@ -82,9 +60,7 @@ Installation
 
 Documentation
 =============
-
-TODO try:
-https://python-nameless.readthedocs.io/
+https://mlmc.readthedocs.io/
 
 Development
 ===========
@@ -96,10 +72,27 @@ installs necessary requirements as well as the developed package itself into cle
 and call pytest to search in the `test` folder for tests to execute.
 
 
+.. Rules:
 
-Rules:
-    
-- indent by 4 spaces
-- use docstrings to document function parameters
-- initialize and document class attributes in the constructor
-- 
+.. - indent by 4 spaces
+.. - use docstrings to document function parameters
+.. - initialize and document class attributes in the constructor
+.. -
+
+Requirements
+============
+- NumPy_
+- SciPy_
+- h5py_
+- pyyaml_
+- sklearn_
+
+.. _NumPy: https://pypi.org/project/numpy/
+.. _SciPy: https://pypi.org/project/scipy/
+.. _h5py: https://pypi.org/project/h5py/
+.. _pyyaml: https://pypi.org/project/PyYAML/
+.. _sklearn: https://pypi.org/project/scikit-learn/
+
+Licence
+=======
+* Free software: GPL 3.0  License
