@@ -8,7 +8,8 @@ class Distribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True)):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True),
+                 monitor=False):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -37,7 +38,7 @@ class Distribution:
         # Number of basis functions to approximate the density.
         # In future can be smaller then number of provided approximative moments.
         self.approx_size = len(self.moment_means)
-        assert moments_obj.size == self.approx_size
+        assert moments_obj.size >= self.approx_size
         self.moments_fn = moments_obj
 
         # Degree of Gauss quad to use on every subinterval determined by adaptive quad.
@@ -45,6 +46,8 @@ class Distribution:
         # Panalty coef for endpoint derivatives
         self._penalty_coef = 10
 
+        # Flag for monitoring convergence on stdout.
+        self.monitor = monitor
     # def choose_parameters_from_samples(self, samples):
     #     """
     #     Determine model hyperparameters, in particular domain of the density function,
@@ -79,7 +82,7 @@ class Distribution:
     #     pass
 
 
-    def estimate_density_minimize(self, tol=1e-5):
+    def estimate_density_minimize(self, tol=1e-5, reg_param =0.01):
         """
         Optimize density estimation
         :param tol: Tolerance for the nonlinear system residual, after division by std errors for
@@ -91,6 +94,7 @@ class Distribution:
 
         # Geometrical series for sizes with base 1.2.
         # Using just odd numbers.
+        self._reg_param = reg_param
         base = 1.2
         if self.approx_size <= 5:
             sizes = [self.approx_size]
@@ -103,19 +107,23 @@ class Distribution:
                 if odd_size != sizes[-1]:
                     sizes.append(odd_size)
             sizes.reverse()
-        print(sizes)
+        #print("sizes: ", sizes)
 
         self.approx_size = sizes[0]
         self._initialize_params(self.approx_size, tol)
         self.extend_size(self.approx_size)
         init_error = np.linalg.norm(self._calculate_gradient(self.multipliers))
 
-        t1 = tol
-        t0 = max(tol, init_error / 10)
-        t = (np.array(sizes) - sizes[0]) / ( sizes[-1] - sizes[0])
-        tolerances = np.exp(np.log(t1) * t - np.log(t0) * (1-t))
-        print(tolerances)
+        if len(sizes) == 1:
+            tolerances = [ tol ]
+        else:
+            t1 = tol
+            t0 = max(tol, init_error / 10)
+            t = (np.array(sizes) - sizes[0]) / ( sizes[-1] - sizes[0])
+            tolerances = np.exp(np.log(t1) * t + np.log(t0) * (1-t))
+        #print("tolerances: ", tolerances)
 
+        total_nit = 0
         for approx_size, approx_tol in  zip(sizes, tolerances):
             self._quad_tolerance = approx_tol / 16
             self.extend_size(approx_size)
@@ -124,26 +132,27 @@ class Distribution:
             #else:
             #    max_it = 20
             max_it = 200
-            result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method='trust-exact',
+            method = 'trust-exact'
+            #method ='Newton-CG'
+            result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
                                           jac=self._calculate_gradient,
                                           hess=self._calculate_jacobian_matrix,
-                                          options={'gtol': approx_tol, 'disp': False, 'maxiter': max_it})
+                                          options={'tol': approx_tol, 'xtol': approx_tol,
+                                                   'gtol': approx_tol, 'disp': False,  'maxiter': max_it})
             self.multipliers = result.x
             jac_norm = np.linalg.norm(result.jac)
-            print("size: {} nits: {} tol: {:5.3g} fn: {:5.3g} msg: {}".format(
-               self.approx_size, result.nit, approx_tol, jac_norm, result.message))
+            total_nit += result.nit
+            if self.monitor:
+                print("Iteration: size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
+                   self.approx_size, result.nit, approx_tol, jac_norm, result.message))
 
-        # result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method='BFGS',
-        #                               jac=self._calculate_gradient,
-        #                               options={'gtol': tol, 'disp': False, 'maxiter': 100})
-
-
+        # Fix normalization
+        gradient, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
+        self.multipliers /= gradient
 
         if result.success or jac_norm < tol:
             result.success = True
-        if not result.success and result.message[:5] == 'A bad':
-            result.success = True
-        result.nit = max(result.nit, 1)
+        result.nit = total_nit
         result.fun_norm = jac_norm
         return result
 
@@ -178,10 +187,10 @@ class Distribution:
         :param moments_fn: counting moments function
         :return: density for passed value
         """
+        size = self.approx_size
         if moments_fn is None:
-            moments = self.moments_fn(value)
-        else:
-            moments = moments_fn(value)
+            moments_fn = self.moments_fn
+        moments = moments_fn.eval_all(value, size=size)
         return np.exp(-np.sum(moments * self.multipliers / self._moment_errs, axis=1))
 
     def cdf(self, values):
@@ -224,7 +233,8 @@ class Distribution:
 
     def extend_size(self, new_size):
         self._last_solved_multipliers = self.multipliers
-        self._stab_penalty = 0.01 / np.linalg.norm(self.multipliers)
+        self._stab_penalty = self._reg_param / np.linalg.norm(self.multipliers)
+        #self._stab_penalty = 0.0
 
         self.approx_size = new_size
         multipliers = self.multipliers
@@ -241,6 +251,32 @@ class Distribution:
 
     def eval_moments(self, x):
         return self.moments_fn.eval_all(x, self.approx_size)
+
+    def _calculate_exact_moment(self, multipliers, m=0, full_output=0):
+        def integrand(x):
+            moms = self.eval_moments(x)
+            power = -np.sum(moms * multipliers / self._moment_errs, axis=1)
+            power = np.minimum(np.maximum(power, -200), 200)
+            return np.exp(power) * moms[:,m]
+
+        result = sc.integrate.quad(integrand, self.domain[0], self.domain[1],
+                                   epsabs=self._quad_tolerance, full_output=full_output)
+        return result[0], result
+
+    def _calculate_exact_hessian(self, i, j, multipliers=None):
+        if multipliers is None:
+            multipliers = self.multipliers
+
+        def integrand(x):
+            moms = self.eval_moments(x)
+            power = -np.sum(moms * multipliers / self._moment_errs, axis=1)
+            power = np.minimum(np.maximum(power, -200), 200)
+            return np.exp(power) * moms[:,i] * moms[:,j]
+
+        result = sc.integrate.quad(integrand, self.domain[0], self.domain[1],
+                                   epsabs=self._quad_tolerance, full_output=False)
+        return result[0], result
+
 
     def _update_quadrature(self, multipliers, force=False):
         """
@@ -260,10 +296,8 @@ class Distribution:
             if quad_err_estimate < self._quad_tolerance:
                 return
 
-        def integrand(x):
-            return np.exp(-np.sum(self.eval_moments(x) * multipliers / self._moment_errs, axis=1))
+        val, result = self._calculate_exact_moment(multipliers, m=0, full_output=1)
 
-        result = sc.integrate.quad(integrand, self.domain[0], self.domain[1], full_output = 1)
         if len(result) > 3:
             y, abserr, info, message = result
             self._quad_log.append(result)
@@ -281,7 +315,9 @@ class Distribution:
         self._quad_weights = weights.flatten()
         self._quad_moments = self.eval_moments(self._quad_points)
 
-        q_gradient = self._quad_moments.T * np.exp(-np.dot(self._quad_moments, multipliers/self._moment_errs))
+        power = -np.dot(self._quad_moments, multipliers/self._moment_errs)
+        power = np.minimum(np.maximum(power, -200), 200)
+        q_gradient = self._quad_moments.T * np.exp(power)
         integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
         self._last_multipliers = multipliers
         self._last_gradient = integral
@@ -309,7 +345,9 @@ class Distribution:
         """
         update_grad = self._update_quadrature(multipliers)
 
-        q_density = np.exp(-np.dot(self._quad_moments, multipliers / self._moment_errs))
+        power = -np.dot(self._quad_moments, multipliers / self._moment_errs)
+        power = np.minimum(np.maximum(power, -200), 200)
+        q_density = np.exp(power)
         integral = np.dot(q_density, self._quad_weights)
         sum = np.sum(self._moment_means * multipliers / self._moment_errs)
 
@@ -328,7 +366,10 @@ class Distribution:
         :return: array, shape (n_moments,)
         """
         self._update_quadrature(multipliers)
-        q_gradient = self._quad_moments.T * np.exp(-np.dot(self._quad_moments, multipliers / self._moment_errs))
+        power = -np.dot(self._quad_moments, multipliers / self._moment_errs)
+        #power = np.minimum(np.maximum(power, -200), 200)
+        q_density = np.exp(power)
+        q_gradient = self._quad_moments.T * q_density
         integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
 
         end_diff = np.dot(self._end_point_diff, multipliers)
@@ -345,7 +386,9 @@ class Distribution:
         """
         self._update_quadrature(multipliers)
 
-        q_density = np.exp(-np.dot(self._quad_moments, multipliers / self._moment_errs))
+        power = -np.dot(self._quad_moments, multipliers / self._moment_errs)
+        power = np.minimum(np.maximum(power, -200), 200)
+        q_density = np.exp(power)
         moment_outer = np.einsum('ki,kj->ijk', self._quad_moments, self._quad_moments)
         triu_idx = np.triu_indices(self.approx_size)
         triu_outer = moment_outer[triu_idx[0], triu_idx[1], :]
@@ -368,11 +411,13 @@ class Distribution:
 
         jacobian_matrix[np.diag_indices_from(jacobian_matrix)] += self._stab_penalty
 
+
         #e_vals = np.linalg.eigvalsh(jacobian_matrix)
 
         #print(multipliers)
         #print("jac spectra: ", e_vals[0], e_vals[-1], e_vals[-1]/e_vals[0])
         return jacobian_matrix
+
 
 
 def compute_exact_moments(moments_fn, density, tol=1e-4):

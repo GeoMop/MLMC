@@ -2,9 +2,6 @@ import os
 import os.path
 import shutil
 import subprocess
-import json
-import glob
-import numpy as np
 
 
 class Pbs:
@@ -118,19 +115,13 @@ class Pbs:
         script_content = "\n".join(self.pbs_script)
         pbs_file = os.path.join(self._job_dir, "{:04d}.sh".format(self._job_count))
 
-        pbs_file_pom = os.path.join("/storage/liberec1-tul/home/martin_spetlik",
-                                    "{:04d}.sh".format(self._job_count))
         self._job_count += 1
-        with open(pbs_file_pom, "w") as file_writer:
+        with open(pbs_file, "w") as file_writer:
             file_writer.write(script_content)
 
-        os.chmod(pbs_file_pom, 0o774)  # Make executable to allow direct call.
-        shutil.copyfile(pbs_file_pom, pbs_file)
+        os.chmod(pbs_file, 0o774)  # Make executable to allow direct call.
+        
 
-        try:
-            os.remove(pbs_file_pom)
-        except OSError:
-            pass
 
         if self.qsub_cmd is None:
             subprocess.call(pbs_file)
@@ -162,36 +153,3 @@ class Pbs:
         self._pbs_config['job_name'] = "{:04d}".format(self._job_count)
         self._pbs_config['pbs_output_dir'] = self._job_dir
         self.pbs_script = [line.format(**self._pbs_config) for line in self._pbs_header_template]
-
-    def estimate_level_times(self, n_samples=20):
-        """
-        Estimate average simulation time for each level
-        :param n_samples: Number of samples
-        :return: list
-        """
-        output_dir = os.path.join(self.work_dir, "..")
-        level_times = []
-        for dir_entry in os.scandir(output_dir):
-            sim_dir = os.path.join(dir_entry.path, "samples")
-            if os.path.isdir(sim_dir) and dir_entry.name.startswith("sim_"):
-                times = []
-                sample_entries = list(os.scandir(sim_dir))
-                total_samples = len(sample_entries)
-                if total_samples > n_samples:
-                    indices = np.random.choice(np.arange(total_samples, dtype=int), size=n_samples)
-                    selected_samples = [sample_entries[i] for i in indices]
-                else:
-                    selected_samples = sample_entries
-
-                for sample_entry in selected_samples:
-                    sample_dir = sample_entry.path
-                    prof_files = list(glob.iglob(os.path.join(sample_dir, "profiler_*.json")))
-                    # assert len(prof_files) == 1, "N: " + str(prof_files)
-                    with open(prof_files[-1], 'r') as file_reader:
-                        prof_data = json.load(file_reader)
-                    total_time = float(prof_data['children'][0]['cumul-time-max'])
-                    times.append(total_time)
-                    if len(times) > 100:
-                        break
-                level_times.append(np.mean(np.array(times)))
-        return level_times

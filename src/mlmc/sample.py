@@ -23,15 +23,6 @@ class Sample:
         self.running_time = kwargs.get('running_time', 0.0)
         self._time = kwargs.get('time', None)
 
-    # def set_values(self, attributes):
-    #     """
-    #     Set sample attributes
-    #     :param attributes:
-    #     :return:
-    #     """
-    #     for name, value in attributes.items():
-    #         setattr(self, name, value)
-
     @property
     def time(self):
         """
@@ -94,9 +85,12 @@ class Sample:
         return self.sample_id == other.sample_id and \
                self.prepare_time == other.prepare_time and\
                self.queued_time == other.queued_time and \
+               self.time == other.time and \
                self.result == other.result
 
     def __str__(self):
-        return "sample id: {}, result: {}, prepare time: {}, queued time: {} ".format(self.sample_id, self.result,
+        return "sample id: {}, result: {}, running time: {}, prepare time: {}, queued time: {} ".format(self.sample_id,
+                                                                                                        self.result,
+                                                                                                        self.running_time,
                                                                                       self.prepare_time,
                                                                                       self.queued_time)
