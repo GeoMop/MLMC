@@ -20,7 +20,7 @@ from test.fixtures.synth_simulation import SimulationTest
 from test.simulations.simulation_shooting import SimulationShooting
 import mlmc.pbs as pb
 import copy
-from memory_profiler import profile
+#from memory_profiler import profile
 
 
 #@profile
