@@ -128,13 +128,13 @@ def add_samples(mc):
         len_sample_val = len(level.sample_values)
 
         # Add correct sample
-        level._add_sample('1', (-10.5, 10))
+        level._add_sample('1', ([-10.5], [10]))
         assert len(level.nan_samples) == 0
         assert len_sample_val + 1 == len(level.sample_values) == level._n_collected_samples
 
         # Add NaN samples
-        level._add_sample('1', (np.nan, 10))
-        level._add_sample('1', (-10.5, np.nan))
+        level._add_sample('1', ([np.nan], [10]))
+        level._add_sample('1', ([-10.5], [np.nan]))
         assert len(level.nan_samples) == 2
         assert len_sample_val + 1 == len(level.sample_values) == level._n_collected_samples
 

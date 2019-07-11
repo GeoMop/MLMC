@@ -1,8 +1,9 @@
-import numpy as np
-from mlmc.sample import Sample
 import os
 import shutil
+import copy
 import time as t
+import numpy as np
+from mlmc.sample import Sample
 
 
 class Level:
@@ -82,6 +83,7 @@ class Level:
         self._last_moments_fn = None
         self.fine_times = []
         self.coarse_times = []
+        self._select_condition = None
         # Load simulations from log
         self.load_samples(regen_failed)
 
@@ -91,7 +93,6 @@ class Level:
         :return: None
         """
         self.scheduled_samples = {}
-        self.collected_samples = []
         self.target_n_samples = 3
         self._sample_values = np.empty((self.target_n_samples, 2))
         self._n_collected_samples = 0
@@ -100,6 +101,8 @@ class Level:
         self._last_moments_fn = None
         self.fine_times = []
         self.coarse_times = []
+        self._select_condition = None
+        self.collected_samples = []
 
     @property
     def finished_samples(self):
@@ -148,6 +151,8 @@ class Level:
             # Append collected samples
             collected_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
             # Add sample results
+            fine_sample.select(self._select_condition)
+            coarse_sample.select(self._select_condition)
             self._add_sample(fine_sample.sample_id, (fine_sample.result, coarse_sample.result))
             # Get time from samples
             self.fine_times.append(fine_sample.time)
@@ -208,10 +213,17 @@ class Level:
         """
         fine, coarse = sample_pair
 
+        if len(fine) == 0 or len(coarse) == 0:
+            return
+
+        if len(self._sample_values.shape) < 3:
+            self._sample_values = np.empty((self.target_n_samples, 2, len(fine)))
+
         # Samples are not finite
-        if not np.isfinite(fine) or not np.isfinite(coarse):
+        if not np.all(np.isfinite(fine)) or not np.all(np.isfinite(coarse)):
             self.nan_samples.append(idx)
             return
+
         # Enlarge matrix of samples
         if self._n_collected_samples == self._sample_values.shape[0]:
             self.enlarge_samples(2 * self._n_collected_samples)
@@ -227,7 +239,10 @@ class Level:
         :return: None
         """
         # Enlarge sample matrix
-        new_values = np.empty((size, 2))
+        new_size = list(self._sample_values.shape)
+        new_size[0] = size
+
+        new_values = np.empty(new_size)
         new_values[:self._n_collected_samples] = self._sample_values[:self._n_collected_samples]
         self._sample_values = new_values
 
@@ -306,7 +321,8 @@ class Level:
         else:
             # Zero level have no coarse simulation
             coarse_sample = Sample(sample_id=sample_pair_id)
-            coarse_sample.result = 0.0
+            #@TODO: find more elegant workaround for multilevel usage
+            coarse_sample.result_data = np.array([0.0], dtype=[("value", 'S10')])
 
         self._n_total_samples += 1
 
@@ -354,7 +370,7 @@ class Level:
         """
         # Samples that are not running and aren't finished
         not_queued_sample_ids = self._not_queued_sample_ids()
-        orig_n_finised = len(self.collected_samples)
+        orig_n_finished = len(self.collected_samples)
 
         for sample_id in not_queued_sample_ids:
             fine_sample, coarse_sample = self.scheduled_samples[sample_id]
@@ -372,10 +388,15 @@ class Level:
             if fine_done and coarse_done:
                 # 'Remove' from scheduled
                 self.scheduled_samples[sample_id] = False
-                # Failed sample
 
-                if fine_sample.result is np.inf or coarse_sample.result is np.inf:
-                    coarse_sample.result = fine_sample.result = np.inf
+                # Enlarge coarse sample result to length of fine sample result
+                if self.is_zero_level:
+                    coarse_sample.result_data = copy.deepcopy(fine_sample.result_data)
+                    coarse_sample.result = np.full((len(fine_sample.result),), 0.0)
+
+                # Failed sample
+                if np.any(np.isinf(fine_sample.result)) or np.any(np.isinf(coarse_sample.result)):
+                    coarse_sample.result = fine_sample.result = np.full((len(fine_sample.result), ), np.inf)
                     self.failed_samples.add(sample_id)
                     continue
 
@@ -384,6 +405,8 @@ class Level:
 
                 # collect values
                 self.collected_samples.append((fine_sample, coarse_sample))
+                fine_sample.select(self._select_condition)
+                coarse_sample.select(self._select_condition)
                 self._add_sample(sample_id, (fine_sample.result, coarse_sample.result))
 
         # Still scheduled samples
@@ -391,7 +414,8 @@ class Level:
                                   if values is not False}
 
         # Log new collected samples
-        self._log_collected(self.collected_samples[orig_n_finised:])
+        self._log_collected(self.collected_samples[orig_n_finished:])
+
         # Log failed samples
         self._log_failed(self.failed_samples)
 
@@ -511,15 +535,14 @@ class Level:
         same_shapes = self.last_moments_eval is not None
         if force or not same_moments or not same_shapes:
             samples = self.sample_values
-
-            # Moments from fine samples
             moments_fine = moments_fn(samples[:, 0])
 
             # For first level moments from coarse samples are zeroes
             if self.is_zero_level:
-                moments_coarse = np.zeros((len(moments_fine), moments_fn.size))
+                moments_coarse = np.zeros(moments_fine.shape)
             else:
                 moments_coarse = moments_fn(samples[:, 1])
+
             # Set last moments function
             self._last_moments_fn = moments_fn
             # Moments from fine and coarse samples
@@ -541,12 +564,11 @@ class Level:
         :return: None
         """
         # Fine and coarse moments mask
-        ok_fine = np.all(np.isfinite(self.last_moments_eval[0]), axis=1)
-        ok_coarse = np.all(np.isfinite(self.last_moments_eval[1]), axis=1)
+        ok_fine = np.all(np.isfinite(self.last_moments_eval[0]), axis=len(self.last_moments_eval[0][0].shape))
+        ok_coarse = np.all(np.isfinite(self.last_moments_eval[1]), axis=len(self.last_moments_eval[1][0].shape))
 
         # Common mask for coarse and fine
         ok_fine_coarse = np.logical_and(ok_fine, ok_coarse)
-        #self.ok_fine_coarse = ok_fine_coarse
 
         # New moments without outliers
         self.last_moments_eval = self.last_moments_eval[0][ok_fine_coarse, :], self.last_moments_eval[1][ok_fine_coarse, :]
@@ -563,8 +585,8 @@ class Level:
         :param moments_fn: Moments evaluation function
         :return: tuple (variance vector, length of moments)
         """
-
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+
         assert len(mom_fine) == len(mom_coarse)
         assert len(mom_fine) >= 2
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
@@ -661,6 +683,44 @@ class Level:
         """
         self.collect_samples()
         return len(self.collected_samples) + len(self.failed_samples)
+
+    def select(self, condition):
+        """
+        Set sample select condition
+        :param condition: dict, ({sample result param: (value, comparison)})
+        :return: None
+        """
+        self._select_condition = condition
+        selected_samples = []
+        for f_sample, c_sample in self.collected_samples:
+            f_sample.select(condition)
+            c_sample.select(condition)
+            selected_samples.append((f_sample, c_sample))
+
+        self._reload_sample_values(selected_samples)
+        return selected_samples
+
+    def _reload_sample_values(self, samples):
+        """
+        Get selected samples result values
+        :param samples: list of tuples [(Sample(), Sample()), ...]
+        :return: None
+        """
+        self._sample_values = np.empty((len(samples), 2, len(samples[0][0].result)))
+        for index, (fine, coarse) in enumerate(samples):
+            self._sample_values[index, :] = (fine.result, coarse.result)
+
+    def clean_select(self):
+        """
+        Clean sample's select condition
+        :return: None
+        """
+        for c_sample, f_sample in self.collected_samples:
+            c_sample.clean_select()
+            f_sample.clean_select()
+
+        self._reload_sample_values(self.collected_samples)
+        self._select_condition = None
 
     def sample_time(self):
         """

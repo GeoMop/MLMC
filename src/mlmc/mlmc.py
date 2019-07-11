@@ -294,6 +294,25 @@ class MLMC:
         for level in self.levels:
             level.reset()
 
+    def select_values(self, condition):
+        """
+        Select values from sample results
+        Each sample results can contains more quantities and other parameters. This method allows us to select results
+        with particular parameter's values
+        :param condition:
+        :return: None
+        """
+        for level in self.levels:
+            level.select(condition)
+
+    def clean_select(self):
+        """
+        Cancel param selection, so we use all collected simulation result
+        :return: None
+        """
+        for level in self.levels:
+            level.clean_select()
+
     def clean_subsamples(self):
         """
         Clean level subsamples

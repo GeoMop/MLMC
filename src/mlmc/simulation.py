@@ -55,18 +55,25 @@ class Simulation(metaclass=ABCMeta):
         :return: Modify sample
         """
         try:
-            result, running_time = self._extract_result(sample)
-            if result is np.nan:
-                raise
-        except:
-            result = np.inf
-            running_time = np.Inf
+            result_values = self._extract_result(sample)
 
-        if result is np.inf:
+            res_dtype = []
+            for r_name, r_dtype in zip(self.result_struct[0], self.result_struct[1]):
+                res_dtype.append((r_name, r_dtype))
+
+            result = np.array(result_values, dtype=res_dtype)
+
+            if np.any(np.isnan(result['value'])):
+                raise Exception
+        except:
+            result = np.array(result_values, dtype=res_dtype)
+            result['value'] = np.full((len(result['value']),), np.inf)
+
+        if np.all(np.isinf(result['value'])):
             Simulation._move_sample_dir(sample.directory)
 
-        sample.result = result
-        sample.running_time = running_time
+        sample.result_data = result
+
         return sample
 
     @abstractmethod

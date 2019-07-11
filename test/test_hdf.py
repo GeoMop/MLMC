@@ -101,13 +101,15 @@ SCHEDULED_SAMPLES = {0:(Sample(sample_id=0, job_id='1', prepare_time=0.01),
                           )
                      }
 
+RESULT_DATA_DTYPE = [("value", np.float), ("time", np.float)]
 
-COLLECTED_SAMPLES = [(Sample(sample_id=0, job_id='1', time=0.1, result=0.25),
-                      Sample(sample_id=0, job_id='1', time=0.11, result=0.5)),
-                     (Sample(sample_id=1, job_id='1', time=0.09, result=-0.25),
-                      Sample(sample_id=1, job_id='1', time=0.12, result=0.1)),
-                     (Sample(sample_id=2, job_id='5', time=0.08, result=1),
-                      Sample(sample_id=2, job_id='5', time=0.13, result=-0.1))]
+
+COLLECTED_SAMPLES = [(Sample(sample_id=0, job_id='1', time=0.1,  result_data=np.array([10, 1.5], dtype=RESULT_DATA_DTYPE)),
+                      Sample(sample_id=0, job_id='1', time=0.11, result_data=np.array([11, 0.0012], dtype=RESULT_DATA_DTYPE))),
+                     (Sample(sample_id=1, job_id='1', time=0.09, result_data=np.array([-10.2, 7.854], dtype=RESULT_DATA_DTYPE)),
+                      Sample(sample_id=1, job_id='1', time=0.12, result_data=np.array([1.879, 1.00546], dtype=RESULT_DATA_DTYPE))),
+                     (Sample(sample_id=2, job_id='5', time=0.08, result_data=np.array([-7.6, 5.16], dtype=RESULT_DATA_DTYPE)),
+                      Sample(sample_id=2, job_id='5', time=0.13, result_data=np.array([15, 100.1], dtype=RESULT_DATA_DTYPE)))]
 
 
 def test_level_group():
