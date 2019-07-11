@@ -72,7 +72,7 @@ class Pbs:
         self._pbs_config = kwargs
         self.clean_script()
 
-    def add_realization(self, weight, **kwargs):
+    def add_realization(self, weight, lines, **kwargs):
         """
         Append new flow123d realization to the existing script content
         :param weight: current simulation steps
@@ -84,14 +84,14 @@ class Pbs:
 
         assert self.pbs_script is not None
 
-        lines = [
-            'cd {work_dir}',
-            'date +%y.%m.%d_%H:%M:%S',
-            'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out',
-            'date +%y.%m.%d_%H:%M:%S',
-            'touch {output_subdir}/FINISHED',
-            'echo \\"Finished simulation:\\" \\"{flow123d}\\" \\"{work_dir}\\" \\"{output_subdir}\\"',
-            '']
+        # lines = [
+        #     'cd {work_dir}',
+        #     'date +%y.%m.%d_%H:%M:%S',
+        #     'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out',
+        #     'date +%y.%m.%d_%H:%M:%S',
+        #     'touch {output_subdir}/FINISHED',
+        #     'echo \\"Finished simulation:\\" \\"{flow123d}\\" \\"{work_dir}\\" \\"{output_subdir}\\"',
+        #     '']
         lines = [line.format(**kwargs) for line in lines]
         self.pbs_script.extend(lines)
 
