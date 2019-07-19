@@ -281,7 +281,8 @@ class Estimate:
         n_moments = raw_vars.shape[1]
         for m in range(1, n_moments):
             reg_vars[:, m] = self._moment_variance_regression(raw_vars[:, m], sim_steps)
-        assert np.allclose(reg_vars[:, 0], 0.0)
+
+        assert np.allclose(reg_vars[:, 0, 0], 0.0)
         return reg_vars
 
     def estimate_diff_vars(self, moments_fn=None):
@@ -383,6 +384,7 @@ class Estimate:
             l_vars, ns = level.estimate_diff_var(moments_fn)
             vars.append(l_vars)
             n_samples.append(ns)
+
         means = np.sum(np.array(means), axis=0)
         n_samples = np.array(n_samples, dtype=int)
 

@@ -569,9 +569,14 @@ class Level:
 
         # Common mask for coarse and fine
         ok_fine_coarse = np.logical_and(ok_fine, ok_coarse)
+        bool_mask = np.ones((ok_fine_coarse[0].shape))
+        for bool_array in ok_fine_coarse:
+            bool_mask = np.logical_and(bool_mask, bool_array)
 
+        ok_fine_coarse = bool_mask
         # New moments without outliers
-        self.last_moments_eval = self.last_moments_eval[0][ok_fine_coarse, :], self.last_moments_eval[1][ok_fine_coarse, :]
+        self.last_moments_eval = self.last_moments_eval[0][:, ok_fine_coarse],\
+                                 self.last_moments_eval[1][:, ok_fine_coarse]
 
     def estimate_level_var(self, moments_fn):
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
@@ -601,8 +606,10 @@ class Level:
         :return: np.array, moments mean vector
         """
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+
         assert len(mom_fine) == len(mom_coarse)
         assert len(mom_fine) >= 1
+
         mean_vec = np.mean(mom_fine - mom_coarse, axis=0)
         return mean_vec
 

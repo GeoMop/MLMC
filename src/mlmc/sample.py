@@ -29,6 +29,8 @@ class Sample:
         # We can extract some data from result data according to given parameter and condition
         self._selected_data = copy.deepcopy(self._result_data)
 
+        self._param = "value"
+
     @property
     def time(self):
         """
@@ -73,7 +75,8 @@ class Sample:
             self.clean_select()
         if self._result_data is None:
             return []
-        return self._selected_data['value']
+
+        return self._selected_data[self._param]
 
     @result.setter
     def result(self, values):
@@ -88,7 +91,12 @@ class Sample:
         if condition is None:
             return
 
+        if len(condition) > 1:
+            self._param = "value"
+
         for param, (value, comparison) in condition.items():
+            self._param = param
+
             if comparison == "=":
                 self._selected_data = self._selected_data[self._selected_data[param] == value]
             elif comparison == ">":
@@ -102,6 +110,7 @@ class Sample:
 
     def clean_select(self):
         self._selected_data = self._result_data
+        self._param = "value"
 
     def collected_data_array(self, attributes):
         """
