@@ -146,7 +146,7 @@ class GmshIO:
                 elif ftype == 0 and readmode > 1 and len(columns) > 5:
                     # Version 1.0 or 2.0 Elements
                     try:
-                        columns = [int(col) for col in columns]
+                        columns = [int(float(col)) for col in columns]
                     except ValueError:
                         print('Element format error: ' + line, ERROR)
                         readmode = 0
