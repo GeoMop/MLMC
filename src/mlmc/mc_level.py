@@ -377,13 +377,14 @@ class Level:
 
             # Sample() instance
             fine_sample = self.fine_simulation.extract_result(fine_sample)
-            fine_done = fine_sample.result is not None
-
+            fine_done = not np.any(np.isnan(fine_sample.result))
             # For zero level don't create Sample() instance via simulations,
             # however coarse sample is created for easier processing
             if not self.is_zero_level:
                 coarse_sample = self.coarse_simulation.extract_result(coarse_sample)
-            coarse_done = coarse_sample.result is not None
+                coarse_done = np.all(np.isnan(coarse_sample.result))
+            else:
+                coarse_done = True
 
             if fine_done and coarse_done:
                 # 'Remove' from scheduled
@@ -574,9 +575,11 @@ class Level:
             bool_mask = np.logical_and(bool_mask, bool_array)
 
         ok_fine_coarse = bool_mask
+
         # New moments without outliers
         self.last_moments_eval = self.last_moments_eval[0][:, ok_fine_coarse],\
                                  self.last_moments_eval[1][:, ok_fine_coarse]
+
 
     def estimate_level_var(self, moments_fn):
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)

@@ -63,8 +63,9 @@ class Simulation(metaclass=ABCMeta):
 
             result = np.array(result_values, dtype=res_dtype)
 
-            if np.any(np.isnan(result['value'])):
-                raise Exception
+            if np.all(np.isnan(result['value'])):
+                sample.result_data = result
+                return sample
         except:
             result = np.array(result_values, dtype=res_dtype)
             result['value'] = np.full((len(result['value']),), np.inf)
