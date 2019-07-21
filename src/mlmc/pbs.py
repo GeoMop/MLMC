@@ -64,7 +64,8 @@ class Pbs:
                                      '#PBS -e {pbs_output_dir}/{job_name}.ER',
                                      '']
         if flow_3:
-            self._pbs_header_template.extend(('module use /storage/praha1/home/jan-hybs/modules',
+            self._pbs_header_template.extend(('module load python36-modules-gcc',
+                                                'module use /storage/praha1/home/jan-hybs/modules',
                                               'module load flow123d', ''))
 
         self._pbs_header_template.extend(('touch {pbs_output_dir}/RUNNING', 'rm -f {pbs_output_dir}/QUEUED'))
