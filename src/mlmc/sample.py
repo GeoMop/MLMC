@@ -82,7 +82,7 @@ class Sample:
     def result(self, values):
         self._result_data['value'] = values
 
-    def select(self, condition=None):
+    def select(self, condition=None, selected_param=None):
         """
         Select values from result data
         :param condition: None or dict in form {result parameter: (value, "comparison")}
@@ -91,12 +91,14 @@ class Sample:
         if condition is None:
             return
 
-        if len(condition) > 1:
+        if selected_param is not None:
+            self._param = selected_param
+        elif len(condition) > 1:
             self._param = "value"
+        else:
+            self._param = list(condition.keys())[0]
 
         for param, (value, comparison) in condition.items():
-            self._param = param
-
             if comparison == "=":
                 self._selected_data = self._selected_data[self._selected_data[param] == value]
             elif comparison == ">":

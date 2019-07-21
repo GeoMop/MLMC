@@ -446,6 +446,10 @@ class Estimate:
         moments_obj, info = simple_distribution.construct_ortogonal_moments(self.moments, cov, tol=0.0001)
         print("n levels: ", self.n_levels, "size: ", moments_obj.size)
         est_moments, est_vars = self.estimate_moments(moments_obj)
+
+        est_moments = np.squeeze(est_moments)
+        est_vars = np.squeeze(est_vars)
+
         #est_moments = np.zeros(moments_obj.size)
         #est_moments[0] = 1.0
         est_vars = np.ones(moments_obj.size)

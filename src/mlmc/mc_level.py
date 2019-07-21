@@ -634,6 +634,9 @@ class Level:
             mom_sum = mom_fine + mom_coarse
             cov = 0.5 * (np.matmul(mom_diff.T, mom_sum) + np.matmul(mom_sum.T, mom_diff)) / self.n_samples
         else:
+            mom_fine = np.squeeze(mom_fine)
+            mom_coarse = np.squeeze(mom_coarse)
+
             # Direct formula
             cov_fine = np.matmul(mom_fine.T,   mom_fine)
             cov_coarse = np.matmul(mom_coarse.T, mom_coarse)
@@ -694,7 +697,7 @@ class Level:
         self.collect_samples()
         return len(self.collected_samples) + len(self.failed_samples)
 
-    def select(self, condition):
+    def select(self, condition, selected_param=None):
         """
         Set sample select condition
         :param condition: dict, ({sample result param: (value, comparison)})
@@ -703,8 +706,8 @@ class Level:
         self._select_condition = condition
         selected_samples = []
         for f_sample, c_sample in self.collected_samples:
-            f_sample.select(condition)
-            c_sample.select(condition)
+            f_sample.select(condition, selected_param)
+            c_sample.select(condition, selected_param)
             selected_samples.append((f_sample, c_sample))
 
         self._reload_sample_values(selected_samples)
