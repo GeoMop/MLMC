@@ -62,12 +62,28 @@ class GmshIO:
         n_int_tags = int(columns[0])
         assert (n_int_tags == 3)
         columns = mshfile.readline().strip().split()
-        t_idx = float(columns[0])
+        t_idx = int(columns[0])
         columns = mshfile.readline().strip().split()
-        n_comp = float(columns[0])
+        n_comp = int(columns[0])
         columns = mshfile.readline().strip().split()
-        n_elem = float(columns[0])
+        n_elem = int(columns[0])
         return field, time, t_idx, n_comp, n_elem
+
+    def read_element_data_block(self, mshfile):
+        field, time, t_idx, n_comp, n_ele = self.read_element_data_head(mshfile)
+        field_time_dict = self.element_data.setdefault(field, {})
+        assert t_idx not in field_time_dict
+        elem_data = {}
+        field_time_dict[t_idx] = (time, elem_data)
+        for i in range(n_ele):
+            line = mshfile.readline()
+            if line.startswith('$'):
+                raise Exception("Insufficient number of entries in the $ElementData block: {} time={}".format(field, time))
+            columns = line.split()
+            iel = columns[0]
+            values = [float(v) for v in columns[1:]]
+            assert len(values) == n_comp
+            elem_data[iel] = values
 
 
     def read(self, mshfile=None):
@@ -99,23 +115,11 @@ class GmshIO:
                 elif line == '$PhysicalNames':
                     readmode = 5
                 elif line == '$ElementData':
-                    field, time, t_idx, n_comp, n_ele = self.read_element_data_head(mshfile)
-                    field_times = self.element_data.setdefault(field, {})
-                    assert t_idx not in field_times
-                    self.current_elem_data = {}
-                    self.current_n_components = n_comp
-                    field_times[t_idx] = (time, self.current_elem_data)
-                    readmode = 6
+                    self.read_element_data_block(mshfile)
                 else:
                     readmode = 0
             elif readmode:
                 columns = line.split()
-                if readmode == 6:
-                    ele_idx = int(columns[0])
-                    comp_values = [float(col) for col in columns[1:]]
-                    assert len(comp_values) == self.current_n_components
-                    self.current_elem_data[ele_idx] = comp_values
-
                 if readmode == 5:
                     if len(columns) == 3:
                         self.physical[str(columns[2])] = (int(columns[1]), int(columns[0]))
@@ -140,15 +144,15 @@ class GmshIO:
                                 i, x, y, z = struct.unpack('=i3d', data)
                                 self.nodes[i] = [x, y, z]
                             mshfile.read(1)
-                    except ValueError:
-                        print('Node format error: ' + line, ERROR)
+                    except ValueError as e:
+                        print('Node format error: ' + line, e)
                         readmode = 0
                 elif ftype == 0 and readmode > 1 and len(columns) > 5:
                     # Version 1.0 or 2.0 Elements
                     try:
-                        columns = [int(float(col)) for col in columns]
-                    except ValueError:
-                        print('Element format error: ' + line, ERROR)
+                        columns = [int(col) for col in columns]
+                    except ValueError as e:
+                        print('Element format error: ' + line, e)
                         readmode = 0
                     else:
                         (id, type) = columns[0:2]
@@ -199,7 +203,7 @@ class GmshIO:
         for name in sorted(self.physical.keys()):
             value = self.physical[name]
             region_id, dim = value
-            print('%d %d "%s"' % (dim, region_id, name), file=mshfile)
+            print('%d %d %s' % (dim, region_id, name), file=mshfile)
         print('$EndPhysicalNames', file=mshfile)
         print('$Nodes\n%d' % len(self.nodes), file=mshfile)
         for node_id in sorted(self.nodes.keys()):
