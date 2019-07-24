@@ -71,12 +71,10 @@ class GmshIO:
 
     def read_element_data_block(self, mshfile):
         field, time, t_idx, n_comp, n_ele = self.read_element_data_head(mshfile)
-        self.current_n_components = n_comp
-        self.current_elem_data = {}
         field_time_dict = self.element_data.setdefault(field, {})
         assert t_idx not in field_time_dict
-
-        field_time_dict[t_idx] = (time, self.current_elem_data)
+        elem_data = {}
+        field_time_dict[t_idx] = (time, elem_data)
         for i in range(n_ele):
             line = mshfile.readline()
             if line.startswith('$'):
@@ -85,7 +83,7 @@ class GmshIO:
             iel = columns[0]
             values = [float(v) for v in columns[1:]]
             assert len(values) == n_comp
-            self.current_elem_data[iel] = values
+            elem_data[iel] = values
 
 
     def read(self, mshfile=None):
@@ -118,17 +116,10 @@ class GmshIO:
                     readmode = 5
                 elif line == '$ElementData':
                     self.read_element_data_block(mshfile)
-                    readmode = 6
                 else:
                     readmode = 0
             elif readmode:
                 columns = line.split()
-                if readmode == 6:
-                    ele_idx = int(columns[0])
-                    comp_values = [float(col) for col in columns[1:]]
-                    assert len(comp_values) == self.current_n_components
-                    self.current_elem_data[ele_idx] = comp_values
-
                 if readmode == 5:
                     if len(columns) == 3:
                         self.physical[str(columns[2])] = (int(columns[1]), int(columns[0]))
@@ -153,10 +144,10 @@ class GmshIO:
                                 i, x, y, z = struct.unpack('=i3d', data)
                                 self.nodes[i] = [x, y, z]
                             mshfile.read(1)
-                    except ValueError:
+                    except ValueError as e:
                         print('Node format error: ' + line, e)
                         readmode = 0
-                elif ftype == 0 and (readmode == 2 or readmode == 3) and len(columns) > 5:
+                elif ftype == 0 and readmode > 1 and len(columns) > 5:
                     # Version 1.0 or 2.0 Elements
                     try:
                         columns = [int(col) for col in columns]
@@ -212,7 +203,7 @@ class GmshIO:
         for name in sorted(self.physical.keys()):
             value = self.physical[name]
             region_id, dim = value
-            print('%d %d "%s"' % (dim, region_id, name), file=mshfile)
+            print('%d %d %s' % (dim, region_id, name), file=mshfile)
         print('$EndPhysicalNames', file=mshfile)
         print('$Nodes\n%d' % len(self.nodes), file=mshfile)
         for node_id in sorted(self.nodes.keys()):
@@ -303,7 +294,7 @@ class GmshIO:
         """
         Creates input data msh file for Flow model.
         :param msh_file: Target file (or None for current mesh file)
-        :param ele_ids: Element IDs in computational mesh corresponding to order of
+        :param ele_ids: Element IDs in computational mesh corrsponding to order of
         field values in element's barycenter.
         :param fields: {'field_name' : values_array, ..}
         """
