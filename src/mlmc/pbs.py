@@ -31,7 +31,8 @@ class Pbs:
         self._pbs_config = None
         self._pbs_header_template = None
 
-        if work_dir is not None:
+        if self.work_dir is not None:
+            self.work_dir = os.path.abspath(self.work_dir)
             if clean:
                 # Fresh work dir.
                 if os.path.isdir(self.work_dir):
@@ -65,8 +66,7 @@ class Pbs:
                                      '']
         if flow_3:
             self._pbs_header_template.extend(('module load python36-modules-gcc',
-                                                'module use /storage/praha1/home/jan-hybs/modules',
-                                              'module load flow123d', ''))
+                                              ''))
 
         self._pbs_header_template.extend(('touch {pbs_output_dir}/RUNNING', 'rm -f {pbs_output_dir}/QUEUED'))
 

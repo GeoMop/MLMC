@@ -147,7 +147,7 @@ class GmshIO:
                     except ValueError as e:
                         print('Node format error: ' + line, e)
                         readmode = 0
-                elif ftype == 0 and readmode > 1 and len(columns) > 5:
+                elif ftype == 0 and (readmode == 2 or readmode == 3) and len(columns) > 5:
                     # Version 1.0 or 2.0 Elements
                     try:
                         columns = [int(col) for col in columns]
@@ -306,42 +306,42 @@ class GmshIO:
                 self.write_element_data(fout, ele_ids, name, values)
 
 
-    def read_element_data(self):
-        """
-        Write given element data to the MSH file. Write only a single '$ElementData' section.
-        :param f: Output file stream.
-        :param ele_ids: Iterable giving element ids of N value rows given in 'values'
-        :param name: Field name.
-        :param values: np.array (N, L); N number of elements, L values per element (components)
-        :return:
-
-        TODO: Generalize to time dependent fields.
-        """
-
-        n_els = values.shape[0]
-        n_comp = np.atleast_1d(values[0]).shape[0]
-        np.reshape(values, (n_els, n_comp))
-        header_dict = dict(
-            field=str(name),
-            time=0,
-            time_idx=0,
-            n_components=n_comp,
-            n_els=n_els
-        )
-
-        header = "1\n" \
-                 "\"{field}\"\n" \
-                 "1\n" \
-                 "{time}\n" \
-                 "3\n" \
-                 "{time_idx}\n" \
-                 "{n_components}\n" \
-                 "{n_els}\n".format(**header_dict)
-
-        f.write('$ElementData\n')
-        f.write(header)
-        assert len(values.shape) == 2
-        for ele_id, value_row in zip(ele_ids, values):
-            value_line = " ".join([str(val) for val in value_row])
-            f.write("{:d} {}\n".format(int(ele_id), value_line))
-        f.write('$EndElementData\n')
+    # def read_element_data(self):
+    #     """
+    #     Write given element data to the MSH file. Write only a single '$ElementData' section.
+    #     :param f: Output file stream.
+    #     :param ele_ids: Iterable giving element ids of N value rows given in 'values'
+    #     :param name: Field name.
+    #     :param values: np.array (N, L); N number of elements, L values per element (components)
+    #     :return:
+    #
+    #     TODO: Generalize to time dependent fields.
+    #     """
+    #
+    #     n_els = values.shape[0]
+    #     n_comp = np.atleast_1d(values[0]).shape[0]
+    #     np.reshape(values, (n_els, n_comp))
+    #     header_dict = dict(
+    #         field=str(name),
+    #         time=0,
+    #         time_idx=0,
+    #         n_components=n_comp,
+    #         n_els=n_els
+    #     )
+    #
+    #     header = "1\n" \
+    #              "\"{field}\"\n" \
+    #              "1\n" \
+    #              "{time}\n" \
+    #              "3\n" \
+    #              "{time_idx}\n" \
+    #              "{n_components}\n" \
+    #              "{n_els}\n".format(**header_dict)
+    #
+    #     f.write('$ElementData\n')
+    #     f.write(header)
+    #     assert len(values.shape) == 2
+    #     for ele_id, value_row in zip(ele_ids, values):
+    #         value_line = " ".join([str(val) for val in value_row])
+    #         f.write("{:d} {}\n".format(int(ele_id), value_line))
+    #     f.write('$EndElementData\n')
