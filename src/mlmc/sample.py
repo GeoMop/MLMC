@@ -88,7 +88,9 @@ class Sample:
         :param condition: None or dict in form {result parameter: (value, "comparison")}
         :return:
         """
-        if condition is None:
+        if condition is None or not condition:
+            if selected_param is not None:
+                self._param = selected_param
             return
 
         if selected_param is not None:
@@ -100,7 +102,13 @@ class Sample:
 
         for param, (value, comparison) in condition.items():
             if comparison == "=":
-                self._selected_data = self._selected_data[self._selected_data[param] == value]
+                if np.isnan(value):
+                    # Allow select nan values -> all NaN values should cause error in mc_level
+                    mask = np.isnan(self._selected_data[param])
+                else:
+                    mask = self._selected_data[param] == value
+
+                self._selected_data = self._selected_data[mask]
             elif comparison == ">":
                 self._selected_data = self._selected_data[self._selected_data[param] > value]
             elif comparison == ">=":
