@@ -202,6 +202,14 @@ class Level:
         Without filtering Nans in moments. Without subsampling.
         :return: array, shape (n_samples, 2). First column fine, second coarse.
         """
+        if self.sample_indices is not None:
+            bool_mask = self.sample_indices
+            # Sample values are sometimes larger than sample indices (caused by enlarge_samples() method)
+            if len(self.sample_indices) < len(self._sample_values):
+                bool_mask = np.full(len(self._sample_values), True)
+                bool_mask[:len(self.sample_indices)] = self.sample_indices
+
+            return self._sample_values[bool_mask]
         return self._sample_values[:self._n_collected_samples]
 
     def _add_sample(self, idx, sample_pair):
@@ -508,21 +516,21 @@ class Level:
             if os.path.isdir(fine_sample.directory):
                 shutil.rmtree(fine_sample.directory, ignore_errors=True)
 
-    def subsample(self, size):
+    def subsample(self, size=None, sample_indices=None):
         """
         Sub-selection from samples with correct moments (dependes on last call to eval_moments).
         :param size: number of subsamples
+        :param sample_indices: Sample indices, boolean mask (bool or int type)
         :return: None
         """
-        if size is None:
-            self.sample_indices = None
-        else:
+        self.sample_indices = sample_indices
+
+        if size is not None and sample_indices is None:
             assert self.last_moments_eval is not None
             n_moment_samples = len(self.last_moments_eval[0])
-
             assert 0 < size, "0 < {}".format(size)
             self.sample_indices = np.random.choice(np.arange(n_moment_samples, dtype=int), size=size)
-            self.sample_indices.sort() # Better for caches.
+            self.sample_indices.sort()  # Better for caches.
 
     def evaluate_moments(self, moments_fn, force=False):
         """
