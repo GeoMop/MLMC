@@ -39,7 +39,7 @@ class Pbs:
                     shutil.rmtree(self.work_dir)
                 os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
 
-    def pbs_common_setting(self, flow_3=False, **kwargs):
+    def pbs_common_setting(self, **kwargs):
         """
         Values for common header of script
         :param flow_3: use flow123d version 3.0.0
@@ -64,10 +64,6 @@ class Pbs:
                                      '#PBS -o {pbs_output_dir}/{job_name}.OU',
                                      '#PBS -e {pbs_output_dir}/{job_name}.ER',
                                      '']
-        if flow_3:
-            self._pbs_header_template.extend(('module load python36-modules-gcc',
-                                              ''))
-
         self._pbs_header_template.extend(('touch {pbs_output_dir}/RUNNING', 'rm -f {pbs_output_dir}/QUEUED'))
 
         self._pbs_config = kwargs
