@@ -176,12 +176,12 @@ class LevelGroup:
                                        dtype: dataset values dtype}
                                        }
     """
-    COLLECTED_DATASETS = {'result':'collected_values', 'sample_id': 'collected_ids', 'time':'collected_times'}
+    COLLECTED_DATASETS = {'result': 'collected_values', 'sample_id': 'collected_ids', 'time': 'collected_times'}
 
     COLLECTED_ATTRS = {"sample_id": {'name': 'collected_ids', 'default_shape': (0,), 'maxshape': (None,),
                                      'dtype': np.int32},
                        # "result": {'name': 'collected_values', 'default_shape': (0,), 'maxshape': (None,),
-                       #            'dtype': SAMPLE_RESULT},
+                       #             'dtype': np.float64},
                        "time": {'name': 'collected_times', 'default_shape': (0,), 'maxshape': (None,),
                                 'dtype': SAMPLE_TIME},
                        # "running_time": {'name': 'running_times', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
@@ -204,6 +204,10 @@ class LevelGroup:
         self.level_group_path = hdf_group_path
         # Absolute path to the job directory
         self.job_dir = job_dir
+
+        # Structure of sample format
+        self.result_additional_data = None
+        self._collected_format_saved = False
 
         # Attribute necessary for mlmc run
         self._n_ops_estimate = None
@@ -266,6 +270,14 @@ class LevelGroup:
         :return: Dataset name
         """
         return "collected_ids"
+
+    @property
+    def collected_additional_data(self):
+        """
+        Collected ids dataset
+        :return: Dataset name
+        """
+        return "collected_additional_data"
 
     @property
     def scheduled_dset(self):
@@ -333,24 +345,43 @@ class LevelGroup:
         :param collected_samples: Level sample [(fine sample, coarse sample)], both are Sample() object instances
         :return: None
         """
+
         # Get sample attributes pairs as NumPy array [num_attrs, num_samples, 2]
         samples_attr_pairs = self._sample_attr_pairs(collected_samples)
-        data_res = samples_attr_pairs[:]['result_data']
 
-        self._change_dtype(data_res[0]['fine_result'])
-        # print("level group sample result ", LevelGroup.SAMPLE_RESULT)
+        data_res = samples_attr_pairs[:]['result']
+        self._modify_dtype(len(data_res[0]['fine_result']))
+
         # Create dataset for failed samples
-        self._make_dataset(name='collected_values', shape=(0,), dtype=LevelGroup.SAMPLE_RESULT, maxshape=(None, ),
+        self._make_dataset(name='collected_values', shape=(0,),
+                           dtype=LevelGroup.SAMPLE_RESULT, maxshape=(None,),
                            chunks=True)
 
         d_name = 'collected_values'
         self._append_dataset(d_name, data_res)
 
         data_res = samples_attr_pairs[:]['sample_id']['fine_sample_id']
-        self._append_dataset('collected_ids', data_res)
+        self._append_dataset(self.collected_ids_dset, data_res)
 
         data_res = samples_attr_pairs[:]['time']
         self._append_dataset('collected_times', data_res)
+
+        self._save_collected_format()
+
+    def _save_collected_format(self):
+        """
+        Save collected values data - it's descriptive data of each item of collected values vector
+        :return: None
+        """
+        if self._collected_format_saved:
+            return
+        # Create dataset for collected values format, it contains metadata for each item in vector
+        self._make_dataset(name=self.collected_additional_data, shape=(0,), dtype=self.result_additional_data.dtype,
+                           maxshape=(None,),
+                           chunks=True)
+
+        self._append_dataset(self.collected_additional_data, self.result_additional_data)
+        self._collected_format_saved = True
 
     def _sample_attr_pairs(self, fine_coarse_samples):
         """
@@ -358,45 +389,25 @@ class LevelGroup:
         :param fine_coarse_samples: list of tuples; [(Sample(), Sample()), ...]
         :return: Fine and coarse samples in array: [n_attrs, N, 2]
         """
-        self._change_dtype(fine_coarse_samples[0][0].result_data)
+        self._modify_dtype(len(fine_coarse_samples[0][0].result))
         fine_coarse_data = np.empty((len(fine_coarse_samples)), dtype=LevelGroup.COLLECTED_DTYPE)
 
         # Set sample's collected data
         for index, (f_sample, c_sample) in enumerate(fine_coarse_samples):
-            # @TODO: simplify - use Sample.collected_data_array() method
             fine_coarse_data[index]['sample_id'] = np.array((f_sample.sample_id, c_sample.sample_id), dtype=LevelGroup.SAMPLE_ID)
-            fine_coarse_data[index]['result_data'] = np.array((f_sample.result_data, c_sample.result_data), dtype=LevelGroup.SAMPLE_RESULT)
+            fine_coarse_data[index]['result'] = np.array((f_sample.result, c_sample.result), dtype=LevelGroup.SAMPLE_RESULT)
             fine_coarse_data[index]['time'] = np.array((f_sample.time, c_sample.time), dtype=LevelGroup.SAMPLE_TIME)
 
         return fine_coarse_data
 
-    def _change_dtype(self, result):
+    def _modify_dtype(self, result_length):
         """
         Change result values dtype in particular number of values in one sample's result
-        :param result:
-        :return:
+        :param result_length: int, length of result vector
+        :return: None
         """
-        dtype = result.dtype
-        n_results = len(result)
-
-        LevelGroup.COLLECTED_RESULT_DTYPE = dtype
-
-        LevelGroup.COLLECTED_SAMPLE = {'names': LevelGroup.COLLECTED_ATTRS.keys(),
-                                       'formats': (np.int64, LevelGroup.COLLECTED_RESULT_DTYPE, np.float64)}
-
-        LevelGroup.COLLECTED_VALUE = np.dtype([('result_data', LevelGroup.COLLECTED_RESULT_DTYPE, (n_results,))])
-
-        LevelGroup.COLLECTED_SAMPLE = np.dtype([('sample_id', np.int64),
-                                                ('result_data', LevelGroup.COLLECTED_RESULT_DTYPE, (n_results,)),
-                                                ('time', np.float64)])
-
-        LevelGroup.COLLECTED_VALUES = {'names': ('fine_sample', 'coarse_sample'),
-                                       'formats': (LevelGroup.COLLECTED_VALUE, LevelGroup.COLLECTED_VALUE)}
-
-        LevelGroup.COLLECTED_VALUE = np.dtype([('result_data', LevelGroup.COLLECTED_RESULT_DTYPE, (n_results,))])
-
-        LevelGroup.SAMPLE_RESULT = np.dtype([('fine_result', LevelGroup.COLLECTED_RESULT_DTYPE, (n_results,)),
-                                             ('coarse_result', LevelGroup.COLLECTED_RESULT_DTYPE, (n_results,))])
+        LevelGroup.SAMPLE_RESULT = np.dtype([('fine_result', np.float, (result_length,)),
+                                             ('coarse_result', np.float, (result_length,))])
 
         LevelGroup.SAMPLE_ID = {'names': ('fine_sample_id', 'coarse_sample_id'),
                                 'formats': (np.int64, np.int64)}
@@ -404,7 +415,7 @@ class LevelGroup:
         LevelGroup.SAMPLE_TIME = {'names': ('fine_time', 'coarse_time'),
                                   'formats': (np.float64, np.float64)}
 
-        LevelGroup.COLLECTED_DTYPE = {'names': ('sample_id', 'result_data', 'time'),
+        LevelGroup.COLLECTED_DTYPE = {'names': ('sample_id', 'result', 'time'),
                                       'formats': (LevelGroup.SAMPLE_ID, LevelGroup.SAMPLE_RESULT, LevelGroup.SAMPLE_TIME)}
 
     def save_failed(self, failed_samples):
@@ -426,10 +437,8 @@ class LevelGroup:
         """
         with h5py.File(self.file_name, 'a') as hdf_file:
             dataset = hdf_file[self.level_group_path][dataset_name]
-
             # Resize dataset
             dataset.resize(dataset.shape[0] + len(values), axis=0)
-
             # Append new values to the end of dataset
             dataset[-len(values):] = values
 
@@ -438,7 +447,6 @@ class LevelGroup:
         Read level dataset with scheduled samples
         :return: generator, each item is in form (Sample(), Sample())
         """
-
         with h5py.File(self.file_name, 'r') as hdf_file:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             # Create fine and coarse samples
@@ -465,7 +473,6 @@ class LevelGroup:
             if num_samples == 0:
                 return
 
-            # @TODO: try to remove one of the following for loops
             for sample_attr_name, dset_name in LevelGroup.COLLECTED_DATASETS.items():
                 dataset = hdf_file["/".join([self.level_group_path, dset_name])]
 
@@ -474,12 +481,10 @@ class LevelGroup:
                     sample_matrix[:]['sample_id'] = dset_values
 
                 if dset_name == 'collected_values':
-                    self._change_dtype(dset_values[0]['fine_result'])
+                    self._modify_dtype(len(dset_values[0]['fine_result']))
                     # Initialize matrix of all collected values
                     sample_matrix = np.empty((num_samples,), dtype=LevelGroup.COLLECTED_DTYPE)
-                    # dataset['fine_result' or 'coarse_result'][0]['quantity'] == b'quantity_1'
-                    # np.ix_(*boolean_array)
-                    sample_matrix[:]['result_data'] = dset_values
+                    sample_matrix[:]['result'] = dset_values
 
                 if dset_name == 'collected_times':
                     sample_matrix[:]['time'] = dset_values
@@ -488,8 +493,23 @@ class LevelGroup:
             for row in sample_matrix:
                 fine_sample = Sample(**{attr_name: row[attr_name][0] for attr_name in row.dtype.names})
                 coarse_sample = Sample(**{attr_name: row[attr_name][1] for attr_name in row.dtype.names})
-
                 yield fine_sample, coarse_sample
+
+    def sample_additional_data(self):
+        """
+        Get additional data, each item of collected values vector has specific data
+        :return: numpy.ndarray
+        """
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            # Number of collected samples - additional data are saved for collected samples
+            num_samples = hdf_file[self.level_group_path][self.collected_ids_dset].len()
+
+            # Empty datasets cannot be read
+            if num_samples == 0:
+                return
+
+            dataset = hdf_file["/".join([self.level_group_path, self.collected_additional_data])]
+            return dataset[()]
 
     def level_jobs(self):
         """

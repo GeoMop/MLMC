@@ -84,6 +84,7 @@ class Level:
         self.fine_times = []
         self.coarse_times = []
         self._select_condition = None
+        self._select_param = None
         # Load simulations from log
         self.load_samples(regen_failed)
 
@@ -102,6 +103,7 @@ class Level:
         self.fine_times = []
         self.coarse_times = []
         self._select_condition = None
+        self._select_param = None
         self.collected_samples = []
 
     @property
@@ -150,9 +152,8 @@ class Level:
         for fine_sample, coarse_sample in log_collected_samples:
             # Append collected samples
             collected_samples[fine_sample.sample_id] = (fine_sample, coarse_sample)
+
             # Add sample results
-            fine_sample.select(self._select_condition)
-            coarse_sample.select(self._select_condition)
             self._add_sample(fine_sample.sample_id, (fine_sample.result, coarse_sample.result))
             # Get time from samples
             self.fine_times.append(fine_sample.time)
@@ -202,6 +203,14 @@ class Level:
         Without filtering Nans in moments. Without subsampling.
         :return: array, shape (n_samples, 2). First column fine, second coarse.
         """
+        if self.sample_indices is not None:
+            bool_mask = self.sample_indices
+            # Sample values are sometimes larger than sample indices (caused by enlarge_samples() method)
+            if len(self.sample_indices) < len(self._sample_values):
+                bool_mask = np.full(len(self._sample_values), True)
+                bool_mask[:len(self.sample_indices)] = self.sample_indices
+
+            return self._sample_values[bool_mask]
         return self._sample_values[:self._n_collected_samples]
 
     def _add_sample(self, idx, sample_pair):
@@ -322,7 +331,7 @@ class Level:
             # Zero level have no coarse simulation
             coarse_sample = Sample(sample_id=sample_pair_id)
             #@TODO: find more elegant workaround for multilevel usage
-            coarse_sample.result_data = np.array([0.0], dtype=[("value", 'S10')])
+            coarse_sample.result = np.array([0.0])
 
         self._n_total_samples += 1
 
@@ -386,12 +395,14 @@ class Level:
             coarse_done = coarse_sample.result is not None
 
             if fine_done and coarse_done:
+                # Set result structure to hdf level group
+                if self._hdf_level_group.result_additional_data is None:
+                    self.set_result_additional_data()
                 # 'Remove' from scheduled
                 self.scheduled_samples[sample_id] = False
 
                 # Enlarge coarse sample result to length of fine sample result
                 if self.is_zero_level:
-                    coarse_sample.result_data = copy.deepcopy(fine_sample.result_data)
                     coarse_sample.result = np.full((len(fine_sample.result),), 0.0)
 
                 # Failed sample
@@ -405,8 +416,6 @@ class Level:
 
                 # collect values
                 self.collected_samples.append((fine_sample, coarse_sample))
-                fine_sample.select(self._select_condition)
-                coarse_sample.select(self._select_condition)
                 self._add_sample(sample_id, (fine_sample.result, coarse_sample.result))
 
         # Still scheduled samples
@@ -507,21 +516,21 @@ class Level:
             if os.path.isdir(fine_sample.directory):
                 shutil.rmtree(fine_sample.directory, ignore_errors=True)
 
-    def subsample(self, size):
+    def subsample(self, size=None, sample_indices=None):
         """
         Sub-selection from samples with correct moments (dependes on last call to eval_moments).
         :param size: number of subsamples
+        :param sample_indices: Sample indices, boolean mask (bool or int type)
         :return: None
         """
-        if size is None:
-            self.sample_indices = None
-        else:
+        self.sample_indices = sample_indices
+
+        if size is not None and sample_indices is None:
             assert self.last_moments_eval is not None
             n_moment_samples = len(self.last_moments_eval[0])
-
             assert 0 < size, "0 < {}".format(size)
             self.sample_indices = np.random.choice(np.arange(n_moment_samples, dtype=int), size=size)
-            self.sample_indices.sort() # Better for caches.
+            self.sample_indices.sort()  # Better for caches.
 
     def evaluate_moments(self, moments_fn, force=False):
         """
@@ -684,43 +693,59 @@ class Level:
         self.collect_samples()
         return len(self.collected_samples) + len(self.failed_samples)
 
-    def select(self, condition):
+    def select(self, condition=None, selected_param=None):
         """
         Set sample select condition
         :param condition: dict, ({sample result param: (value, comparison)})
+        :param selected_param: string, name of column in result additional data
+                               !! Not works yet !!
         :return: None
         """
-        self._select_condition = condition
-        selected_samples = []
-        for f_sample, c_sample in self.collected_samples:
-            f_sample.select(condition)
-            c_sample.select(condition)
-            selected_samples.append((f_sample, c_sample))
+        if condition is None and self._select_condition is None:
+            return self._sample_values
+        elif condition is not None:
+            self._select_condition = condition
 
-        self._reload_sample_values(selected_samples)
-        return selected_samples
+        if len(self._select_condition) == 0:
+            return
 
-    def _reload_sample_values(self, samples):
-        """
-        Get selected samples result values
-        :param samples: list of tuples [(Sample(), Sample()), ...]
-        :return: None
-        """
-        self._sample_values = np.empty((len(samples), 2, len(samples[0][0].result)))
-        for index, (fine, coarse) in enumerate(samples):
-            self._sample_values[index, :] = (fine.result, coarse.result)
+        sample_additional_data = self.sample_additional_data()
+
+        bool_masks = []
+        for param, (value, comparison) in self._select_condition.items():
+            if comparison == "=":
+                bool_masks.append(sample_additional_data[param] == value)
+            elif comparison == ">":
+                bool_masks.append(sample_additional_data[param] > value)
+            elif comparison == ">=":
+                bool_masks.append(sample_additional_data[param] >= value)
+            elif comparison == "<":
+                bool_masks.append(sample_additional_data[param] < value)
+            elif comparison == "<=":
+                bool_masks.append(sample_additional_data[param] <= value)
+
+        if len(bool_masks) == 1:
+            samples = self._sample_values[:, :, bool_masks[0]]
+        else:
+            samples = self._sample_values[:, :, np.logical_and(*bool_masks)]
+
+        # @TODO: get param values also for string
+        if selected_param is not None:
+            self._select_param = selected_param
+
+        if samples.size == 0:
+            raise Exception('Given condition excluded all samples')
+
+        self._sample_values = samples
+        return samples
 
     def clean_select(self):
         """
-        Clean sample's select condition
+        Remove select condition
         :return: None
         """
-        for c_sample, f_sample in self.collected_samples:
-            c_sample.clean_select()
-            f_sample.clean_select()
-
-        self._reload_sample_values(self.collected_samples)
         self._select_condition = None
+        self._select_param = None
 
     def sample_time(self):
         """
@@ -760,3 +785,17 @@ class Level:
         :return: float
         """
         return np.mean([fine_sample.time - coarse_sample.running_time for fine_sample, coarse_sample in self.collected_samples])
+
+    def set_result_additional_data(self):
+        """
+        Get simulation sample format and pass it to HDF level group
+        :return: None
+        """
+        self._hdf_level_group.result_additional_data = self.fine_simulation.result_additional_data
+
+    def sample_additional_data(self):
+        """
+        Get additional data matrix for hdf file
+        :return: numpy array
+        """
+        return self._hdf_level_group.sample_additional_data()

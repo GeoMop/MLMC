@@ -67,15 +67,15 @@ def test_mlmc():
                 # number of samples on each level
                 estimator = mlmc.estimate.Estimate(mc_test.mc)
 
-                mc_test.mc.set_initial_n_samples()#[10000])
+                mc_test.mc.set_initial_n_samples([10])
                 mc_test.mc.refill_samples()
                 mc_test.mc.wait_for_simulations()
-
-                mc_test.mc.select_values({"quantity": (b"quantity_1", "=")})
                 estimator.target_var_adding_samples(0.00001, mc_test.moments_fn)
+                mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (1, "<")})
 
                 #mc_test.mc.clean_select()
-                #mc_test.mc.select_values({"quantity": (b"quantity_1", "=")})
+                #mc_test.mc.select_values({"quantity": (b"quantity_1", "=")}, param="")#, "time": (1, "<")})
+                #mc_test.mc.select_values({"time": (0.8, ">")}, param="quantity")
 
                 cl = mlmc.estimate.CompareLevels([mc_test.mc],
                                    output_dir=src_path,

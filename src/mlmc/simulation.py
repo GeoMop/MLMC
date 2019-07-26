@@ -57,22 +57,37 @@ class Simulation(metaclass=ABCMeta):
         try:
             result_values = self._extract_result(sample)
 
+            res_val_dtype = []
             res_dtype = []
-            for r_name, r_dtype in zip(self.result_struct[0], self.result_struct[1]):
-                res_dtype.append((r_name, r_dtype))
+            for r_name, r_dtype in zip(self.result_additional_data_struct[0], self.result_additional_data_struct[1]):
+                if r_name == "value":
+                    res_val_dtype.append((r_name, r_dtype))
+                else:
+                    res_dtype.append((r_name, r_dtype))
 
-            result = np.array(result_values, dtype=res_dtype)
+            if self.result_additional_data is None:
+                result = []
+                result_data = []
+                for result_val in result_values:
+                    result.append(result_val[0])
+                    result_data.append(result_val[1:])
 
-            if np.any(np.isnan(result['value'])):
+                self.result_additional_data = np.array(result_data, dtype=res_dtype)
+            else:
+                result = []
+                for result_val in result_values:
+                    result.append(result_val[0])
+
+            if np.any(np.isnan(result)):
                 raise Exception
         except:
-            result = np.array(result_values, dtype=res_dtype)
-            result['value'] = np.full((len(result['value']),), np.inf)
+            result_values = np.array(result_values)
+            result = np.full((len(result_values[:, 0]),), np.inf)
 
-        if np.all(np.isinf(result['value'])):
+        if np.all(np.isinf(result)):
             Simulation._move_sample_dir(sample.directory)
 
-        sample.result_data = result
+        sample.result = result
 
         return sample
 

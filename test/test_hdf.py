@@ -104,12 +104,14 @@ SCHEDULED_SAMPLES = {0:(Sample(sample_id=0, job_id='1', prepare_time=0.01),
 RESULT_DATA_DTYPE = [("value", np.float), ("time", np.float)]
 
 
-COLLECTED_SAMPLES = [(Sample(sample_id=0, job_id='1', time=0.1,  result_data=np.array([10, 1.5], dtype=RESULT_DATA_DTYPE)),
-                      Sample(sample_id=0, job_id='1', time=0.11, result_data=np.array([11, 0.0012], dtype=RESULT_DATA_DTYPE))),
-                     (Sample(sample_id=1, job_id='1', time=0.09, result_data=np.array([-10.2, 7.854], dtype=RESULT_DATA_DTYPE)),
-                      Sample(sample_id=1, job_id='1', time=0.12, result_data=np.array([1.879, 1.00546], dtype=RESULT_DATA_DTYPE))),
-                     (Sample(sample_id=2, job_id='5', time=0.08, result_data=np.array([-7.6, 5.16], dtype=RESULT_DATA_DTYPE)),
-                      Sample(sample_id=2, job_id='5', time=0.13, result_data=np.array([15, 100.1], dtype=RESULT_DATA_DTYPE)))]
+COLLECTED_SAMPLES = [(Sample(sample_id=0, job_id='1', time=0.1,  result=np.array([10, 1.5])),
+                      Sample(sample_id=0, job_id='1', time=0.11, result=np.array([11, 0.0012]))),
+                     (Sample(sample_id=1, job_id='1', time=0.09, result=np.array([-10.2, 7.854])),
+                      Sample(sample_id=1, job_id='1', time=0.12, result=np.array([1.879, 1.00546]))),
+                     (Sample(sample_id=2, job_id='5', time=0.08, result=np.array([-7.6, 5.16])),
+                      Sample(sample_id=2, job_id='5', time=0.13, result=np.array([15, 100.1])))]
+
+RESULT_STRUCT_FORMAT = np.array(['test_param_1', 'test_value_1'], dtype=[('test_1', 'S20'), ('test_2', 'S20')])
 
 
 def test_level_group():
@@ -221,6 +223,7 @@ def collected(hdf_level_group):
     :param hdf_level_group: mlmc.hdf.LevelGroup instance
     :return: None
     """
+    hdf_level_group.result_additional_data = RESULT_STRUCT_FORMAT
     hdf_level_group.append_collected(COLLECTED_SAMPLES)
 
     saved_collected = hdf_level_group.collected()

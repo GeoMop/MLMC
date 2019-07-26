@@ -34,9 +34,10 @@ class SimulationTest(mlmc.simulation.Simulation):
         self._coarse_simulation = None
         self.coarse_sim_set = False
 
-        #self.result_struct = [["value", "time"], [np.float, np.float]]
-        #self.result_struct = [["value"], [np.float]]
-        self.result_struct = [["value", "time", "position", "quantity", "unit"], [np.float, np.float, "S20", "S20", "S20"]]
+        #self.result_additional_data_struct = [["value", "time"], [np.float, np.float]]
+        #self.result_additional_data_struct = [["value"], [np.float]]
+        self.result_additional_data_struct = [["value", "time", "position", "quantity", "unit"], [np.float, np.float, "S20", "S20", "S20"]]
+        self.result_additional_data = None
 
     def _sample_fn(self, x, h):
         """
@@ -95,14 +96,14 @@ class SimulationTest(mlmc.simulation.Simulation):
         :return: list of tuples
         """
         value = self._result_dict[sample.directory]
-        quantities = ["quantity_1", "quantity_2", "quantity_3"]
+        quantities = ["quantity_1", "quantity_1", "quantity_3"]
         unit_dict = {"quantity_1": "unit_1", "quantity_2": "unit_2", "quantity_3": "unit_3"}
         result_values = []
         for i in range(3):
             time, position = self.generate_random_data()
             quantity = quantities[i]
             unit = unit_dict[quantity]
-            result_values.append((value + i, time, position, quantity, unit))
+            result_values.append((value + i, time + i, position, quantity, unit))
 
         return result_values
 

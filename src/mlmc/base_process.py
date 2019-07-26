@@ -74,11 +74,11 @@ class Process:
         assert os.path.isdir(self.work_dir)
         mlmc_list = []
 
-        for nl in [1, 2, 3, 4, 5, 7]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
+        for nl in [1]:#, 2, 3, 4, 5, 7]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
             mlmc = self.setup_config(nl, clean=False)
             mlmc_list.append(mlmc)
         self.all_collect(mlmc_list)
-        self.calculate_var(mlmc_list)
+        # self.calculate_var(mlmc_list)
         # show_results(mlmc_list)
 
     def process(self):

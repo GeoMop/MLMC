@@ -1,5 +1,4 @@
 import numpy as np
-import copy
 
 
 class Sample:
@@ -15,7 +14,7 @@ class Sample:
                 result: sample simulation result
                 time: overall time
         """
-        #@TODO: what kind of time is really necessary
+        # @TODO: what kind of time is really necessary
         self.sample_id = kwargs.get('sample_id')
         self.directory = kwargs.get('directory', '')
         self.job_id = kwargs.get('job_id', 'jobId')
@@ -24,10 +23,7 @@ class Sample:
         self._result_values = kwargs.get('result', None)
         self.running_time = kwargs.get('running_time', 0.0)
         self._time = kwargs.get('time', None)
-        self._result_data = kwargs.get('result_data', None)
-        # Attribute necessary for result data param selection
-        # We can extract some data from result data according to given parameter and condition
-        self._selected_data = copy.deepcopy(self._result_data)
+        self._result = kwargs.get('result', None)
 
     @property
     def time(self):
@@ -51,57 +47,16 @@ class Sample:
         return self.directory, self.job_id, self.prepare_time, self.queued_time
 
     @property
-    def result_data(self):
-        """
-        Numpy data type object which contains simulation results
-        :return:
-        """
-        return self._result_data
-
-    @result_data.setter
-    def result_data(self, values):
-        self._result_data = values
-        self._selected_data = values
-
-    @property
     def result(self):
         """
         Sample result
         :return: numpy array or np.Inf
         """
-        if self._selected_data is None:
-            self.clean_select()
-        if self._result_data is None:
-            return []
-        return self._selected_data['value']
+        return self._result
 
     @result.setter
     def result(self, values):
-        self._result_data['value'] = values
-
-    def select(self, condition=None):
-        """
-        Select values from result data
-        :param condition: None or dict in form {result parameter: (value, "comparison")}
-        :return:
-        """
-        if condition is None:
-            return
-
-        for param, (value, comparison) in condition.items():
-            if comparison == "=":
-                self._selected_data = self._selected_data[self._selected_data[param] == value]
-            elif comparison == ">":
-                self._selected_data = self._selected_data[self._selected_data[param] > value]
-            elif comparison == ">=":
-                self._selected_data = self._selected_data[self._selected_data[param] >= value]
-            elif comparison == "<":
-                self._selected_data = self._selected_data[self._selected_data[param] < value]
-            elif comparison == "<=":
-                self._selected_data = self._selected_data[self._selected_data[param] <= value]
-
-    def clean_select(self):
-        self._selected_data = self._result_data
+        self._result = values
 
     def collected_data_array(self, attributes):
         """
@@ -137,11 +92,10 @@ class Sample:
                np.all(self.result) == np.all(other.result)
 
     def __str__(self):
-        return "sample id: {}, result: {}, running time: {}, prepare time: {}, queued time: {}, time: {}, selected: {}".\
+        return "sample id: {}, result: {}, running time: {}, prepare time: {}, queued time: {}, time: {}".\
             format(self.sample_id,
-                   self.result_data,
+                   self.result,
                    self.running_time,
                    self.prepare_time,
                    self.queued_time,
-                   self._time,
-                   self._selected_data)
+                   self._time)

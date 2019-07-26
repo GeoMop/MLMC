@@ -282,6 +282,15 @@ class MLMC:
         for ns, level in zip(sub_samples, self.levels):
             level.subsample(ns)
 
+    def subsample_by_indices(self, sample_indices=None):
+        """
+        :param sample_indices: None - use all generated samples
+                    array - boolean mask, shape = len(Level.sample_values)
+        :return: None
+        """
+        for level in self.levels:
+            level.subsample(size=None, sample_indices=sample_indices)
+
     def update_moments(self, moments_fn):
         for level in self.levels:
             level.evaluate_moments(moments_fn, force=True)
@@ -294,7 +303,7 @@ class MLMC:
         for level in self.levels:
             level.reset()
 
-    def select_values(self, condition):
+    def select_values(self, condition, param=None):
         """
         Select values from sample results
         Each sample results can contains more quantities and other parameters. This method allows us to select results
@@ -303,7 +312,7 @@ class MLMC:
         :return: None
         """
         for level in self.levels:
-            level.select(condition)
+            level.select(condition, param)
 
     def clean_select(self):
         """
