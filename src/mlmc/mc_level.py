@@ -138,6 +138,7 @@ class Level:
             self._coarse_simulation = self._previous_level.fine_simulation
         return self._coarse_simulation
 
+
     def load_samples(self, regen_failed):
         """
         Load collected and scheduled samples from log
@@ -186,6 +187,69 @@ class Level:
         # Collect scheduled samples
         if len(self.scheduled_samples) > 0:
             self.collect_samples()
+
+    # def force_extract(self):
+    #     """
+    #     Call extract results for already collected samples if their directory exists.
+    #     :return:
+    #     """
+    #     for sample_id, _ in self.scheduled_samples.items():
+    #         # Run simulations again
+    #         if sample_id in self._failed_sample_ids:
+    #             self.scheduled_samples.update(self._make_sample_pair(sample_id))
+    #
+    #     sample.Sample(directory=sample_dir, sample_id=sample_id,
+    #                   job_id=package_dir, prepare_time=(t.time() - start_time))
+    #
+    #     # Empty failed samples set
+    #     self.failed_samples = set()
+    #     self.run_failed = False
+    #
+    #     self.collect_samples()
+    #
+    #     samples_dir = os.path.join(self.fine_simulation.work_dir, "samples")
+    #     for sdir in os.listdir(samples_dir):
+    #         sid = int(sdir[-7:])
+    #         sdir_path = os.path.join(samples_dir, sdir)
+    #         fine_sample = Sample(directory=sdir_path, sample_id=sid,
+    #                       job_id=package_dir, prepare_time=0.0)
+    #
+    #         # todo: see _make_sample_pair
+    #         self._log_scheduled(new_scheduled_simulations)
+    #
+    #     new_collected = []
+    #     for fine, coarse in self.collected_samples:
+    #         try:
+    #             fine_sample = self.fine_simulation.extract_result(fine)
+    #             fine_done = not np.any(np.isnan(fine_sample.result))
+    #             # For zero level don't create Sample() instance via simulations,
+    #             # however coarse sample is created for easier processing
+    #             if not self.is_zero_level:
+    #                 coarse_sample = self.coarse_simulation.extract_result(coarse)
+    #                 coarse_done = np.all(np.isnan(coarse_sample.result))
+    #             else:
+    #                 coarse_done = True
+    #         except Exception:
+    #             fine_done = False
+    #
+    #         # Enlarge coarse sample result to length of fine sample result
+    #         if self.is_zero_level:
+    #             coarse_sample.result_data = copy.deepcopy(fine_sample.result_data)
+    #             coarse_sample.result = np.full((len(fine_sample.result),), 0.0)
+    #
+    #         # Failed sample
+    #         if np.any(np.isinf(fine_sample.result)) or np.any(np.isinf(coarse_sample.result)):
+    #             coarse_sample.result = fine_sample.result = np.full((len(fine_sample.result),), np.inf)
+    #             self.failed_samples.add(fine_sample.sample_id)
+    #             continue
+    #
+    #         if not fine_done or not coarse_done:
+    #             (fine_sample, coarse_sample) = (fine, coarse)
+    #         new_collected.append((fine_sample, coarse_sample))
+    #         fine_sample.select(self._select_condition)
+    #         coarse_sample.select(self._select_condition)
+    #         self.collected_samples = new_collected
+    #    self.select(self._select_condition)
 
     def set_target_n_samples(self, n_samples):
         """

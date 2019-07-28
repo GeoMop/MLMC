@@ -23,7 +23,8 @@ class Process:
 
         self.work_dir = args.work_dir
         self.options = {'keep_collected': args.keep_collected,
-                        'regen_failed': args.regen_failed}
+                        'regen_failed': args.regen_failed,
+                        'force_extract_results': args.force_extract}
 
         if args.command == 'run':
             self.run()
@@ -47,6 +48,8 @@ class Process:
                             help="Regenerate failed samples", )
         parser.add_argument("-k", "--keep-collected", default=False, action='store_true',
                             help="Keep sample dirs")
+        parser.add_argument("-f", "--force-extract", default=False, action='store_true',
+                            help="Force extraction of already collected samples.")
 
         args = parser.parse_args(arguments)
         return args
@@ -76,6 +79,8 @@ class Process:
 
         for nl in [1]:#, 2, 3, 4, 5, 7]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
             mlmc = self.setup_config(nl, clean=False)
+            if self.options.get('force_extract_results', False):
+                mlmc.force_extract()
             mlmc_list.append(mlmc)
         self.all_collect(mlmc_list)
         #self.calculate_var(mlmc_list)

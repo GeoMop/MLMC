@@ -78,6 +78,11 @@ class MLMC:
                           self._process_options['regen_failed'], self._process_options['keep_collected'])
             self.levels.append(level)
 
+
+    def force_extract(self):
+        for l in self.levels:
+            l.force_extract()
+
     @property
     def n_levels(self):
         """
