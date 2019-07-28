@@ -184,8 +184,9 @@ class Level:
             self._run_failed_samples()
 
         # Collect scheduled samples
-        if len(self.scheduled_samples) > 0:
-            self.collect_samples()
+        #if len(self.scheduled_samples) > 0:
+        #     self.collect_samples()
+
 
     def set_target_n_samples(self, n_samples):
         """
@@ -520,7 +521,7 @@ class Level:
         """
         Sub-selection from samples with correct moments (dependes on last call to eval_moments).
         :param size: number of subsamples
-        :param sample_indices: Sample indices, boolean mask (bool or int type)
+        :param sample_indices: subsample indices
         :return: None
         """
         self.sample_indices = sample_indices
@@ -729,7 +730,7 @@ class Level:
         """
         self._sample_values = np.empty((len(samples), 2, len(samples[0][0].result)))
         for index, (fine, coarse) in enumerate(samples):
-            self._sample_values[index, :] = (fine.result, coarse.result)
+            self._sample_values[index, :, :] = np.stack((fine.result, coarse.result), axis=0)
 
     def clean_select(self):
         """
