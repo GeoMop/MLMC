@@ -206,9 +206,9 @@ class Level:
         if self.sample_indices is not None:
             bool_mask = self.sample_indices
             # Sample values are sometimes larger than sample indices (caused by enlarge_samples() method)
-            if len(self.sample_indices) < len(self._sample_values):
-                bool_mask = np.full(len(self._sample_values), True)
-                bool_mask[:len(self.sample_indices)] = self.sample_indices
+            # if len(self.sample_indices) < len(self._sample_values):
+            #     bool_mask = np.full(len(self._sample_values), True)
+            #     bool_mask[:len(self.sample_indices)] = self.sample_indices
 
             return self._sample_values[bool_mask]
         return self._sample_values[:self._n_collected_samples]
@@ -558,15 +558,17 @@ class Level:
             # Moments from fine and coarse samples
             self.last_moments_eval = moments_fine, moments_coarse
 
-            self._remove_outliers_moments()
-            if self.sample_indices is not None:
-                self.subsample(len(self.sample_indices))
+            # if self.sample_indices is not None:
+            #     self.subsample(len(self.sample_indices))
 
-        if self.sample_indices is None:
-            return self.last_moments_eval
-        else:
-            m_fine, m_coarse = self.last_moments_eval
-            return m_fine[self.sample_indices, :], m_coarse[self.sample_indices, :]
+            self._remove_outliers_moments()
+
+        # if self.sample_indices is None:
+        #     return self.last_moments_eval
+        # else:
+        #     m_fine, m_coarse = self.last_moments_eval
+        #     return m_fine[self.sample_indices, :], m_coarse[self.sample_indices, :]
+        return self.last_moments_eval
 
     def _remove_outliers_moments(self, ):
         """
