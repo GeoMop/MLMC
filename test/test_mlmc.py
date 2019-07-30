@@ -343,6 +343,12 @@ def test_save_load_samples():
     for level in mc.levels:
         assert not np.isnan(level.sample_values).any()
 
+
+    hdf_file_path = os.path.join(work_dir, 'mlmc_{}.hdf5'.format(n_levels))
+
+    original_size = os.path.getsize(hdf_file_path)
+
+
     # New mlmc
     mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
     mc.load_from_file()
@@ -354,6 +360,9 @@ def test_save_load_samples():
         scheduled, collected, values = data
         # Compare scheduled and collected samples with saved one
         _compare_samples(collected, level.collected_samples)
+
+    new_size = os.path.getsize(hdf_file_path)
+    assert new_size == original_size
 
 
 def _compare_samples(saved_samples, current_samples):

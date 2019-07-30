@@ -214,7 +214,8 @@ class LevelGroup:
 
         # Set group attribute 'level_id'
         with h5py.File(self.file_name, 'a') as hdf_file:
-            hdf_file[self.level_group_path].attrs['level_id'] = self.level_id
+            if 'level_id' not in hdf_file[self.level_group_path].attrs:
+                hdf_file[self.level_group_path].attrs['level_id'] = self.level_id
 
         # Create necessary datasets (h5py.Dataset) a groups (h5py.Group)
         if not loaded_from_file:
