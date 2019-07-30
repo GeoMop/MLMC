@@ -269,7 +269,7 @@ class Level:
                 return len(self.last_moments_eval[0])
             return self._n_collected_samples
         else:
-            return len(self.sample_indices)
+            return sum(self.sample_indices)
 
     def _get_sample_tag(self, char, sample_id):
         """
@@ -524,7 +524,7 @@ class Level:
         :param sample_indices: subsample indices
         :return: None
         """
-        self.sample_indices = sample_indices
+        self.sample_indices = sample_indices.copy()
 
         if size is not None and sample_indices is None:
             assert self.last_moments_eval is not None
@@ -610,7 +610,7 @@ class Level:
         assert len(mom_fine) >= 2
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
         ns = self.n_samples
-        assert ns == len(mom_fine)  # This was previous unconsistent implementation.
+        assert ns == len(mom_fine), (ns, len(mom_fine))  # This was previous unconsistent implementation.
         return var_vec, ns
 
     def estimate_diff_mean(self, moments_fn):
