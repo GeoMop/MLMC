@@ -78,8 +78,8 @@ class Simulation(metaclass=ABCMeta):
                 for result_val in result_values:
                     result.append(result_val[0])
 
-            if np.any(np.isnan(result)):
-                raise Exception
+            # if np.any(np.isnan(result)):
+            #     raise Exception
         except:
             result_values = np.array(result_values)
             result = np.full((len(result_values[:, 0]),), np.inf)
@@ -175,12 +175,11 @@ class Simulation(metaclass=ABCMeta):
         """
         # Top-down directory scan
         for src_dir, dirs, files in os.walk(source_dir):
-            # Create destination directory if necessary
-            if not os.path.exists(destination_dir):
-                os.mkdir(destination_dir)
             # Copy files, use shutil.copyfile() method which doesn't need chmod permission
             for file in files:
                 src_file = os.path.join(src_dir, file)
-                dst_file = os.path.join(destination_dir, file)
+                dst_rel = os.path.relpath(src_file, source_dir)
+                dst_file = os.path.join(destination_dir, dst_rel)
+                os.makedirs(os.path.dirname(dst_file), exist_ok=True)
                 if not os.path.exists(dst_file):
                     shutil.copyfile(src_file, dst_file)

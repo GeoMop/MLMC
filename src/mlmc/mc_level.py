@@ -185,8 +185,9 @@ class Level:
             self._run_failed_samples()
 
         # Collect scheduled samples
-        if len(self.scheduled_samples) > 0:
-            self.collect_samples()
+        #if len(self.scheduled_samples) > 0:
+        #     self.collect_samples()
+
 
     def set_target_n_samples(self, n_samples):
         """
@@ -206,9 +207,10 @@ class Level:
         if self.sample_indices is not None:
             bool_mask = self.sample_indices
             # Sample values are sometimes larger than sample indices (caused by enlarge_samples() method)
-            if len(self.sample_indices) < len(self._sample_values):
-                bool_mask = np.full(len(self._sample_values), True)
-                bool_mask[:len(self.sample_indices)] = self.sample_indices
+
+            # if len(self.sample_indices) < len(self._sample_values):
+            #     bool_mask = np.full(len(self._sample_values), True)
+            #     bool_mask[:len(self.sample_indices)] = self.sample_indices
 
             return self._sample_values[bool_mask]
         return self._sample_values[:self._n_collected_samples]
@@ -268,8 +270,10 @@ class Level:
             if self.last_moments_eval is not None:
                 return len(self.last_moments_eval[0])
             return self._n_collected_samples
-        else:
+        elif np.any(self.sample_indices > 1):
             return len(self.sample_indices)
+        else:
+            return sum(self.sample_indices)
 
     def _get_sample_tag(self, char, sample_id):
         """
@@ -386,13 +390,14 @@ class Level:
 
             # Sample() instance
             fine_sample = self.fine_simulation.extract_result(fine_sample)
-            fine_done = fine_sample.result is not None
-
+            fine_done = not np.any(np.isnan(fine_sample.result))
             # For zero level don't create Sample() instance via simulations,
             # however coarse sample is created for easier processing
             if not self.is_zero_level:
                 coarse_sample = self.coarse_simulation.extract_result(coarse_sample)
-            coarse_done = coarse_sample.result is not None
+                coarse_done = np.all(np.isnan(coarse_sample.result))
+            else:
+                coarse_done = True
 
             if fine_done and coarse_done:
                 # Set result structure to hdf level group
@@ -520,10 +525,10 @@ class Level:
         """
         Sub-selection from samples with correct moments (dependes on last call to eval_moments).
         :param size: number of subsamples
-        :param sample_indices: Sample indices, boolean mask (bool or int type)
+        :param sample_indices: subsample indices
         :return: None
         """
-        self.sample_indices = sample_indices
+        self.sample_indices = None if sample_indices is None else sample_indices.copy()
 
         if size is not None and sample_indices is None:
             assert self.last_moments_eval is not None
@@ -557,15 +562,17 @@ class Level:
             # Moments from fine and coarse samples
             self.last_moments_eval = moments_fine, moments_coarse
 
-            self._remove_outliers_moments()
-            if self.sample_indices is not None:
-                self.subsample(len(self.sample_indices))
+            # if self.sample_indices is not None:
+            #     self.subsample(len(self.sample_indices))
 
-        if self.sample_indices is None:
-            return self.last_moments_eval
-        else:
-            m_fine, m_coarse = self.last_moments_eval
-            return m_fine[self.sample_indices, :], m_coarse[self.sample_indices, :]
+            self._remove_outliers_moments()
+
+        # if self.sample_indices is None:
+        #     return self.last_moments_eval
+        # else:
+        #     m_fine, m_coarse = self.last_moments_eval
+        #     return m_fine[self.sample_indices, :], m_coarse[self.sample_indices, :]
+        return self.last_moments_eval
 
     def _remove_outliers_moments(self, ):
         """
@@ -578,9 +585,16 @@ class Level:
 
         # Common mask for coarse and fine
         ok_fine_coarse = np.logical_and(ok_fine, ok_coarse)
+        bool_mask = np.ones((ok_fine_coarse[0].shape))
+        for bool_array in ok_fine_coarse:
+            bool_mask = np.logical_and(bool_mask, bool_array)
+
+        ok_fine_coarse = bool_mask
 
         # New moments without outliers
-        self.last_moments_eval = self.last_moments_eval[0][ok_fine_coarse, :], self.last_moments_eval[1][ok_fine_coarse, :]
+        self.last_moments_eval = self.last_moments_eval[0][:, ok_fine_coarse],\
+                                 self.last_moments_eval[1][:, ok_fine_coarse]
+
 
     def estimate_level_var(self, moments_fn):
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
@@ -600,7 +614,8 @@ class Level:
         assert len(mom_fine) >= 2
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
         ns = self.n_samples
-        assert ns == len(mom_fine)  # This was previous unconsistent implementation.
+
+        assert ns == len(mom_fine), (ns, len(mom_fine))  # This was previous unconsistent implementation.
         return var_vec, ns
 
     def estimate_diff_mean(self, moments_fn):
@@ -610,8 +625,10 @@ class Level:
         :return: np.array, moments mean vector
         """
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+
         assert len(mom_fine) == len(mom_coarse)
         assert len(mom_fine) >= 1
+
         mean_vec = np.mean(mom_fine - mom_coarse, axis=0)
         return mean_vec
 
@@ -633,6 +650,9 @@ class Level:
             mom_sum = mom_fine + mom_coarse
             cov = 0.5 * (np.matmul(mom_diff.T, mom_sum) + np.matmul(mom_sum.T, mom_diff)) / self.n_samples
         else:
+            mom_fine = np.squeeze(mom_fine)
+            mom_coarse = np.squeeze(mom_coarse)
+
             # Direct formula
             cov_fine = np.matmul(mom_fine.T,   mom_fine)
             cov_coarse = np.matmul(mom_coarse.T, mom_coarse)
@@ -701,43 +721,53 @@ class Level:
                                !! Not works yet !!
         :return: None
         """
-        if condition is None and self._select_condition is None:
+        if condition is None and self._select_condition is None and selected_param is None:
             return self._sample_values
         elif condition is not None:
             self._select_condition = condition
 
-        if len(self._select_condition) == 0:
-            return
-
         sample_additional_data = self.sample_additional_data()
+        samples = self._sample_values
 
-        bool_masks = []
-        for param, (value, comparison) in self._select_condition.items():
-            if comparison == "=":
-                bool_masks.append(sample_additional_data[param] == value)
-            elif comparison == ">":
-                bool_masks.append(sample_additional_data[param] > value)
-            elif comparison == ">=":
-                bool_masks.append(sample_additional_data[param] >= value)
-            elif comparison == "<":
-                bool_masks.append(sample_additional_data[param] < value)
-            elif comparison == "<=":
-                bool_masks.append(sample_additional_data[param] <= value)
+        if self._select_condition is not None and len(self._select_condition) != 0:
+            bool_masks = []
+            for param, (value, comparison) in self._select_condition.items():
+                if comparison == "=":
+                    bool_masks.append(sample_additional_data[param] == value)
+                elif comparison == ">":
+                    bool_masks.append(sample_additional_data[param] > value)
+                elif comparison == ">=":
+                    bool_masks.append(sample_additional_data[param] >= value)
+                elif comparison == "<":
+                    bool_masks.append(sample_additional_data[param] < value)
+                elif comparison == "<=":
+                    bool_masks.append(sample_additional_data[param] <= value)
 
-        if len(bool_masks) == 1:
-            samples = self._sample_values[:, :, bool_masks[0]]
-        else:
-            samples = self._sample_values[:, :, np.logical_and(*bool_masks)]
+            if len(bool_masks) == 1:
+                samples = self._sample_values[:, :, bool_masks[0]]
+            else:
+                samples = self._sample_values[:, :, np.logical_and(*bool_masks)]
 
         # @TODO: get param values also for string
         if selected_param is not None:
             self._select_param = selected_param
+            samples = np.full(self._sample_values.shape, sample_additional_data[self._select_param])
 
         if samples.size == 0:
             raise Exception('Given condition excluded all samples')
 
         self._sample_values = samples
         return samples
+
+    def _reload_sample_values(self, samples):
+        """
+        Get selected samples result values
+        :param samples: list of tuples [(Sample(), Sample()), ...]
+        :return: None
+        """
+        self._sample_values = np.empty((len(samples), 2, len(samples[0][0].result)))
+        for index, (fine, coarse) in enumerate(samples):
+            self._sample_values[index, :, :] = np.stack((fine.result, coarse.result), axis=0)
 
     def clean_select(self):
         """

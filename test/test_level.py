@@ -18,8 +18,8 @@ import pytest
 
 @pytest.mark.parametrize("n_levels, n_samples, failed_fraction", [
     (1, [100], 0.2),
-    (2, [200, 100], 0.5),
-    (5, [300, 250, 200, 150, 100], 0.3)
+    #(2, [200, 100], 0.5), # Two and more levels are not yet supported
+    #(5, [300, 250, 200, 150, 100], 0.3)
 ])
 def test_level(n_levels, n_samples, failed_fraction):
     """
@@ -43,6 +43,7 @@ def test_level(n_levels, n_samples, failed_fraction):
     load_samples(mc, n_samples, failed_fraction, True)
     collect_samples(mc)
     fill_samples(mc)
+    mc.select_values({"quantity": (b"quantity_1", "="), "time": (1, "<")})
     estimate_covariance(mc)
     subsample(mc)
 

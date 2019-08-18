@@ -9,7 +9,7 @@ import mlmc.mlmc
 import mlmc.simulation
 import mlmc.moments
 import mlmc.distribution
-import mlmc.flow_mc as flow_mc
+import mlmc.flow_mc_2 as flow_mc
 import mlmc.correlated_field as cf
 from mlmc.estimate import Estimate, CompareLevels
 
@@ -29,7 +29,7 @@ class FlowProcSim(flow_mc.FlowSim):
         :param sample: Sample instance
         :return: None, inf or water balance result (float) and overall sample time
         """
-        self.result_struct = [["value", "time"], ["f8", "U20"]]
+        self.result_struct = [["value", "time"], ["f8", "S20"]]
         sample_dir = sample.directory
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             # try:
@@ -81,7 +81,7 @@ class CondField(base_process.Process):
         for nl in [1]:  # , 2, 3, 4,5, 7, 9]:
             mlmc = self.setup_config(nl, clean=True)
             # self.n_sample_estimate(mlmc)
-            self.generate_jobs(mlmc, n_samples=[8])
+            self.generate_jobs(mlmc, n_samples=[1])
             mlmc_list.append(mlmc)
 
         self.all_collect(mlmc_list)

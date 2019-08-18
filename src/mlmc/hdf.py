@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import h5py
-from src.mlmc.sample import Sample
+from mlmc.sample import Sample
 
 
 class HDF5:

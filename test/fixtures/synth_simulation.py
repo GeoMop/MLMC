@@ -70,7 +70,7 @@ class SimulationTest(mlmc.simulation.Simulation):
 
         if self.n_nans / (1e-10 + len(self._result_dict)) < self.nan_fraction:
             self.n_nans += 1
-            y = np.nan
+            y = np.inf
 
         self._result_dict[tag] = float(y)
 

@@ -303,7 +303,7 @@ class MLMC:
         for level in self.levels:
             level.reset()
 
-    def select_values(self, condition, param=None):
+    def select_values(self, condition, selected_param=None):
         """
         Select values from sample results
         Each sample results can contains more quantities and other parameters. This method allows us to select results
@@ -312,7 +312,7 @@ class MLMC:
         :return: None
         """
         for level in self.levels:
-            level.select(condition, param)
+            level.select(condition, selected_param)
 
     def clean_select(self):
         """

@@ -4,7 +4,7 @@ import shutil
 import numpy as np
 import scipy.stats as stats
 import re
-import test.stats_tests
+#import test.stats_tests
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, src_path + '/../src/')
@@ -67,15 +67,17 @@ def test_mlmc():
                 # number of samples on each level
                 estimator = mlmc.estimate.Estimate(mc_test.mc)
 
-                mc_test.mc.set_initial_n_samples([10])
+                mc_test.mc.set_initial_n_samples([1000])
                 mc_test.mc.refill_samples()
                 mc_test.mc.wait_for_simulations()
-                estimator.target_var_adding_samples(0.00001, mc_test.moments_fn)
-                mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (1, "<")})
+
+                #mc_test.mc.select_values({"quantity": (b"quantity_1", "=")})#, "value": (-100, ">")})
+                #estimator.target_var_adding_samples(0.0001, mc_test.moments_fn)
 
                 #mc_test.mc.clean_select()
-                #mc_test.mc.select_values({"quantity": (b"quantity_1", "=")}, param="")#, "time": (1, "<")})
-                #mc_test.mc.select_values({"time": (0.8, ">")}, param="quantity")
+                #mc_test.mc.select_values({"quantity": (b"quantity_1", "=")})
+                #mc_test.mc.select_values(None, selected_param="values")
+                mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (1, "<")})
 
                 cl = mlmc.estimate.CompareLevels([mc_test.mc],
                                    output_dir=src_path,
@@ -92,13 +94,12 @@ def test_mlmc():
                 #mc_test.generate_samples(total_samples)
                 total_samples = mc_test.mc.n_samples
 
-                mc_test.collect_subsamples(1, 1000)
+                mc_test.collect_subsamples(1, 100)
                 #
-                # mc_test.test_variance_of_variance()
+                mc_test.test_variance_of_variance()
                 mc_test.test_mean_var_consistency()
 
                 #mc_test._test_min_samples() # No asserts, just diff var plot and so on
-
                 # test regression for initial sample numbers
 
                 print("n_samples:", mc_test.mc.n_samples)
