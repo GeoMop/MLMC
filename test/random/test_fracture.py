@@ -22,6 +22,13 @@ def test_FractureShape():
     points = np.array([[0.15, 0.3, 0], [-0.3, 0.15, 0], [-0.15, -0.3, 0], [0.3, -0.15, 0]])
     frac.plotly_fractures([fr], [points])
 
+
+def test_vonmises_orientation():
+    fr = frac.VonMisesOrientation(45, np.inf)
+    aa = fr.sample_axis_angle()
+    assert np.allclose([0, 0, 1, np.pi/4], aa)
+
+
 @pytest.mark.skip
 def test_fisher_orientation():
     normals = [[0, 0, 1], [0, 1, 0], [1, 0, 0], [0.01, 0, 1]]
@@ -36,7 +43,7 @@ def test_fisher_orientation():
     fr = frac.FisherOrientation(45, 60, np.inf)
     sin_pi_4 = np.sin(np.pi / 4)
     sin_pi_3 = np.sin(np.pi / 3)
-    normal = fr.sample_normal()
+    normal = fr._sample_normal()
     assert np.allclose([0.5*sin_pi_4, 0.5*sin_pi_4, -sin_pi_3], normal)
     aa = fr.sample_axis_angle()
     assert np.allclose([-sin_pi_4, sin_pi_4, 0, np.pi - np.pi/6], aa)
@@ -213,7 +220,7 @@ def test_fracture_class():
     print(fr_obj.squares)
     fr_obj.snap_vertices_and_edges()
 
-
+@pytest.mark.skip
 def test_ConnectedPosition():
     volume = 600 ** 3
     pop = frac.Population(volume)
@@ -221,6 +228,6 @@ def test_ConnectedPosition():
     fr_shp = frac.PowerLawSize.from_mean_area(power=2.7, diam_range=(1, 100), p32=0.3)
     pop.add_family(name="fixed", orientation=fr_ori, shape=fr_shp)
     pop.set_sample_range((None, 600), sample_size=100)
-    fr_pos = frac.ConnectedPosition.init_surfaces([600, 600, 600], 100,)
+    fr_pos = frac.ConnectedPosition.init_surfaces([600, 600, 600], 100,0)
     fractures = pop.sample(pos_distr=fr_pos)
     frac.plotly_fractures(fractures)

@@ -105,6 +105,30 @@ class Quat:
 
 
 @attr.s(auto_attribs=True)
+class VonMisesOrientation:
+    """
+    Distribution for random orientation in 2d.
+    X = east, Y = north
+    """
+
+    trend: float
+    # azimuth (0, 360) of the fractures normal
+    concentration: float
+    # concentration parameter, 0 = uniformely dispersed, 1 = exect orientation
+
+    def sample_axis_angle(self, size=1):
+        """
+        Sample fracture orientation angles.
+        :param size: Number of samples
+        :return: shape (n, 4), every row: unit axis vector and angle
+        """
+        axis_angle = np.tile([0,0,1,0], size).reshape((size, 4))
+        trend = np.radians(self.trend)
+        axis_angle[:, 3] = np.random.vonmises(mu=trend, kappa=self.concentration, size=size)
+        return axis_angle
+
+
+@attr.s(auto_attribs=True)
 class FisherOrientation:
     """
     Distribution for random orientation in 3d.
@@ -130,7 +154,6 @@ class FisherOrientation:
     #
     # strike and dip can by understood as the first two Eulerian angles.
     concentration: float
-
     # the concentration parameter; 0 = uniform dispersion, infty - no dispersion
 
     @staticmethod
@@ -165,7 +188,7 @@ class FisherOrientation:
             normals = np.stack((sin_psi * sin_theta, cos_psi * sin_theta, cos_theta), axis=1)
         return normals
 
-    def sample_normal(self, size=1):
+    def _sample_normal(self, size=1):
         """
         Draw samples for the fracture normals.
         :param size: number of samples
@@ -182,7 +205,7 @@ class FisherOrientation:
         :param size: Number of samples
         :return: shape (n, 4), every row: unit axis vector and angle
         """
-        normals = self.sample_normal(size)
+        normals = self._sample_normal(size)
         return self.normal_to_axis_angle(normals[:])
 
     @staticmethod
