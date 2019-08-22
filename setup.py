@@ -36,7 +36,7 @@ setup(
     license='GPL 3.0',
     description='Multilevel Monte Carlo method.',
     long_description=long_description,
-    author='Jan Brezina, Martin Spetlik, Klara Steklova',
+    author='Jan Brezina, Martin Spetlik',
     author_email='jan.brezina@tul.cz',
     url='https://github.com/GeoMop/MLMC',
     classifiers=[
@@ -65,9 +65,9 @@ setup(
     py_modules=[splitext(basename(path))[0] for path in glob.glob('src/*.py')],
     package_data={
         # If any package contains *.txt or *.rst files, include them:
-        '': ['*.txt', '*.rst'],
+        #'': ['*.txt', '*.rst'],
         # And include any *.msg files found in the 'hello' package, too:
-        'hello': ['*.msg'],
+        #'hello': ['*.msg'],
     },
 
     # include automatically all files in the template MANIFEST.in
@@ -77,9 +77,8 @@ setup(
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={
-        # eg:
-        #   'rst': ['docutils>=0.11'],
-        #   ':python_version=="2.6"': ['argparse'],
+        # requirements for optional features
+        'gmsh': ['gmsh-tools'],
     }
     # entry_points={
     #     'console_scripts': [
