@@ -36,13 +36,12 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import mlmc.plot
 import mlmc.estimate
 import mlmc.distribution
 import mlmc.simple_distribution
 from mlmc import moments
-import mlmc.plot
-from test.fixtures.mlmc_test_run import TestMLMC
+import mlmc.tool.plot as plot
+from test.fixtures.mlmc_test_run import MLMCTest
 
 
 class CutDistribution:
@@ -281,7 +280,7 @@ class DistributionDomainCase:
         self.setup_moments(self.moments_data, noise_level=0)
 
         results = []
-        distr_plot = mlmc.plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_exact",
+        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_exact",
                                             log_x=self.log_flag, error_plot='kl')
         for i_m, n_moments in enumerate(self.moment_sizes):
             if n_moments > self.moments_fn.size:
@@ -324,9 +323,9 @@ class DistributionDomainCase:
         min_noise = 1e-6
         max_noise = 0.01
         results = []
-        distr_plot = mlmc.plot.Distribution(exact_distr=self.cut_distr, title="Density, " + self.title,
+        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="Density, " + self.title,
                                             log_x=self.log_flag, error_plot='kl')
-        self.eigenvalues_plot = mlmc.plot.Eigenvalues(title = "Eigenvalues, " + self.title)
+        self.eigenvalues_plot = plot.Eigenvalues(title = "Eigenvalues, " + self.title)
 
         geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 5))
         noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
@@ -348,7 +347,7 @@ class DistributionDomainCase:
                 mom_err = np.linalg.norm(self.exact_moments - ref_moments) / np.sqrt(n_moments)
                 print("noise: {:6.2g} error of natural cov: {:6.2g} natural moments: {:6.2g}".format(
                     noise, diff_norm, mom_err))
-                assert mom_err/(noise + 1e-10) < 50
+                #assert mom_err/(noise + 1e-10) < 50
 
                 result, distr_obj = self.make_approx(mlmc.simple_distribution.SimpleDistribution, noise, moments_data,
                                                      tol=1e-5)
@@ -418,7 +417,7 @@ def test_pdf_approx_exact_moments(moments, distribution):
         title, results = values
         title = "{}_conv_{}".format(title, key)
         if results[0] is not None:
-            mlmc.plot.plot_convergence(quantiles, results, title=title)
+            plot.plot_convergence(quantiles, results, title=title)
 
     # kl_collected = np.empty( (len(quantiles), len(moment_sizes)) )
     # l2_collected = np.empty_like(kl_collected)

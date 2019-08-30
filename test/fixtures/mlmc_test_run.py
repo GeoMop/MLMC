@@ -2,12 +2,12 @@ import os.path
 import numpy as np
 from mlmc.mlmc import MLMC
 from mlmc import moments
-import mlmc.plot
+import mlmc.tool.plot
 import mlmc.estimate
 from test.fixtures.synth_simulation import SimulationTest
 
 
-class TestMLMC:
+class MLMCTest:
     def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None, quantile=None):
         """
         Create TestMLMC object instance

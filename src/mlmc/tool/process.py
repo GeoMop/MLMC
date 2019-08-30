@@ -6,8 +6,8 @@ import numpy as np
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
 
-import mlmc.tool.pbs
-from  mlmc.moments import Legendre
+import mlmc.tool.pbs as pbs
+from mlmc.moments import Legendre
 from mlmc.estimate import Estimate
 from mlmc.estimate import CompareLevels
 

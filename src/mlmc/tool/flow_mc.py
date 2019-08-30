@@ -2,14 +2,14 @@ import os
 import os.path
 import subprocess
 import time as t
-import gmsh_io
+import mlmc.tool.gmsh_io as gmsh_io
 import numpy as np
 import json
 import glob
 from datetime import datetime as dt
 import shutil
 import copy
-import mlmc.simulation as simulation
+import mlmc.sim.simulation as simulation
 import mlmc.sample as sample
 
 

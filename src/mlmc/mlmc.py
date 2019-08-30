@@ -1,8 +1,8 @@
 import time
 import numpy as np
 from mlmc.mc_level import Level
-from mlmc.simulation import Simulation
-import mlmc.hdf as hdf
+from mlmc.sim.simulation import Simulation
+import mlmc.tool.hdf as hdf
 
 
 class MLMC:

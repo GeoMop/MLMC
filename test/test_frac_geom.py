@@ -1,4 +1,4 @@
-import frac_geom as fg
+import mlmc.tool.frac_geom as fg
 import numpy as np
 
 

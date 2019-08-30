@@ -7,12 +7,12 @@ import pytest
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, src_path + '/../src/')
-import mlmc.hdf
+import mlmc.tool.hdf
 from mlmc.sample import Sample
 
 
 """
-test src/mlmc/hdf.py methods
+test src/mlmc/tool/hdf.py methods
 """
 
 
@@ -21,7 +21,7 @@ def test_hdf5():
     if os.path.exists(work_dir):
         shutil.rmtree(work_dir)
     os.makedirs(work_dir)
-    hdf_obj = mlmc.hdf.HDF5(work_dir, 'test')
+    hdf_obj = mlmc.tool.hdf.HDF5(work_dir, 'test')
 
     init_header(hdf_obj)
 
@@ -112,7 +112,7 @@ COLLECTED_SAMPLES = [(Sample(sample_id=0, job_id='1', time=0.1, result=0.25),
 
 def test_level_group():
     """
-    Test mlmc.hdf.LevelGroup methods
+    Test mlmc.tool.hdf.LevelGroup methods
     :return: None
     """
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
@@ -127,7 +127,7 @@ def test_level_group():
         hdf_file.create_group(level_group_path)
 
     # Create LevelGroup instance
-    hdf_level_group = mlmc.hdf.LevelGroup(file_name, level_group_path, level_id, job_dir)
+    hdf_level_group = mlmc.tool.hdf.LevelGroup(file_name, level_group_path, level_id, job_dir)
 
     with h5py.File(file_name, "r") as hdf_file:
         assert hdf_file[level_group_path].attrs['level_id'] == level_id == hdf_level_group.level_id
@@ -148,7 +148,7 @@ def test_level_group():
 def make_dataset(hdf_level_group, dset_name="test"):
     """
     Test dataset creating
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
+    :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :return: None
     """
     name = hdf_level_group._make_dataset(name=dset_name, shape=(0,), dtype=np.int32, maxshape=(None,), chunks=True)
@@ -161,11 +161,11 @@ def make_dataset(hdf_level_group, dset_name="test"):
 def make_group_datasets(hdf_level_group):
     """
     Test if all necessary dataset were created
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
+    :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :return: None
     """
     # Created datasets
-    datasets = [attr_prop['name'] for _, attr_prop in mlmc.hdf.LevelGroup.COLLECTED_ATTRS.items()]
+    datasets = [attr_prop['name'] for _, attr_prop in mlmc.tool.hdf.LevelGroup.COLLECTED_ATTRS.items()]
     datasets.extend(['scheduled', 'failed_ids'])
 
     with h5py.File(hdf_level_group.file_name, "r") as hdf_file:
@@ -175,7 +175,7 @@ def make_group_datasets(hdf_level_group):
 def append_dataset(hdf_level_group, dset_name='test'):
     """
     Test append dataset
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
+    :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :param dset_name: Name of dataset to use
     :return: None
     """
@@ -195,7 +195,7 @@ def append_dataset(hdf_level_group, dset_name='test'):
 def scheduled(hdf_level_group):
     """
     Test append and read scheduled dataset
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
+    :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :return: None
     """
 
@@ -216,7 +216,7 @@ def scheduled(hdf_level_group):
 def collected(hdf_level_group):
     """
     Test append and read collected dataset
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
+    :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :return: None
     """
     hdf_level_group.append_collected(COLLECTED_SAMPLES)
@@ -227,14 +227,14 @@ def collected(hdf_level_group):
         assert coarse_collected == COLLECTED_SAMPLES[index][1]
 
     with h5py.File(hdf_level_group.file_name, "r") as hdf_file:
-        for _, dset_params in mlmc.hdf.LevelGroup.COLLECTED_ATTRS.items():
+        for _, dset_params in mlmc.tool.hdf.LevelGroup.COLLECTED_ATTRS.items():
             assert len(COLLECTED_SAMPLES) == len(hdf_file[hdf_level_group.level_group_path][dset_params['name']][()])
 
 
 def job_samples(hdf_level_group):
     """
     Test saved job ids
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
+    :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :return: None
     """
     sample_ids = hdf_level_group.job_samples(['1', '5'])

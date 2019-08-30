@@ -6,13 +6,13 @@ import scipy.stats as stat
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', 'src'))
 
-import flow_mc as flow_mc
-import mlmc.correlated_field as correlated_field
+import mlmc.tool.flow_mc as flow_mc
+import mlmc.random.correlated_field as correlated_field
 import mlmc.moments
 import mlmc.mlmc
 # from result import Result
 import mlmc.distribution
-from pbs import Pbs
+from mlmc.tool.pbs import Pbs
 
 
 class TstFlowPbs:

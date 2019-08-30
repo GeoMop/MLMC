@@ -3,7 +3,7 @@ import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
 from mlmc import simple_distribution
-from mlmc import plot
+from mlmc.tool import plot
 
 
 def compute_results(mlmc_l0, n_moments, mlmc_wrapper):

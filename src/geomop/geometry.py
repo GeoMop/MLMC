@@ -44,7 +44,7 @@ import geomop.polygons as polygons
 import geomop.merge as merge
 import geomop.polygons_io as polygons_io
 import geomop.bspline_io as bspline_io
-import gmsh_io as gmsh_io
+import mlmc.tool.gmsh_io as gmsh_io
 import numpy as np
 import numpy.linalg as la
 import math

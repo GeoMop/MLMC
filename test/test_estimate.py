@@ -8,7 +8,7 @@ sys.path.insert(0, src_path + '/../src/')
 import mlmc.mlmc
 import mlmc.estimate
 import test.test_level
-from test.fixtures.mlmc_test_run import TestMLMC
+from test.fixtures.mlmc_test_run import MLMCTest
 
 
 @pytest.mark.parametrize("n_levels, n_samples, failed_fraction", [
@@ -102,7 +102,7 @@ def test_target_var_adding_samples():
     for t_var in target_var:
         for nl in n_levels:
             d, il, sim = distr
-            mc_test = TestMLMC(nl, n_moments, d, il, sim)
+            mc_test = MLMCTest(nl, n_moments, d, il, sim)
 
             mc_test.mc.set_initial_n_samples()
             mc_test.mc.refill_samples()
