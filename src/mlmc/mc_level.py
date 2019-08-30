@@ -715,20 +715,22 @@ class Level:
 
     def select(self, condition=None, selected_param=None):
         """
-        Set sample select condition
+        Select samples
         :param condition: dict, ({sample result param: (value, comparison)})
         :param selected_param: string, name of column in result additional data
-                               !! Not works yet !!
         :return: None
         """
+        # If no conditions and param, return sample values
         if condition is None and self._select_condition is None and selected_param is None:
             return self._sample_values
         elif condition is not None:
             self._select_condition = condition
 
+        # Additional data matrix from hdf file
         sample_additional_data = self.sample_additional_data()
         samples = self._sample_values
 
+        # Selected samples boolean mask
         if self._select_condition is not None and len(self._select_condition) != 0:
             bool_masks = []
             for param, (value, comparison) in self._select_condition.items():
@@ -748,10 +750,14 @@ class Level:
             else:
                 samples = self._sample_values[:, :, np.logical_and(*bool_masks)]
 
-        # @TODO: get param values also for string
+        # Select param from sample additional data
+        # TODO: get param values for string
         if selected_param is not None:
             self._select_param = selected_param
-            samples = np.full(self._sample_values.shape, sample_additional_data[self._select_param])
+            if self._select_param == 'value':
+                samples = self._sample_values
+            else:
+                samples = np.full(self._sample_values.shape, sample_additional_data[self._select_param])
 
         if samples.size == 0:
             raise Exception('Given condition excluded all samples')

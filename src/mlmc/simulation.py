@@ -65,18 +65,12 @@ class Simulation(metaclass=ABCMeta):
                 else:
                     res_dtype.append((r_name, r_dtype))
 
-            if self.result_additional_data is None:
-                result = []
-                result_data = []
-                for result_val in result_values:
-                    result.append(result_val[0])
-                    result_data.append(result_val[1:])
-
-                self.result_additional_data = np.array(result_data, dtype=res_dtype)
-            else:
-                result = []
-                for result_val in result_values:
-                    result.append(result_val[0])
+            result = []
+            result_data = []
+            for result_val in result_values:
+                result.append(result_val[0])
+                result_data.append(result_val[1:])
+            self.result_additional_data = np.array(result_data, dtype=res_dtype)
 
             # if np.any(np.isnan(result)):
             #     raise Exception

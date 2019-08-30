@@ -374,15 +374,15 @@ class LevelGroup:
         Save collected values data - it's descriptive data of each item of collected values vector
         :return: None
         """
-        if self._collected_format_saved:
-            return
+        # TODO: try calling it once or twice
         # Create dataset for collected values format, it contains metadata for each item in vector
-        self._make_dataset(name=self.collected_additional_data, shape=(0,), dtype=self.result_additional_data.dtype,
+        self._make_dataset(name=self.collected_additional_data, shape=(len(self.result_additional_data),), dtype=self.result_additional_data.dtype,
                            maxshape=(None,),
                            chunks=True)
 
-        self._append_dataset(self.collected_additional_data, self.result_additional_data)
-        self._collected_format_saved = True
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            dataset = hdf_file[self.level_group_path][self.collected_additional_data]
+            dataset[:] = self.result_additional_data
 
     def _sample_attr_pairs(self, fine_coarse_samples):
         """
