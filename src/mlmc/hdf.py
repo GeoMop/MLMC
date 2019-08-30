@@ -176,7 +176,8 @@ class LevelGroup:
                                        dtype: dataset values dtype}
                                        }
     """
-    COLLECTED_DATASETS = {'result': 'collected_values', 'sample_id': 'collected_ids', 'time': 'collected_times'}
+    COLLECTED_DATASETS_KEYS = ['result', 'sample_id', 'time']
+    COLLECTED_DATASETS_NAMES = ['collected_values', 'collected_ids', 'collected_times']
 
     COLLECTED_ATTRS = {"sample_id": {'name': 'collected_ids', 'default_shape': (0,), 'maxshape': (None,),
                                      'dtype': np.int32},
@@ -474,7 +475,8 @@ class LevelGroup:
             if num_samples == 0:
                 return
 
-            for sample_attr_name, dset_name in LevelGroup.COLLECTED_DATASETS.items():
+            for sample_attr_name, dset_name in zip(LevelGroup.COLLECTED_DATASETS_KEYS,
+                                                   LevelGroup.COLLECTED_DATASETS_NAMES):
                 dataset = hdf_file["/".join([self.level_group_path, dset_name])]
 
                 dset_values = dataset[()]
