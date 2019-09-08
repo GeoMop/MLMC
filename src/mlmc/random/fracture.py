@@ -3,17 +3,56 @@ Module for statistical description of the fracture networks.
 It provides appropriate statistical models as well as practical sampling methods.
 """
 
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Any
 import numpy as np
 import attr
 import json
 
 
+
+
+class LineShape:
+    """
+    Class represents the line fracture shape.
+    The polymorphic `make_approx` method is used to create polygon (approximation in case of disc) of the
+    actual fracture.
+    """
+    _points = np.array([[-0.5, 0, 0], [0.5, 0, 0]])
+
+    @classmethod
+    def make_approx(cls, x_scale, y_scale, step=None):
+        xy_scale = np.array([x_scale, y_scale, 1.0])
+        return cls._points[:, :] * xy_scale[None, :]
+
+
+class SquareShape(LineShape):
+    """
+    Class represents the square fracture shape.
+    """
+    _points = np.array([[-0.5, -0.5, 0], [0.5, 0, 0], [-0.5, -0.5, 0], [0.5, 0, 0]])
+
+
+class DiscShape:
+    """
+    Class represents the square fracture shape.
+    """
+
+    @classmethod
+    def make_approx(cls, x_scale, y_scale, step=1.0):
+        n_sides = np.pi * min(x_scale, y_scale) / step
+        n_sides = max(4, n_sides)
+        angles = np.linspace(0, 2 * np.pi, n_sides, endpoint=False)
+        points = np.stack(np.cos(angles) * x_scale, np.sin(angles) * y_scale, np.ones_like(angles))
+        return points
+
+
 @attr.s(auto_attribs=True)
-class FractureShape:
+class Fracture:
     """
     Single fracture sample.
     """
+    shape_class: Any
+    # Basic fracture shape.
     r: float
     # Fracture diameter, laying in XY plane
     centre: np.array
@@ -122,10 +161,21 @@ class VonMisesOrientation:
         :param size: Number of samples
         :return: shape (n, 4), every row: unit axis vector and angle
         """
-        axis_angle = np.tile([0,0,1,0], size).reshape((size, 4))
-        trend = np.radians(self.trend)
-        axis_angle[:, 3] = np.random.vonmises(mu=trend, kappa=self.concentration, size=size)
+        axis_angle = np.tile(np.array([0, 0, 1, 0], dtype=float), size).reshape((size, 4))
+        axis_angle[:, 3] = self.sample_angle(size)
         return axis_angle
+
+
+    def sample_angle(self, size=1):
+        trend = np.radians(self.trend)
+        if self.concentration > np.log(np.finfo(float).max):
+            return trend + np.zeros(size)
+        else:
+            if self.concentration == 0:
+                return np.random.uniform(size=size) * 2 * np.pi
+            else:
+                return np.random.vonmises(mu=trend, kappa=self.concentration, size=size)
+
 
 
 @attr.s(auto_attribs=True)
@@ -272,6 +322,8 @@ class FisherOrientation:
 #     def __init__(self):
 
 
+
+
 @attr.s(auto_attribs=True)
 class PowerLawSize:
     """
@@ -295,20 +347,23 @@ class PowerLawSize:
     # number of fractures with size in the size_range per unit volume (denoted as P30 in SKB reports)
 
     sample_range: (float, float) = attr.ib()
-
     # range used for sampling., not part of the statistical description
+    # default initiaizer:
     @sample_range.default
     def copy_full_range(self):
         return list(self.diam_range).copy()  # need copy to preserve original range
 
     @classmethod
-    def from_mean_area(cls, power, diam_range, p32):
+    def from_mean_area(cls, power, diam_range, p32, p32_power=None):
         """
         Construct the distribution using the mean arrea (P32) instead of intensity.
         :param p32: mean area of the fractures in given `diam_range`.
+        :param p32_power: if the mean area is given for different power parameter.
         :return: PowerLawSize instance.
         """
-        return cls(power, diam_range, cls.intensity_for_mean_area(p32, power, diam_range))
+        if p32_power is None:
+            p32_power = power
+        return cls(power, diam_range, cls.intensity_for_mean_area(p32, power, diam_range, p32_exp=p32_power))
 
     def cdf(self, x, range):
         """
@@ -376,18 +431,19 @@ class PowerLawSize:
         sample_intensity = self.range_intensity(self.sample_range)
         return sample_intensity * volume
 
-    def sample(self, volume, size=None, keep_nonempty=False):
+    def sample(self, volume, size=None, force_nonempty=False):
         """
         Sample the fracture diameters.
         :param volume: By default the volume and fracture sample intensity is used to determine actual number of the fractures.
         :param size: ... alternatively the prescribed number of fractures can be generated.
+        :param force_nonempty: If True at leas one fracture is generated.
         :return: Array of fracture sizes.
         """
         if size is None:
             size = np.random.poisson(lam=self.mean_size(volume), size=1)
-            if keep_nonempty:
+            if force_nonempty:
                 size = max(1, size)
-        print(keep_nonempty, size)
+        #print("PowerLaw sample: ", force_nonempty, size)
         U = np.random.uniform(0, 1, int(size))
         return self.ppf(U, self.sample_range)
 
@@ -406,17 +462,23 @@ class PowerLawSize:
         return p_32
 
     @staticmethod
-    def intensity_for_mean_area(p_32, exp, size_range, shape_area=1.0):
+    def intensity_for_mean_area(p_32, exp, size_range, shape_area=1.0, p32_exp=None):
         """
         Compute fracture intensity from the mean fracture surface area per unit volume.
         :param p_32: mean fracture surface area
         :param exp: power law exponent
         :param size_range: fracture size range
         :param shape_area: Area of the unit fracture shape (1 for square, 'pi/4' for disc)
+        :param p32_exp: possibly different value of the power parameter for which p_32 mean area is given
         :return: p30 - fracture intensity
+
+        TODO: modify to general recalculation for two different powers and introduce separate wrapper functions
+        for p32 to p30, p32 to p20, etc. Need to design suitable construction methods.
         """
+        if p32_exp is None:
+            p32_exp = exp
         a, b = size_range
-        integral_area = (b ** (2 - exp) - a ** (2 - exp)) / (2 - exp)
+        integral_area = (b ** (2 - p32_exp) - a ** (2 - p32_exp)) / (2 - p32_exp)
         integral_intensity = (b ** (-exp) - a ** (-exp)) / -exp
         return p_32 / integral_area / shape_area * integral_intensity
 
@@ -605,7 +667,9 @@ class FrFamily:
     """
     name: str
     orientation: FisherOrientation
-    shape: PowerLawSize
+    shape_angle: VonMisesOrientation
+    size: PowerLawSize
+
 
 
 class Population:
@@ -643,25 +707,29 @@ class Population:
         with open(yaml_file) as f:
             self.initialize(json.load(f))
 
-    def __init__(self, volume):
+    def __init__(self, volume, shape_class=SquareShape):
         """
         :param volume: Orientation stochastic model
         """
         self.volume = volume
+        self.shape_class = shape_class
         self.families = []
 
-    def add_family(self, name, orientation, shape):
+    def add_family(self, name, orientation, shape_angle, shape):
         """
         Add fracture family
         :param name: str, Fracture family name
         :param orientation: FisherOrientation instance
+        :param shape_angle: Uniform or VonMises
         :param shape: PowerLawSize instance
+
+        TODO: unify orientation and shape angle
         :return:
         """
-        self.families.append(FrFamily(name, orientation, shape))
+        self.families.append(FrFamily(name, orientation, shape_angle, shape))
 
     def mean_size(self):
-        sizes = [family.shape.mean_size(self.volume) for family in self.families]
+        sizes = [family.size.mean_size(self.volume) for family in self.families]
         return sum(sizes)
 
     def set_sample_range(self, sample_range, sample_size=None):
@@ -670,29 +738,29 @@ class Population:
         :param sample_range: (min_bound, max_bound) - one of these can be None if max_sample_size is provided
                                                       this bound is set to match mean number of fractures
         :param sample_size: If provided, the None bound is changed to achieve given mean number of fractures.
-                            If neither of the bounds is None, the lower one is rest.
+                            If neither of the bounds is None, the lower one is reset.
         :return:
         """
         min_size, max_size = sample_range
         for f in self.families:
-            r_min, r_max = f.shape.sample_range
+            r_min, r_max = f.size.sample_range
             if min_size is not None:
                 r_min = min_size
             if max_size is not None:
                 r_max = max_size
-            f.shape.set_sample_range((r_min, r_max))
+            f.size.set_sample_range((r_min, r_max))
         if sample_size is not None:
-            family_sizes = [family.shape.mean_size(self.volume) for family in self.families]
+            family_sizes = [family.size.mean_size(self.volume) for family in self.families]
             total_size = np.sum(family_sizes)
 
             if max_size is None:
                 for f, size in zip(self.families, family_sizes):
                     family_intensity = size / total_size * sample_size / self.volume
-                    f.shape.set_upper_bound_by_intensity(family_intensity)
+                    f.size.set_upper_bound_by_intensity(family_intensity)
             else:
                 for f, size in zip(self.families, family_sizes):
                     family_intensity = size / total_size * sample_size / self.volume
-                    f.shape.set_lower_bound_by_intensity(family_intensity)
+                    f.size.set_lower_bound_by_intensity(family_intensity)
 
 
     def sample(self, pos_distr=None, keep_nonempty=False):
@@ -709,13 +777,14 @@ class Population:
         fractures = []
         for f in self.families:
             name = f.name
-            diams = f.shape.sample(self.volume, keep_nonempty=keep_nonempty)
+            diams = f.size.sample(self.volume, force_nonempty=keep_nonempty)
             fr_axis_angle = f.orientation.sample_axis_angle(size=len(diams))
-            shape_angle = np.random.uniform(0, 2 * np.pi, len(diams))
+            shape_angle = f.shape_angle.sample_angle(len(diams))
+                #np.random.uniform(0, 2 * np.pi, len(diams))
             for r, aa, sa in zip(diams, fr_axis_angle, shape_angle):
                 axis, angle = aa[:3], aa[3]
                 center = pos_distr.sample(diameter=r, axis=axis, angle=angle, shape_angle=sa)
-                fractures.append(FractureShape(r, center, axis, angle, sa, name, 1))
+                fractures.append(Fracture(self.shape_class, r, center, axis, angle, sa, name, 1))
         return fractures
 
 
@@ -812,83 +881,222 @@ def unit_square_vtxs():
         [-0.5, 0.5, 0]])
 
 
+
+
 class Fractures:
-
-    def __init__(self, fractures):
+    # regularization of 2d fractures
+    def __init__(self, fractures, epsilon):
+        self.epsilon = epsilon
         self.fractures = fractures
-        self.squares = None
-        # Array of shape (N, 4, 3), coordinates of the vertices of the square fractures.
-        self.compute_transformed_shapes()
+        self.points = []
+        self.lines = []
+        self.pt_boxes = []
+        self.line_boxes = []
+        self.pt_bih = None
+        self.line_bih = None
+        self.fracture_ids = []
+        # Maps line to its fracture.
 
-    def compute_transformed_shapes(self):
-        n_frac = len(self.fractures)
+        self.make_lines()
+        self.make_bihs()
 
-        unit_square = unit_square_vtxs()
-        z_axis = np.array([0, 0, 1])
-        squares = np.tile(unit_square[None, :, :], (n_frac, 1, 1))
-        center = np.empty((n_frac, 3))
-        trans_matrix = np.empty((n_frac, 3, 3))
-        for i, fr in enumerate(self.fractures):
-            vtxs = squares[i, :, :]
-            vtxs[:, 1] *= fr.aspect
-            vtxs[:, :] *= fr.r
-            vtxs = FisherOrientation.rotate(vtxs, z_axis, fr.shape_angle)
-            vtxs = FisherOrientation.rotate(vtxs, fr.rotation_axis, fr.rotation_angle)
-            vtxs += fr.centre
-            squares[i, :, :] = vtxs
+    def make_lines(self):
+        base_line = np.array([[-0.5, 0, 0], [0.5, 0, 0]])
+        for i_fr, fr in enumerate(self.fractures):
+            line = FisherOrientation.rotate(base_line * fr.rx, np.array([0, 0, 1]), fr.shape_angle)
+            line += fr.centre
+            i_pt = len(self.points)
+            self.points.append(line[0])
+            self.points.append(line[1])
+            self.lines.append((i_pt, i_pt+1))
+            self.fracture_ids.append(i_fr)
 
-            center[i, :] = fr.centre
-            u_vec = vtxs[1] - vtxs[0]
-            u_vec /= (u_vec @ u_vec)
-            v_vec = vtxs[2] - vtxs[0]
-            u_vec /= (v_vec @ v_vec)
-            w_vec = FisherOrientation.rotate(z_axis, fr.rotation_axis, fr.rotation_angle)
-            trans_matrix[i, :, 0] = u_vec
-            trans_matrix[i, :, 1] = v_vec
-            trans_matrix[i, :, 2] = w_vec
-        self.squares = squares
-        self.center = center
-        self.trans_matrix = trans_matrix
+    def make_bihs(self):
+        import bih
+        shift = np.array([self.epsilon, self.epsilon, 0])
+        for line in self.lines:
+            pt0, pt1 = self.points[line[0]], self.points[line[1]]
+            b0 = [(pt0 - shift).tolist(), (pt0 + shift).tolist()]
+            b1 = [(pt1 - shift).tolist(), (pt1 + shift).tolist()]
+            box_pt0 = bih.AABB(b0)
+            box_pt1 = bih.AABB(b1)
+            line_box = bih.AABB(b0 + b1)
+            self.pt_boxes.extend([box_pt0, box_pt1])
+            self.line_boxes.append(line_box)
+        self.pt_bih = bih.BIH()
+        self.pt_bih.add_boxes(self.pt_boxes)
+        self.line_bih = bih.BIH()
+        self.line_bih.add_boxes(self.line_boxes)
+        self.pt_bih.construct()
+        self.line_bih.construct()
 
-    def snap_vertices_and_edges(self):
-        n_frac = len(self.fractures)
-        epsilon = 0.05  # relaitve to the fracture
-        min_unit_fr = np.array([0 - epsilon, 0 - epsilon, 0 - epsilon])
-        max_unit_fr = np.array([1 + epsilon, 1 + epsilon, 0 + epsilon])
-        cos_limit = 1 / np.sqrt(1 + (epsilon / 2) ** 2)
+    def find_root(self, i_pt):
+        i = i_pt
+        while self.pt_map[i] != i:
+            i = self.pt_map[i]
+        root = i
+        i = i_pt
+        while self.pt_map[i] != i:
+            j = self.pt_map[i]
+            self.pt_map[i] = root
+            i = j
+        return root
 
-        all_points = self.squares.reshape(-1, 3)
+    def snap_to_line(self, pt, pt0, pt1):
+        v = pt1 - pt0
+        v /= np.linalg.norm(v)
+        t = v @ (pt - pt0)
+        if 0 < t < 1:
+            projected = pt0 + t * v
+            if np.linalg.norm(projected - pt) < self.epsilon:
+                return projected
+        return pt
 
-        isec_condidates = []
-        wrong_angle = np.zeros(n_frac)
-        for i, fr in enumerate(self.fractures):
-            if wrong_angle[i] > 0:
-                isec_condidates.append(None)
-                continue
-            projected = all_points - self.center[i, :][None, :]
-            projected = np.reshape(projected @ self.trans_matrix[i, :, :], (-1, 4, 3))
 
-            # get bounding boxes in the loc system
-            min_projected = np.min(projected, axis=1)  # shape (N, 3)
-            max_projected = np.max(projected, axis=1)
-            # flag fractures that are out of the box
-            flag = np.any(np.logical_or(min_projected > max_unit_fr[None, :], max_projected < min_unit_fr[None, :]),
-                          axis=1)
-            flag[i] = 1  # omit self
-            candidates = np.nonzero(flag == 0)[0]  # indices of fractures close to 'fr'
-            isec_condidates.append(candidates)
-            # print("fr: ", i, candidates)
-            for i_fr in candidates:
-                if i_fr > i:
-                    cos_angle_of_normals = self.trans_matrix[i, :, 2] @ self.trans_matrix[i_fr, :, 2]
-                    if cos_angle_of_normals > cos_limit:
-                        wrong_angle[i_fr] = 1
-                        print("wrong_angle: ", i, i_fr)
 
-                    # atract vertices
-                    fr = projected[i_fr]
-                    flag = np.any(np.logical_or(fr > max_unit_fr[None, :], fr < min_unit_fr[None, :]), axis=1)
-                    print(np.nonzero(flag == 0))
+    def simplify(self):
+        self.pt_map = list(range(len(self.points)))
+        for i_pt, point in enumerate(self.points):
+            pt = point.tolist()
+            for j_pt_box in  self.pt_bih.find_point(pt):
+                if i_pt != j_pt_box and j_pt_box == self.pt_map[j_pt_box] and self.pt_boxes[j_pt_box].contains_point(pt):
+                    self.pt_map[i_pt] = self.find_root(j_pt_box)
+                    break
+        new_lines = []
+        new_fr_ids = []
+        for i_ln, ln in enumerate(self.lines):
+            pt0, pt1 = ln
+            pt0, pt1 = self.find_root(pt0), self.find_root(pt1)
+            if pt0 != pt1:
+                new_lines.append((pt0, pt1))
+                new_fr_ids.append(self.fracture_ids[i_ln])
+        self.lines = new_lines
+        self.fracture_ids = new_fr_ids
+
+        for i_pt, point in enumerate(self.points):
+            if self.pt_map[i_pt] == i_pt:
+                pt = point.tolist()
+                for j_line in self.line_bih.find_point(pt):
+                    line = self.lines[j_line]
+                    if i_pt != line[0] and i_pt != line[1] and self.line_boxes[j_line].contains_point(pt):
+                        pt0, pt1 = self.points[line[0]], self.points[line[1]]
+                        self.points[i_pt] = self.snap_to_line(point, pt0, pt1)
+                        break
+
+    def line_fragment(self, i_ln, j_ln):
+        """
+        Compute intersection of the two lines and if its position is well in interior
+        of both lines, benote it as the fragmen point for both lines.
+        """
+        pt0i, pt1i = (self.points[ipt] for ipt in self.lines[i_ln])
+        pt0j, pt1j = (self.points[ipt] for ipt in self.lines[j_ln])
+        A = np.stack([pt1i - pt0i, -pt1j + pt0j], axis=1)
+        b = -pt0i + pt0j
+        ti, tj = np.linalg.solve(A, b)
+        if self.epsilon <= ti <= 1 - self.epsilon and self.epsilon <= tj <= 1 - self.epsilon:
+            X = pt0i + ti * (pt1i - pt0i)
+            ix = len(self.points)
+            self.points.append(X)
+            self._fragment_points[i_ln].append((ti, ix))
+            self._fragment_points[j_ln].append((tj, ix))
+
+    def fragment(self):
+        """
+        Fragment fracture lines, update map from new line IDs to original fracture IDs.
+        :return:
+        """
+        new_lines = []
+        new_fracture_ids = []
+        self._fragment_points = [[] for l in self.lines]
+        for i_ln, line in enumerate(self.lines):
+            for j_ln in self.line_bih.find_box(self.line_boxes[i_ln]):
+                if j_ln > i_ln:
+                    self.line_fragment(i_ln, j_ln)
+            # i_ln line is complete, we can fragment it
+            last_pt = self.lines[i_ln][0]
+            fr_id = self.fracture_ids[i_ln]
+            for t, ix in sorted(self._fragment_points[i_ln]):
+                new_lines.append(last_pt, ix)
+                new_fracture_ids.append(fr_id)
+                last_pt = ix
+            new_lines.append(last_pt, self.lines[i_ln][1])
+            new_fracture_ids.append(fr_id)
+        self.lines = new_lines
+        self.fracture_ids = new_fracture_ids
+
+
+
+
+
+    # def compute_transformed_shapes(self):
+    #     n_frac = len(self.fractures)
+    #
+    #     unit_square = unit_square_vtxs()
+    #     z_axis = np.array([0, 0, 1])
+    #     squares = np.tile(unit_square[None, :, :], (n_frac, 1, 1))
+    #     center = np.empty((n_frac, 3))
+    #     trans_matrix = np.empty((n_frac, 3, 3))
+    #     for i, fr in enumerate(self.fractures):
+    #         vtxs = squares[i, :, :]
+    #         vtxs[:, 1] *= fr.aspect
+    #         vtxs[:, :] *= fr.r
+    #         vtxs = FisherOrientation.rotate(vtxs, z_axis, fr.shape_angle)
+    #         vtxs = FisherOrientation.rotate(vtxs, fr.rotation_axis, fr.rotation_angle)
+    #         vtxs += fr.centre
+    #         squares[i, :, :] = vtxs
+    #
+    #         center[i, :] = fr.centre
+    #         u_vec = vtxs[1] - vtxs[0]
+    #         u_vec /= (u_vec @ u_vec)
+    #         v_vec = vtxs[2] - vtxs[0]
+    #         u_vec /= (v_vec @ v_vec)
+    #         w_vec = FisherOrientation.rotate(z_axis, fr.rotation_axis, fr.rotation_angle)
+    #         trans_matrix[i, :, 0] = u_vec
+    #         trans_matrix[i, :, 1] = v_vec
+    #         trans_matrix[i, :, 2] = w_vec
+    #     self.squares = squares
+    #     self.center = center
+    #     self.trans_matrix = trans_matrix
+    #
+    # def snap_vertices_and_edges(self):
+    #     n_frac = len(self.fractures)
+    #     epsilon = 0.05  # relaitve to the fracture
+    #     min_unit_fr = np.array([0 - epsilon, 0 - epsilon, 0 - epsilon])
+    #     max_unit_fr = np.array([1 + epsilon, 1 + epsilon, 0 + epsilon])
+    #     cos_limit = 1 / np.sqrt(1 + (epsilon / 2) ** 2)
+    #
+    #     all_points = self.squares.reshape(-1, 3)
+    #
+    #     isec_condidates = []
+    #     wrong_angle = np.zeros(n_frac)
+    #     for i, fr in enumerate(self.fractures):
+    #         if wrong_angle[i] > 0:
+    #             isec_condidates.append(None)
+    #             continue
+    #         projected = all_points - self.center[i, :][None, :]
+    #         projected = np.reshape(projected @ self.trans_matrix[i, :, :], (-1, 4, 3))
+    #
+    #         # get bounding boxes in the loc system
+    #         min_projected = np.min(projected, axis=1)  # shape (N, 3)
+    #         max_projected = np.max(projected, axis=1)
+    #         # flag fractures that are out of the box
+    #         flag = np.any(np.logical_or(min_projected > max_unit_fr[None, :], max_projected < min_unit_fr[None, :]),
+    #                       axis=1)
+    #         flag[i] = 1  # omit self
+    #         candidates = np.nonzero(flag == 0)[0]  # indices of fractures close to 'fr'
+    #         isec_condidates.append(candidates)
+    #         # print("fr: ", i, candidates)
+    #         for i_fr in candidates:
+    #             if i_fr > i:
+    #                 cos_angle_of_normals = self.trans_matrix[i, :, 2] @ self.trans_matrix[i_fr, :, 2]
+    #                 if cos_angle_of_normals > cos_limit:
+    #                     wrong_angle[i_fr] = 1
+    #                     print("wrong_angle: ", i, i_fr)
+    #
+    #                 # atract vertices
+    #                 fr = projected[i_fr]
+    #                 flag = np.any(np.logical_or(fr > max_unit_fr[None, :], fr < min_unit_fr[None, :]), axis=1)
+    #                 print(np.nonzero(flag == 0))
 
 
 def fr_intersect(fractures):

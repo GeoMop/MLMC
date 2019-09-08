@@ -16,11 +16,12 @@ from collections import defaultdict
 @pytest.mark.skip
 def test_FractureShape():
     # ... and plotting
-    fr = frac.FractureShape(r=0.5, centre=np.array([1,2,3]),
+    fr = frac.Fracture(shape_class=frac.SquareShape, r=0.5, centre=np.array([1, 2, 3]),
                        rotation_axis=np.array([1,1,0]), rotation_angle=np.pi/2,
                        shape_angle=np.pi/3, region="none", aspect=0.5)
     points = np.array([[0.15, 0.3, 0], [-0.3, 0.15, 0], [-0.15, -0.3, 0], [0.3, -0.15, 0]])
     frac.plotly_fractures([fr], [points])
+
 
 
 def test_vonmises_orientation():
@@ -29,7 +30,7 @@ def test_vonmises_orientation():
     assert np.allclose([0, 0, 1, np.pi/4], aa)
 
 
-@pytest.mark.skip
+#@pytest.mark.skip
 def test_fisher_orientation():
     normals = [[0, 0, 1], [0, 1, 0], [1, 0, 0], [0.01, 0, 1]]
 
@@ -57,7 +58,7 @@ def ecdf(data):
     return (x,y)
 
 
-@pytest.mark.skip
+#@pytest.mark.skip
 @pytest.mark.parametrize("volume, intensity, size_range, kappa", [pytest.param(1000, 3, [1, 10], 2.1),
                                                                   pytest.param(5000, 3, [2, 10], 7)])
 def test_power_law(volume, intensity, size_range, kappa):
@@ -140,7 +141,7 @@ def test_power_law(volume, intensity, size_range, kappa):
     assert np.isclose(p_law2.mean_size(), p_law.mean_size())
 
 
-@pytest.mark.skip
+#@pytest.mark.skip
 def test_fracture_population():
     """
     Test base sample structures
@@ -157,7 +158,7 @@ def test_fracture_population():
         assert len(sample.centre) == 3
         assert sample.rotation_angle > 0
 
-@pytest.mark.skip
+#@pytest.mark.skip
 def test_intensity_p_32():
     """
     Test fracture intensity (P30) and total fractures size per volume unit (P32)
@@ -211,10 +212,10 @@ def test_intensity_p_32():
 
 @pytest.mark.skip
 def test_fracture_class():
-    fr1 = frac.FractureShape(r=1, rotation_axis=np.array([0,0,0]), rotation_angle=0,
-                             centre=np.array([0,0,0]), shape_angle=0, region="1")
-    fr2 = frac.FractureShape(r=0.8, rotation_axis=np.array([0, 1, 0]), rotation_angle=np.pi/2,
-                             centre=np.array([0, 0, 0.41]), shape_angle=0, region="2")
+    fr1 = frac.Fracture(r=1, rotation_axis=np.array([0, 0, 0]), rotation_angle=0,
+                        centre=np.array([0,0,0]), shape_angle=0, region="1")
+    fr2 = frac.Fracture(r=0.8, rotation_axis=np.array([0, 1, 0]), rotation_angle=np.pi / 2,
+                        centre=np.array([0, 0, 0.41]), shape_angle=0, region="2")
     fr_obj = frac.Fractures([fr1, fr2])
     fr_obj.compute_transformed_shapes()
     print(fr_obj.squares)
