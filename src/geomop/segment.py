@@ -9,7 +9,7 @@ out_vtx = right_side = 0
 
 class Segment(idmap.IdObject):
 
-    def __init__(self, vtxs):
+    def __init__(self, vtxs, attr=None):
         self.vtxs = list(vtxs)
         # tuple (out_vtx, in_vtx) of point objects; segment is oriented from out_vtx to in_vtx
         self.wire = [None, None]
@@ -17,6 +17,9 @@ class Segment(idmap.IdObject):
         self.next = [None, None]
         # (left_next, right_next); next edge for left and right side;
         self._vector = (self.vtxs[in_vtx].xy - self.vtxs[out_vtx].xy)
+        # precomputed direction vector of the segment
+        self.attr = attr
+        # Any attribute attached to the segment.
 
 
     def __repr__(self):
@@ -210,6 +213,7 @@ class Segment(idmap.IdObject):
         """
 
         def min_max(aa):
+            # sort pair of values
             if aa[0] > aa[1]:
                 return (aa[1], aa[0])
             return aa

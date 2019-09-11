@@ -901,6 +901,8 @@ class Fractures:
         self.make_bihs()
 
     def make_lines(self):
+        # sort from large to small fractures
+        self.fractures.sort(key=lambda fr:fr.rx, reverse=True)
         base_line = np.array([[-0.5, 0, 0], [0.5, 0, 0]])
         for i_fr, fr in enumerate(self.fractures):
             line = FisherOrientation.rotate(base_line * fr.rx, np.array([0, 0, 1]), fr.shape_angle)

@@ -5,12 +5,14 @@ import numpy as np
 
 class Point(idmap.IdObject):
 
-    def __init__(self, point, poly):
+    def __init__(self, point, poly, attr=None):
         self.xy = np.array(point, dtype=float)
         self.poly = poly
         # Containing polygon for free-nodes. None for others.
         self.segment = (None, None)
         # (seg, vtx_side) One of segments joined to the Point and local idx of the segment (out_vtx, in_vtx).
+        self.attr = attr
+        # Any attribute attached to the segment.
 
     def __repr__(self):
         return "Pt({}) {}".format(self.id, self.xy)
@@ -47,6 +49,7 @@ class Point(idmap.IdObject):
     def insert_vector(self, vector):
         """
         Insert a vector between segments connected to the point.
+        Vector oriented out of the self point.
 
         :param vector: (X, Y) ... any indexable pair.
         :return: ( (prev_seg, prev_side), (next_seg, next_side), wire )

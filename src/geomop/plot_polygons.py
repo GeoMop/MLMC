@@ -32,7 +32,7 @@ def _plot_polygon(polygon):
     return patches
 
 
-def plot_polygon_decomposition(decomp):
+def plot_polygon_decomposition(decomp, points=None):
     ## fig, ax = plt.subplots()
 
     # polygons
@@ -58,7 +58,9 @@ def plot_polygon_decomposition(decomp):
 
     x_pts = []
     y_pts = []
-    for pt in decomp.points.values():
+    if points is None:
+        points = decomp.points.values()
+    for pt in points:
         x_pts.append(pt.xy[0])
         y_pts.append(pt.xy[1])
     ## ax.plot(x_pts, y_pts, 'bo', color='red')
@@ -69,4 +71,5 @@ def plot_polygon_decomposition(decomp):
         marker=dict(color='red')))
     ## plt.show()
     fig = go.Figure(data=patches)
+    fig.update_layout(width=1600, height=1600)
     pl.plot(fig, filename='polygons.html')

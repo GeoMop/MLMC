@@ -203,7 +203,7 @@ class GmshIO:
         for name in sorted(self.physical.keys()):
             value = self.physical[name]
             region_id, dim = value
-            print('%d %d %s' % (dim, region_id, name), file=mshfile)
+            print('%d %d "%s"' % (dim, region_id, name), file=mshfile)
         print('$EndPhysicalNames', file=mshfile)
         print('$Nodes\n%d' % len(self.nodes), file=mshfile)
         for node_id in sorted(self.nodes.keys()):

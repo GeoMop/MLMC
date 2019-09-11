@@ -32,15 +32,16 @@ def make_frac_mesh(root_polygon, mesh_step:float, fractures, frac_step:float, me
     add_reg(regions, "NONE", -1, not_used=True)
     i_r_bulk = add_reg(regions, "bulk", 2, mesh_step)
     i_r_side = [
-        add_reg(regions, "side_{}".format(s_id), 1, bc=True)
+        add_reg(regions, "side_{}".format(s_id), 1, step=frac_step, bc=True)
         for s_id in range(len(root_polygon))
     ]
     i_r_frac = [
-        add_reg(regions, "frac_{}".format(f_id), 1, frac_step)
+        add_reg(regions, "frac_{}".format(f_id), 1, step=frac_step)
         for f_id in range(len(fractures))
     ]
-    decomp, reg_map = make_decomposition(root_polygon, fractures, regions, i_r_bulk, i_r_side, i_r_frac)
-    geom = fill_lg(decomp, reg_map, regions, mesh_base=mesh_base)
+    decomp = make_decomposition(root_polygon, fractures, regions, i_r_bulk, i_r_side, i_r_frac, frac_step)
+
+    geom = fill_lg(decomp, regions, mesh_base=mesh_base)
     return make_mesh(geom)
 
 
@@ -52,10 +53,9 @@ def add_reg(regions, name, dim, step=0.0, bc=False, not_used =False):
 
 
 
-def make_decomposition(root_polygon_points, fractures, regions, i_r_bulk, i_r_side, i_r_frac):
+def make_decomposition(root_polygon_points, fractures, regions, i_r_bulk, i_r_side, i_r_frac, tol):
     # Create boundary polygon
-    box_pd = poly.PolygonDecomposition()
-    box_pd.tolerance = 1
+    box_pd = poly.PolygonDecomposition([regions[0], regions[0], regions[0]], tol)
     last_pt = root_polygon_points[-1]
     side_segments = {}
     for i_side, pt in enumerate(root_polygon_points):
@@ -68,37 +68,33 @@ def make_decomposition(root_polygon_points, fractures, regions, i_r_bulk, i_r_si
     box_pd.polygons[1].attr = regions[i_r_bulk]
 
     # Add fractures
+    outer_wire = box_pd.outer_polygon.outer_wire.childs
+    assert len(outer_wire) == 1
+    outer_wire = next(iter(outer_wire))
     for i_fr, (p0, p1) in enumerate(fractures):
+        box_pd.decomp.check_consistency()
+        print(i_fr, "fr size:", np.linalg.norm(p1 - p0))
+
         segments = box_pd.add_line(p0, p1, attr=regions[i_r_frac[i_fr]])
+
+        if type(segments) == list:
+            for seg in segments:
+                if seg.wire[0] == seg.wire[1] and seg.wire[0] == outer_wire:
+                    points = seg.vtxs
+                    box_pd.delete_segment(seg)
+                    for pt in points:
+                        if pt.is_free():
+                            box_pd.remove_free_point(pt.id)
+
+        # TODO: remove outer segments
 
 
     #common_decomp, maps = merge.intersect_decompositions(decompositions)
     plot_polygon_decomposition(box_pd)
-    #print(maps)
-
-    # Map common_decomp objects to regions.
-    none_region_id = 0
-    decomp_shapes = [common_decomp.points, common_decomp.segments, common_decomp.polygons]
-    reg_map = [{key: regions[none_region_id] for key in decomp_shapes[d].keys()} for d in range(3)]
-
-    for i_frac, f_map in enumerate(maps[1:]):
-        for id, orig_seg_id in f_map[1].items():
-            reg_map[1][id] = regions[i_r_frac[i_frac]]
-
-    for id, orig_poly_id in maps[0][2].items():
-        if orig_poly_id == 0:
-            continue
-        reg_map[2][id] = regions[i_r_bulk]
-
-    for id, orig_seg_id in maps[0][1].items():
-        if orig_seg_id in side_segments:
-            reg_map[1][id] = regions[i_r_side[side_segments[orig_seg_id]]]
+    return box_pd
 
 
-    return common_decomp, reg_map
-
-
-def fill_lg(decomp, reg_map, regions, mesh_base="fractured_2d"):
+def fill_lg(decomp, regions, mesh_base="fractured_2d"):
     """
     Create LayerGeometry object.
     """
@@ -117,9 +113,9 @@ def fill_lg(decomp, reg_map, regions, mesh_base="fractured_2d"):
     layer = lg.FractureLayer(dict(
         name = "layer",
         top = iface_ns,
-        polygon_region_ids = [ reg_map[2][poly.id]._id for poly in decomp.polygons.values() ],
-        segment_region_ids = [ reg_map[1][seg.id]._id for seg in decomp.segments.values() ],
-        node_region_ids = [ reg_map[0][node.id]._id for node in decomp.points.values() ]
+        polygon_region_ids = [ poly.attr._id for poly in decomp.polygons.values() ],
+        segment_region_ids = [ seg.attr._id for seg in decomp.segments.values() ],
+        node_region_ids = [ node.attr._id for node in decomp.points.values() ]
     ))
     geom.layers = [ layer ]
     #geom.surfaces = [ClassFactory(Surface)]
@@ -137,7 +133,7 @@ def fill_lg(decomp, reg_map, regions, mesh_base="fractured_2d"):
         nodes = nodes
     ))
     geom.node_sets = [ nodeset ]
-    geomop.layers_io.write_geometry(mesh_base + ".json", geom)
+    #geomop.layers_io.write_geometry(mesh_base + ".json", geom)
     return geom
 
 

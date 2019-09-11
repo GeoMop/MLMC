@@ -31,6 +31,8 @@ def serialize(polydec):
     containing the index of the object in the output file lists.
     :param polydec: PolygonDecomposition
     :return: (nodes, topology)
+
+    TODO: serialize attributes
     """
     decomp = polydec.decomp
     decomp.check_consistency()
@@ -65,6 +67,8 @@ def deserialize(nodes, topology):
     produced by serialize function.
     :return: PolygonDecomposition. The attributes 'id' and 'index' of nodes, segments and polygons
     are set to their indices in the input file lists, counting from 0.
+
+    TODO: deserialize attributes
     """
     polydec = polygons.PolygonDecomposition()
     decomp = polydec.decomp
