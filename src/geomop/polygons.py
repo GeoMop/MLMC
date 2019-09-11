@@ -542,7 +542,7 @@ class PolygonDecomposition:
         a_can_move = self.check_displacment([a],  a_diff)
         b_can_move = self.check_displacment([b],  b_diff)
         if a_can_move and b_can_move:
-            a.xy += a_diff
+            a.move(a_diff)
             for seg, b_idx in list(b.segments()):
                 seg_vtxs = seg.vtxs
                 self._rm_segment(seg)

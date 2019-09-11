@@ -114,3 +114,13 @@ class Point(idmap.IdObject):
         polygon.free_points.add(self)
         self.segment = (None, None)
 
+
+    def move(self, move_vec):
+        """
+        Move point by the 'move_vec' update connected segments.
+        :param move_vec:
+        :return:
+        """
+        self.xy += move_vec
+        for seg, side in self.segments():
+            seg.update_vector()
