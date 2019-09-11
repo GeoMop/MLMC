@@ -413,10 +413,6 @@ class Decomposition:
         b_prev, b_next, b_wire = b_insert
         assert a_wire != b_wire
         assert a_wire.polygon == b_wire.polygon
-        # if a_wire.polygon != b_wire.polygon:
-        #     import geomop.plot_polygons as pp
-        #     pp.plot_polygon_decomposition(self, [a_pt, b_pt])
-        #     print("False")
 
 
         polygon = a_wire.polygon

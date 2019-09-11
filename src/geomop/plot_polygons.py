@@ -5,12 +5,12 @@
 #from matplotlib import collections  as mc
 #from matplotlib import patches as mp
 
-import plotly.offline as pl
-import plotly.graph_objs as go
 
 
 
 def _plot_polygon(polygon):
+    import plotly.graph_objs as go
+
     if polygon is None or polygon.displayed or polygon.outer_wire.is_root():
         return []
 
@@ -33,6 +33,9 @@ def _plot_polygon(polygon):
 
 
 def plot_polygon_decomposition(decomp, points=None):
+    import plotly.offline as pl
+    import plotly.graph_objs as go
+
     ## fig, ax = plt.subplots()
 
     # polygons
@@ -73,3 +76,25 @@ def plot_polygon_decomposition(decomp, points=None):
     fig = go.Figure(data=patches)
     fig.update_layout(width=1600, height=1600)
     pl.plot(fig, filename='polygons.html')
+
+
+def plot_decomp_segments(decomp, points_a=[], points_b=[]):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib import collections  as mc
+
+    lines = [[seg.vtxs[0].xy, seg.vtxs[1].xy] for seg in decomp.segments.values()]
+    lc = mc.LineCollection(lines, linewidths=1)
+
+    fig, ax = plt.subplots()
+    ax.add_collection(lc)
+    Point = next(iter(decomp.points.values())).__class__
+    for pt_list in [decomp.points.values(), points_a, points_b]:
+        points = np.array([pt.xy if type(pt) is Point else pt for pt in pt_list])
+        if len(points) > 0 :
+            ax.scatter(points[:, 0], points[:, 1], s=1)
+
+    ax.autoscale()
+    ax.margins(0.1)
+    fig.savefig("fractures.pdf")
+    plt.show()

@@ -250,7 +250,7 @@ class PolygonDecomposition:
         :return: None
         """
         for pt in points:
-            pt.xy += displacement
+            pt.move(displacement)
 
 
     def get_last_polygon_changes(self):
@@ -458,11 +458,6 @@ class PolygonDecomposition:
         """
         if attr is None:
             attr = self.default_attrs[1]
-        if attr._id == 155:
-            print("here")
-            #import geomop.plot_polygons as pp
-            #pp.plot_polygon_decomposition(self)
-
         a = np.array(a, dtype=float)
         b = np.array(b, dtype=float)
         a_point = self.add_point(a)
@@ -472,14 +467,6 @@ class PolygonDecomposition:
         if a_point == b_point:
             return a_point
         result = self.add_line_for_points(a_point, b_point, attr=attr, omit={a_point, b_point})
-        try:
-            self.decomp.check_consistency()
-        except Exception as e:
-            import geomop.plot_polygons as pp
-            pp.plot_polygon_decomposition(self, [a_point, b_point])
-            raise e
-
-
         return result
 
 
@@ -551,8 +538,8 @@ class PolygonDecomposition:
             self._rm_point(b)
             return a
         else:
-            import geomop.plot_polygons as pp
-            pp.plot_polygon_decomposition(self, [a, b])
+            #import geomop.plot_polygons as pp
+            #pp.plot_polygon_decomposition(self, [a, b])
             assert False, (a_can_move, b_can_move)
 
 
@@ -561,10 +548,11 @@ class PolygonDecomposition:
 
 
     def _point_on_segment(self, seg, t):
-        if t < self.tolerance:
+        seg_size = np.linalg.norm(seg.vector)
+        if t * seg_size < self.tolerance:
             mid_pt = seg.vtxs[out_vtx]
             new_seg = seg
-        elif t > 1.0 - self.tolerance:
+        elif t * seg_size > seg_size - self.tolerance:
             mid_pt = seg.vtxs[in_vtx]
             new_seg = seg
         else:
