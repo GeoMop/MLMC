@@ -277,6 +277,8 @@ class Level:
         :param char: 'C' or 'F' depending on the type of simulation
         :param sample_id: int, identifier of current sample
         :return: str
+        TODO: move sample tagging and directory naming into Simulationn or Sample
+        Some simulations may prefer having single common sample directory.
         """
         return "L{:02d}_{}_S{:07d}".format(int(self._level_idx), char, sample_id)
 
@@ -386,18 +388,18 @@ class Level:
 
             # Sample() instance
             fine_sample = self.fine_simulation.extract_result(fine_sample)
-            fine_done = not np.any(np.isnan(fine_sample.result))
+            fine_done = fine_sample is not None
             # For zero level don't create Sample() instance via simulations,
             # however coarse sample is created for easier processing
             if not self.is_zero_level:
                 coarse_sample = self.coarse_simulation.extract_result(coarse_sample)
-                coarse_done = np.all(np.isnan(coarse_sample.result))
+                coarse_done = coarse_sample is not None
             else:
                 coarse_done = True
 
             if fine_done and coarse_done:
                 # 'Remove' from scheduled
-                self.scheduled_samples[sample_id] = False
+                del self.scheduled_samples[sample_id]
 
                 # Enlarge coarse sample result to length of fine sample result
                 if self.is_zero_level:

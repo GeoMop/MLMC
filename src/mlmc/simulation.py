@@ -2,6 +2,7 @@ import numpy as np
 import os, glob, shutil
 from abc import ABCMeta
 from abc import abstractmethod
+from  mlmc.sample import Sample
 
 
 class Simulation(metaclass=ABCMeta):
@@ -56,6 +57,8 @@ class Simulation(metaclass=ABCMeta):
         """
         try:
             result_values = self._extract_result(sample)
+            if result_values is None:
+                return None
 
             res_dtype = []
             for r_name, r_dtype in zip(self.result_struct[0], self.result_struct[1]):

@@ -148,6 +148,10 @@ class FlowSim(simulation.Simulation):
 
         super(simulation.Simulation, self).__init__()
 
+    @property
+    def is_fine_sim(self):
+        return self.coarse_sim_set
+
     def n_ops_estimate(self):
         """
         Number of operations

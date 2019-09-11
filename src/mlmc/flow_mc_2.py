@@ -1,3 +1,9 @@
+"""
+This file is used in 02_cond test.
+TODO:
+- modify test to use standard flow_mc base simulation.
+- remove this file
+"""
 import os
 import os.path
 import subprocess
