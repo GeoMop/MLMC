@@ -223,4 +223,3 @@ class TransformedMoments(Moments):
         x1 = numpy.matmul(orig_moments, self._transform.T)
 
         return x1[:, :size]
-

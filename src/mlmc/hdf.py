@@ -47,7 +47,7 @@ class HDF5:
                                 chunks: True
                             collected_values: h5py.Dataset
                                 dtype: numpy.float64
-                                shape: (Nc, 2, M) double… TODO: table of values
+                                shape: (Nc, 2, M) dtype structure is defined in simulation class
                                 maxshape: (None, 2, None)
                                 chunks: True
                             collected_ids: h5py.Dataset
@@ -161,9 +161,13 @@ class LevelGroup:
                     'formats': ('S100', 'S5', 'f8', 'f8')}
 
     # Row format for dataset (h5py.Dataset) scheduled
-    SCHEDULED_DTYPE = {'names': ('fine_sample', 'coarse_sample'),
-                       'formats': (SAMPLE_DTYPE, SAMPLE_DTYPE)}
+    SCHEDULED_DTYPE = {'names': ['fine_sample', 'coarse_sample'],
+                       'formats': [SAMPLE_DTYPE, SAMPLE_DTYPE]}
 
+    SAMPLE_TIME = {'names': ('fine_time', 'coarse_time'),
+                              'formats': (np.float64, np.float64)}
+
+    # @TODO: re-enable automatic addition of params
     """
     Data that are collected, only this data can by saved to HDF datasets (h5py.Dataset)
     {attribute name in class Sample : {name: dataset name,
@@ -172,12 +176,15 @@ class LevelGroup:
                                        dtype: dataset values dtype}
                                        }
     """
+    COLLECTED_DATASETS_KEYS = ['result', 'sample_id', 'time']
+    COLLECTED_DATASETS_NAMES = ['collected_values', 'collected_ids', 'collected_times']
+
     COLLECTED_ATTRS = {"sample_id": {'name': 'collected_ids', 'default_shape': (0,), 'maxshape': (None,),
                                      'dtype': np.int32},
-                       "result": {'name': 'collected_values', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
-                                  'dtype': np.float64},
-                       "time": {'name': 'collected_times', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
-                                'dtype': np.float64},
+                       # "result": {'name': 'collected_values', 'default_shape': (0,), 'maxshape': (None,),
+                       #             'dtype': np.float64},
+                       "time": {'name': 'collected_times', 'default_shape': (0,), 'maxshape': (None,),
+                                'dtype': SAMPLE_TIME},
                        # "running_time": {'name': 'running_times', 'default_shape': (0, 2, 1), 'maxshape': (None, 2, None),
                        #          'dtype': np.float64}
                        }
@@ -199,12 +206,17 @@ class LevelGroup:
         # Absolute path to the job directory
         self.job_dir = job_dir
 
+        # Structure of sample format
+        self.result_additional_data = None
+        self._collected_format_saved = False
+
         # Attribute necessary for mlmc run
         self._n_ops_estimate = None
 
         # Set group attribute 'level_id'
         with h5py.File(self.file_name, 'a') as hdf_file:
-            hdf_file[self.level_group_path].attrs['level_id'] = self.level_id
+            if 'level_id' not in hdf_file[self.level_group_path].attrs:
+                hdf_file[self.level_group_path].attrs['level_id'] = self.level_id
 
         # Create necessary datasets (h5py.Dataset) a groups (h5py.Group)
         if not loaded_from_file:
@@ -260,6 +272,14 @@ class LevelGroup:
         :return: Dataset name
         """
         return "collected_ids"
+
+    @property
+    def collected_additional_data(self):
+        """
+        Collected ids dataset
+        :return: Dataset name
+        """
+        return "collected_additional_data"
 
     @property
     def scheduled_dset(self):
@@ -327,20 +347,43 @@ class LevelGroup:
         :param collected_samples: Level sample [(fine sample, coarse sample)], both are Sample() object instances
         :return: None
         """
+
         # Get sample attributes pairs as NumPy array [num_attrs, num_samples, 2]
         samples_attr_pairs = self._sample_attr_pairs(collected_samples)
-        # Append attributes datasets - dataset name matches the attribute name
-        for attr_name, data in zip(LevelGroup.COLLECTED_ATTRS.keys(), samples_attr_pairs):
-            # Sample id is same for fine and coarse sample, use just one
-            if attr_name == 'sample_id':
-                data = data[:, 0]
 
-            # Data are squeezed, so expand last dimension to 'maxshape' shape
-            if len(data.shape) == len(LevelGroup.COLLECTED_ATTRS[attr_name]['maxshape']) - 1:
-                data = np.expand_dims(data, axis=len(LevelGroup.COLLECTED_ATTRS[attr_name]['maxshape']) - 1)
+        data_res = samples_attr_pairs[:]['result']
+        self._modify_dtype(len(data_res[0]['fine_result']))
 
-            # Append dataset
-            self._append_dataset(LevelGroup.COLLECTED_ATTRS[attr_name]['name'], data)
+        # Create dataset for failed samples
+        self._make_dataset(name='collected_values', shape=(0,),
+                           dtype=LevelGroup.SAMPLE_RESULT, maxshape=(None,),
+                           chunks=True)
+
+        d_name = 'collected_values'
+        self._append_dataset(d_name, data_res)
+
+        data_res = samples_attr_pairs[:]['sample_id']['fine_sample_id']
+        self._append_dataset(self.collected_ids_dset, data_res)
+
+        data_res = samples_attr_pairs[:]['time']
+        self._append_dataset('collected_times', data_res)
+
+        self._save_collected_format()
+
+    def _save_collected_format(self):
+        """
+        Save collected values data - it's descriptive data of each item of collected values vector
+        :return: None
+        """
+        # TODO: try calling it once or twice
+        # Create dataset for collected values format, it contains metadata for each item in vector
+        self._make_dataset(name=self.collected_additional_data, shape=(len(self.result_additional_data),), dtype=self.result_additional_data.dtype,
+                           maxshape=(None,),
+                           chunks=True)
+
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            dataset = hdf_file[self.level_group_path][self.collected_additional_data]
+            dataset[:] = self.result_additional_data
 
     def _sample_attr_pairs(self, fine_coarse_samples):
         """
@@ -348,17 +391,34 @@ class LevelGroup:
         :param fine_coarse_samples: list of tuples; [(Sample(), Sample()), ...]
         :return: Fine and coarse samples in array: [n_attrs, N, 2]
         """
-        # Number of attributes
-        n_attrs = len(Sample().collected_data_array(LevelGroup.COLLECTED_ATTRS))
-        # Prepare matrix for fine and coarse data
-        fine_coarse_data = np.empty((len(fine_coarse_samples), 2, n_attrs))
+        self._modify_dtype(len(fine_coarse_samples[0][0].result))
+        fine_coarse_data = np.empty((len(fine_coarse_samples)), dtype=LevelGroup.COLLECTED_DTYPE)
+
         # Set sample's collected data
         for index, (f_sample, c_sample) in enumerate(fine_coarse_samples):
-            fine_coarse_data[index, 0, :] = f_sample.collected_data_array(LevelGroup.COLLECTED_ATTRS)
-            fine_coarse_data[index, 1, :] = c_sample.collected_data_array(LevelGroup.COLLECTED_ATTRS)
+            fine_coarse_data[index]['sample_id'] = np.array((f_sample.sample_id, c_sample.sample_id), dtype=LevelGroup.SAMPLE_ID)
+            fine_coarse_data[index]['result'] = np.array((f_sample.result, c_sample.result), dtype=LevelGroup.SAMPLE_RESULT)
+            fine_coarse_data[index]['time'] = np.array((f_sample.time, c_sample.time), dtype=LevelGroup.SAMPLE_TIME)
 
-        # Shape: [N, 2, n_attrs] -> [n_attrs, N, 2]
-        return fine_coarse_data.transpose([2, 0, 1])
+        return fine_coarse_data
+
+    def _modify_dtype(self, result_length):
+        """
+        Change result values dtype in particular number of values in one sample's result
+        :param result_length: int, length of result vector
+        :return: None
+        """
+        LevelGroup.SAMPLE_RESULT = np.dtype([('fine_result', np.float, (result_length,)),
+                                             ('coarse_result', np.float, (result_length,))])
+
+        LevelGroup.SAMPLE_ID = {'names': ('fine_sample_id', 'coarse_sample_id'),
+                                'formats': (np.int64, np.int64)}
+
+        LevelGroup.SAMPLE_TIME = {'names': ('fine_time', 'coarse_time'),
+                                  'formats': (np.float64, np.float64)}
+
+        LevelGroup.COLLECTED_DTYPE = {'names': ('sample_id', 'result', 'time'),
+                                      'formats': (LevelGroup.SAMPLE_ID, LevelGroup.SAMPLE_RESULT, LevelGroup.SAMPLE_TIME)}
 
     def save_failed(self, failed_samples):
         """
@@ -389,7 +449,6 @@ class LevelGroup:
         Read level dataset with scheduled samples
         :return: generator, each item is in form (Sample(), Sample())
         """
-
         with h5py.File(self.file_name, 'r') as hdf_file:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             # Create fine and coarse samples
@@ -416,40 +475,44 @@ class LevelGroup:
             if num_samples == 0:
                 return
 
-            # Initialize matrix of all collected values
-            sample_matrix = np.empty((num_samples, (len(LevelGroup.COLLECTED_ATTRS) * 2) - 1), dtype=np.float)
+            for sample_attr_name, dset_name in zip(LevelGroup.COLLECTED_DATASETS_KEYS,
+                                                   LevelGroup.COLLECTED_DATASETS_NAMES):
+                dataset = hdf_file["/".join([self.level_group_path, dset_name])]
 
-            # Auxiliary dictionaries for Sample instance creation
-            fine_attribute_column = {}
-            coarse_attribute_column = {}
+                dset_values = dataset[()]
+                if dset_name == 'collected_ids':
+                    sample_matrix[:]['sample_id'] = dset_values
 
-            column_index = 0
-            # Loop through all collected datasets and put its values into matrix
-            for sample_attr_name, dset_params in LevelGroup.COLLECTED_ATTRS.items():
-                # Skip not used datasets
-                if dset_params['name'] not in hdf_file[self.level_group_path]:
-                    continue
-                dataset = hdf_file["/".join([self.level_group_path, dset_params['name']])]
+                if dset_name == 'collected_values':
+                    self._modify_dtype(len(dset_values[0]['fine_result']))
+                    # Initialize matrix of all collected values
+                    sample_matrix = np.empty((num_samples,), dtype=LevelGroup.COLLECTED_DTYPE)
+                    sample_matrix[:]['result'] = dset_values
 
-                # Collected ids is used for both - fine and coarse sample
-                if dset_params['name'] == 'collected_ids':
-                    dataset.read_direct(sample_matrix, np.s_[:, ], np.s_[:, column_index])
-                    # Attribute name with corresponding column index in sample matrix
-                    fine_attribute_column[sample_attr_name] = column_index
-                    coarse_attribute_column[sample_attr_name] = column_index
-                else:
-                    # Read dataset values to matrix
-                    dataset.read_direct(sample_matrix, np.s_[:, 0, 0], np.s_[:, column_index])
-                    fine_attribute_column[sample_attr_name] = column_index
-                    column_index += 1
-                    coarse_attribute_column[sample_attr_name] = column_index
-                    dataset.read_direct(sample_matrix, np.s_[:, 1, 0], np.s_[:, column_index])
-                column_index += 1
+                if dset_name == 'collected_times':
+                    sample_matrix[:]['time'] = dset_values
 
             # Create fine and coarse Sample
             for row in sample_matrix:
-                yield Sample(**{attr_name: row[index] for attr_name, index in fine_attribute_column.items()}), \
-                      Sample(**{attr_name: row[index] for attr_name, index in coarse_attribute_column.items()})
+                fine_sample = Sample(**{attr_name: row[attr_name][0] for attr_name in row.dtype.names})
+                coarse_sample = Sample(**{attr_name: row[attr_name][1] for attr_name in row.dtype.names})
+                yield fine_sample, coarse_sample
+
+    def sample_additional_data(self):
+        """
+        Get additional data, each item of collected values vector has specific data
+        :return: numpy.ndarray
+        """
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            # Number of collected samples - additional data are saved for collected samples
+            num_samples = hdf_file[self.level_group_path][self.collected_ids_dset].len()
+
+            # Empty datasets cannot be read
+            if num_samples == 0:
+                return
+
+            dataset = hdf_file["/".join([self.level_group_path, self.collected_additional_data])]
+            return dataset[()]
 
     def level_jobs(self):
         """

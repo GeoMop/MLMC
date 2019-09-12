@@ -184,9 +184,9 @@ class TestMLMC:
             means, vars = self.estimator.ref_estimates_bootstrap(n_samples, moments_fn=self.moments_fn)
             diff_vars, n_samples = self.estimator.estimate_diff_vars(self.moments_fn)
             # Remove first moment
-            means = means[1:]
-            vars = vars[1:]
-            diff_vars = diff_vars[:, 1:]
+            means = np.squeeze(means)[1:]
+            vars = np.squeeze(vars)[1:]
+            diff_vars = diff_vars[:, :, 1:]
 
             self.all_vars.append(vars)
             self.all_means.append(means)
@@ -207,6 +207,7 @@ class TestMLMC:
         # 95% of means are within 3 sigma
         exact_moments = self.ref_means[1:]
         for i_mom, exact_mom in enumerate(exact_moments):
+
             assert np.abs(mean_means[i_mom] - exact_mom) < mean_std_est[i_mom], \
                 "moment: {}, diff: {}, std: {}".format(i_mom, np.abs(mean_means[i_mom] - exact_mom), mean_std_est[i_mom])
 
