@@ -31,15 +31,14 @@ class Pbs:
         self._pbs_config = None
         self._pbs_header_template = None
 
-        if self.work_dir is not None:
-            self.work_dir = os.path.abspath(self.work_dir)
+        if work_dir is not None:
             if clean:
                 # Fresh work dir.
                 if os.path.isdir(self.work_dir):
                     shutil.rmtree(self.work_dir)
                 os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
 
-    def pbs_common_setting(self, **kwargs):
+    def pbs_common_setting(self, flow_3=False, **kwargs):
         """
         Values for common header of script
         :param flow_3: use flow123d version 3.0.0
@@ -64,12 +63,16 @@ class Pbs:
                                      '#PBS -o {pbs_output_dir}/{job_name}.OU',
                                      '#PBS -e {pbs_output_dir}/{job_name}.ER',
                                      '']
+        if flow_3:
+            self._pbs_header_template.extend(('module use /storage/praha1/home/jan-hybs/modules',
+                                              'module load flow123d', ''))
+
         self._pbs_header_template.extend(('touch {pbs_output_dir}/RUNNING', 'rm -f {pbs_output_dir}/QUEUED'))
 
         self._pbs_config = kwargs
         self.clean_script()
 
-    def add_realization(self, weight, lines, **kwargs):
+    def add_realization(self, weight, **kwargs):
         """
         Append new flow123d realization to the existing script content
         :param weight: current simulation steps
@@ -81,14 +84,14 @@ class Pbs:
 
         assert self.pbs_script is not None
 
-        # lines = [
-        #     'cd {work_dir}',
-        #     'date +%y.%m.%d_%H:%M:%S',
-        #     'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out',
-        #     'date +%y.%m.%d_%H:%M:%S',
-        #     'touch {output_subdir}/FINISHED',
-        #     'echo \\"Finished simulation:\\" \\"{flow123d}\\" \\"{work_dir}\\" \\"{output_subdir}\\"',
-        #     '']
+        lines = [
+            'cd {work_dir}',
+            'date +%y.%m.%d_%H:%M:%S',
+            'time -p {flow123d} --yaml_balance -i {output_subdir} -s {work_dir}/flow_input.yaml  -o {output_subdir} >{work_dir}/{output_subdir}/flow.out',
+            'date +%y.%m.%d_%H:%M:%S',
+            'touch {output_subdir}/FINISHED',
+            'echo \\"Finished simulation:\\" \\"{flow123d}\\" \\"{work_dir}\\" \\"{output_subdir}\\"',
+            '']
         lines = [line.format(**kwargs) for line in lines]
         self.pbs_script.extend(lines)
 

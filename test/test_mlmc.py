@@ -4,21 +4,21 @@ import shutil
 import numpy as np
 import scipy.stats as stats
 import re
+
 #import test.stats_tests
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, src_path + '/../src/')
 import mlmc.mlmc
-import mlmc.simulation
+import mlmc.sim.simulation
 import mlmc.moments
 import mlmc.distribution
 import mlmc.estimate
-import mlmc.plot
-import mlmc.correlated_field as cf
-from test.fixtures.mlmc_test_run import TestMLMC
+import mlmc.tool.plot
+import mlmc.random.correlated_field as cf
+from test.fixtures.mlmc_test_run import MLMCTest
 from test.fixtures.synth_simulation import SimulationTest
 from test.simulations.simulation_shooting import SimulationShooting
-import mlmc.pbs as pb
 import copy
 #from memory_profiler import profile
 
@@ -63,7 +63,7 @@ def test_mlmc():
     for nl in n_levels:
         for nm in n_moments:
             for d, il, sim in distr:
-                mc_test = TestMLMC(nl, nm, d, il, sim)
+                mc_test = MLMCTest(nl, nm, d, il, sim)
                 # number of samples on each level
                 estimator = mlmc.estimate.Estimate(mc_test.mc)
 

@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.linalg as la
-from src.mlmc.simulation import Simulation
+from src.mlmc.sim.simulation import Simulation
 
 
 class SimulationWater(Simulation):

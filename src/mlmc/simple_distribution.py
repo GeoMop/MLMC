@@ -6,7 +6,7 @@ import mlmc.moments
 import mlmc.plot
 from autograd import elementwise_grad as egrad
 from autograd import hessian
-
+import mlmc.tool.plot
 
 EXACT_QUAD_LIMIT = 1000
 GAUSS_DEGREE = 21

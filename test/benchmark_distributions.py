@@ -5,7 +5,7 @@ from scipy import integrate
 from scipy.special import erf, erfinv
 from autograd import elementwise_grad as egrad
 import matplotlib.pyplot as plt
-from pynverse import inversefunc
+#from pynverse import inversefunc
 
 
 class Gamma(st.rv_continuous):

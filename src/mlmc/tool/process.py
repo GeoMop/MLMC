@@ -6,8 +6,8 @@ import numpy as np
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
 
-import mlmc.tool.pbs
-from  mlmc.moments import Legendre
+import mlmc.tool.pbs as pbs
+from mlmc.moments import Legendre
 from mlmc.estimate import Estimate
 from mlmc.estimate import CompareLevels
 
@@ -337,6 +337,7 @@ class Process:
         sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
         # n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
         # sample_vec = np.max(n_samples, axis=1).astype(int)
+        # print(sample_vec)
 
         mc.ref_estimates_bootstrap(300, sample_vector=sample_vec[:mc.n_levels])
         mc.mlmc.update_moments(cl.moments)

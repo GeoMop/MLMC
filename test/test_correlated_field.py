@@ -6,8 +6,8 @@ import numpy as np
 import numpy.linalg as la
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
-from mlmc.correlated_field import SpatialCorrelatedField
-from mlmc.correlated_field import FourierSpatialCorrelatedField
+from mlmc.random.correlated_field import SpatialCorrelatedField
+from mlmc.random.correlated_field import FourierSpatialCorrelatedField
 
 # Only for debugging
 #import statprof

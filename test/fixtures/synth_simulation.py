@@ -12,11 +12,11 @@ import numpy as np
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, src_path + '/../src/')
-import mlmc.simulation
+import mlmc.sim.simulation
 import mlmc.sample
 
 
-class SimulationTest(mlmc.simulation.Simulation):
+class SimulationTest(mlmc.sim.simulation.Simulation):
     # Artificial simulation. Just random parameter + numerical error."""
     def __init__(self, step, level_id, config):
         """

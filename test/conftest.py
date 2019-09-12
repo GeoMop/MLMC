@@ -11,7 +11,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from test.fixtures.mlmc_test_run import TestMLMC
+from test.fixtures.mlmc_test_run import MLMCTest
 
 # Modify sys.path to have path to the source dir. This allow to run tests from sources
 # without virtual environment and without installation of the package.

@@ -4,18 +4,16 @@ import yaml
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
-
 import mlmc.mlmc
-import mlmc.simulation
+import mlmc.sim.simulation
 import mlmc.moments
 import mlmc.distribution
-import mlmc.flow_mc_2 as flow_mc
-import mlmc.correlated_field as cf
-from mlmc.estimate import Estimate, CompareLevels
+import mlmc.tool.flow_mc as flow_mc
+import mlmc.random.correlated_field as cf
+from mlmc.estimate import Estimate
 
 sys.path.append(os.path.join(src_path, '..'))
-from mlmc import base_process
-from mlmc.moments import Legendre
+import mlmc.tool.process
 
 
 class FlowProcSim(flow_mc.FlowSim):
