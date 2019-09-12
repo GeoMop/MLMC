@@ -3,7 +3,6 @@ import numpy
 import scipy as sc
 import scipy.integrate as integrate
 import mlmc.moments
-import mlmc.plot
 from autograd import elementwise_grad as egrad
 from autograd import hessian
 import mlmc.tool.plot
