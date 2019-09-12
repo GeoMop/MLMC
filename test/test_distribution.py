@@ -347,9 +347,9 @@ class DistributionDomainCase:
         min_noise = 1e-6
         max_noise = 0.01
         results = []
-        distr_plot = mlmc.plot.Distribution(exact_distr=self.cut_distr, title="Density, " + self.title,
+        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="Density, " + self.title,
                                             log_x=self.log_flag, error_plot='kl')
-        self.eigenvalues_plot = mlmc.plot.Eigenvalues(title="Eigenvalues, " + self.title)
+        self.eigenvalues_plot = plot.Eigenvalues(title="Eigenvalues, " + self.title)
 
         geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 5))
         noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
@@ -396,7 +396,7 @@ class DistributionDomainCase:
             int_density = []
 
             for reg_param in reg_parameters:
-                # distr_plot = mlmc.plot.Distribution(exact_distr=self.cut_distr, title="Density, " + self.title,
+                # distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="Density, " + self.title,
                 #                                     log_x=self.log_flag, error_plot='kl')
                 result, distr_obj = self.make_approx(mlmc.simple_distribution.SimpleDistribution, noise, moments_data,
                                                      tol=1e-5, reg_param=reg_param)
@@ -453,7 +453,7 @@ class DistributionDomainCase:
         distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="Density, " + self.title,
                                             log_x=self.log_flag, error_plot='kl')
 
-        self.eigenvalues_plot = mlmc.plot.Eigenvalues(title="Eigenvalues, " + self.title)
+        self.eigenvalues_plot = plot.Eigenvalues(title="Eigenvalues, " + self.title)
 
         geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 5))
         noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
@@ -540,9 +540,9 @@ def test_pdf_approx_exact_moments(moments, distribution):
         np.random.seed(1234)
 
         case = DistributionDomainCase(moments, distribution, quantile)
-        #tests = [case.exact_conv, case.inexact_conv]
+        tests = [case.exact_conv, case.inexact_conv]
         #tests = [case.inexact_conv]
-        tests = [case.determine_regularization_param]
+        #tests = [case.determine_regularization_param]
         for test_fn in tests:
             name = test_fn.__name__
             test_results = test_fn()
