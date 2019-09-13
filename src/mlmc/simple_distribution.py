@@ -8,7 +8,7 @@ from autograd import hessian
 import mlmc.tool.plot
 
 EXACT_QUAD_LIMIT = 1000
-GAUSS_DEGREE = 21
+GAUSS_DEGREE = 41
 HUBERT_MU = 0.01
 
 
