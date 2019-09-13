@@ -47,15 +47,13 @@ class PolygonDecomposition:
 
     """
 
-    def __init__(self, default_attrs=[None, None, None], tolerance=0.01):
+    def __init__(self, tolerance=0.01):
         """
         Constructor.
-        :param default_attrs: default attribute for: points, segments, polygons
         """
-        self.default_attrs=default_attrs
         self.points_lookup = aabb_lookup.AABB_Lookup()
         self.segments_lookup = aabb_lookup.AABB_Lookup()
-        self.decomp = decomp.Decomposition(default_attrs)
+        self.decomp = decomp.Decomposition()
         self.tolerance = tolerance
 
 
@@ -88,7 +86,7 @@ class PolygonDecomposition:
     ##################################################################
     # Interface for LayerEditor. Should be changed.
     ##################################################################
-    def add_free_point(self, point_id, xy, polygon_id, attr=None):
+    def add_free_point(self, point_id, xy, polygon_id):
         """
         LAYERS
         :param point_id: ID of point to add.
@@ -96,14 +94,10 @@ class PolygonDecomposition:
         :param polygon_id: Hit in which polygon place the point.
         :return: Point instance
         """
-        if attr is None:
-            attr = self.default_attrs[0]
-
         #print("add_free_point", point_id, xy, polygon_id)
         polygon = self.decomp.polygons[polygon_id]
         assert polygon.contains_point(xy), "Point {} not in polygon: {}.\n{}".format(xy, polygon, self)
         new_pt = self._add_point(xy, polygon, id = point_id)
-        new_pt.attr = attr
         return new_pt
 
 
@@ -116,7 +110,7 @@ class PolygonDecomposition:
         point = self.decomp.points[point_id]
         self._rm_point(point)
  
-    def new_segment(self, a_pt, b_pt, attr=None):
+    def new_segment(self, a_pt, b_pt):
         """
         LAYERS
         Add segment between given existing points. Assumes that there is no intersection with other segment.
@@ -125,10 +119,7 @@ class PolygonDecomposition:
         :param b_pt: End point.
         :return: new segment
         """
-        if attr is None:
-            attr = self.default_attrs[1]
         new_seg = self._add_segment(a_pt, b_pt)
-        new_seg.attr=attr
         return new_seg
 
 
@@ -315,11 +306,8 @@ class PolygonDecomposition:
     # Macro operations that change state of the decomposition.
 
 
-    def add_point(self, point, attr=None):
-        if attr is None:
-            attr = self.default_attrs[0]
+    def add_point(self, point):
         obj = self._add_point_impl(point)
-        obj.attr = attr
         return obj
 
     def _add_point_impl(self, point):
@@ -446,18 +434,15 @@ class PolygonDecomposition:
         return (2, poly, None)
 
 
-    def add_line(self, a, b, attr=None):
+    def add_line(self, a, b):
         """
         Try to add new line from point A to point B. Check intersection with any other line and
         call add_point for endpoints, call split_segment for intersections, then call operation new_segment for individual
         segments.
         :param a: numpy array X, Y
         :param b: numpy array X, Y
-        :param attr: any attribute attached to the segment and its possible subdivisions
         :return: List of subdivided segments. Split segments are not reported.
         """
-        if attr is None:
-            attr = self.default_attrs[1]
         a = np.array(a, dtype=float)
         b = np.array(b, dtype=float)
         a_point = self.add_point(a)
@@ -466,11 +451,11 @@ class PolygonDecomposition:
 
         if a_point == b_point:
             return a_point
-        result = self.add_line_for_points(a_point, b_point, attr=attr, omit={a_point, b_point})
+        result = self.add_line_for_points(a_point, b_point, omit={a_point, b_point})
         return result
 
 
-    def add_line_for_points(self, a_pt, b_pt, attr=None, omit={}):
+    def add_line_for_points(self, a_pt, b_pt, omit={}):
         """
         Same as add_line, but for known end points.
         :param a_pt:
@@ -484,8 +469,6 @@ class PolygonDecomposition:
         points that are closer then tolerance. This may produce an error later on.
         However healing this is nontrivial, since we have to merge two segments.
         """
-        if attr is None:
-            attr = self.default_attrs[1]
         box = aabb_lookup.make_aabb([a_pt.xy, b_pt.xy], margin=self.tolerance)
         candidates = self.segments_lookup.intersect_candidates(box)
         candidate_pt = {pt for seg_id in candidates for pt in self.segments[seg_id].vtxs}
@@ -501,20 +484,14 @@ class PolygonDecomposition:
                 #     import geomop.plot_polygons as pp
                 #     pp.plot_polygon_decomposition(self, [a_pt, b_pt, pt])
                 #     assert False
-                # ab_dist = np.linalg.norm(b_pt.xy - a_pt.xy)
-                # if t * ab_dist < self.tolerance:
-                #     return self.add_line_for_points(pt, b_pt, attr)
-                # elif (1-t) * ab_dist < self.tolerance:
-                #     return self.add_line_for_points(a_pt, pt, attr)
-                # else:
                 # subdivide segment, snap to existing mid point
                 omit_pt = omit | {pt}
-                return self.add_line_for_points(a_pt, pt, attr, omit=omit_pt) + \
-                       self.add_line_for_points(pt, b_pt, attr, omit=omit_pt)
+                return self.add_line_for_points(a_pt, pt, omit=omit_pt) + \
+                       self.add_line_for_points(pt, b_pt, omit=omit_pt)
 
         # no snapping, subdivide by intersections
         line_div = self._add_line_seg_intersections(a_pt, b_pt)
-        return [seg for seg, change, side in self._add_line_new_segments(a_pt, b_pt, line_div, attr)]
+        return [seg for seg, change, side in self._add_line_new_segments(a_pt, b_pt, line_div)]
 
     def merge_points(self, a, b):
         """
@@ -588,7 +565,7 @@ class PolygonDecomposition:
                 line_division[t1] = (mid_pt, seg, new_seg)
         return line_division
 
-    def _add_line_new_segments(self, a_pt, b_pt, line_div, attr):
+    def _add_line_new_segments(self, a_pt, b_pt, line_div):
         """
         Generator for added new segments of the new line.
         """
@@ -601,13 +578,11 @@ class PolygonDecomposition:
                 start_pt = self.merge_points(start_pt, mid_pt)
                 continue
             new_seg = self._add_segment(start_pt, mid_pt)
-            new_seg.attr = attr
             yield (new_seg, self.decomp.last_polygon_change, new_seg.vtxs[out_vtx] == start_pt)
             start_pt = mid_pt
 
         if start_pt != b_pt:
             new_seg = self._add_segment(start_pt, b_pt)
-            new_seg.attr = attr
             yield (new_seg, self.decomp.last_polygon_change, new_seg.vtxs[out_vtx] == start_pt)
 
 
@@ -709,7 +684,6 @@ class PolygonDecomposition:
         v_out_id, v_in_id = node_ids
         vtxs = (self.decomp.points[v_out_id], self.decomp.points[v_in_id])
         seg = self.decomp._make_segment(vtxs)
-        #seg.attr = attr
         self.segments_lookup.add_object(seg.id, aabb_lookup.make_aabb([vtxs[0].xy, vtxs[1].xy], margin=self.tolerance))
         return seg
 
@@ -772,7 +746,6 @@ class PolygonDecomposition:
         for free_pt_id in free_points:
             pt = self.decomp.points[free_pt_id]
             pt.set_polygon(p)
-        #p.attr = attr
         return p
 
 

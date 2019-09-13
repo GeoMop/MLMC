@@ -21,7 +21,7 @@ class Process:
 
         self.step_range = (1, 0.01)
 
-        self.work_dir = args.work_dir
+        self.work_dir = os.path.abspath(args.work_dir)
         self.options = {'keep_collected': args.keep_collected,
                         'regen_failed': args.regen_failed}
 

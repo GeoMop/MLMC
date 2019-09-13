@@ -5,14 +5,13 @@ import numpy as np
 
 class Point(idmap.IdObject):
 
-    def __init__(self, point, poly, attr=None):
+    def __init__(self, point, poly):
+        super().__init__()
         self.xy = np.array(point, dtype=float)
         self.poly = poly
         # Containing polygon for free-nodes. None for others.
         self.segment = (None, None)
         # (seg, vtx_side) One of segments joined to the Point and local idx of the segment (out_vtx, in_vtx).
-        self.attr = attr
-        # Any attribute attached to the segment.
 
     def __repr__(self):
         return "Pt({}) {}".format(self.id, self.xy)

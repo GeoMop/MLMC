@@ -1234,7 +1234,7 @@ class LayerGeometry(gs.LayerGeometry):
         if not os.path.exists(gmsh_path):
             gmsh_path = "gmsh"
         #call([gmsh_path, "-3", "-rand 1e-10", self.geo_file])
-        call([gmsh_path, "-1", "-format", "msh2", self.geo_file])
+        call([gmsh_path, "-2", "-format", "msh2", self.geo_file])
 
     def deform_mesh(self):
         """

@@ -913,6 +913,14 @@ class Fractures:
             self.lines.append((i_pt, i_pt+1))
             self.fracture_ids.append(i_fr)
 
+    def get_lines(self, fr_range):
+        lines = {}
+        fr_min, fr_max = fr_range
+        for i, (line, fr) in enumerate(zip(self.lines, self.fractures)):
+            if fr_min <= fr.rx < fr_max:
+                lines[i] = [self.points[p][:2] for p in line]
+        return lines
+
     def make_bihs(self):
         import bih
         shift = np.array([self.epsilon, self.epsilon, 0])

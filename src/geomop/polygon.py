@@ -4,13 +4,12 @@ import numpy as np
 
 class Polygon(idmap.IdObject):
 
-    def __init__(self, outer_wire, attr=None):
+    def __init__(self, outer_wire):
+        super().__init__()
         self.outer_wire = outer_wire
         # outer boundary wire
         self.free_points = set()
         # Dict ID->pt of free points inside the polygon.
-        self.attr = attr
-        # Any attribute attached to the segment.
 
 
     def __repr__(self):

@@ -47,13 +47,11 @@ class Decomposition:
 
     """
 
-    def __init__(self, default_attrs):
+    def __init__(self):
         """
         Constructor.
         PUBLIC: outer_polygon_id
         """
-        self.default_attrs = default_attrs
-
         self.points = idmap.IdMap()
         # Points dictionary ID -> Point
         self.segments = idmap.IdMap()
@@ -72,7 +70,7 @@ class Decomposition:
         outer_wire.parent = None
 
         # Outer polygon - extending to infinity
-        self.outer_polygon = Polygon(outer_wire, self.default_attrs[2])
+        self.outer_polygon = Polygon(outer_wire)
         self.polygons.append(self.outer_polygon)
         outer_wire.polygon = self.outer_polygon
 
@@ -164,7 +162,7 @@ class Decomposition:
         :return: Point instance
         """
 
-        pt = Point(point, poly, self.default_attrs[0])
+        pt = Point(point, poly)
         self.points.append(pt, id)
         poly.free_points.add(pt)
         return pt
@@ -562,7 +560,8 @@ class Decomposition:
 
         # update polygons
         orig_poly = right_poly = orig_wire.polygon
-        new_poly = Polygon(left_wire, orig_poly.attr)
+        new_poly = Polygon(left_wire)
+        new_poly.attr = orig_poly.attr
         self.polygons.append(new_poly)
         left_wire.polygon = new_poly
 
@@ -666,7 +665,7 @@ class Decomposition:
     def _make_segment(self, points):
         assert points[0] != points[1]
 
-        seg = Segment(points, self.default_attrs[1])
+        seg = Segment(points)
         self.segments.append(seg)
         for vtx in [out_vtx, in_vtx]:
             seg.vtxs[vtx].join_segment(seg, vtx)
