@@ -80,7 +80,7 @@ class GmshIO:
             if line.startswith('$'):
                 raise Exception("Insufficient number of entries in the $ElementData block: {} time={}".format(field, time))
             columns = line.split()
-            iel = columns[0]
+            iel = int(columns[0])
             values = [float(v) for v in columns[1:]]
             assert len(values) == n_comp
             elem_data[iel] = values
