@@ -1,4 +1,5 @@
 import time
+import os
 import numpy as np
 from mlmc.mc_level import Level
 from mlmc.simulation import Simulation
@@ -42,13 +43,16 @@ class MLMC:
         :return: None
         """
         # Load mlmc params from file
-        self._hdf_object.load_from_file()
+        if os.path.exists(self._hdf_object.file_name):
+            self._hdf_object.load_from_file()
 
-        self._n_levels = self._hdf_object.n_levels
-        self.step_range = self._hdf_object.step_range
+            self._n_levels = self._hdf_object.n_levels
+            self.step_range = self._hdf_object.step_range
 
-        # Create mlmc levels
-        self.create_levels()
+            # Create mlmc levels
+            self.create_levels()
+        else:
+            self.create_new_execution()
 
     def create_new_execution(self):
         """

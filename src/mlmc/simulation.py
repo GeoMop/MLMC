@@ -3,7 +3,7 @@ import os, glob, shutil
 from abc import ABCMeta
 from abc import abstractmethod
 from  mlmc.sample import Sample
-
+import traceback
 
 class Simulation(metaclass=ABCMeta):
     """
@@ -55,14 +55,14 @@ class Simulation(metaclass=ABCMeta):
         :param sample: Level simulation sample object
         :return: Modify sample
         """
+        res_dtype = []
+        for r_name, r_dtype in zip(self.result_struct[0], self.result_struct[1]):
+            res_dtype.append((r_name, r_dtype))
+
         try:
             result_values = self._extract_result(sample)
             if result_values is None:
                 return None
-
-            res_dtype = []
-            for r_name, r_dtype in zip(self.result_struct[0], self.result_struct[1]):
-                res_dtype.append((r_name, r_dtype))
 
             result = np.array(result_values, dtype=res_dtype)
 
@@ -70,8 +70,11 @@ class Simulation(metaclass=ABCMeta):
                 sample.result_data = result
                 return sample
         except:
+            traceback.print_exc()
+            result_values = np.full(len(self.result_struct[0]), np.inf)
             result = np.array(result_values, dtype=res_dtype)
-            result['value'] = np.full((len(result['value']),), np.inf)
+            sample.result_data = result
+            return sample
 
         if np.all(np.isinf(result['value'])):
             Simulation._move_sample_dir(sample.directory)

@@ -135,8 +135,10 @@ class Level:
         :return: Simulations object
         """
         if self._previous_level is not None and self._coarse_simulation is None:
-            self._coarse_simulation = self._previous_level.fine_simulation
+            #self._coarse_simulation = self._previous_level.fine_simulation
+            self._coarse_simulation = self._sim_factory(self._previous_level._precision, int(self._previous_level._level_idx))
         return self._coarse_simulation
+
 
     def load_samples(self, regen_failed):
         """
@@ -384,6 +386,8 @@ class Level:
         orig_n_finished = len(self.collected_samples)
 
         for sample_id in not_queued_sample_ids:
+            if not sample_id in self.scheduled_samples:
+                continue
             fine_sample, coarse_sample = self.scheduled_samples[sample_id]
 
             # Sample() instance
@@ -395,22 +399,25 @@ class Level:
                 coarse_sample = self.coarse_simulation.extract_result(coarse_sample)
                 coarse_done = coarse_sample is not None
             else:
+                coarse_sample = fine_sample
                 coarse_done = True
 
             if fine_done and coarse_done:
                 # 'Remove' from scheduled
                 del self.scheduled_samples[sample_id]
 
+                # Failed sample
+                if np.any(np.isinf(fine_sample.result)) or np.any(np.isinf(coarse_sample.result)):
+                    fine_sample.result_data = np.inf #np.full((len(fine_sample.result), ), np.inf)
+                    coarse_sample.result_data = np.inf #np.full((len(fine_sample.result),), np.inf)
+                    self.failed_samples.add(sample_id)
+                    continue
+
                 # Enlarge coarse sample result to length of fine sample result
                 if self.is_zero_level:
                     coarse_sample.result_data = copy.deepcopy(fine_sample.result_data)
                     coarse_sample.result = np.full((len(fine_sample.result),), 0.0)
 
-                # Failed sample
-                if np.any(np.isinf(fine_sample.result)) or np.any(np.isinf(coarse_sample.result)):
-                    coarse_sample.result = fine_sample.result = np.full((len(fine_sample.result), ), np.inf)
-                    self.failed_samples.add(sample_id)
-                    continue
 
                 self.fine_times.append(fine_sample.time)
                 self.coarse_times.append(coarse_sample.time)
@@ -424,6 +431,8 @@ class Level:
         # Still scheduled samples
         self.scheduled_samples = {sample_id: values for sample_id, values in self.scheduled_samples.items()
                                   if values is not False}
+        if len(self.scheduled_samples) == 0:
+            self.fine_simulation.compute_cond_field_properties()
 
         # Log new collected samples
         self._log_collected(self.collected_samples[orig_n_finished:])
@@ -496,7 +505,9 @@ class Level:
         job_ids = self._hdf_level_group.level_jobs()
         # Ids from jobs that are not queued
         not_queued_jobs = [job_id for job_id in job_ids
-                           if not os.path.exists(os.path.join(self._jobs_dir, *[job_id, 'QUEUED']))]
+                           if not os.path.exists(os.path.join(self._jobs_dir, job_id, 'QUEUED'))
+                              and not os.path.exists(os.path.join(self._jobs_dir, job_id, 'FINISHED'))
+                           ]
 
         # Set of sample ids that are not in queued
         not_queued_sample_ids = self._hdf_level_group.job_samples(not_queued_jobs)

@@ -21,7 +21,7 @@ class Sample:
         self.job_id = kwargs.get('job_id', 'jobId')
         self.prepare_time = kwargs.get('prepare_time', 0.0)
         self.queued_time = kwargs.get('queued_time', 0)
-        self._result_values = kwargs.get('result', None)
+        #self._result_values = kwargs.get('result', None)
         self.running_time = kwargs.get('running_time', 0.0)
         self._time = kwargs.get('time', None)
         self._result_data = kwargs.get('result_data', None)
