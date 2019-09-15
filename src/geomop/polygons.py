@@ -501,12 +501,16 @@ class PolygonDecomposition:
         :param b:
         :return:
         """
-        a_diff = (b.xy - a.xy)/2
-        b_diff = (a.xy - b.xy)/2
-        a_can_move = self.check_displacment([a],  a_diff)
+        orig_b = b
+        if a.id > b.id:
+            a, b = b, a
+        #a_diff = (b.xy - a.xy)/2
+        b_diff = (a.xy - b.xy) #/2
+        #a_can_move = self.check_displacment([a],  a_diff)
         b_can_move = self.check_displacment([b],  b_diff)
-        if a_can_move and b_can_move:
-            a.move(a_diff)
+        b_can_move = b_can_move and not b.segment[0].attr.boundary
+        if b_can_move:
+            #a.move(a_diff)
             for seg, b_idx in list(b.segments()):
                 seg_vtxs = seg.vtxs
                 self._rm_segment(seg)
@@ -515,9 +519,11 @@ class PolygonDecomposition:
             self._rm_point(b)
             return a
         else:
+            # just skip the segment
+            return orig_b
             #import geomop.plot_polygons as pp
             #pp.plot_polygon_decomposition(self, [a, b])
-            assert False, (a_can_move, b_can_move)
+            #assert False, (a_can_move, b_can_move)
 
 
 
