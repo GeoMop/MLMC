@@ -122,7 +122,7 @@ class GmshIO:
                 columns = line.split()
                 if readmode == 5:
                     if len(columns) == 3:
-                        self.physical[str(columns[2])] = (int(columns[1]), int(columns[0]))
+                        self.physical[str(columns[2]).strip('\"')] = (int(columns[1]), int(columns[0]))
 
                 if readmode == 4:
                     if len(columns) == 3:
