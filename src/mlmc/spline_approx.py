@@ -5,16 +5,16 @@ from scipy import optimize
 
 class SplineApproximation:
 
-    def __init__(self, mlmc, domain, poly_degree, accuracy):
+    def __init__(self, mlmc, inter_points_domain, poly_degree, accuracy):
         """
         Cdf and pdf spline approximation
         :param mlmc: MLMC instance
-        :param domain: interpolation points domain
+        :param inter_points_domain: interpolation points inter_points_domain
         :param poly_degree: degree of polynomial
         :param accuracy: RMSE accurancy, used to smooth
         """
         self.mlmc = mlmc
-        self.domain = domain
+        self.inter_points_domain = inter_points_domain
         self.poly_degree = poly_degree
         self.accuracy = accuracy
 
@@ -31,13 +31,19 @@ class SplineApproximation:
         self.distribution = None
         self.pdf = None
 
+        self.distr_mask = None
+        self.density_mask = None
+
+        # It is necessary for distribution plot
+        self.domain = None
+
     def determine_interpolation_points(self, n_points):
         """
         Determine equidistant points at which the cdf (or pdf) is calculated
         :param n_points: number of interpolation points
         :return: list
         """
-        self.interpolation_points = np.linspace(self.domain[0], self.domain[1], n_points)
+        self.interpolation_points = np.linspace(self.inter_points_domain[0], self.inter_points_domain[1], n_points)
 
     def compute_smoothing_factor(self, data, level_id):
         """
@@ -277,9 +283,13 @@ class SplineApproximation:
 
             distribution[index] = np.sum(self.all_levels_indicator * np.array(lagrange_poly).T)
 
+        #return distribution
+
+        #return np.sort(distribution)
+
         mask = (distribution >= 0) & (distribution <= 1)
-        distr_sorted = np.sort(distribution[mask])
-        self.mask = mask
+        distr_sorted = distribution[mask]#np.sort(distribution[mask])
+        self.distr_mask = mask
         return distr_sorted
 
     def density(self, points):
@@ -330,11 +340,36 @@ class SplineApproximation:
             density[index] = np.sum(self.all_levels_indicator * np.array(lagrange_poly_der).T)
 
         mask = (distribution >= 0) & (distribution <= 1)
-        distr_sorted = np.sort(distribution[mask])
+        distr_sorted = np.sort(distribution)#[mask])
         self.distribution = distr_sorted
-        self.distr_mask = mask
+        #self.distr_mask = mask
 
-        mask = (density >= 0)
-        self.density_mask = mask
-        self.pdf = density[mask]
-        return distr_sorted, density[mask]
+        # mask = (density >= 0)
+        # self.density_mask = mask
+        # self.pdf = density[mask]
+        return distr_sorted, density#[mask]
+
+
+class BSpline_approximation(SplineApproximation):
+
+    def cdf(self, points):
+        """
+        Cumulative distribution function at points X
+        :param points: list of points (1D)
+        :return: distribution
+        """
+        import scipy.interpolate as si
+        self._setup()
+        bspline = si.BSpline(self.interpolation_points, self.all_levels_indicator, k=3)
+        res = bspline(points)
+        print("BSpline CDF")
+        return res
+
+    def density(self, points):
+        import scipy.interpolate as si
+        self._setup()
+        bspline = si.BSpline(self.interpolation_points, self.all_levels_indicator, k=3)
+        bspline_derivative = bspline.derivative()
+        res = bspline_derivative(points)
+        print("BSpline PDF")
+        return res
