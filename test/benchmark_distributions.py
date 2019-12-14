@@ -29,11 +29,19 @@ class TwoGaussians(st.rv_continuous):
                      st.norm(0, 0.5)]
     weights = [0.93, .07]
 
+    #domain = [-6.642695234009825, 14.37690544689409]
+
     def _pdf(self, x):
         result = 0
         for weight, distr in zip(TwoGaussians.weights, TwoGaussians.distributions):
             result += weight * distr.pdf(x)
         return result
+
+    # def _cdf(self, x):
+    #     result = 0
+    #     for weight, distr in zip(TwoGaussians.weights, TwoGaussians.distributions):
+    #         result += weight * distr.cdf(x)
+    #     return result
 
     def rvs(self, size):
         mixture_idx = np.random.choice(len(TwoGaussians.weights), size=size, replace=True, p=TwoGaussians.weights)
@@ -91,6 +99,8 @@ class FiveFingers(st.rv_continuous):
 
 class Cauchy(st.rv_continuous):
 
+    domain = [-20, 20]
+
     def _pdf(self, x):
         return 1.0 / np.pi / (1.0 + x * x)
 
@@ -105,27 +115,39 @@ class Cauchy(st.rv_continuous):
         return self._ppf(x)
 
 
-# class Discontinous(st.rv_continuous):
-#     def _pdf(self):
-#         pass
+class Discontinuous(st.rv_continuous):
+    domain = [0, 1]
 
-# def test_cauchy():
-#     beta = 0.5
-#     g = Cauchy()
-#
-#     vals = g.ppf([0.001, 0.5, 0.999])
-#     assert np.allclose([0.001, 0.5, 0.999], g.cdf(vals))
-#     assert np.isclose(integrate.quad(g.pdf, 0, np.inf)[0], 1)
-#
-#     x = np.linspace(1e-5, 7, 200)
-#     print("type x ", type(x))
-#
-#     # g = st.lognorm(1)
-#
-#     print("g.cdf(2) - g.cdf(1) ", g.cdf(20) - g.cdf(0.1))
-#     print("pdf ", integrate.quad(g.pdf, 0.1, 20)[0])
-#
-#     x = np.array([1.0, 2.0])
+    weights = [6/25, 1/8, 1/10, 3/8, 4/25]
+    distributions = [st.uniform(0, 0.3-1e-10),
+                     st.uniform(0.3, 0.1-1e-10),
+                     st.uniform(0.4, 0.1-1e-10),
+                     st.uniform(0.5, 0.3-1e-10),
+                     st.uniform(0.8, 0.2)]
+
+    def _pdf(self, x):
+        def summation():
+            result = 0
+            for weight, distr in zip(Discontinuous.weights, Discontinuous.distributions):
+                result += weight * distr.pdf(x)
+            return result
+
+        return summation()
+
+    def _cdf(self, x):
+        def summation():
+            result = 0
+            for weight, distr in zip(Discontinuous.weights, Discontinuous.distributions):
+                result += weight * distr.cdf(x)
+            return result
+        return summation()
+
+    def rvs(self, size):
+        mixture_idx = np.random.choice(len(Discontinuous.weights), size=size, replace=True, p=Discontinuous.weights)
+        # y is the mixture sample
+        y = np.fromiter((Discontinuous.distributions[i].rvs() for i in mixture_idx), dtype=np.float64)
+        return y
+
 
 def test_two_gaussians():
     tg = TwoGaussians()
@@ -242,8 +264,32 @@ def test_cauchy():
     plt.show()
 
 
+def test_discountinuous():
+    d = Discontinuous()
+
+    assert np.isclose(integrate.quad(d.pdf, 0, 1)[0], 1)
+    a = 0.1
+    b = 0.7
+    assert np.isclose(d.cdf(b) - d.cdf(a), integrate.quad(d.pdf, a, b)[0])
+
+    values = d.rvs(size=100000)
+    x = np.linspace(0, 1, 10000)
+    plt.plot(x, d.pdf(x), 'r-', alpha=0.6, label='discontinuous pdf')
+    plt.hist(values, bins=200, density=True, alpha=0.2)
+    plt.xlim(0, 1)
+    plt.legend()
+    plt.show()
+
+    from statsmodels.distributions.empirical_distribution import ECDF
+    ecdf = ECDF(values)
+    plt.plot(x, ecdf(x), label="ECDF")
+    plt.plot(x, d.cdf(x), label="exact cumulative distr function")
+    plt.show()
+
+
 if __name__ == "__main__":
-    #test_cauchy()
-    #test_gamma()
-    #test_five_fingers()
+    test_cauchy()
+    test_gamma()
+    test_five_fingers()
     test_two_gaussians()
+    test_discountinuous()
