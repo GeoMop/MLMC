@@ -31,9 +31,6 @@ class Simulation(ABC):
     def __init__(self, config):
         self._config = config
 
-    def prepare_workspace(self):
-        pass
-
     def serialize_data(self):
         pass
 
@@ -53,30 +50,6 @@ class Simulation(ABC):
         :return:
         """
 
-    # def fine_simulation(self):
-    #     """
-    #     Fine simulation object
-    #     :return: Simulation object
-    #     """
-    #     if self._fine_simulation is None:
-    #         self._fine_simulation = self._sim_factory(self._precision, int(self._level_idx))
-    #     return self._fine_simulation
-    #
-    # def coarse_simulation(self):
-    #     """
-    #     Coarse simulation object
-    #     :return: Simulations object
-    #     """
-    #     if self._previous_level is not None and self._coarse_simulation is None:
-    #         self._coarse_simulation = self._previous_level.fine_simulation
-    #     return self._coarse_simulation
-
-    # @abstractmethod
-    # def generate_random_samples(self):
-    #     """
-    #     Generate random samples
-    #     """
-
     def _prepare_work_space(self):
         pass
 
@@ -91,28 +64,9 @@ class Simulation(ABC):
         """
 
     @staticmethod
-    def calculate(config_dict):#-> (coarse_sample_vector, fine_sample_vector)
+    def calculate(config_dict, sample_workspace=None):#-> (coarse_sample_vector, fine_sample_vector)
         pass
 
     @staticmethod
     def result_format()-> List[QuantitySpec]:
         pass
-
-
-# class Sample:
-#     """
-#     Would it be enough to serialize the Sample class? Or compute it without serialization?
-#     """
-#
-#     def __init__(self, level_id):
-#         self.level_id = level_id,
-#         self.id = None  # possibly static method which generates unique ids (from some existing library)
-#
-#         self.status = None#["Running", "Success", "Failed"]
-#
-#     def extract_result(self):
-#         """
-#         Compute result from files - possibly in separate process
-#         :return:
-#         """
-#         result = None
