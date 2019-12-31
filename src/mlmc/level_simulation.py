@@ -7,6 +7,9 @@ class LevelSimulation:
     # Calculate configuration.
     config_dict: Dict[Any, Any]
 
+    # Calculate method
+    calculate: Any = None
+
     # List of files in the level workspace to copy/symlink to the sample workspace.
     common_files: List[str] = None
 

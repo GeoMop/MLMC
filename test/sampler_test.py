@@ -33,8 +33,6 @@ def sampler_test():
     sample_storage = InMemory()
     sampling_pool = ProcessPool(4)
 
-    sampling_pool = SamplingPoolPBS(job_weight=200000, job_count=0)
-
     # Plan and compute samples
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
                       n_levels=n_levels, step_range=step_range)
@@ -94,10 +92,7 @@ def sampler_test_pbs():
     n_levels = 1
     failed_fraction = 0  # 0.2
 
-    work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
-    if os.path.exists(work_dir):
-        shutil.rmtree(work_dir)
-    os.makedirs(work_dir)
+    work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '')
 
     distr = stats.norm()
     step_range = (0.1, 0.006)
@@ -106,7 +101,7 @@ def sampler_test_pbs():
 
     # User configure and create simulation instance
     simulation_config = {"config_yaml": 'synth_sim_config.yaml'}
-    simulation_factory = SimulationTest(simulation_config)
+    simulation_factory = SimulationTestUseWorkspace(simulation_config)
 
     # mlv = MLView(n_levels, simulation_factory, step_range)
     sample_storage = InMemory()
@@ -114,7 +109,7 @@ def sampler_test_pbs():
 
     # Plan and compute samples
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
-                      n_levels=n_levels, step_range=step_range)
+                      n_levels=n_levels, step_range=step_range, work_dir=work_dir)
 
     sampler.determine_level_n_samples()
     sampler.create_simulations()
@@ -147,4 +142,5 @@ def sampler_test_pbs():
 
 if __name__ == "__main__":
     #sampler_test()
-    sampler_test_with_sim_workspace()
+    #sampler_test_with_sim_workspace()
+    sampler_test_pbs()

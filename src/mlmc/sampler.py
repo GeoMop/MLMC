@@ -6,7 +6,7 @@ from typing import List
 from mlmc.sample_storage import SampleStorage
 from mlmc.sampling_pool import SamplingPool
 from mlmc.new_simulation import Simulation
-from mlmc.handle_workspace import WithoutWorkspace, SimulationWorkspace, WholeWorkspace
+from mlmc.handle_workspace import WithoutWorkspace, SimulationWorkspace, WholeWorkspace, PBSWorkspace
 
 
 class Sampler:
@@ -21,7 +21,7 @@ class Sampler:
         self._sim_factory = sim_factory
         self._step_range = step_range
 
-        self._n_total_samples = 0
+        self._n_created_samples = np.zeros(self._n_levels)
 
         self.n_target_samples = np.zeros(self._n_levels)
         self.n_planned_samples = np.zeros(self._n_levels)
@@ -39,6 +39,13 @@ class Sampler:
 
             if work_dir:
                 self._workspace = WholeWorkspace(work_dir, self._n_levels)
+
+            try:
+                if self._sampling_pool.need_jobs:
+                    self._workspace = PBSWorkspace(work_dir, self._n_levels)
+                    self._sampling_pool.workspace = self._workspace
+            except AttributeError:
+                print("PBS sampling pool must have need_jobs attribute")
 
             # if self._sim_factory.need_workspace:
             #     self._workspace = SimulationWorkspace(work_dir)
@@ -59,7 +66,7 @@ class Sampler:
         :param level_id: identifier of current level
         :return: str
         """
-        return "L{:02d}_S{:07d}".format(level_id, self._n_total_samples)
+        return "L{:02d}_S{:07d}".format(level_id, int(self._n_created_samples[level_id]))
 
     def create_simulations(self):
         print("self n target samples ", self.n_target_samples)
@@ -68,15 +75,21 @@ class Sampler:
             for _ in range(int(n_samples)):
 
                 sample_id = self._get_sample_tag(level_id)
+                print("sample id ", sample_id)
 
                 sample_dir = self._workspace.change_to_sample_directory(sample_id, level_id)
+
+                #  @TODO: move to parent for loop??
                 level_sim = self._sim_factory.level_instance([self._step_range[1]], [self._step_range[0]])
 
                 self._modify_level_sim_obj(level_sim, level_id, sample_dir)
 
+                self._workspace.serialize_level_sim(level_sim)
+
                 self._sampling_pool.schedule_sample(sample_id, level_sim)
 
-                self.n_target_samples += 1
+                # Increment number of created samples at current level
+                self._n_created_samples[level_id] += 1
 
     def _modify_level_sim_obj(self, level_sim, level_id, sample_dir):
         # Copy simulation common files
