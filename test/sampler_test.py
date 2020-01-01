@@ -1,7 +1,10 @@
 import os
+import sys
 import shutil
 from scipy import stats
 
+src_path = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
 from test.new_synth_simulation import SimulationTest
 from test.synth_simulation_with_workspace import SimulationTestUseWorkspace
 
@@ -9,6 +12,8 @@ from src.mlmc.sampler import Sampler
 from src.mlmc.sample_storage import InMemory
 from src.mlmc.sampling_pool import ProcessPool
 from src.mlmc.sampling_pool_pbs import SamplingPoolPBS
+
+
 
 
 def sampler_test():
@@ -89,7 +94,7 @@ def sampler_test_with_sim_workspace():
 
 
 def sampler_test_pbs():
-    n_levels = 1
+    n_levels = 2
     failed_fraction = 0  # 0.2
 
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '')
@@ -106,6 +111,18 @@ def sampler_test_pbs():
     # mlv = MLView(n_levels, simulation_factory, step_range)
     sample_storage = InMemory()
     sampling_pool = SamplingPoolPBS(job_weight=200000, job_count=0)
+
+    pbs_config = dict(
+        job_weight=250000,  # max number of elements per job
+        n_cores=1,
+        n_nodes=1,
+        select_flags=['cgroups=cpuacct'],
+        mem='4gb',
+        queue='charon',
+        home_dir='/storage/liberec3-tul/home/martin_spetlik/',
+        pbs_process_file_dir='/home/martin/Documents/MLMC_new_design/src/mlmc')
+
+    sampling_pool.pbs_common_setting(flow_3=True, **pbs_config)
 
     # Plan and compute samples
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,

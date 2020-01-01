@@ -4,9 +4,9 @@ import yaml
 from scipy import stats
 
 from typing import List
-from mlmc.new_simulation import Simulation
-from mlmc.level_simulation import LevelSimulation
-from mlmc.new_simulation import QuantitySpec
+from new_simulation import Simulation
+from level_simulation import LevelSimulation
+from new_simulation import QuantitySpec
 
 
 class SimulationTestUseWorkspace(Simulation):

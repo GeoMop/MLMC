@@ -1,5 +1,6 @@
 import numpy as np
-from mlmc.sample import Sample
+import mlmc
+from sample import Sample
 import os
 import shutil
 import time as t
