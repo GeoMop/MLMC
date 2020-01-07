@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from multiprocessing import Pool as ProcPool
 from multiprocessing.pool import ThreadPool
-from src.mlmc.level_simulation import LevelSimulation
+from level_simulation import LevelSimulation
 import queue
-from test.new_synth_simulation import SimulationTest
+from new_synth_simulation import SimulationTest
 
 
 class SamplingPool(ABC):

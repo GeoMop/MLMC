@@ -2,8 +2,7 @@ import os
 import shutil
 import subprocess
 import yaml
-
-from src.mlmc.sampling_pool import SamplingPool
+from sampling_pool import SamplingPool
 
 
 class SamplingPoolPBS(SamplingPool):

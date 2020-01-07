@@ -3,10 +3,10 @@ import shutil
 import numpy as np
 from typing import List
 
-from mlmc.sample_storage import SampleStorage
-from mlmc.sampling_pool import SamplingPool
-from mlmc.new_simulation import Simulation
-from mlmc.handle_workspace import WithoutWorkspace, SimulationWorkspace, WholeWorkspace, PBSWorkspace
+from sample_storage import SampleStorage
+from sampling_pool import SamplingPool
+from new_simulation import Simulation
+from handle_workspace import WithoutWorkspace, SimulationWorkspace, WholeWorkspace, PBSWorkspace
 
 
 class Sampler:

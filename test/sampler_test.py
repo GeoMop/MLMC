@@ -5,13 +5,15 @@ from scipy import stats
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
-from test.new_synth_simulation import SimulationTest
-from test.synth_simulation_with_workspace import SimulationTestUseWorkspace
 
-from src.mlmc.sampler import Sampler
-from src.mlmc.sample_storage import InMemory
-from src.mlmc.sampling_pool import ProcessPool
-from src.mlmc.sampling_pool_pbs import SamplingPoolPBS
+print("sys path ", sys.path)
+from new_synth_simulation import SimulationTest
+from synth_simulation_with_workspace import SimulationTestUseWorkspace
+
+from sampler import Sampler
+from sample_storage import InMemory
+from sampling_pool import ProcessPool
+from sampling_pool_pbs import SamplingPoolPBS
 
 
 
