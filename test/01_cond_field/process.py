@@ -10,7 +10,7 @@ import mlmc.simulation
 import mlmc.moments
 import flow_mc as flow_mc
 import mlmc.correlated_field as cf
-from mlmc.estimate import Estimate
+from mlmc import estimate
 
 sys.path.append(os.path.join(src_path, '..'))
 import base_process
@@ -87,17 +87,24 @@ class CondField(base_process.Process):
         :return: None
         """
         assert os.path.isdir(self.work_dir)
-        mlmc_est_list = []
-        # for nl in [ 1,3,5,7,9]:
+        mlmc_est_list = [ 1,3,5,7]
 
         import time
-        for nl in [5]:  # high resolution fields
+        for nl in mlmc_est_list:  # high resolution fields
             start = time.time()
             mlmc = self.setup_config(nl, clean=False)
             print("celkový čas ", time.time() - start)
             # Use wrapper object for working with collected data
-            mlmc_est = Estimate(mlmc)
+            mlmc_est = estimate.Estimate(mlmc)
             mlmc_est_list.append(mlmc_est)
+        cl = estimate.CompareLevels(mlmc_est_list,
+                           output_dir=src_path,
+                           quantity_name="Q [m/s]",
+                           moment_class=Legendre,
+                           log_scale=False,
+                           n_moments=21, )
+
+        self.process_analysis(cl)
 
 
     def setup_config(self, n_levels, clean):

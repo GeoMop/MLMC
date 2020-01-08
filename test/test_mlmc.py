@@ -23,6 +23,7 @@ import copy
 import re
 
 import shutil
+import pytest
 
 #from test.simulations.simulation_shooting import SimulationShooting
 
@@ -72,6 +73,7 @@ def err_tuple(x):
     return (np.min(x), np.median(x), np.max(x))
 
 
+@pytest.mark.skip
 def test_mlmc():
     """
     Test if mlmc moments correspond to exact moments from distribution
@@ -378,7 +380,7 @@ def var_subsample(moments, mlmc, moments_fn, n_subsamples=1000, sub_n=None, tol=
     return result
 
 
-def _test_shooting():
+def test_shooting():
     """
     Test mlmc with shooting simulation
     :return: None

@@ -96,6 +96,32 @@ class Rampart(stats.rv_continuous):
             4.5 / 20 * stats.uniform.cdf(x, loc=0.3, scale=0.5) - \
             0.5 / 20 * stats.uniform.cdf(x, loc=0.4, scale=0.1)
 
+class Abyss(stats.rv_continuous):
+    def __init__(self):
+        super().__init__(name="Abyss")
+        self.dist = self
+        self.width = 0.1
+        self.z = 0.1
+        self.renorm = 2 * stats.norm.cdf(-self.width) + self.z * 2 * self.width
+        self.renorm = 1 / self.renorm
+
+        # X = np.linspace(-5, 5, 500)
+        # plt.plot(X, self.cdf(X))
+        # plt.show()
+
+
+    def _pdf(self, x):
+        y = np.where(np.logical_and(-self.width < x, x < self.width),
+                      self.z * stats.uniform.pdf( 0.5 * (x / self.width + 1) ),
+                      stats.norm.pdf(x))
+        return self.renorm * y
+
+    def _cdf(self, x):
+        y =  np.where(np.logical_and(-self.width < x, x < self.width),
+                      0.5 + self.renorm * self.z * x,
+                      stats.norm.cdf(x))
+        return y
+
 
 class CutDistribution:
     """
@@ -111,14 +137,19 @@ class CutDistribution:
         """
         self.idx, distr_cfg = distr_cfg
         self.distr, self.log_flag = distr_cfg
-        self.quantile = quantile
-        self.domain, self.force_decay = self.domain_for_quantile(self.distr, quantile)
+        if type(quantile) is tuple:
+            self.domain = quantile
+            self.domain_str = "({}, {})".format(*self.domain)
+        else:
+            self.domain, self.force_decay = self.domain_for_quantile(self.distr, quantile)
+            self.domain_str = "Q:{:4.0g}".format(quantile)
+
         p0, p1 = self.distr.cdf(self.domain)
         self.shift = p0
         self.scale = 1 / (p1 - p0)
 
     def __str__(self):
-        return "{:02}_{} Q:{:4.0g}".format(self.idx, self.distr.dist.name, self.quantile)
+        return "{:02}_{} {}".format(self.idx, self.distr.dist.name, self.domain_str)
 
     @staticmethod
     def domain_for_quantile(distr, quantile):
@@ -173,7 +204,7 @@ class DistrTestCase:
         self.moments_fn = self.moment_class(self.max_n_moments, self.distr.domain, log=self.distr.log_flag, safe_eval=False)
 
         self.exact_covariance = mlmc.simple_distribution.compute_semiexact_cov(self.moments_fn, self.distr.pdf)
-        #self.eigenvalues_plot = mlmc.plot.Eigenvalues(title="Eigenvalues, " + self.title)
+        self.eigenvalues_plot = mlmc.plot.Eigenvalues(title="Eigenvalues, " + self.title)
 
     @property
     def title(self):
@@ -190,10 +221,10 @@ class DistrTestCase:
 
     def make_orto_moments(self, noise):
         cov = self.noise_cov(noise)
-        orto_moments_fn, info = mlmc.simple_distribution.construct_ortogonal_moments(self.moments_fn, cov)
+        orto_moments_fn, info = mlmc.simple_distribution.construct_ortogonal_moments(self.moments_fn, cov, tol=noise)
         evals, threshold, L = info
         print("threshold: ", threshold, " from N: ", self.moments_fn.size)
-        #self.eigenvalues_plot.add_values(evals, threshold=evals[threshold], label="{:5.2e}".format(noise))
+        self.eigenvalues_plot.add_values(evals, threshold=evals[threshold], label="{:5.2e}".format(noise))
         eye_approx = L @ cov @ L.T
         # test that the decomposition is done well
         assert np.linalg.norm(eye_approx - np.eye(*eye_approx.shape)) < 1e-10
@@ -291,7 +322,7 @@ moments_list = [
     #(moments.Monomial, 3, 10),
     #(moments.Fourier, 5, 61),
     #(moments.Legendre, 7, 61, False),
-    (moments.Legendre, 7, 11),
+    (moments.Legendre, 3, 7),
     ]
 @pytest.mark.skip
 @pytest.mark.parametrize("moments", moments_list)
@@ -318,20 +349,26 @@ def test_nonlin_solver_robustness(moments, distribution):
 
 
 
+def plot_scatter(ax, X, Y, title, xy_scale, **kw):
+    ax.set_title(title)
+    ax.set_xscale(xy_scale[0])
+    ax.set_yscale(xy_scale[1])
+    if xy_scale[0] == 'log':
+        ax.set_xlim((1e-5, 1e1))
+        lx = np.geomspace(1e-5, 0.1, 100)
+    else:
+        #ax.set_xlim((0, 1))
+        pass
+    if xy_scale[1] == 'log':
+        ax.set_ylim((1e-2, 1e2))
+    else:
+        ax.set_ylim((0, 1.2))
+    ax.scatter(X, Y, marker='.', edgecolors = 'none', **kw)
+    return ax, lx
 
 
 
-@pytest.mark.parametrize("moments", moments_list)
-@pytest.mark.parametrize("distribution", enumerate(distribution_list))
-def test_kl_estimates(moments, distribution):
-    """
-    Test estimates for KL divergence
-    1. find exact moments, find exact lambda
-    2. generate varied lambda
-    3. compute corresponding moments and KL
-    4. plot individual terms
-
-    """
+def kl_estimates(distribution, moments, ax):
     quantile = 0.01
 
     case = DistrTestCase(distribution, quantile, moments)
@@ -339,32 +376,57 @@ def test_kl_estimates(moments, distribution):
     exact_distr = mlmc.simple_distribution.SimpleDistribution(orto_moments, moment_data,
                                                             domain=case.distr.domain,
                                                             force_decay=case.distr.force_decay)
-    true_pdf = case.distr.pdf
-    a, b = case.distr.domain
+
+    # true_pdf = case.distr.pdf
+    # a, b = case.distr.domain
     tolerance = 1e-10
     min_result = exact_distr.estimate_density_minimize(tol=tolerance)
-    exact_tol = max(min_result.res_norm, tolerance)
+    # exact_tol = max(min_result.res_norm, tolerance)
     exact_mu = case.exact_orto_moments
-    X, Y = [], []
-    ratio_distribution = stats.lognorm(s=0.1)
-    #ratio_distribution = stats.norm(scale=0.1*np.linalg.norm(exact_distr.multipliers))
+    exact_eval_0, exact_eval_max = exact_distr.jacobian_spectrum()[[0, -1]]
+    mu_diffs, l_diffs, eigs = [], [], []
+    #ratio_distribution = stats.lognorm(s=0.1)
+    ratio_distribution = stats.norm(scale=0.01*np.linalg.norm(exact_distr.multipliers[1:]))
     raw_distr = mlmc.simple_distribution.SimpleDistribution(orto_moments, moment_data,
                                                             domain=case.distr.domain,
                                                             force_decay=case.distr.force_decay)
+
     size = len(exact_distr.multipliers)
+    linf_log_approx_error = np.max(np.log(case.distr.pdf(exact_distr._quad_points))
+                                   - np.log(exact_distr.density(exact_distr._quad_points)))
+    b_factor_estimate = np.exp(linf_log_approx_error)
+    linf_inv_distr = np.max(1/case.distr.pdf(exact_distr._quad_points))
+    Am_factor_estimate = (orto_moments.size + 1) * np.sqrt(linf_inv_distr)
+
+
+    # max_norm_momemnts = np.max(np.linalg.norm(exact_distr._quad_moments, axis=1))
+    # print("max norm of momments: ", max_norm_momemnts)
+
     for _ in range(1000):
-        #lambda_inex = exact_distr.multipliers + ratio_distribution.rvs(size)
-        lambda_inex = exact_distr.multipliers * ratio_distribution.rvs(size)
+        s = 3 * stats.uniform.rvs(size=1)[0]
+        lambda_inex = exact_distr.multipliers + s*ratio_distribution.rvs(size)
         raw_distr._initialize_params(size)
         raw_distr.multipliers = lambda_inex
         raw_distr.set_quadrature(exact_distr)
-        moments = raw_distr.moments_by_quadrature()
-        m0 = density_integral(raw_distr)
-        assert np.isclose(moments[0], m0)
-        raw_distr.multipliers[0] += np.log(moments[0])
         raw_distr.moments = raw_distr.moments_by_quadrature()
-        assert np.isclose(raw_distr.moments[0],  1.0)
-        #raw_eval_0 = raw_distr.jacobian_spectrum()[-1]
+        #m0 = density_integral(raw_distr)
+
+        # if not np.isclose(moments[0], m0):
+        #     continue
+
+        #raw_distr.multipliers[0] += np.log(moments[0])
+        #raw_distr.moments = raw_distr.moments_by_quadrature()
+
+        #assert np.isclose(raw_distr.moments[0],  1.0, atol=1e-5)
+        raw_eval_0, raw_eval_max  = raw_distr.jacobian_spectrum()[[0, -1]]
+        #print("evals: ", raw_eval_0, raw_eval_max)
+        lambda_diff = -(exact_distr.multipliers - raw_distr.multipliers)
+        l_diff_norm = np.linalg.norm(lambda_diff[:])
+        mu_diff = exact_mu - raw_distr.moments
+        mu_diff_norm = np.linalg.norm(mu_diff[:])
+        l_diffs.append(l_diff_norm)
+        mu_diffs.append(mu_diff_norm)
+        eigs.append((raw_eval_0, raw_eval_max))
 
         # kl_true_exact = kl(true_pdf, exact_distr.density, exact_distr)
         # kl_exact_raw = kl(exact_distr.density, raw_distr.density, exact_distr)
@@ -374,12 +436,8 @@ def test_kl_estimates(moments, distribution):
         #     kl_true_exact, kl_exact_raw, kl_true_raw, err))
         # assert np.abs(err) < 10 * exact_tol + exact_tol * kl_true_raw
 
-        lambda_diff = -(exact_distr.multipliers - raw_distr.multipliers)
-        l_diff_norm = np.linalg.norm(lambda_diff[1:])
-        mu_diff = exact_mu - raw_distr.moments
-        mu_diff_norm = np.linalg.norm(mu_diff[1:])
-        print("lamda diff: {} < mu diff / L0: {} |  {}".format(
-            l_diff_norm, mu_diff_norm, l_diff_norm - mu_diff_norm))
+        #print("lamda diff: {} < mu diff / L0: {} |  {}".format(
+        #    l_diff_norm, mu_diff_norm, l_diff_norm - mu_diff_norm))
 
         # lambda_dif_mu = lambda_diff @ exact_mu
         # lambda_dif_mu_dif = np.dot(lambda_diff, mu_diff)
@@ -389,16 +447,76 @@ def test_kl_estimates(moments, distribution):
         # print("KL(rho_e, rho_n):   {} = (l_e - l_n) . mu_e: {} | {}".format(kl_exact_raw, lambda_dif_mu, kl_exact_raw - lambda_dif_mu))
         # print("(l_e - l_n) . mu_e: {} < dl . dmu            {} | {}".format(lambda_dif_mu, lambda_dif_mu_dif , lambda_dif_mu - lambda_dif_mu_dif))
         # print("dl . dmu:           {} < dmu / L0            {} | {}".format(lambda_dif_mu_dif, theory_bound, lambda_dif_mu_dif - theory_bound))
-        Y.append(l_diff_norm)
-        X.append(mu_diff_norm)
-    #case.eigenvalues_plot.show("xx")
-    plt.suptitle(case.title)
-    plt.scatter(X, Y)
-    plt.ylim((0, 0.1))
-    plt.xlim((0, 0.1))
-    #plt.xscale('log')
-    #plt.yscale('log')
-    plt.show()
+
+
+    Y = np.array(l_diffs) * np.array(np.array(eigs)[:, 0]) / np.array(mu_diffs)
+    #Y = np.array(eigs)
+    ax, lx = plot_scatter(ax, mu_diffs, Y, case.title, ('log', 'linear'), color='red')
+    #ax, lx = plot_scatter(ax, mu_diffs, Y[:,0], case.title, ('log', 'log'), color='red')
+    #plot_scatter(ax, mu_diffs, Y[:, 1], case.title, ('log', 'log'), color='blue')
+    ax.set_ylabel("$\\alpha_0|\lambda_0 - \lambda_r| / |\mu_0 - \mu_r|$")
+    ax.set_xlabel("$|\mu_0 - \mu_r|$")
+    ax.axhline(y=1.0, color='red', alpha=0.3)
+    #ax.plot(lx, lx , color='red', label="raw $1/\\alpha_0$", alpha=0.3)
+
+    # plot_scatter(ax, mu_diffs, l_diffs, case.title, ('log', 'log'), color='blue')
+    # shaw_coef = 2 * b_factor_estimate * np.exp(1)
+    # shaw_mu_lim = 1 / (4 * np.exp(1) * b_factor_estimate * Am_factor_estimate)
+    # ax.plot(lx, lx * shaw_coef, color='blue', label="shaw", alpha=0.3)
+    # ax.axvline(x=shaw_mu_lim, color='blue', alpha=0.3)
+    case.eigenvalues_plot.show("")
+
+    def plot_mineig_by_lambda():
+        plt.suptitle(case.title)
+        lx = np.geomspace(1e-10, 0.1, 100)
+        Y = exact_eval_0 * np.ones_like(lx)
+        plt.plot(lx, Y, color='red')
+
+        plt.scatter(l_diffs, eigs, marker='.')
+        #plt.ylim((1e-5, 0.1))
+        plt.xlim((1e-5, 0.1))
+        # #lx = np.linspace(1e-10, 0.1, 100)
+        # plt.plot(lx, lx / raw_eval_0, color='orange')
+        # #plt.plot(lx, lx / raw_eval_max, color='green')
+        plt.xscale('log')
+        # plt.yscale('log')
+        plt.show()
+
+
+
+@pytest.mark.parametrize("moments", moments_list)
+def test_kl_estimates(moments):
+    """
+    Test estimates for KL divergence
+    1. find exact moments, find exact lambda
+    2. generate varied lambda
+    3. compute corresponding moments and KL
+    4. plot individual terms
+
+    """
+    distribution_list = [
+        # distibution, log_flag
+        (stats.lognorm(scale=np.exp(1), s=1), False),  # >50 it, , 3-11,  some errors as non-SPD
+        (stats.gamma(a=1), False),
+        (GaussTwo(), False),
+        (GaussFive(), False),
+        (stats.cauchy(scale=0.5), False),
+        (Abyss(), False)
+    ]
+    shape = (2, 3)
+    fig, axes = plt.subplots(*shape, sharex=True, sharey=True,
+                             figsize=(15, 10))
+    #fig.suptitle("Mu -> Lambda")
+    axes = axes.flatten()
+    for distr, ax in zip(enumerate(distribution_list), axes[:len(distribution_list)]):
+       kl_estimates(distr, moments, ax)
+    plt.tight_layout()
+    #mlmc.plot._show_and_save(fig, "", "mu_to_lambda_lim")
+    mlmc.plot._show_and_save(fig, "", "mu_to_alpha")
+
+
+
+
 
 
 def density_integral(distr):

@@ -36,7 +36,7 @@ setup(
     license='GPL 3.0',
     description='Multilevel Monte Carlo method.',
     long_description=long_description,
-    author='Jan Brezina, Martin Spetlik, Klara Steklova',
+    author='Jan Brezina, Martin Spetlik',
     author_email='jan.brezina@tul.cz',
     url='https://github.com/GeoMop/MLMC',
     classifiers=[
