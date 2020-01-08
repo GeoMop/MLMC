@@ -2,6 +2,7 @@ import numpy as np
 import scipy.stats as st
 from scipy import interpolate
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator, FixedLocator
 
 
 def create_color_bar(range, label, ax = None):
@@ -13,7 +14,7 @@ def create_color_bar(range, label, ax = None):
     :return: Function to map values to colors. (normalize + cmap)
     """
     # Create colorbar
-    colormap = plt.cm.gist_ncar
+    colormap = plt.cm.bone
     try:
         min_r, max_r = range
     except TypeError:
@@ -117,7 +118,7 @@ class Distribution:
         x_axis_label = quantity_name
 
         # PDF axes
-        self.ax_pdf.set_title("PDF approximations")
+        #self.ax_pdf.set_title("PDF approximations")
         self.ax_pdf.set_ylabel("probability density")
         self.ax_pdf.set_xlabel(x_axis_label)
         if self._log_x:
@@ -166,6 +167,7 @@ class Distribution:
         X = np.sort(samples)
         Y = (np.arange(len(X)) + 0.5) / float(len(X))
         X, Y = make_monotone(X, Y)
+
         self.ax_cdf.plot(X, Y, 'red')
 
         # PDF approx as derivative of Bspline CDF approx
@@ -225,8 +227,15 @@ class Distribution:
         :param file: None, or filename, default name is same as plot title.
         """
         self._add_exact_distr()
-        self.ax_pdf.legend(title=self._legend_title, loc = 1)
-        _show_and_save(self.fig, file, self._title)
+        self.ax_pdf.legend(title=self._legend_title, loc=1)
+
+        #_show_and_save(self.fig_kl, file, self._title)
+
+        self.fig.show()
+        file = self._title
+        if file[-3:] != "pdf":
+            file = file + ".pdf"
+        self.fig.savefig(file)
 
     def reset(self):
         plt.close()
@@ -265,6 +274,9 @@ class Distribution:
         #    lab = str(np.array(self._domain))
         X = self._grid(1000)
         Y = self._exact_distr.pdf(X)
+
+        self.ax_pdf.set_ylim([np.min(Y) - (np.max(Y) - np.min(Y))*0.1, np.max(Y) + (np.max(Y) - np.min(Y))*0.1])
+
         self.ax_pdf.plot(X, Y, c='black', label="exact")
 
         Y = self._exact_distr.cdf(X)
@@ -360,6 +372,168 @@ class Eigenvalues:
             self._ylim = [min(self._ylim[0], ylim[0]), max(self._ylim[1], ylim[1])]
 
 
+class KL_divergence:
+    """
+    Plot of eigenvalues (of the covariance matrix), several sets of eigenvalues can be added
+    together with error bars and cut-tresholds.
+    Colors are chosen automatically. Slight X shift is used to avoid point overlapping.
+    For log Y scale only positive values are plotted.
+    """
+    def __init__(self, log_y=True, log_x=False, iter_plot=False, title="", xlabel="number of moments", ylabel="KL divergence", label="", truncation_err_label=""):
+        self._ylim = None
+        self.log_y = log_y
+        self.i_plot = 0
+        self.title = title
+        self.colormap = plt.cm.tab20
+
+        if iter_plot:
+            self.fig_kl, axes = plt.subplots(1, 2, figsize=(22, 10))
+            self.fig_iter = None
+            self.ax_kl = axes[0]
+            self.ax_iter = axes[1]
+        else:
+            self.fig_kl, self.ax_kl = plt.subplots(1, 1, figsize=(12, 10))
+            self.fig_iter, self.ax_iter = plt.subplots(1, 1, figsize=(12, 10))
+
+        self.ax_kl.set_title("Kullback-Leibler divergence")
+        self.ax_iter.set_title("Optimization iterations")
+
+        # Display integers on x axes
+        self.ax_kl.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        self.ax_kl.set_xlabel(xlabel)
+        self.ax_kl.set_ylabel(ylabel)
+        self.ax_iter.set_xlabel(xlabel)
+        self.ax_iter.set_ylabel("number of iterations")
+
+        self._x = []
+        self._y = []
+        self._mom_err_x = []
+        self._mom_err_y = []
+        self._iter_x = []
+        self._failed_iter_x = []
+        self._iterations = []
+        self._failed_iterations = []
+        self._truncation_err = None
+        self._label = label
+        self._truncation_err_label = truncation_err_label
+
+        # index of eignevalues dataset
+        if self.log_y:
+            self.ax_kl.set_yscale('log')
+        if log_x:
+            self.ax_kl.set_xscale('log')
+            self.ax_iter.set_xscale('log')
+
+    @property
+    def truncation_err(self):
+        """
+        KL divergence between exact density and density produced by certain number of exact moments (is it the first part of overall KL divergence)
+        It is used just for inexact moments KL div as a "threshold" value
+        :return:
+        """
+        return self._truncation_err
+
+    @truncation_err.setter
+    def truncation_err(self, trunc_err):
+        self._truncation_err = trunc_err
+
+    def add_value(self, values):
+        """
+        Add one KL div value
+        :param value:
+        :return:
+        """
+        self._x.append(values[0])
+        self._y.append(values[1])
+
+    def add_iteration(self, x, n_iter, failed=False):
+        """
+
+        :param x:
+        :param n_iter:
+        :param failed:
+        :return:
+        """
+        if failed:
+            self._failed_iter_x.append(x)
+            self._failed_iterations.append(n_iter)
+        else:
+            self._iter_x.append(x)
+            self._iterations.append(n_iter)
+
+    def add_moments_l2_norm(self, values):
+        self._mom_err_x.append(values[0])
+        self._mom_err_y.append(values[1])
+
+    def add_values(self, values):
+        """
+        Allow add more values
+        :param values: array (n,); kl divergences
+        :return:
+        """
+        self._x = values[0]
+        self._y = values[1]
+
+        if len(values) == 3:
+            self._iterations = values[2]
+
+    def _plot_values(self):
+        if self.log_y:
+            # plot only positive values
+            i_last_positive = len(self._y) - np.argmax(np.flip(self._y) > 0)
+            self._y = self._y[:i_last_positive + 1]
+            a, b = np.min(self._y), np.max(self._y)
+            #self.adjust_ylim((a / ((b / a) ** 0.05), b * (b / a) ** 0.05))
+        else:
+            a, b = np.min(self._y), np.max(self._y)
+            #self.adjust_ylim((a - 0.05 * (b - a), b + 0.05 * (b - a)))
+
+        color = self.colormap(self.i_plot)  # 'C{}'.format(self.i_plot)
+
+        if self._mom_err_y:
+            self.ax_kl.plot(self._mom_err_x, self._mom_err_y, ls='solid', color="red", marker="v", label="moments err")
+            self.ax_kl.plot(self._x, self._y, ls='solid', color=color, marker='o', label="KL div")
+        else:
+            self.ax_kl.plot(self._x, self._y, ls='solid', color=color, marker='o')
+
+        if self._iterations:
+            self.ax_iter.scatter(self._iter_x, self._iterations, color=color, marker="p", label="successful")
+
+        if self._failed_iterations:
+            self.ax_iter.scatter(self._failed_iter_x, self._failed_iterations, color="red", marker="p", label="failed")
+
+        self.i_plot += 1
+
+        if self._truncation_err is not None:
+            color = self.colormap(self.i_plot)
+            self.ax_kl.axhline(y=self._truncation_err, color=color, label=self._truncation_err_label)
+        self.i_plot += 1
+
+    def show(self, file=""):
+        """
+        Show the plot or save to file.
+        :param file: filename base, None for show.
+        :return:
+        """
+        self._plot_values()
+        self.ax_kl.legend()
+        self.ax_iter.legend()
+
+        self.fig_kl.show()
+        file = self.title
+        if file[-3:] != "pdf":
+            file = file + ".pdf"
+
+        print("KL file ", file)
+        self.fig_kl.savefig(file)
+
+        if self.fig_iter is not None:
+            file = self.title + "_iterations.pdf"
+            self.fig_iter.show()
+            self.fig_kl.savefig(file)
+
+
 def moments(moments_fn, size=None, title="", file=""):
     """
     Plot moment functions.
@@ -384,9 +558,6 @@ def moments(moments_fn, size=None, title="", file=""):
         color = cmap(m)
         ax.plot(X, y, color=color, linewidth=0.5)
     _show_and_save(fig, file, title)
-
-
-
 
 
 class VarianceBreakdown:
@@ -468,7 +639,6 @@ class VarianceBreakdown:
 
             sum_Y += Y
 
-
     def show(self, file=""):
         """
         Show the plot or save to file.
@@ -530,11 +700,6 @@ class Variance:
             self.data[m] = (X, Y)
 
 
-
-
-    # def add_diff_variances(self, step, variances):
-    #     pass
-
     def show(self, file=""):
         step_range = self.max_step / self.min_step
         log_scale = step_range ** 0.001 - 1
@@ -556,11 +721,6 @@ class Variance:
             self.ax.plot(xf, yf, color=col)
         self.fig.legend()
         _show_and_save(self.fig, file, self.title)
-
-
-
-
-
 
 
 
@@ -613,11 +773,11 @@ class Aux:
         fig = plt.figure(figsize=(30, 10))
         ax = fig.add_subplot(1, 1, 1)
 
-        #self._scatter_level_moment_data(ax, bs_variances, marker='.')
-        #self._scatter_level_moment_data(ax, est_variances, marker='d')
+        #self._scatter_level_moment_data(ax_kl, bs_variances, marker='.')
+        #self._scatter_level_moment_data(ax_kl, est_variances, marker='d')
         self._scatter_level_moment_data(ax, fraction, marker='o')
 
-        #ax.legend(loc=6)
+        #ax_kl.legend(loc=6)
         lbls = ['Total'] + [ 'L{:2d}'.format(l+1) for l in range(self.n_levels)]
         ax.set_xticks(ticks = np.arange(self.n_levels + 1))
         ax.set_xticklabels(lbls)
@@ -789,7 +949,7 @@ class Aux:
         ax_err.set_yscale('log')
         ax_err.set_ylabel("regresion var. / reference var.")
 
-        #ax.legend(loc=2)
+        #ax_kl.legend(loc=2)
         fig.savefig('level_vars_regression.pdf')
         plt.show()
 
@@ -931,14 +1091,14 @@ def plot_diff_var(ref_mc_diff_vars, n_moments, steps):
         ax.plot(steps[0], Y[0], 'o', c=color)
 
         # Y = np.percentile(self.vars_est[:, :, m],  [10, 50, 90], axis=1)
-        # ax.plot(target_var, Y[1,:], c=color)
-        # ax.plot(target_var, Y[0,:], c=color, ls='--')
-        # ax.plot(target_var, Y[2, :], c=color, ls ='--')
+        # ax_kl.plot(target_var, Y[1,:], c=color)
+        # ax_kl.plot(target_var, Y[0,:], c=color, ls='--')
+        # ax_kl.plot(target_var, Y[2, :], c=color, ls ='--')
         # Y = (self.exact_mean[m] - self.means_est[:, :, m])**2
         # Y = np.percentile(Y, [10, 50, 90], axis=1)
-        # ax.plot(target_var, Y[1,:], c='gray')
-        # ax.plot(target_var, Y[0,:], c='gray', ls='--')
-        # ax.plot(target_var, Y[2, :], c='gray', ls ='--')
+        # ax_kl.plot(target_var, Y[1,:], c='gray')
+        # ax_kl.plot(target_var, Y[0,:], c='gray', ls='--')
+        # ax_kl.plot(target_var, Y[2, :], c='gray', ls ='--')
     ax.set_yscale('log')
     ax.set_xscale('log')
     ax.legend()
@@ -1034,7 +1194,7 @@ def plot_error(arr, ax, label):
     ax.legend()
 
 # @staticmethod
-# def box_plot(ax, X, Y):
+# def box_plot(ax_kl, X, Y):
 #     bp = boxplot(column='age', by='pclass', grid=False)
 #     for i in [1, 2, 3]:
 #         y = titanic.age[titanic.pclass == i].dropna()
