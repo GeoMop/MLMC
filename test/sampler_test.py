@@ -6,7 +6,6 @@ from scipy import stats
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
 
-print("sys path ", sys.path)
 from new_synth_simulation import SimulationTest
 from synth_simulation_with_workspace import SimulationTestUseWorkspace
 

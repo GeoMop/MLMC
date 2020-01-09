@@ -2,7 +2,9 @@ import os
 import shutil
 import subprocess
 import yaml
+import re
 from sampling_pool import SamplingPool
+
 
 
 class SamplingPoolPBS(SamplingPool):
@@ -100,9 +102,40 @@ class SamplingPoolPBS(SamplingPool):
         """
         self.execute()
 
+        job_ids = self._qstat_pbs_job()
+        
+        self.workspace.get_result_files(job_ids)
+
+    def _qstat_pbs_job(self):
+        """
+        Parse qstat output and get all unfinished job ids
+        :return: list of jobs ids (str)
+        """
+        # current user
+        user = subprocess.run(["whoami"], stderr=subprocess.PIPE, stdout=subprocess.PIPE).stdout.decode("ascii").strip()
+
+        # qstat call
+        process = subprocess.run(["qstat", "-u",  user], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        if process.returncode != 0:
+            raise Exception(process.stderr.decode("ascii"))
+
+        output = process.stdout.decode("ascii")
+        pbs_jobs = re.findall("(\d+)\.", output)
+        
+        return pbs_jobs
+
     def _parse_qsub_output(self, output):
-        print("output ", output)
-        exit()
+        """
+        Write pbs job id into file
+        :param output: subprocess.CompletedProcess instance
+        :return: None
+        """
+        stdout = output.stdout.decode("ascii")
+        job_id = stdout.split(".")[0]
+        self.workspace.write_pbs_id(job_id)
+
+        #TODO: remove
+        self._qstat_pbs_job()
 
     def _create_script(self):
         # Job output with similar name to job
@@ -137,12 +170,11 @@ class SamplingPoolPBS(SamplingPool):
         self._job_count += 1
 
         #  @TODO: qsub command is required for PBS
-        if self.qsub_cmd is None:
-            process = subprocess.call(self.workspace.pbs_job_file)
-        else:
-            process = subprocess.run([self.qsub_cmd, self.workspace.pbs_job_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            if process.returncode != 0:
-                raise Exception(process.stderr.decode('ascii'))
+
+        process = subprocess.run(['qsub', self.workspace.pbs_job_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        if process.returncode != 0:
+            raise Exception(process.stderr.decode('ascii'))
+
 
         self._parse_qsub_output(process)
 
