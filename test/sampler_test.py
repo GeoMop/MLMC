@@ -15,7 +15,6 @@ from sampling_pool import ProcessPool
 from sampling_pool_pbs import SamplingPoolPBS
 
 
-
 def sampler_test(hdf=False):
 
     n_levels = 1
