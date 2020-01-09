@@ -234,6 +234,16 @@ class PBSWorkspace(WholeWorkspace):
 
         os.chmod(self._job_file, 0o774)
 
+    def delete_pbs(self):
+        try:
+            os.remove(self._pbs_id_file)
+        except FileNotFoundError:
+            print("Failed to remove PBS id file, file not found")
+
+    def read_results(self, job_id):
+        with open(os.path.join(self._jobs_dir, PBSWorkspace.RESULTS.format(job_id))) as reader:
+            reader.readlines()
+
     def _save_structure(self):
 
         files_structure = {"scheduled": os.path.join(self._jobs_dir, PBSWorkspace.SCHEDULED),
@@ -244,5 +254,4 @@ class PBSWorkspace(WholeWorkspace):
         print("self files strucutre s ", self._files_structure)
         with open(self._files_structure, "w") as writer:
             json.dump(files_structure, writer)
-
 

@@ -1,12 +1,13 @@
 import os
 import shutil
+import time
 import numpy as np
 from typing import List
 
-from mlmc.sample_storage import SampleStorage
-from mlmc.sampling_pool import SamplingPool
-from mlmc.new_simulation import Simulation
-from mlmc.handle_workspace import WithoutWorkspace, SimulationWorkspace, WholeWorkspace, PBSWorkspace
+from sample_storage import SampleStorage
+from sampling_pool import SamplingPool
+from new_simulation import Simulation
+from workspace import WithoutWorkspace, SimulationWorkspace, WholeWorkspace, PBSWorkspace
 
 
 class Sampler:
@@ -72,6 +73,8 @@ class Sampler:
         print("self n target samples ", self.n_target_samples)
 
         for level_id, n_samples in enumerate(self.n_target_samples):
+
+            samples = []
             for _ in range(int(n_samples)):
 
                 sample_id = self._get_sample_tag(level_id)
@@ -90,6 +93,11 @@ class Sampler:
 
                 # Increment number of created samples at current level
                 self._n_created_samples[level_id] += 1
+
+                samples.append(sample_id)
+
+            # Call storage method
+            #self._log_scheduled(sample_id)
 
     def _modify_level_sim_obj(self, level_sim, level_id, sample_dir):
         # Copy simulation common files
@@ -121,7 +129,7 @@ class Sampler:
         # New estimation according to already finished samples
         n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
         # Loop until number of estimated samples is greater than the number of scheduled samples
-        while not self.mlmc.process_adding_samples(n_estimated, pbs, sleep, add_coef):
+        while not self.process_adding_samples(n_estimated, pbs, sleep, add_coef):
             # New estimation according to already finished samples
             n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
 
@@ -140,6 +148,51 @@ class Sampler:
         n_samples = np.max(n_samples_estimate_safe, axis=1).astype(int)
 
         return n_samples
+
+    def process_adding_samples(self, n_estimated, pbs, sleep, add_coef=0.1):
+        """
+        Process adding samples
+        :param n_estimated: Number of estimated samples on each level, list
+        :param pbs: src.Pbs instance
+        :param sleep: Sample waiting time
+        :param add_coef: default value 0.1
+        :return: bool, if True adding samples is complete
+        """
+        # Get default scheduled samples
+        #n_scheduled = np.array(self.l_scheduled_samples())
+        n_scheduled = self.l_scheduled_samples()
+
+        print("n scheduled ", n_scheduled)
+
+        # New scheduled sample will be 10 percent of difference
+        # between current number of target samples and new estimated one
+        # If 10 percent of estimated samples is greater than difference between estimated and scheduled samples,
+        # set scheduled samples to estimated samples
+        print("n estimated ", n_estimated)
+        new_scheduled = np.where((n_estimated * add_coef) > (n_estimated - n_scheduled),
+                                 n_estimated,
+                                 n_scheduled + (n_estimated - n_scheduled) * add_coef)
+
+        # print("n estimated ", n_estimated)
+        print("new scheduled ", new_scheduled)
+        # print("n scheduled ", n_scheduled)
+
+        n_scheduled = np.ceil(np.where(n_estimated < n_scheduled,
+                                       n_scheduled,
+                                       new_scheduled))
+
+        print("N scheduled ", n_scheduled)
+
+        # Levels where estimated are greater than scheduled
+        greater_items = np.where(np.greater(n_estimated, n_scheduled))[0]
+
+        # Scheduled samples and wait until at least half of the samples are done
+        self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
+
+        print("n estimated ", n_estimated)
+        print("n scheduled ", n_scheduled)
+
+        return np.all(n_estimated[greater_items] == n_scheduled[greater_items])
 
     def n_sample_estimate_moments(self, target_variance, moments_fn=None, prescribe_vars=None):
         if moments_fn is None:
@@ -160,24 +213,36 @@ class Sampler:
 
         return n_samples_estimate, n_samples_estimate_safe
 
-    def ask_simulations_for_samples(self):
+    def ask_simulations_for_samples(self, sleep=0, timeout=None):
         """
-        Communicates through Sample objects
-
-        1) Loop through list of samples (instance of Sample object), check result file, extract results, change status,
-           pass data to SampleStorage
-
-        2) Given directory, go through sample directories and deserialized Sample instances from JSON objects.
-
-        :return:
+        Waiting for running simulations
+        :param sleep: time for doing nothing
+        :param timeout: maximum time for waiting on running simulations
+        :return: int, number of running simulations
         """
-        finished_samples = self._sampling_pool.get_finished()
-        print("finished samples ", finished_samples)
-        self._finished_samples.append(finished_samples)
+        if timeout is None:
+            timeout = 0
+        elif timeout <= 0:
+            return 1
+
+        n_running = 1
+        t0 = time.clock()
+        while n_running > 0:
+            n_running = 0
+
+            finished_samples = self._sampling_pool.get_finished()
+
+            time.sleep(sleep)
+            if 0 < timeout < (time.clock() - t0):
+                break
+
+        self._store_finished_samples(finished_samples)
+
+        return n_running
 
     def load_from_storage(self):
         raise NotImplementedError
         self._sample_storage.load_data()
 
-    def _store_finished_results(self):
-        self._sample_storage.write_data()
+    def _store_finished_samples(self, finished_samples):
+        self._sample_storage.write_results(finished_samples)

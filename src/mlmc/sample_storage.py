@@ -3,24 +3,35 @@ from abc import abstractmethod
 
 
 class SampleStorage(metaclass=ABCMeta):
+
+    @abstractmethod
+    def write_results(self, res):
+        """
+        Write results to storag
+        """
+
     @abstractmethod
     def write_data(self):
-        pass
+        """
+
+        """
+
 
     @abstractmethod
     def read_data(self):
-        pass
+        """
+
+        """
 
 
-class HDF(SampleStorage):
-    def write_data(self):
-        pass
+class Memory(SampleStorage):
 
-    def read_data(self):
-        pass
+    def __init__(self):
+        self._results = []
 
+    def write_results(self, res):
+        self._results.append(res)
 
-class InMemory(SampleStorage):
     def write_data(self):
         pass
 

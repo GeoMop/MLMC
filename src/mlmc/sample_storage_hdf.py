@@ -1,10 +1,11 @@
 import os
 import numpy as np
 import h5py
-from mlmc.sample import Sample
+from sample_storage import SampleStorage
+from sample import Sample
 
 
-class HDF5:
+class HDF5(SampleStorage):
     """
     HDF5 file is organized into groups (h5py.Group objects)
     which is somewhat like dictionaries in python terminology - 'keys' are names of group members
