@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import h5py
-from sample_storage import SampleStorage
 from sample import Sample
 
 
@@ -94,14 +93,6 @@ class HDF5:
         # Class attributes necessary for mlmc
         self.n_levels = None
         self.step_range = None
-
-    def read_data(self):
-        self.load_from_file()
-
-    def write_data(self):
-        self._hdf_object.clear_groups()
-        # self._hdf_object.init_header(step_range=self.step_range,
-        #                              n_levels=self._n_levels)
 
     def load_from_file(self):
         """
