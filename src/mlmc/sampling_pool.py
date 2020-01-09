@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from multiprocessing import Pool as ProcPool
 from multiprocessing.pool import ThreadPool
-from src.mlmc.level_simulation import LevelSimulation
+from level_simulation import LevelSimulation
 import queue
 from test.new_synth_simulation import SimulationTest
 
@@ -29,20 +29,6 @@ class SamplingPool(ABC):
         Return finished samples
         """
 
-    # @abstractmethod
-    # def add_samples(self, fine_sample, coarse_sample):
-    #     pass
-    #
-    # @abstractmethod
-    # def read_data(self):
-    #     pass
-
-
-# class InMemory(SamplingPool):
-#     def plan_samples(self, config, calc_method, files=None):
-#         print("config ", config)
-#         print("calc method ", calc_method)
-#         print("files ", files)
 
 class ProcessPool(SamplingPool):
 
@@ -88,29 +74,8 @@ class ProcessPool(SamplingPool):
         return self._queue.get()
 
 
+class ThreadPool(ProcessPool):
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def __init__(self):
+        self._pool = ThreadPool()
+        self._queue = queue.Queue()
