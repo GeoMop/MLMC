@@ -10,12 +10,12 @@ import mlmc.mlmc
 import mlmc.simulation
 import mlmc.moments
 import mlmc.distribution
-import flow_mc as flow_mc
+import mlmc.flow_mc as flow_mc
 import mlmc.correlated_field as cf
 import mlmc.estimate
 
 sys.path.append(os.path.join(src_path, '..'))
-import base_process
+import mlmc.base_process
 
 
 class FlowConcSim(flow_mc.FlowSim):
@@ -30,6 +30,7 @@ class FlowConcSim(flow_mc.FlowSim):
         :param sample: mlmc.sample Sample
         :return: None, total flux (float) and overall sample time
         """
+        self.result_struct = [["value", "time"], ["f8", "U20"]]
         sample_dir = sample.directory
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             # extract the flux
@@ -64,10 +65,11 @@ class FlowConcSim(flow_mc.FlowSim):
 
             # Get flow123d computing time
             run_time = self.get_run_time(sample_dir)
-
-            return max_flux, run_time
+            result_values = [max_flux, run_time]
+            return result_values
         else:
-            return None, 0
+            result_values = [None, 0]
+            return result_values
 
 
 class ProcConc(base_process.Process):

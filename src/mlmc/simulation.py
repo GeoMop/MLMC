@@ -55,18 +55,34 @@ class Simulation(metaclass=ABCMeta):
         :return: Modify sample
         """
         try:
-            result, running_time = self._extract_result(sample)
-            if result is np.nan:
-                raise
-        except:
-            result = np.inf
-            running_time = np.Inf
+            result_values = self._extract_result(sample)
 
-        if result is np.inf:
+            res_val_dtype = []
+            res_dtype = []
+            for r_name, r_dtype in zip(self.result_additional_data_struct[0], self.result_additional_data_struct[1]):
+                if r_name == "value":
+                    res_val_dtype.append((r_name, r_dtype))
+                else:
+                    res_dtype.append((r_name, r_dtype))
+
+            result = []
+            result_data = []
+            for result_val in result_values:
+                result.append(result_val[0])
+                result_data.append(result_val[1:])
+            self.result_additional_data = np.array(result_data, dtype=res_dtype)
+
+            # if np.any(np.isnan(result)):
+            #     raise Exception
+        except:
+            result_values = np.array(result_values)
+            result = np.full((len(result_values[:, 0]),), np.inf)
+
+        if np.all(np.isinf(result)):
             Simulation._move_sample_dir(sample.directory)
 
         sample.result = result
-        sample.running_time = running_time
+
         return sample
 
     @abstractmethod
@@ -153,12 +169,11 @@ class Simulation(metaclass=ABCMeta):
         """
         # Top-down directory scan
         for src_dir, dirs, files in os.walk(source_dir):
-            # Create destination directory if necessary
-            if not os.path.exists(destination_dir):
-                os.mkdir(destination_dir)
             # Copy files, use shutil.copyfile() method which doesn't need chmod permission
             for file in files:
                 src_file = os.path.join(src_dir, file)
-                dst_file = os.path.join(destination_dir, file)
+                dst_rel = os.path.relpath(src_file, source_dir)
+                dst_file = os.path.join(destination_dir, dst_rel)
+                os.makedirs(os.path.dirname(dst_file), exist_ok=True)
                 if not os.path.exists(dst_file):
                     shutil.copyfile(src_file, dst_file)

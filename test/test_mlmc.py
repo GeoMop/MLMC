@@ -4,7 +4,7 @@ import shutil
 import numpy as np
 import scipy.stats as stats
 import re
-import test.stats_tests
+#import test.stats_tests
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, src_path + '/../src/')
@@ -18,17 +18,19 @@ import mlmc.correlated_field as cf
 from test.fixtures.mlmc_test_run import TestMLMC
 from test.fixtures.synth_simulation import SimulationTest
 from test.simulations.simulation_shooting import SimulationShooting
-import pbs as pb
+import mlmc.pbs as pb
 import copy
+#from memory_profiler import profile
 
 
+#@profile
 def test_mlmc():
     """
     Test if mlmc moments correspond to exact moments from distribution
     :return: None
     """
-    np.random.seed(3)   # To be reproducible
-    n_levels = [2] #[1, 2, 3, 5, 7]
+    #np.random.seed(3)   # To be reproducible
+    n_levels = [1] #[1, 2, 3, 5, 7]
     n_moments = [8]
 
     clean = True
@@ -41,7 +43,7 @@ def test_mlmc():
                 os.remove(os.path.join(work_dir, f))
 
     distr = [
-        (stats.norm(loc=1, scale=2), False, '_sample_fn'),
+        (stats.norm(loc=10, scale=2), False, '_sample_fn'),
         # (stats.norm(loc=1, scale=10), False, '_sample_fn'),
         # (stats.lognorm(scale=np.exp(5), s=1), True, '_sample_fn'),  # worse conv of higher moments
         # (stats.lognorm(scale=np.exp(-3), s=2), True, '_sample_fn'),  # worse conv of higher moments
@@ -63,14 +65,28 @@ def test_mlmc():
             for d, il, sim in distr:
                 mc_test = TestMLMC(nl, nm, d, il, sim)
                 # number of samples on each level
-
                 estimator = mlmc.estimate.Estimate(mc_test.mc)
 
-                mc_test.mc.set_initial_n_samples()
+                mc_test.mc.set_initial_n_samples([1000])
                 mc_test.mc.refill_samples()
                 mc_test.mc.wait_for_simulations()
 
-                estimator.target_var_adding_samples(0.00001, mc_test.moments_fn)
+                #mc_test.mc.select_values({"quantity": (b"quantity_1", "=")})#, "value": (-100, ">")})
+                #estimator.target_var_adding_samples(0.0001, mc_test.moments_fn)
+
+                #mc_test.mc.clean_select()
+                #mc_test.mc.select_values({"quantity": (b"quantity_1", "=")})
+                #mc_test.mc.select_values(None, selected_param="values")
+                mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (1, "<")})
+
+                cl = mlmc.estimate.CompareLevels([mc_test.mc],
+                                   output_dir=src_path,
+                                   quantity_name="Q [m/s]",
+                                   moment_class=mlmc.moments.Legendre,
+                                   log_scale=False,
+                                   n_moments=nm, )
+
+                cl.plot_densities()
 
                 mc_test.mc.update_moments(mc_test.moments_fn)
 
@@ -78,14 +94,14 @@ def test_mlmc():
                 #mc_test.generate_samples(total_samples)
                 total_samples = mc_test.mc.n_samples
 
-                mc_test.collect_subsamples(1, 1000)
-
+                mc_test.collect_subsamples(1, 100)
+                #
                 mc_test.test_variance_of_variance()
                 mc_test.test_mean_var_consistency()
 
                 #mc_test._test_min_samples() # No asserts, just diff var plot and so on
-
                 # test regression for initial sample numbers
+
                 print("n_samples:", mc_test.mc.n_samples)
                 mc_test.test_variance_regression()
                 mc_test.mc.clean_subsamples()
@@ -268,7 +284,7 @@ def check_estimates_for_nans(mc, distr):
     # test that estimates work even with nans
     n_moments = 4
     true_domain = distr.ppf([0.001, 0.999])
-    moments_fn = mlmc.moments.Fourier(n_moments, true_domain)
+    moments_fn = mlmc.moments.Legendre(n_moments, true_domain)
     mlmc_est = mlmc.estimate.Estimate(mc)
     moments, vars = mlmc_est.estimate_moments(moments_fn)
     assert not np.any(np.isnan(moments))
@@ -287,9 +303,11 @@ def test_save_load_samples():
     if os.path.exists(work_dir):
         if clean:
             shutil.rmtree(work_dir)
+            #os.makedirs(work_dir)
+
     os.makedirs(work_dir)
 
-    n_levels = 10
+    n_levels = 1
     distr = stats.norm()
     step_range = (0.8, 0.01)
 
@@ -310,7 +328,7 @@ def test_save_load_samples():
     mc.refill_samples()
     mc.wait_for_simulations()
 
-    check_estimates_for_nans(mc, distr)
+    #check_estimates_for_nans(mc, distr)
 
     level_data = []
     # Levels collected samples
@@ -321,11 +339,16 @@ def test_save_load_samples():
         assert not np.isnan(level.sample_values).any()
         level_data.append(l_data)
 
-
     mc.clean_levels()
     # Check NaN values
     for level in mc.levels:
         assert not np.isnan(level.sample_values).any()
+
+
+    hdf_file_path = os.path.join(work_dir, 'mlmc_{}.hdf5'.format(n_levels))
+
+    original_size = os.path.getsize(hdf_file_path)
+
 
     # New mlmc
     mc = mlmc.mlmc.MLMC(n_levels, simulation_factory, step_range, mlmc_options)
@@ -338,6 +361,9 @@ def test_save_load_samples():
         scheduled, collected, values = data
         # Compare scheduled and collected samples with saved one
         _compare_samples(collected, level.collected_samples)
+
+    new_size = os.path.getsize(hdf_file_path)
+    assert new_size == original_size
 
 
 def _compare_samples(saved_samples, current_samples):
@@ -424,5 +450,13 @@ def _test_regression(distr_cfg, n_levels, n_moments):
 
 
 if __name__ == '__main__':
-    #test_mlmc()
-    test_save_load_samples()
+    # import pstats
+    #import cProfile
+
+    test_mlmc()
+
+    # cProfile.run('test_mlmc()', 'mlmctest')
+    # p = pstats.Stats('mlmctest')
+    # p.sort_stats('cumulative').print_stats()
+
+    #test_save_load_samples()
