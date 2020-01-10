@@ -5,11 +5,12 @@ from scipy import stats
 
 from typing import List
 from new_simulation import Simulation
+from synth_simulation import SynthSimulation
 from level_simulation import LevelSimulation
 from new_simulation import QuantitySpec
 
 
-class SimulationTestUseWorkspace(Simulation):
+class SimulationTestUseWorkspace(SynthSimulation):
 
     n_nans = 0
     nan_fraction = 0
@@ -29,39 +30,13 @@ class SimulationTestUseWorkspace(Simulation):
         super().__init__(config)
         self.config_yaml = config["config_yaml"]
 
-        print("self. config yaml ", self.config_yaml)
-
         SimulationTestUseWorkspace.n_nans = 0
         SimulationTestUseWorkspace.nan_fraction = config.get('nan_fraction', 0.0)
         SimulationTestUseWorkspace.len_results = 0
-        #self.step = step
-        # self._result_dict = {}
-        # self._coarse_simulation = None
-        # self.coarse_sim_set = False
 
         # This attribute is obligatory
         self.need_workspace: bool = True
 
-    @staticmethod
-    def sample_fn(x, h):
-        """
-        Calculates the simulation sample
-        :param x: Distribution sample
-        :param h: Simluation step
-        :return: sample
-        """
-        # This function can cause many outliers depending on chosen domain of moments function
-        return x + h * np.sqrt(1e-4 + np.abs(x))
-
-    @staticmethod
-    def sample_fn_no_error(x, h):
-        """
-        Calculates the simulation sample
-        :param x: Distribution sample
-        :param h: Simluation step
-        :return: sample
-        """
-        return x
 
     def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]):
         config = {}
@@ -112,17 +87,3 @@ class SimulationTestUseWorkspace(Simulation):
             config = yaml.load(file)
 
         return config
-
-    def n_ops_estimate(self):
-        return (1 / self.step) ** self.config['complexity'] * np.log(max(1 / self.step, 2.0))
-
-    @staticmethod
-    def result_format() -> List[QuantitySpec]:
-        spec = QuantitySpec(name="value", unit="", shape=(1,), times=[], locations=[])
-        return [spec]
-
-    # @staticmethod
-    # def extract_result(sample_id):
-    #     # sample time, not implemented in this simulation
-    #     time = np.random.random()
-    #     return SimulationTest.result_dict[sample_id]

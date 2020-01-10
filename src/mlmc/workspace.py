@@ -32,6 +32,13 @@ class Workspace(ABC):
     def serialize_level_sim(self, level_sim: LevelSimulation):
         pass
 
+    @abstractmethod
+    def save_to_storage(self):
+        """
+        Define dictionary of variables which should by saved in sample storage
+        :return:
+        """
+
 
 class WithoutWorkspace(Workspace):
 
@@ -46,6 +53,9 @@ class WithoutWorkspace(Workspace):
         """
 
     def serialize_level_sim(self, level_sim: LevelSimulation):
+        pass
+
+    def save_to_storage(self):
         pass
 
 
@@ -66,6 +76,9 @@ class SimulationWorkspace(Workspace):
             shutil.copy(file, sample_dir)
 
     def serialize_level_sim(self, level_sim: LevelSimulation):
+        pass
+
+    def save_to_storage(self):
         pass
 
 
@@ -115,6 +128,9 @@ class WholeWorkspace(Workspace):
             shutil.copy(file, sample_dir)
 
     def serialize_level_sim(self, level_sim: LevelSimulation):
+        pass
+
+    def save_to_storage(self):
         pass
 
 
@@ -282,7 +298,7 @@ class PBSWorkspace(WholeWorkspace):
             if len(file) > 1:
                 raise Exception
 
-            job_id = re.findall("(\d+)\_", file[0])
+            job_id = re.findall("(\d+)_", file[0])
 
             if len(job_id) == 1:
                 self._read_results(job_id[0])
@@ -294,4 +310,14 @@ class PBSWorkspace(WholeWorkspace):
         :return:
         """
         with open(PBSWorkspace.RESULTS.format(job_id), "r") as reader:
-            results = reader.readlines()
+                results = yaml.load(reader)
+
+        return results
+
+    def save_to_storage(self):
+        return {"work_dir": self._work_dir,
+                "job_dir": self._jobs_dir}
+
+    def get_from_storage(self):
+        pass
+

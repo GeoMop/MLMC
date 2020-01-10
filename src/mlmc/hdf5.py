@@ -67,21 +67,21 @@ class HDF5:
                                 chunks: True
     """
 
-    def __init__(self, work_dir, file_name="mlmc.hdf5", job_dir="scripts"):
+    def __init__(self, file_path):
         """
         Create HDF5 class instance
         :param work_dir: absolute path to MLMC work directory
         :param file_name: Name of mlmc HDF5 file
         :param job_dir: pbs job scripts directory, relative path to work_dir
         """
-        # Work directory abs path
-        self.work_dir = work_dir
-        # Absolute path to mlmc HDF5 file
-        self.file_name = os.path.join(work_dir, file_name)
+        # # Work directory abs path
+        # self.work_dir = work_dir
+        # # Absolute path to mlmc HDF5 file
+        self.file_name = file_path#os.path.join(work_dir, file_name)
         # Job directory relative path
-        self.job_dir = job_dir
+        #self.job_dir = job_dir
         # Job directory absolute path
-        self.job_dir_abs_path = os.path.join(work_dir, job_dir)
+        #self.job_dir_abs_path = os.path.join(work_dir, job_dir)
 
         # Load from file flag
         self._loaded_from_file = False
@@ -128,13 +128,22 @@ class HDF5:
         with h5py.File(self.file_name, "a") as hdf_file:
             # Set global attributes to root group (h5py.Group)
             hdf_file.attrs['version'] = '1.0.1'
-            hdf_file.attrs['work_dir'] = self.work_dir
-            hdf_file.attrs['job_dir'] = self.job_dir
             hdf_file.attrs['step_range'] = step_range
             hdf_file.attrs.create("n_levels", n_levels, dtype=np.int8)
 
             # Create h5py.Group Levels, it contains other groups with mlmc.Level data
             hdf_file.create_group("Levels")
+
+    def save_workspace_attrs(self, work_dir, job_dir):
+        """
+        Save workspace information to header
+        :param work_dir: str
+        :param job_dir: str
+        :return: None
+        """
+        with h5py.File(self.file_name, "a") as hdf_file:
+            hdf_file.attrs['work_dir'] = work_dir
+            hdf_file.attrs['job_dir'] = job_dir
 
     def add_level_group(self, level_id):
         """
@@ -151,18 +160,52 @@ class HDF5:
                 # Create group for level named by level id (e.g. 0, 1, 2, ...)
                 hdf_file['Levels'].create_group(level_id)
 
-        return LevelGroup(self.file_name, level_group_hdf_path, level_id, job_dir=self.job_dir_abs_path,
-                          loaded_from_file=self._loaded_from_file)
+        return LevelGroup(self.file_name, level_group_hdf_path, level_id, loaded_from_file=self._loaded_from_file)
+
+    @property
+    def result_format_dset_name(self):
+        """
+        Result format dataset name
+        :return: str
+        """
+        return "result_format"
+
+    def save_result_format(self, result_format):
+        """
+        Save collected values data - it's descriptive data of each item of collected values vector
+        :return: None
+        """
+        result_format_dtype = result_format[0].dtype
+
+        # Create data set
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            # Check if dataset exists
+            if self.result_format_dset_name not in hdf_file:
+                hdf_file.create_dataset(
+                    self.result_format_dset_name,
+                    shape=(len(result_format),),
+                    dtype=result_format_dtype,
+                    maxshape=(None,),
+                    chunks=True)
+
+        result_array = np.empty((len(result_format),), dtype=result_format_dtype)
+        for res, quantity_spec in zip(result_array, result_format):
+            for attribute in quantity_spec.used_attributes:
+                if isinstance(getattr(quantity_spec, attribute), (tuple, list)):
+                    res[attribute][:] = getattr(quantity_spec, attribute)
+                else:
+                    res[attribute] = getattr(quantity_spec, attribute)
+
+        # Write to file
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            dataset = hdf_file[self.result_format_dset_name]
+            dataset[:] = result_array
 
 
 class LevelGroup:
-    # One sample data type for dataset (h5py.Dataset) scheduled
-    SAMPLE_DTYPE = {'names': ('dir', 'job_id', 'prepare_time', 'queued_time'),
-                    'formats': ('S100', 'S5', 'f8', 'f8')}
-
     # Row format for dataset (h5py.Dataset) scheduled
-    SCHEDULED_DTYPE = {'names': ['fine_sample', 'coarse_sample'],
-                       'formats': [SAMPLE_DTYPE, SAMPLE_DTYPE]}
+    SCHEDULED_DTYPE = {'names': ['sample_id'],
+                       'formats': ['S100']}
 
     SAMPLE_TIME = {'names': ('fine_time', 'coarse_time'),
                               'formats': (np.float64, np.float64)}
@@ -189,7 +232,7 @@ class LevelGroup:
                        #          'dtype': np.float64}
                        }
 
-    def __init__(self, file_name, hdf_group_path, level_id, job_dir, loaded_from_file=False):
+    def __init__(self, file_name, hdf_group_path, level_id, loaded_from_file=False):
         """
         Create LevelGroup instance, each mlmc.Level has access to corresponding LevelGroup to save data
         :param file_name: Name of hdf file
@@ -204,7 +247,7 @@ class LevelGroup:
         # HDF Group object (h5py.Group)
         self.level_group_path = hdf_group_path
         # Absolute path to the job directory
-        self.job_dir = job_dir
+        #self.job_dir = job_dir
 
         # Structure of sample format
         self.result_additional_data = None
@@ -300,29 +343,11 @@ class LevelGroup:
     def append_scheduled(self, scheduled_samples):
         """
         Save scheduled samples to dataset (h5py.Dataset)
-        :param scheduled_samples: list of sample objects [(fine_sample, coarse_sample)]
+        :param scheduled_samples: list of sample ids
         :return: None
         """
-        # Prepare NumPy array for all scheduled samples
-        samples_scheduled_data = np.empty(len(scheduled_samples), dtype=LevelGroup.SCHEDULED_DTYPE)
-        # Jobs {job_id: [sample_id, ...]}
-        jobs = {}
-
-        # Go through scheduled samples, format them and get samples job ids (pbs script id, see src.Pbs)
-        for index, (sample_id, (fine_sample, coarse_sample)) in enumerate(scheduled_samples.items()):
-            # Add of fine samples scheduled data and coarse sample scheduled data
-            samples_scheduled_data[index] = fine_sample.scheduled_data(), coarse_sample.scheduled_data()
-            # Append sample id to job id, default create empty set
-            jobs.setdefault(fine_sample.job_id, set()).add(sample_id)
-            # For non zero level add also coarse sample job id
-            if int(self.level_id) != 0:
-                jobs.setdefault(coarse_sample.job_id, set()).add(sample_id)
-
         # Append samples to existing scheduled dataset
-        self._append_dataset(self.scheduled_dset, samples_scheduled_data)
-
-        # Save to jobs to datasets
-        self._append_jobs(jobs)
+        self._append_dataset(self.scheduled_dset, scheduled_samples)
 
     def _append_jobs(self, jobs):
         """
@@ -347,6 +372,7 @@ class LevelGroup:
         :param collected_samples: Level sample [(fine sample, coarse sample)], both are Sample() object instances
         :return: None
         """
+        print("collected samples ", collected_samples)
 
         # Get sample attributes pairs as NumPy array [num_attrs, num_samples, 2]
         samples_attr_pairs = self._sample_attr_pairs(collected_samples)
@@ -391,6 +417,7 @@ class LevelGroup:
         :param fine_coarse_samples: list of tuples; [(Sample(), Sample()), ...]
         :return: Fine and coarse samples in array: [n_attrs, N, 2]
         """
+        print("fine coarse samples ", fine_coarse_samples)
         self._modify_dtype(len(fine_coarse_samples[0][0].result))
         fine_coarse_data = np.empty((len(fine_coarse_samples)), dtype=LevelGroup.COLLECTED_DTYPE)
 

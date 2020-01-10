@@ -92,19 +92,6 @@ class SamplingPoolPBS(SamplingPool):
         """
         pass
 
-    def get_finished(self):
-        """
-        1) close PBS job, run it by 'qsub'
-        2) parse output and get PBS ID
-        3) received PBS ID save to XYZ_pbs_id
-        4) closing is also called from schedule sample in case of package limit exceeding
-        :return:
-        """
-        self.execute()
-
-        job_ids = self._qstat_pbs_job()
-        
-        self.workspace.get_result_files(job_ids)
 
     def _qstat_pbs_job(self):
         """
@@ -175,10 +162,21 @@ class SamplingPoolPBS(SamplingPool):
         if process.returncode != 0:
             raise Exception(process.stderr.decode('ascii'))
 
-
         self._parse_qsub_output(process)
 
         # Clean script for other usage
         # self.clean_script()
         self._current_job_weight = 0
         self._number_of_realizations = 0
+
+    def get_finished(self):
+        """
+        Get results
+        :return:
+        """
+        self.execute()
+
+        job_ids = self._qstat_pbs_job()
+
+        self.workspace.get_result_files(job_ids)
+

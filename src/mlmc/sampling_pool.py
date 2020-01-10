@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
 from multiprocessing import Pool as ProcPool
-from multiprocessing.pool import ThreadPool
+from multiprocessing.pool import ThreadPool as Threads
 from level_simulation import LevelSimulation
 import queue
-from new_synth_simulation import SimulationTest
 
 
 class SamplingPool(ABC):
@@ -37,7 +36,6 @@ class ProcessPool(SamplingPool):
         self._queue = queue.Queue()
 
     def schedule_sample(self, sample_id, level_sim):
-        print("level sim ", level_sim)
         level_sim.config_dict["sample_id"] = sample_id
         result = self._pool.apply_async(ProcessPool.calculate_sample, args=(sample_id, level_sim, ),
                                         callback=self.result_callback, error_callback=self.error_callback)
@@ -71,11 +69,11 @@ class ProcessPool(SamplingPool):
         """
         return results from queue - list of (sample_id, pair_of_result_vectors, error_message)
         """
-        return self._queue.get()
+        return list(self._queue.queue)
 
 
 class ThreadPool(ProcessPool):
 
-    def __init__(self):
-        self._pool = ThreadPool()
+    def __init__(self, n_thread):
+        self._pool = Threads(n_thread)
         self._queue = queue.Queue()

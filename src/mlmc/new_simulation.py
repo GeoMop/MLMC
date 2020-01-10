@@ -1,15 +1,31 @@
+import numpy as np
 import attr
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Optional, Any
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class QuantitySpec:
     name: str
     unit: str
     shape: Tuple[int, int]
     times: List[float]
     locations: List[str]
+    dtype: Any = attr.ib()
+    used_attributes: List = ["name", "unit", "shape", "times", "locations"]
+
+    @dtype.default
+    def hdf_format(self):
+        result_dtype = {'names': ('name', 'unit', 'shape', 'times', 'locations'),
+                        'formats': ('S50',
+                                    'S50',
+                                    np.dtype((np.int32, (2,))),
+                                    np.dtype((np.float, (len(self.times),))),
+                                    np.dtype(('S50', (len(self.locations),)))
+                                    )
+                        }
+
+        return result_dtype
 
 
 class Simulation(ABC):

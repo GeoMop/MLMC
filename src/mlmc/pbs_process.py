@@ -6,7 +6,10 @@ import json
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))
+sys.path.append(os.path.join(src_path, '..', '..', 'test'))
 sys.path.append(os.path.join(src_path))
+
+print("sys.path ", sys.path)
 
 
 def build():
@@ -62,9 +65,7 @@ def run_sample(level_id_sample_id, level_sims, result_file_path):
         result = level_sim.calculate(level_sim.config_dict, level_sim.sample_workspace)
 
         mes = ""
-        res = {sample_id: {"fine_result": result[0].tolist(),
-                           "coarse_result": result[1].tolist(),
-                           "message": mes}}
+        res = [sample_id, [result[0].tolist(), result[1].tolist()], mes]
 
         write_results_to_file(res, result_file_path)
 
@@ -73,7 +74,6 @@ def write_results_to_file(result, result_file_path):
     with open(result_file_path, "a") as f:
         yaml.dump(result, f)
 
-    #
     # with open(result_file_path, "r") as f:
     #     result = yaml.load(f)
     #     print("result ", result)
