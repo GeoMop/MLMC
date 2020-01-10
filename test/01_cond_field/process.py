@@ -9,12 +9,13 @@ import mlmc.mlmc
 import mlmc.simulation
 import mlmc.moments
 import mlmc.distribution
-import flow_mc as flow_mc
+import mlmc.flow_mc_2 as flow_mc
 import mlmc.correlated_field as cf
-from mlmc.estimate import Estimate
+from mlmc.estimate import Estimate, CompareLevels
 
 sys.path.append(os.path.join(src_path, '..'))
-import base_process
+from mlmc import base_process
+from mlmc.moments import Legendre
 
 
 class FlowProcSim(flow_mc.FlowSim):
@@ -28,6 +29,7 @@ class FlowProcSim(flow_mc.FlowSim):
         :param sample: Sample instance
         :return: None, inf or water balance result (float) and overall sample time
         """
+        self.result_struct = [["value", "time"], ["f8", "S20"]]
         sample_dir = sample.directory
         if os.path.exists(os.path.join(sample_dir, "FINISHED")):
             # try:
@@ -57,9 +59,11 @@ class FlowProcSim(flow_mc.FlowSim):
 
             if not found:
                 raise Exception
-            return -total_flux, run_time
+            result_values = [-total_flux, run_time]
+            return result_values
         else:
-            return None, 0
+            result_values = [None, 0]
+            return result_values
 
 
 class CondField(base_process.Process):
@@ -77,7 +81,7 @@ class CondField(base_process.Process):
         for nl in [1]:  # , 2, 3, 4,5, 7, 9]:
             mlmc = self.setup_config(nl, clean=True)
             # self.n_sample_estimate(mlmc)
-            self.generate_jobs(mlmc, n_samples=[8])
+            self.generate_jobs(mlmc, n_samples=[1])
             mlmc_list.append(mlmc)
 
         self.all_collect(mlmc_list)
@@ -92,14 +96,23 @@ class CondField(base_process.Process):
         # for nl in [ 1,3,5,7,9]:
 
         import time
-        for nl in [5]:  # high resolution fields
+        for nl in [1]:  # high resolution fields
             start = time.time()
             mlmc = self.setup_config(nl, clean=False)
+
             print("celkový čas ", time.time() - start)
             # Use wrapper object for working with collected data
             mlmc_est = Estimate(mlmc)
             mlmc_est_list.append(mlmc_est)
 
+        cl = CompareLevels([mlmc],
+                           output_dir=src_path,
+                           quantity_name="Q [m/s]",
+                           moment_class=Legendre,
+                           log_scale=False,
+                           n_moments=8, )
+
+        self.process_analysis(cl)
 
     def setup_config(self, n_levels, clean):
         """
