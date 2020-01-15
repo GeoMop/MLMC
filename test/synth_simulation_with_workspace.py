@@ -37,7 +37,6 @@ class SimulationTestUseWorkspace(SynthSimulation):
         # This attribute is obligatory
         self.need_workspace: bool = True
 
-
     def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]):
         config = {}
         config["fine"] = {}
@@ -59,7 +58,7 @@ class SimulationTestUseWorkspace(SynthSimulation):
         else:
             raise NotImplementedError("Other distributions are not implemented yet")
 
-        y = distr.rvs(size=1)
+        y = distr.rvs(size=SimulationTestUseWorkspace.result_format()[0].shape)
 
         if SimulationTestUseWorkspace.n_nans / (1e-10 + SimulationTestUseWorkspace.len_results) < SimulationTestUseWorkspace.nan_fraction:
             SimulationTestUseWorkspace.n_nans += 1
@@ -78,8 +77,20 @@ class SimulationTestUseWorkspace(SynthSimulation):
         fine_result = SimulationTestUseWorkspace.sample_fn(fine_random, fine_step)
         coarse_result = SimulationTestUseWorkspace.sample_fn(coarse_random, coarse_step)
 
+        quantity_format = SimulationTestUseWorkspace.result_format()
 
-        return fine_result, coarse_result
+        results = []
+        for result in [fine_result, coarse_result]:
+            quantities = []
+            for quantity in quantity_format:
+                locations = np.array([result + i for i in range(len(quantity.locations))])
+                times = np.array([locations for _ in range(len(quantity.times))])
+                print("times shape ", times.shape)
+                quantities.append(times)
+
+            results.append(quantities)
+
+        return results[0], results[1]
 
     @staticmethod
     def _read_config(sample_workspace):

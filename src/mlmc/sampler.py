@@ -176,6 +176,8 @@ class Sampler:
         self._sample_storage.save_results(finished_samples)
 
 
+
+
     # def target_var_adding_samples(self, target_var, moments_fn, pbs=None, sleep=20, add_coef=0.1):
     #     """
     #     Set level target number of samples according to improving estimates.
@@ -273,3 +275,6 @@ class Sampler:
     #     n_samples_estimate_safe = np.maximum(np.minimum(n_samples_estimate, vars * self.n_levels / target_variance), 2)
     #
     #     return n_samples_estimate, n_samples_estimate_safe
+
+    def sample_storage(self):
+        return self._sample_storage

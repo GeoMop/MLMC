@@ -9,7 +9,7 @@ from new_synth_simulation import SimulationTest
 from synth_simulation_with_workspace import SimulationTestUseWorkspace
 
 from sampler import Sampler
-from sample_storage_hdf import HDFStorage
+from sample_storage_hdf import SampleStorageHDF
 from sample_storage import Memory
 from sampling_pool import ProcessPool, ThreadPool
 from sampling_pool_pbs import SamplingPoolPBS
@@ -75,7 +75,7 @@ def sampler_test_with_sim_workspace(hdf=False):
 
     # mlv = MLView(n_levels, simulation_factory, step_range)
     if hdf:
-        sample_storage = HDFStorage(file_path=os.path.join(work_dir, "mlmc_{}.hdf5".format(n_levels)))
+        sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_{}.hdf5".format(n_levels)))
         sample_storage.save_global_data(step_range=step_range, n_levels=n_levels,
                                         result_format=SimulationTest.result_format())
     else:

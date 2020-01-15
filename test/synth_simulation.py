@@ -89,6 +89,8 @@ class SynthSimulation(Simulation):
         fine_result = SynthSimulation.sample_fn(fine_random, fine_step)
         coarse_result = SynthSimulation.sample_fn(coarse_random, coarse_step)
 
+
+
         return fine_result, coarse_result
 
     def n_ops_estimate(self):
@@ -97,8 +99,8 @@ class SynthSimulation(Simulation):
     @staticmethod
     def result_format() -> List[QuantitySpec]:
         # When to get this format? Is it mutable?
-        spec1 = QuantitySpec(name="length", unit="m", shape=(1, 0), times=[1, 2, 3], locations=[10, 20])
-        spec2 = QuantitySpec(name="width", unit="mm", shape=(1, 0), times=[1, 2, 3], locations=[10, 20])
+        spec1 = QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=[10, 20])
+        spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=[10, 20])
         return [spec1, spec2]
 
     # @staticmethod
