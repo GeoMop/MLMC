@@ -48,6 +48,7 @@ class Memory(SampleStorage):
 
     def __init__(self):
         self._results = {}
+        self._scheduled = {}
         self._result_specification = []
 
     def save_results(self, results):
@@ -68,6 +69,14 @@ class Memory(SampleStorage):
         Load result format
         """
         return self._result_specification
+
+    def save_scheduled_samples(self, samples):
+        for sample in samples:
+            level = self._get_level(sample)
+            self._scheduled.setdefault(level, []).append(sample)
+
+    def load_scheduled_samples(self):
+        return self._scheduled
 
     def save_workspace(self, workspace: Workspace):
         pass

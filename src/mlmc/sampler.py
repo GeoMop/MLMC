@@ -112,7 +112,7 @@ class Sampler:
                 samples.append(sample_id)
 
             # Store scheduled samples
-            self._sample_storage.save_scheduled_samples(level_id, samples)
+            self._sample_storage.save_scheduled_samples(samples)
 
     def _modify_level_sim_obj(self, level_sim, level_id, sample_dir):
         """

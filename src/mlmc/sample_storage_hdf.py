@@ -84,20 +84,24 @@ class SampleStorageHDF(SampleStorage):
             level = re.findall(r'L0?(\d+)_', res[0])[0]
             level_samples.setdefault(level, []).append(res)
 
-        for key, samples in level_samples.items():
-            # @TODO: append_collected refactoring
-            self._level_groups[int(key)].sample_dtype = self._sample_dtype
+        for level_id, samples in level_samples.items():
+            self._level_groups[int(level_id)].sample_dtype = self._sample_dtype
+            self._level_groups[int(level_id)].append_collected(np.array(samples))
 
-            self._level_groups[int(key)].append_collected(np.array(samples))
-
-    def save_scheduled_samples(self, level_id: int, samples: List[str]):
+    def save_scheduled_samples(self, samples: List[str]):
         """
         Append scheduled samples
         :param level_id: int
         :param samples: list of sample identifiers
         :return: None
         """
-        self._level_groups[level_id].append_scheduled(samples)
+        scheduled = {}
+        for sample in samples:
+            level = self._get_level(sample)
+            scheduled.setdefault(level, []).append(sample)
+
+        for level_id, samples in scheduled.items():
+            self._level_groups[int(level_id)].append_scheduled(samples)
 
     def save_workspace(self, workspace=None):
         self._hdf_object.save_workspace_attrs("workdir", "job_dir")
