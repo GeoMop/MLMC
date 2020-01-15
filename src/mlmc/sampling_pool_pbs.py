@@ -63,11 +63,13 @@ class SamplingPoolPBS(SamplingPool):
                                      '#PBS -o {pbs_output_dir}/{job_name}.OU',
                                      '#PBS -e {pbs_output_dir}/{job_name}.ER',
                                      '']
+        #  @TODO: prepare environment
         if flow_3:
             self._pbs_header_template.extend(('module use /storage/praha1/home/jan-hybs/modules',
+                                              'module load python36-modules-gcc'
                                               'module load flow123d', ''))
 
-        self._pbs_header_template.extend(('python {pbs_process_file_dir}/pbs_process.py {files_structure} {job_name} >{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
+        self._pbs_header_template.extend(('python3 {pbs_process_file_dir}/pbs_process.py {files_structure} {job_name} >{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
         self._pbs_config = kwargs
 
     def schedule_sample(self, sample_id, level_sim):
@@ -91,7 +93,6 @@ class SamplingPoolPBS(SamplingPool):
         List of permanent samples or find per call?
         """
         pass
-
 
     def _qstat_pbs_job(self):
         """
@@ -130,11 +131,7 @@ class SamplingPoolPBS(SamplingPool):
         self._pbs_config['pbs_output_dir'] = self.workspace.jobs_dir
         self._pbs_config['files_structure'] = self.workspace.files_structure
 
-        print("pbs header template ", self._pbs_header_template)
-
         self.pbs_script = [line.format(**self._pbs_config) for line in self._pbs_header_template]
-
-        print("pbs script ", self.pbs_script)
 
     def execute(self):
         """
@@ -175,8 +172,7 @@ class SamplingPoolPBS(SamplingPool):
         :return:
         """
         self.execute()
-
         job_ids = self._qstat_pbs_job()
-
-        self.workspace.get_result_files(job_ids)
+        results, n_running = self.workspace.get_result_files(job_ids)
+        return results, n_running
 

@@ -123,10 +123,10 @@ def sampler_test_pbs():
         n_cores=1,
         n_nodes=1,
         select_flags=['cgroups=cpuacct'],
-        mem='4gb',
+        mem='128mb',
         queue='charon',
         home_dir='/storage/liberec3-tul/home/martin_spetlik/',
-        pbs_process_file_dir='/home/martin/Documents/MLMC_new_design/src/mlmc')
+        pbs_process_file_dir='/auto/liberec3-tul/home/martin_spetlik/MLMC_new_design/src/mlmc')
 
     sampling_pool.pbs_common_setting(flow_3=True, **pbs_config)
 
@@ -136,7 +136,7 @@ def sampler_test_pbs():
 
     sampler.determine_level_n_samples()
     sampler.create_simulations()
-    sampler.ask_simulations_for_samples()
+    sampler.ask_simulations_for_samples(sleep=30, timeout=600)
 
 
 def sampler_test_thread():
@@ -177,6 +177,6 @@ def sampler_test_thread():
 
 if __name__ == "__main__":
     #sampler_test(hdf=True)
-    sampler_test_with_sim_workspace(hdf=True)
-    #sampler_test_pbs()
+    #sampler_test_with_sim_workspace(hdf=True)
+    sampler_test_pbs()
     #sampler_test_thread_with_sim_workspace()

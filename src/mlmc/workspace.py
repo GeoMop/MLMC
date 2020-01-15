@@ -271,7 +271,6 @@ class PBSWorkspace(WholeWorkspace):
         Save structure of files needed for pbs process run
         :return: None
         """
-
         files_structure = {"scheduled": os.path.join(self._jobs_dir, PBSWorkspace.SCHEDULED),
                           "results": os.path.join(self._jobs_dir, PBSWorkspace.RESULTS),
                           "levels_config": os.path.join(self._output_dir, PBSWorkspace.LEVELS_CONFIG)}
@@ -285,23 +284,27 @@ class PBSWorkspace(WholeWorkspace):
         :param unfinished_pbs_jobs: PBS jobs id from qstat
         :return:
         """
-
         os.chdir(self.jobs_dir)
 
-        for pbs_id in unfinished_pbs_jobs:
-            reg = '*_{}'.format(pbs_id)
-            file = glob.glob(reg)
+        reg = "*_*[0-9]"
+        file = glob.glob(reg)
 
-            if not file:
+        n_running = 0
+        results = []
+        for f in file:
+            job_id, pbs_id = re.findall("(\d+)_(\d+)", f)[0]
+
+            if pbs_id in unfinished_pbs_jobs:
+                print("scheduled file ", self._scheduled_file)
+                with open(self._scheduled_file) as file:
+                    lines = yaml.load(file)
+                    n_running += len(lines)
                 continue
 
-            if len(file) > 1:
-                raise Exception
+            res = self._read_results(job_id)
+            results.extend(res)
 
-            job_id = re.findall("(\d+)_", file[0])
-
-            if len(job_id) == 1:
-                self._read_results(job_id[0])
+        return results, n_running
 
     def _read_results(self, job_id):
         """
@@ -309,8 +312,8 @@ class PBSWorkspace(WholeWorkspace):
         :param job_id: str
         :return:
         """
-        with open(PBSWorkspace.RESULTS.format(job_id), "r") as reader:
-                results = yaml.load(reader)
+        with open(os.path.join(self._jobs_dir, PBSWorkspace.RESULTS.format(job_id)), "r") as reader:
+            results = yaml.load(reader)
 
         return results
 

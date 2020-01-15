@@ -64,7 +64,7 @@ class Sampler:
         Calculate number of target samples on each level
         :return:
         """
-        self.n_target_samples += 5
+        self.n_target_samples += 2
 
     def _get_sample_tag(self, level_id):
         """
@@ -155,7 +155,7 @@ class Sampler:
         while n_running > 0:
             n_running = 0
 
-            finished_samples = self._sampling_pool.get_finished()
+            finished_samples, n_running = self._sampling_pool.get_finished()
 
             time.sleep(sleep)
             if 0 < timeout < (time.clock() - t0):
@@ -163,7 +163,8 @@ class Sampler:
 
         print("finished samples ", finished_samples)
 
-        self._store_finished_samples(finished_samples)
+        if len(finished_samples) > 0:
+            self._store_finished_samples(finished_samples)
 
         return n_running
 
