@@ -92,6 +92,7 @@ class Sampler:
                 sample_id = self._get_sample_tag(level_id)
                 print("sample id ", sample_id)
 
+                #  @TODO: workspace to sampling pool
                 sample_dir = self._workspace.change_to_sample_directory(sample_id, level_id)
 
                 #  @TODO: move to parent for loop??
