@@ -135,7 +135,7 @@ class Sampler:
             self._workspace.copy_sim_files(level_sim.common_files, sample_dir)
 
             if level_sim.sample_workspace is not None:
-                raise Exception("Sample workspace must be set in Sample method")
+                raise Exception("Sample workspace must be set in Sampler method")
             level_sim.sample_workspace = sample_dir
 
         level_sim.level_id = level_id
