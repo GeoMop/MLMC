@@ -40,8 +40,8 @@ class SampleStorage(metaclass=ABCMeta):
         :return:
         """
 
-    def _get_level(self, sample_id: str):
-        return re.findall(r'L0?(\d+)_', sample_id)[0]
+    # def _get_level(self, sample_id: str):
+    #     return re.findall(r'L0?(\d+)_', sample_id)[0]
 
 
 class Memory(SampleStorage):
@@ -57,9 +57,8 @@ class Memory(SampleStorage):
         :param results:
         :return:
         """
-        for res in results:
-            level = self._get_level(res[0])
-            self._results.setdefault(level, []).append(res)
+        for level_id, res in enumerate(results):
+            self._results.setdefault(level_id, []).extend(res)
 
     def save_result_format(self, res_spec):
         self._result_specification = res_spec
@@ -70,10 +69,8 @@ class Memory(SampleStorage):
         """
         return self._result_specification
 
-    def save_scheduled_samples(self, samples):
-        for sample in samples:
-            level = self._get_level(sample)
-            self._scheduled.setdefault(level, []).append(sample)
+    def save_scheduled_samples(self, level_id, samples):
+        self._scheduled.setdefault(level_id, []).append(samples)
 
     def load_scheduled_samples(self):
         return self._scheduled

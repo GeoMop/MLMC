@@ -11,42 +11,43 @@ from sample_storage import Memory
 from sampling_pool import ProcessPool, ThreadPool, OneProcessPool
 from mlmc.moments import Legendre
 
+def multiproces_sampler_test(hdf=False):
 
-def one_process_sampler_test():
-    """
-    Test sampler, simulations are running in same process, artificial simulation is used
-    :return:
-    """
     n_levels = 2
-    n_moments = 5
-    failed_fraction = 0.2
+    failed_fraction = 0#0.2
+
+    work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+    if os.path.exists(work_dir):
+        shutil.rmtree(work_dir)
+    os.makedirs(work_dir)
 
     distr = stats.norm()
     step_range = (0.1, 0.006)
 
-    # Create simulation instance
+    # User configure and create simulation instance
     simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
+    #simulation_config = {"config_yaml": 'synth_sim_config.yaml'}
     simulation_factory = SynthSimulation(simulation_config)
 
     sample_storage = Memory()
-    sampling_pool = OneProcessPool()
+    sampling_pool = ProcessPool(4)
 
     # Plan and compute samples
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
                       n_levels=n_levels, step_range=step_range)
 
-    true_domain = distr.ppf([0.0001, 0.9999])
-    moments_fn = Legendre(n_moments, true_domain)
-
     sampler.determine_level_n_samples()
-    #sampler.target_var_adding_samples(1e-4, moments_fn)
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    storage = sampler.sample_storage
-    results = storage.sample_pairs()
-    print("results ", results)
+    # After crash
+    # sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, config=mlv)
+    # sampler.load_from_storage()
+    #
+    # This should happen automatically
+    # sampler.determine_level_n_samples()
+    # sampler.create_simulations()
 
 
 if __name__ == "__main__":
-    one_process_sampler_test()
+    multiproces_sampler_test()

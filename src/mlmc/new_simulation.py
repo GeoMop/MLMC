@@ -1,7 +1,8 @@
 import numpy as np
 import attr
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Tuple, Optional, Any, Union
+from mlmc.level_simulation import LevelSimulation
 
 
 @attr.s(auto_attribs=True)
@@ -10,7 +11,7 @@ class QuantitySpec:
     unit: str
     shape: Tuple[int, int]
     times: List[float]
-    locations: List[str]
+    locations: Union[List[str], List[Tuple[float, float, float]]]
     #dtype: Any = attr.ib()
     #used_attributes: List = ["name", "unit", "shape", "times", "locations"]
 
@@ -47,23 +48,8 @@ class Simulation(ABC):
     def __init__(self, config):
         self._config = config
 
-
-    @staticmethod
-    def extract_result(sample):
-        pass
-
-    def _simulation_sample(self):
-        """
-        Create simulation samples
-        :return:
-        """
-
-    def _prepare_work_space(self):
-        pass
-
     @abstractmethod
-    def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float])-> \
-            Tuple[Dict[Any, Any], Optional[List[str]]]:
+    def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float])-> LevelSimulation:
         """
 
         :param fine_level_params:
@@ -72,7 +58,7 @@ class Simulation(ABC):
         """
 
     @staticmethod
-    def calculate(config_dict, sample_workspace=None):#-> (coarse_sample_vector, fine_sample_vector)
+    def calculate(config_dict, sample_workspace=None):
         pass
 
     @staticmethod

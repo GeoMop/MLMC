@@ -50,8 +50,14 @@ class SynthSimulation(Simulation):
         """
         return x
 
-    def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]):
-        config = {}
+    def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]) -> LevelSimulation:
+        """
+
+        :param fine_level_params:
+        :param coarse_level_params:
+        :return:
+        """
+        config = dict()
         config["fine"] = {}
         config["coarse"] = {}
         config["fine"]["step"] = fine_level_params[0]
