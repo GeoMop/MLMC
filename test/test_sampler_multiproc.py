@@ -34,7 +34,7 @@ def multiproces_sampler_test(hdf=False):
 
     # Plan and compute samples
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
-                      n_levels=n_levels, step_range=step_range)
+                      step_range=step_range)
 
     sampler.determine_level_n_samples()
     sampler.schedule_samples()

@@ -17,12 +17,12 @@ def one_process_sampler_test():
     Test sampler, simulations are running in same process, artificial simulation is used
     :return:
     """
-    n_levels = 2
     n_moments = 5
-    failed_fraction = 0.2
+    failed_fraction = 0.0
 
     distr = stats.norm()
-    step_range = (0.1, 0.006)
+
+    step_range = [0.1, 0.006]
 
     # Create simulation instance
     simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
@@ -33,13 +33,16 @@ def one_process_sampler_test():
 
     # Plan and compute samples
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
-                      n_levels=n_levels, step_range=step_range)
+                      step_range=step_range)
 
     true_domain = distr.ppf([0.0001, 0.9999])
     moments_fn = Legendre(n_moments, true_domain)
 
-    sampler.determine_level_n_samples()
-    #sampler.target_var_adding_samples(1e-4, moments_fn)
+    sampler.set_initial_n_samples()
+    sampler.schedule_samples()
+    sampler.ask_sampling_pool_for_samples()
+
+    sampler.target_var_adding_samples(1e-4, moments_fn)
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 

@@ -2,7 +2,6 @@ import os
 import time
 import numpy as np
 from typing import List
-
 from sample_storage import SampleStorage
 from sampling_pool import SamplingPool
 from new_simulation import Simulation
@@ -11,7 +10,7 @@ from new_simulation import Simulation
 class Sampler:
 
     def __init__(self, sample_storage: SampleStorage, sampling_pool: SamplingPool, sim_factory: Simulation,
-                 n_levels: int, step_range: List[int], work_dir=None):
+                 step_range: List[int], work_dir=None):
         """
 
         :param sample_storage: store scheduled samples, results and result structure
@@ -26,7 +25,7 @@ class Sampler:
 
         self._samples = []
 
-        self._n_levels = n_levels
+        self._n_levels = len(step_range)
         self._sim_factory = sim_factory
         self._step_range = step_range
 
@@ -39,14 +38,29 @@ class Sampler:
 
         self._level_sim_objects = []
 
-        self._level_sim = self._sim_factory.level_instance([self._step_range[1]], [self._step_range[0]])
-        self._level_sim.calculate = self._sim_factory.calculate
+        self._create_level_sim_objects()
 
         # Set workspaces
         #self._create_workspace_directories(work_dir)
 
         # Save simulation result specification
         #self.sample_storage.save_workspace(self._workspace)
+
+    def _create_level_sim_objects(self):
+        """
+        Create LevelSimulation object for each level, use simulation factory
+        :return: None
+        """
+        for level_id in range(self._n_levels):
+            if level_id == 0:
+                level_sim = self._sim_factory.level_instance([self._step_range[level_id]], [0])
+
+            else:
+                level_sim = self._sim_factory.level_instance([self._step_range[level_id]], [self._step_range[level_id-1]])
+
+            level_sim.calculate = self._sim_factory.calculate
+            level_sim.level_id = level_id
+            self._level_sim_objects.append(level_sim)
 
     # def _create_workspace_directories(self, work_dir):
     #     """
@@ -73,12 +87,37 @@ class Sampler:
     #
     #     print("workspace ", self._workspace)
 
-    def determine_level_n_samples(self):
+    def sample_range(self, n0, nL):
         """
-        Calculate number of target samples on each level
-        :return:
+        Geometric sequence of L elements decreasing from n0 to nL.
+        Useful to set number of samples explicitly.
+        :param n0: int
+        :param nL: int
+        :return: np.array of length L = n_levels.
         """
-        self._n_target_samples += 2
+        return np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), self._n_levels))).astype(int)
+
+    def set_initial_n_samples(self, n_samples=None):
+        """
+        Set target number of samples for each level
+        :param n_samples: array of number of samples
+        :return: None
+        """
+        if n_samples is None:
+            n_samples = [100, 3]
+        # Num of samples to ndarray
+        n_samples = np.atleast_1d(n_samples)
+
+        # Just maximal number of samples is set
+        if len(n_samples) == 1:
+            n_samples = np.array([n_samples[0], 3])
+
+        # Create number of samples for all levels
+        if len(n_samples) == 2:
+            n0, nL = n_samples
+            n_samples = self.sample_range(n0, nL)
+
+        self._n_target_samples = n_samples
 
     def _get_sample_tag(self, level_id):
         """
@@ -107,7 +146,7 @@ class Sampler:
                 # Unique sample id
                 sample_id = self._get_sample_tag(level_id)
 
-                self._level_sim.level_id = level_id
+                level_sim = self._level_sim_objects[level_id]
 
                 #  @TODO: workspace to sampling pool
                 # sample_dir = self._sampling_pool.change_to_sample_directory(sample_id, level_id)
@@ -122,8 +161,7 @@ class Sampler:
                 # self._sampling_pool.serialize_level_sim(level_sim)
 
                 # Schedule current sample
-                self._sampling_pool.schedule_sample(sample_id, self._level_sim)
-
+                self._sampling_pool.schedule_sample(sample_id, level_sim)
                 # Increment number of created samples at current level
                 self._n_created_samples[level_id] += 1
 
@@ -189,6 +227,11 @@ class Sampler:
         :param add_coef: Coefficient for adding samples
         :return: None
         """
+        # @TODO: move elsewhere
+        self._levels_results = self.sample_storage.sample_pairs()
+
+        print("levels results ", self._levels_results)
+
         # New estimation according to already finished samples
         n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
         # Loop until number of estimated samples is greater than the number of scheduled samples
@@ -255,15 +298,15 @@ class Sampler:
         return np.all(n_estimated[greater_items] == n_scheduled[greater_items])
 
     def n_sample_estimate_moments(self, target_variance, moments_fn=None, prescribe_vars=None):
-        if moments_fn is None:
-            moments_fn = self.moments
+        # if moments_fn is None:
+        #     moments_fn = self.moments
         if prescribe_vars is None:
             vars = self.estimate_diff_vars_regression(moments_fn)
         else:
             vars = prescribe_vars
 
         # @TODO: set n ops estimate
-        n_ops = np.array([lvl.n_ops_estimate for lvl in self.levels])
+        n_ops = np.array([lvl.task_size for lvl in self._level_sim_objects])
 
         sqrt_var_n = np.sqrt(vars.T * n_ops)  # moments in rows, levels in cols
         total = np.sum(sqrt_var_n, axis=1)  # sum over levels
@@ -285,6 +328,8 @@ class Sampler:
         if raw_vars is None:
             assert moments_fn is not None
             raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
+            print("raw vars ", raw_vars)
+            print("n samples ", n_samples)
         sim_steps = self.sim_steps
         #vars = self._varinace_regression(raw_vars, sim_steps)
         vars = self._all_moments_variance_regression(raw_vars, sim_steps)
@@ -300,17 +345,125 @@ class Sampler:
 
             Returns simple variance for level 0.
         """
-        if moments_fn is None:
-            moments_fn = self.moments
         vars = []
         n_samples = []
 
         # @TODO: we are going to have all levels in one array
-        for level in self.levels:
-            v, n = level.estimate_diff_var(moments_fn)
+        for level_results in self._levels_results:
+            v, n = self.estimate_diff_var(level_results, moments_fn)
             vars.append(v)
             n_samples.append(n)
         return np.array(vars), np.array(n_samples)
+
+    ################################################
+    # Level methods
+
+    def estimate_diff_var(self, level_results, moments_fn):
+        """
+        Estimate moments variance
+        :param moments_fn: Moments evaluation function
+        :return: tuple (variance vector, length of moments)
+        """
+
+        mom_fine, mom_coarse = self.evaluate_moments(level_results, moments_fn)
+        assert len(mom_fine) == len(mom_coarse)
+        assert len(mom_fine) >= 2
+        var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
+        ns = level_results.shape[1]
+        assert ns == len(mom_fine)  # This was previous unconsistent implementation.
+        return var_vec, ns
+
+    def estimate_diff_mean(self, moments_fn):
+        """
+        Estimate moments mean
+        :param moments_fn: Function for calculating moments
+        :return: np.array, moments mean vector
+        """
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        assert len(mom_fine) == len(mom_coarse)
+        assert len(mom_fine) >= 1
+        mean_vec = np.mean(mom_fine - mom_coarse, axis=0)
+        return mean_vec
+
+    def estimate_covariance(self, moments_fn, stable=False):
+        """
+        Estimate covariance matrix (non central).
+        :param moments_fn: Moment functions object.
+        :param stable: Use alternative formula with better numerical stability.
+        :return: cov covariance matrix  with shape (n_moments, n_moments)
+        """
+        mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
+        assert len(mom_fine) == len(mom_coarse)
+        assert len(mom_fine) >= 2
+        assert self.n_samples == len(mom_fine)
+
+        if stable:
+            # Stable formula - however seems that we have no problem with numerical stability
+            mom_diff = mom_fine - mom_coarse
+            mom_sum = mom_fine + mom_coarse
+            cov = 0.5 * (np.matmul(mom_diff.T, mom_sum) + np.matmul(mom_sum.T, mom_diff)) / self.n_samples
+        else:
+            # Direct formula
+            cov_fine = np.matmul(mom_fine.T,   mom_fine)
+            cov_coarse = np.matmul(mom_coarse.T, mom_coarse)
+            cov = (cov_fine - cov_coarse) / self.n_samples
+
+        return cov
+
+    def evaluate_moments(self, moments_fn, force=False):
+        """
+        Evaluate level difference for all samples and given moments.
+        :param moments_fn: Moment evaluation object.
+        :param force: Reevaluate moments
+        :return: (fine, coarse) both of shape (n_samples, n_moments)
+        """
+        # Current moment functions are different from last moment functions
+        same_moments = moments_fn == self._last_moments_fn
+        same_shapes = self.last_moments_eval is not None
+        if force or not same_moments or not same_shapes:
+            samples = self.sample_values
+
+            # Moments from fine samples
+            moments_fine = moments_fn(samples[:, 0])
+
+            # For first level moments from coarse samples are zeroes
+            if self.is_zero_level:
+                moments_coarse = np.zeros((len(moments_fine), moments_fn.size))
+            else:
+                moments_coarse = moments_fn(samples[:, 1])
+            # Set last moments function
+            self._last_moments_fn = moments_fn
+            # Moments from fine and coarse samples
+            self.last_moments_eval = moments_fine, moments_coarse
+
+            self._remove_outliers_moments()
+            if self.sample_indices is not None:
+                self.subsample(len(self.sample_indices))
+
+        if self.sample_indices is None:
+            return self.last_moments_eval
+        else:
+            m_fine, m_coarse = self.last_moments_eval
+            return m_fine[self.sample_indices, :], m_coarse[self.sample_indices, :]
+
+    def _remove_outliers_moments(self, ):
+        """
+        Remove moments from outliers from fine and course moments
+        :return: None
+        """
+        # Fine and coarse moments mask
+        ok_fine = np.all(np.isfinite(self.last_moments_eval[0]), axis=1)
+        ok_coarse = np.all(np.isfinite(self.last_moments_eval[1]), axis=1)
+
+        # Common mask for coarse and fine
+        ok_fine_coarse = np.logical_and(ok_fine, ok_coarse)
+        #self.ok_fine_coarse = ok_fine_coarse
+
+        # New moments without outliers
+        self.last_moments_eval = self.last_moments_eval[0][ok_fine_coarse, :], self.last_moments_eval[1][ok_fine_coarse, :]
+
+
+    ###################################################
 
     def estimate_level_means(self, moments_fn):
         """

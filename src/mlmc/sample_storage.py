@@ -1,7 +1,7 @@
+import numpy as np
 from abc import ABCMeta
 from abc import abstractmethod
 from typing import List
-import re
 from new_simulation import QuantitySpec
 from workspace import Workspace
 
@@ -40,9 +40,6 @@ class SampleStorage(metaclass=ABCMeta):
         :return:
         """
 
-    # def _get_level(self, sample_id: str):
-    #     return re.findall(r'L0?(\d+)_', sample_id)[0]
-
 
 class Memory(SampleStorage):
 
@@ -57,7 +54,9 @@ class Memory(SampleStorage):
         :param results:
         :return:
         """
-        for level_id, res in enumerate(results):
+        print("results ", results)
+        for level_id, res in results.items():
+
             self._results.setdefault(level_id, []).extend(res)
 
     def save_result_format(self, res_spec):
@@ -79,5 +78,15 @@ class Memory(SampleStorage):
         pass
 
     def sample_pairs(self):
+        levels_results = list(np.empty(len(np.max(self._results.keys()))))
+        for level_id, res in self._results.items():
+            res = np.array(res)
+            fine_coarse_res = res[:, 1]
 
-        return self._results
+            result_type = np.dtype((np.float, np.array(fine_coarse_res[0]).shape))
+            results = np.empty(shape=(len(res), ), dtype=result_type)
+            results[:] = [val for val in fine_coarse_res]
+
+            levels_results[level_id] = results.transpose((2, 0, 1))
+
+        return levels_results

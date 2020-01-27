@@ -52,7 +52,7 @@ class OneProcessPool(SamplingPool):
         level_sim.config_dict["sample_id"] = sample_id
         result = level_sim.calculate(level_sim.config_dict)
 
-        self._queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, result[0], result[1]))
+        self._queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, np.array(result[0]), result[1]))
         return result
 
     def have_permanent_sample(self, sample_id):
@@ -62,7 +62,7 @@ class OneProcessPool(SamplingPool):
         """
         return results from queue - list of (sample_id, pair_of_result_vectors, error_message)
         """
-        results = list(np.empty(len(self._queues)))
+        results = {}
         for level_id, queue in self._queues.items():
             results[level_id] = list(queue.queue)
             self._n_running -= len(results[level_id])
@@ -81,18 +81,10 @@ class ProcessPool(OneProcessPool):
 
     def schedule_sample(self, sample_id, level_sim):
         level_sim.config_dict["sample_id"] = sample_id
-        result = self._pool.apply_async(ProcessPool.calculate_sample, args=(sample_id, level_sim, ),
-                                        callback=self.result_callback, error_callback=self.error_callback)
-        result.get()
+        result = self._pool.apply_async(ProcessPool.calculate_sample, args=(sample_id, level_sim, ))
+        res = result.get()
+        self._queues.setdefault(level_sim.level_id, queue.Queue()).put((res[0], res[1][0], res[1][1]))
         return result
-
-    def result_callback(self, res):
-        print("res ", res)
-        self._queue.put((res[0], res[1], "message"))
-
-    def error_callback(self, res):
-        print("res ", res)
-        self._queue.put((res[0], res[1], "There was an error"))
 
     @staticmethod
     def calculate_sample(sample_id, level_sim):
