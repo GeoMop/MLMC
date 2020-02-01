@@ -3,13 +3,12 @@ from abc import ABCMeta
 from abc import abstractmethod
 from typing import List
 from new_simulation import QuantitySpec
-from workspace import Workspace
 
 
 class SampleStorage(metaclass=ABCMeta):
 
     @abstractmethod
-    def save_results(self, res):
+    def save_samples(self, correct_samples, failed_samples):
         """
         Write results to storag
         """
@@ -27,13 +26,6 @@ class SampleStorage(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def save_workspace(self, workspace: Workspace):
-        """
-        Save some workspace attributes
-        :return: None
-        """
-
-    @abstractmethod
     def sample_pairs(self):
         """
         Get results from storage
@@ -44,23 +36,70 @@ class SampleStorage(metaclass=ABCMeta):
 class Memory(SampleStorage):
 
     def __init__(self):
+        self._failed = {}
         self._results = {}
+        self._successful_sample_ids = {}
         self._scheduled = {}
         self._result_specification = []
 
-    def save_results(self, results):
+    def save_samples(self, successful_samples, failed_samples):
         """
-        Same result with respect to sample level
-        :param results:
+        Save successful samples - store result pairs
+             failed samples - store sample ids and corresponding error messages
         :return:
         """
-        print("results ", results)
-        for level_id, res in results.items():
+        self._save_successful(successful_samples)
+        self._save_failed(failed_samples)
 
-            self._results.setdefault(level_id, []).extend(res)
+    def _save_successful(self, samples):
+        """
+        Save successful samples
+        :param samples: List[Tuple[sample_id: str, Tuple[ndarray, ndarray]]]
+        :return: None
+        """
+        for level_id, res in samples.items():
+            res = np.array(res)
+            fine_coarse_res = res[:, 1]
 
-    def save_result_format(self, res_spec):
+            result_type = np.dtype((np.float, np.array(fine_coarse_res[0]).shape))
+            results = np.empty(shape=(len(res),), dtype=result_type)
+            results[:] = [val for val in fine_coarse_res]
+
+            # Save sample ids
+            self._successful_sample_ids.setdefault(level_id, []).extend(res[:, 0])
+
+            if level_id not in self._results:
+                self._results[level_id] = results
+            else:
+                self._results[level_id] = np.concatenate((self._results[level_id], results), axis=0)
+
+    def _save_failed(self, samples):
+        """
+        Save failed ids and error messages
+        :param samples: List[Tuple[sample_id: str, error_message: str]]
+        :return: None
+        """
+        for level_id, res in samples.items():
+            self._failed.setdefault(level_id, []).extend(res)
+
+    def save_result_format(self, res_spec: List[QuantitySpec]):
+        """
+        Save sample result format
+        :param res_spec: List[QuantitySpec]
+        :return: None
+        """
         self._result_specification = res_spec
+
+    def n_finished(self):
+        """
+        Number of finished samples on each level
+        :return: List
+        """
+        n_finished = np.empty(len(self._results.keys()))
+        for level_id, results in self._results.items():
+            n_finished[level_id] = len(results)
+
+        return n_finished
 
     def load_result_format(self) -> List[QuantitySpec]:
         """
@@ -74,19 +113,13 @@ class Memory(SampleStorage):
     def load_scheduled_samples(self):
         return self._scheduled
 
-    def save_workspace(self, workspace: Workspace):
-        pass
-
     def sample_pairs(self):
+        """
+        Sample results split to numpy arrays
+        :return: List[Array[M, N, 2]]
+        """
         levels_results = list(np.empty(len(np.max(self._results.keys()))))
-        for level_id, res in self._results.items():
-            res = np.array(res)
-            fine_coarse_res = res[:, 1]
-
-            result_type = np.dtype((np.float, np.array(fine_coarse_res[0]).shape))
-            results = np.empty(shape=(len(res), ), dtype=result_type)
-            results[:] = [val for val in fine_coarse_res]
-
+        for level_id, results in self._results.items():
             levels_results[level_id] = results.transpose((2, 0, 1))
 
         return levels_results

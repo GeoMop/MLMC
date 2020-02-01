@@ -1,6 +1,6 @@
 import os
 import sys
-import shutil
+import numpy as np
 from scipy import stats
 
 src_path = os.path.dirname(os.path.abspath(__file__))
@@ -9,7 +9,7 @@ from synth_simulation import SynthSimulation
 from sampler import Sampler
 from sample_storage import Memory
 from sampling_pool import ProcessPool, ThreadPool, OneProcessPool
-from mlmc.moments import Legendre
+from mlmc.moments import Legendre, Monomial
 
 
 def one_process_sampler_test():
@@ -17,12 +17,13 @@ def one_process_sampler_test():
     Test sampler, simulations are running in same process, artificial simulation is used
     :return:
     """
+    np.random.seed(3)
     n_moments = 5
-    failed_fraction = 0.0
 
-    distr = stats.norm()
+    failed_fraction = 0.1
+    distr = stats.norm(loc=1, scale=2)
 
-    step_range = [0.1, 0.006]
+    step_range = [0.01]#, 0.001, 0.0001]
 
     # Create simulation instance
     simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
@@ -37,18 +38,28 @@ def one_process_sampler_test():
 
     true_domain = distr.ppf([0.0001, 0.9999])
     moments_fn = Legendre(n_moments, true_domain)
+    #moments_fn = Monomial(n_moments, true_domain)
 
     sampler.set_initial_n_samples()
+    #sampler.set_initial_n_samples([10000])
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    sampler.target_var_adding_samples(1e-4, moments_fn)
+    sampler.target_var_adding_samples(1e-4, moments_fn, sleep=0)
+    print("collected samples ", sampler._n_created_samples)
+
+    means, vars = sampler.estimate_moments(moments_fn)
+
+    print("means ", means)
+    print("vars ", vars)
+    assert means[0] == 1
+    assert np.isclose(means[1], 0, atol=1e-2)
+    assert vars[0] == 0
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
     storage = sampler.sample_storage
     results = storage.sample_pairs()
-    print("results ", results)
 
 
 if __name__ == "__main__":

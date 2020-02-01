@@ -5,7 +5,7 @@ from level_simulation import LevelSimulation
 from new_simulation import QuantitySpec
 
 
-class SynthSimulation(Simulation):
+class SynthSimulationTest(Simulation):
 
     n_nans = 0
     nan_fraction = 0
@@ -23,9 +23,9 @@ class SynthSimulation(Simulation):
         """
         super().__init__(config)
         self.config = config
-        SynthSimulation.n_nans = 0
-        SynthSimulation.nan_fraction = config.get('nan_fraction', 0.0)
-        SynthSimulation.len_results = 0
+        SynthSimulationTest.n_nans = 0
+        SynthSimulationTest.nan_fraction = config.get('nan_fraction', 0.0)
+        SynthSimulationTest.len_results = 0
         # This attribute is obligatory
         self.need_workspace: bool = False
 
@@ -65,7 +65,7 @@ class SynthSimulation(Simulation):
 
         config["distr"] = self.config["distr"]
 
-        return LevelSimulation(config_dict=config, task_size=self.n_ops_estimate(fine_level_params[0]))
+        return LevelSimulation(config_dict=config)
 
     @staticmethod
     def generate_random_samples(distr):
@@ -74,42 +74,27 @@ class SynthSimulation(Simulation):
         :param distr: scipy distribution
         :return: fine sample, coarse sample
         """
-        SynthSimulation.len_results += 1
+        SynthSimulationTest.len_results += 1
         y = distr.rvs(size=1)
 
-        if SynthSimulation.n_nans / (1e-10 + SynthSimulation.len_results) < SynthSimulation.nan_fraction:
-            SynthSimulation.n_nans += 1
-            y = [np.nan]
+        if SynthSimulationTest.n_nans / (1e-10 + SynthSimulationTest.len_results) < SynthSimulationTest.nan_fraction:
+            SynthSimulationTest.n_nans += 1
+            y = np.nan
 
         return y, y
 
     @staticmethod
-    def calculate(config, seed):
+    def calculate(x, h):
         """
         Calculate fine and coarse sample and also extract their results
         :param config: dictionary containing simulation configuration
         :return:
         """
-        np.random.seed(seed)
-        fine_random, coarse_random = SynthSimulation.generate_random_samples(config["distr"])
+        print("SynthSimulationTest.sample_fn(x, h) ", SynthSimulationTest.sample_fn(x, h))
+        return SynthSimulationTest.sample_fn(x, h)
 
-        fine_step = config["fine"]["step"]
-        coarse_step = config["coarse"]["step"]
-
-        fine_result = SynthSimulation.sample_fn(fine_random, fine_step)
-
-        if coarse_step == 0:
-            coarse_result = np.zeros(len(fine_result))
-        else:
-            coarse_result = SynthSimulation.sample_fn(coarse_random, coarse_step)
-
-        if np.isnan(fine_result) or np.isnan(coarse_result):
-            raise Exception("result is nan")
-
-        return fine_result, coarse_result
-
-    def n_ops_estimate(self, step):
-        return (1 / step) ** self.config['complexity'] * np.log(max(1 / step, 2.0))
+    def n_ops_estimate(self):
+        return (1 / self.step) ** self.config['complexity'] * np.log(max(1 / self.step, 2.0))
 
     # @staticmethod
     # def result_format() -> List[QuantitySpec]:
