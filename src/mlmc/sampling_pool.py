@@ -78,7 +78,6 @@ class OneProcessPool(SamplingPool):
 
     def schedule_sample(self, sample_id, level_sim):
         self._n_running += 1
-
         sample_id, result, err_msg = SamplingPool.calculate_sample(sample_id, level_sim)
 
         if not err_msg:
@@ -141,25 +140,25 @@ class OneProcessPool(SamplingPool):
     #         shutil.copy(file, sample_dir)
 
 
-class ProcessPool(OneProcessPool):
+# class ProcessPool(OneProcessPool):
+#
+#     def __init__(self, n_processes):
+#         self._pool = ProcPool(n_processes)
+#         self._queues = {}
+#         self._n_running = 0
+#
+#         self._queue = queue.Queue()
+#
+#     def schedule_sample(self, sample_id, level_sim):
+#         level_sim.config_dict["sample_id"] = sample_id
+#         result = self._pool.apply_async(ProcessPool.calculate_sample, args=(sample_id, level_sim, ))
+#         res = result.get()
+#         self._queues.setdefault(level_sim.level_id, queue.Queue()).put((res[0], res[1][0], res[1][1]))
+#         return result
 
-    def __init__(self, n_processes):
-        self._pool = ProcPool(n_processes)
-        self._queues = {}
-        self._n_running = 0
-
-        self._queue = queue.Queue()
-
-    def schedule_sample(self, sample_id, level_sim):
-        level_sim.config_dict["sample_id"] = sample_id
-        result = self._pool.apply_async(ProcessPool.calculate_sample, args=(sample_id, level_sim, ))
-        res = result.get()
-        self._queues.setdefault(level_sim.level_id, queue.Queue()).put((res[0], res[1][0], res[1][1]))
-        return result
-
-
-class ThreadPool(ProcessPool):
-
-    def __init__(self, n_thread):
-        self._pool = Threads(n_thread)
-        self._queue = queue.Queue()
+#
+# class ThreadPool(ProcessPool):
+#
+#     def __init__(self, n_thread):
+#         self._pool = Threads(n_thread)
+#         self._queue = queue.Queue()

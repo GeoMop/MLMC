@@ -40,7 +40,7 @@ class Sampler:
     @property
     def n_finished_samples(self):
         """
-        Retrieve number of finished samples
+        Retrieve number of all finished samples
         :return:
         """
         if np.all(self._n_finished_samples) == 0:
@@ -117,7 +117,6 @@ class Sampler:
         plan_samples = self._n_target_samples - self._n_created_samples
 
         for level_id, n_samples in enumerate(plan_samples):
-
             samples = []
             for _ in range(int(n_samples)):
                 # Unique sample id

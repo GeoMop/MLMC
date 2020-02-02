@@ -108,9 +108,18 @@ class Memory(SampleStorage):
         return self._result_specification
 
     def save_scheduled_samples(self, level_id, samples):
+        """
+        Save scheduled sample ids
+        :param level_id: int
+        :param samples: List[str]
+        :return: None
+        """
         self._scheduled.setdefault(level_id, []).append(samples)
 
     def load_scheduled_samples(self):
+        """
+        :return: Dict[level_id, List[sample_id: str]]
+        """
         return self._scheduled
 
     def sample_pairs(self):
