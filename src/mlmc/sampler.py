@@ -156,7 +156,7 @@ class Sampler:
                 self._n_finished_samples[level_id] += len(f_samples)
 
             # Store finished samples
-            if len(successful_samples) > 0:
+            if len(successful_samples) > 0 or len(failed_samples) > 0:
                 self._store_samples(successful_samples, failed_samples)
 
             time.sleep(sleep)
@@ -176,7 +176,17 @@ class Sampler:
 
     @property
     def levels_results(self):
-        return self.sample_storage.sample_pairs()
+        level_results = self.sample_storage.sample_pairs()
+
+        # @TODO: it does not works with arrays quantities, remove ASAP
+        new_level_results = []
+        if level_results[0].shape[0] > 1:
+            for l_res in level_results:
+                new_level_results.append(l_res[0])
+        else:
+            new_level_results = level_results
+
+        return new_level_results
 
     def target_var_adding_samples(self, target_var, moments_fn, sleep=20, add_coef=0.1):
         """
@@ -405,7 +415,9 @@ class Sampler:
         means = []
         vars = []
         n_samples = []
+
         for level_id, level_result in enumerate(self.levels_results):
+
             zero_level = True if level_id == 0 else False
             means.append(self.estimate_diff_mean(moments_fn, level_result, zero_level))
             l_vars, ns = self.estimate_diff_var(moments_fn, level_result, zero_level)

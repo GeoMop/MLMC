@@ -106,18 +106,32 @@ class SynthSimulation(Simulation):
         if np.isnan(fine_result) or np.isnan(coarse_result):
             raise Exception("result is nan")
 
-        return fine_result, coarse_result
+        quantity_format = SynthSimulation.result_format()
+
+        results = []
+        for result in [fine_result, coarse_result]:
+            quantities = []
+            for quantity in quantity_format:
+                locations = np.array([result + i for i in range(len(quantity.locations))])
+                times = np.array([locations for _ in range(len(quantity.times))])
+                quantities.append(times)
+
+            results.append(np.array(quantities))
+
+        return results[0].flatten(), results[1].flatten()
 
     def n_ops_estimate(self, step):
         return (1 / step) ** self.config['complexity'] * np.log(max(1 / step, 2.0))
 
-    # @staticmethod
-    # def result_format() -> List[QuantitySpec]:
-    #     """
-    #     Result format
-    #     :return:
-    #     """
-    #     spec1 = QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=[10, 20])
-    #     spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=[10, 20])
-    #     return [spec1, spec2]
+    @staticmethod
+    def result_format() -> List[QuantitySpec]:
+        """
+        Result format
+        :return:
+        """
+        spec1 = QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=['10', '20'])
+        spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40'])
+        # spec1 = QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=[(1, 2, 3), (4, 5, 6)])
+        # spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=[(7, 8, 9), (10, 11, 12)])
+        return [spec1, spec2]
 
