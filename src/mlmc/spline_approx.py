@@ -1,6 +1,6 @@
 import numpy as np
-from scipy import integrate
-from scipy import optimize
+from scipy import integrate, optimize
+from scipy.interpolate import interp1d, CubicSpline, splrep, splev
 
 
 class SplineApproximation:
@@ -120,8 +120,6 @@ class SplineApproximation:
             result = integrate.quad(integrand, -1, 1)[0]
             expected_result = (-1)**degree / (degree + 1)
 
-            print("result ", result)
-            print("expected result ", expected_result)
             assert np.isclose(result, expected_result, atol=1e-5)
 
     def smooth(self, interpolation_point, data):
@@ -350,7 +348,7 @@ class SplineApproximation:
         return distr_sorted, density#[mask]
 
 
-class BSpline_approximation(SplineApproximation):
+class BSplineApproximation(SplineApproximation):
 
     def cdf(self, points):
         """
@@ -360,16 +358,42 @@ class BSpline_approximation(SplineApproximation):
         """
         import scipy.interpolate as si
         self._setup()
-        bspline = si.BSpline(self.interpolation_points, self.all_levels_indicator, k=3)
-        res = bspline(points)
+
+        print("BSpline cdf poly degree ", self.poly_degree)
+        print("all levels indicator ", self.all_levels_indicator)
+        print("self.interpolation points ", self.interpolation_points)
+        #bspline = si.BSpline(self.interpolation_points, self.all_levels_indicator, k=self.poly_degree)
+
+        spl = splrep(self.interpolation_points, self.all_levels_indicator)
+
+        # distribution = np.zeros(len(points))
+        # for index, x in enumerate(points):
+        #     distribution[index] = bspline(x)
+        #
+        # return distribution
+
+        #res = bspline(points)
+        return splev(points, spl)
+
         print("BSpline CDF")
+        print("res ", res)
+        print("res ", res)
         return res
 
     def density(self, points):
-        import scipy.interpolate as si
         self._setup()
-        bspline = si.BSpline(self.interpolation_points, self.all_levels_indicator, k=3)
-        bspline_derivative = bspline.derivative()
-        res = bspline_derivative(points)
-        print("BSpline PDF")
-        return res
+        spl = splrep(self.interpolation_points, self.all_levels_indicator)
+
+        return splev(points, spl, der=1)
+
+    # def density(self, points):
+    #     import numdifftools as nd
+    #     import scipy.interpolate as si
+    #
+    #     #return nd.Derivative(self.cdf)(points)
+    #     self._setup()
+    #     bspline = si.BSpline(self.interpolation_points, self.all_levels_indicator, k=self.poly_degree)
+    #     bspline_derivative = bspline.derivative()
+    #     res = bspline_derivative(points)
+    #     print("BSpline PDF")
+    #     return res

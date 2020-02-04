@@ -168,7 +168,7 @@ class MLMC:
         :return: bool, if True adding samples is complete
         """
         # Get default scheduled samples
-        n_scheduled = np.array(self.l_scheduled_samples())
+        n_scheduled = self.l_scheduled_samples()
 
         # New scheduled sample will be 10 percent of difference
         # between current number of target samples and new estimated one
@@ -181,7 +181,6 @@ class MLMC:
         n_scheduled = np.ceil(np.where(n_estimated < n_scheduled,
                                        n_scheduled,
                                        new_scheduled))
-
         # Levels where estimated are greater than scheduled
         greater_items = np.where(np.greater(n_estimated, n_scheduled))[0]
 
@@ -210,6 +209,7 @@ class MLMC:
 
         # Finished level samples
         n_finished = np.array([level.get_n_finished() for level in self.levels])
+
         # Wait until at least half of the scheduled samples are done on each level
         while np.any(n_finished[greater_items] < fin_sample_coef * n_scheduled[greater_items]):
             # Wait a while

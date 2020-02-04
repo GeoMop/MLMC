@@ -66,6 +66,9 @@ class Estimate:
         self.mlmc = mlmc
         self.moments = moments
 
+        self.moments_2_integral = None
+        self.cov_mat = None
+
         # Distribution aproximation, created by method 'construct_density'
         self._distribution = None
 
@@ -145,6 +148,8 @@ class Estimate:
         if raw_vars is None:
             assert moments_fn is not None
             raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
+
+        raw_vars = np.squeeze(raw_vars)
         sim_steps = self.sim_steps
         #vars = self._varinace_regression(raw_vars, sim_steps)
         vars = self._all_moments_variance_regression(raw_vars, sim_steps)
@@ -245,6 +250,7 @@ class Estimate:
         :return: np.array  (L, )
         """
         L, = raw_vars.shape
+
         L1 = L - 1
         if L < 3:
             return raw_vars
@@ -278,11 +284,17 @@ class Estimate:
 
     def _all_moments_variance_regression(self, raw_vars, sim_steps):
         reg_vars = raw_vars.copy()
+        if len(raw_vars.shape) == 1:
+            raw_vars = np.array([[raw_vars]])
         n_moments = raw_vars.shape[1]
+
         for m in range(1, n_moments):
             reg_vars[:, m] = self._moment_variance_regression(raw_vars[:, m], sim_steps)
 
-        assert np.allclose(reg_vars[:, 0, 0], 0.0)
+        if len(reg_vars.shape) == 1:
+            reg_vars = np.array([reg_vars])
+
+        assert np.allclose(reg_vars[:, 0], 0.0)
         return reg_vars
 
     def estimate_diff_vars(self, moments_fn=None):
@@ -304,6 +316,7 @@ class Estimate:
             v, n = level.estimate_diff_var(moments_fn)
             vars.append(v)
             n_samples.append(n)
+
         return np.array(vars), np.array(n_samples)
 
     def estimate_level_means(self, moments_fn):
@@ -365,6 +378,7 @@ class Estimate:
         """
         # New estimation according to already finished samples
         n_estimated = self.estimate_n_samples_for_target_variance(target_var, moments_fn)
+
         # Loop until number of estimated samples is greater than the number of scheduled samples
         while not self.mlmc.process_adding_samples(n_estimated, pbs, sleep, add_coef):
             # New estimation according to already finished samples
@@ -387,8 +401,7 @@ class Estimate:
 
         means = np.sum(np.array(means), axis=0)
         n_samples = np.array(n_samples, dtype=int)
-
-        vars = np.sum(np.array(vars) / n_samples[:, None], axis=0)
+        vars = np.sum(vars / n_samples[:, None, None], axis=0)
 
         return np.array(means), np.array(vars)
 
@@ -418,22 +431,46 @@ class Estimate:
         """
         MLMC estimate of covariance matrix of moments.
         :param stable: use formula with better numerical stability
-        :param mse: Mean squared error??
+        :param mse: Mean squared error
         :return:
         """
-        cov_mat = np.zeros((moments_fn.size, moments_fn.size))
+        if self.cov_mat is None:
 
-        for level in levels:
-            cov_mat += level.estimate_covariance(moments_fn, stable)
-        if mse:
-            mse_diag = np.zeros(moments_fn.size)
+            cov_mat = np.zeros((moments_fn.size, moments_fn.size))
+
             for level in levels:
-                mse_diag += level.estimate_cov_diag_err(moments_fn)/level.n_samples
-            return cov_mat, mse_diag
-        else:
-            return cov_mat
+                cov_mat += level.estimate_covariance(moments_fn, stable)
+            if mse:
+                mse_diag = np.zeros(moments_fn.size)
+                for level in levels:
+                    mse_diag += level.estimate_cov_diag_err(moments_fn)/level.n_samples
+                self.cov_mat = cov_mat
+                return cov_mat, mse_diag
+            else:
+                self.cov_mat = cov_mat
+                return cov_mat
 
-    def construct_density(self, tol=1.95, reg_param=0.01):
+        return self.cov_mat
+
+    def mom_mom_integral(self, tol):
+        if self.moments_2_integral is None:
+
+            integral = np.zeros((self.moments.size, self.moments.size))
+
+            for i in range(self.moments.size):
+                for j in range(i + 1):
+                    def fn_moments(x):
+                        moments = self.moments.eval_all_der(x, degree=2)[0, :]
+                        return moments[i] * moments[j]
+
+                    integ = integrate.quad(fn_moments, self.moments.domain[0], self.moments.domain[1], epsabs=tol)[0]
+                    integral[i][j] = integral[j][i] = integ#integrate.quad(fn_moments, self.moments.domain[0], self.moments.domain[0], epsabs=tol)[0]
+
+            self.moments_2_integral = integral
+
+        return self.moments_2_integral
+
+    def construct_density(self, tol=1.95, reg_param=1e-7*5, orth_moments_tol=1e-2, exact_pdf=None):
         """
         Construct approximation of the density using given moment functions.
         Args:
@@ -442,23 +479,56 @@ class Estimate:
                  Default value 1.95 corresponds to the two tail confidency 0.95.
             reg_param: Regularization parameter.
         """
+        import pandas as pd
         cov = self.estimate_covariance(self.moments, self.mlmc.levels)
-        moments_obj, info = simple_distribution.construct_ortogonal_moments(self.moments, cov, tol=0.0001)
-        print("n levels: ", self.n_levels, "size: ", moments_obj.size)
-        est_moments, est_vars = self.estimate_moments(moments_obj)
+        integral = self.mom_mom_integral(tol)#np.zeros((self.moments.size, self.moments.size))
+        cov += 2 * reg_param * integral
 
+
+        #cov = mlmc.simple_distribution.compute_semiexact_cov(self.moments, exact_pdf)
+
+        moments_obj, info = simple_distribution.construct_orthogonal_moments(self.moments, cov, tol=orth_moments_tol)
+        print("n levels: ", self.n_levels, "size: ", moments_obj.size)
+
+        est_moments, est_vars = self.estimate_moments(moments_obj)
         est_moments = np.squeeze(est_moments)
         est_vars = np.squeeze(est_vars)
+        exact_moments = mlmc.simple_distribution.compute_exact_moments(moments_obj, exact_pdf)
+
+        from src.mlmc.moments import TransformedMomentsDerivative
+        moments_obj_derivative = TransformedMomentsDerivative(moments_obj._origin, moments_obj._transform)
+
+        samples = self.mlmc.levels[0].sample_values[:, 0]
+        moments = np.squeeze(moments_obj_derivative(samples))
+
+        var_vec = []
+        for i in range(len(moments[0])):
+            mask = np.isfinite(moments[:, i])
+            values = moments[:, i][mask]
+            var_vec.append(np.var(values, axis=0, ddof=1)/len(values))
+
+        #der_moments, der_vars = self.estimate_moments(moments_obj)
 
         #est_moments = np.zeros(moments_obj.size)
-        #est_moments[0] = 1.0
-        est_vars = np.ones(moments_obj.size)
+        est_moments[0] = 1.0
+        #est_vars[0] = 1
+        #est_vars = np.ones(moments_obj.size)
         min_var, max_var = np.min(est_vars[1:]), np.max(est_vars[1:])
         print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
         moments_data = np.stack((est_moments, est_vars), axis=1)
-        distr_obj = simple_distribution.SimpleDistribution(moments_obj, moments_data, domain=moments_obj.domain)
-        distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
+
+        m = np.zeros(len(exact_moments))
+        m[0] = 1
+
+        # moments_data = np.empty((len(exact_moments), 2))
+        # moments_data[:, 0] = exact_moments
+        moments_data[:, 1] = 1.0
+        distr_obj = simple_distribution.SimpleDistribution(moments_obj, moments_data, domain=moments_obj.domain,
+                                                           reg_param=reg_param, mom_2nd_der_err=var_vec)
+        distr_obj.estimate_density_minimize(tol)  # 0.95 two side quantile
         self._distribution = distr_obj
+
+        return info
 
     def _bs_get_estimates(self):
         moments_fn = self.moments
@@ -612,7 +682,6 @@ class Estimate:
         Used in mlmc_test_run
         Calculate variances of level differences using numerical quadrature.
         :param moments_fn:
-        :param domain:
         :return:
         """
         mom_domain = moments_fn.domain
@@ -724,7 +793,6 @@ class CompareLevels:
             print("{:7} | {}".format(mlmc.n_levels, " ".join(times_tabs)))
         print("\n")
 
-
     def set_common_domain(self, i_mlmc, domain=None):
         if domain is not None:
             self.domain = domain
@@ -765,7 +833,6 @@ class CompareLevels:
         for mc in self.mlmc:
             #sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
             sample_vec = mc.estimate_n_samples_for_target_variance(0.0001)
-            print("L", mc.n_levels, sample_vec)
 
             mc.ref_estimates_bootstrap(300, sample_vector=sample_vec)
             #sample_vec = [10000, 10000, 3000, 1200, 400, 140, 50, 18, 6]

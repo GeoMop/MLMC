@@ -30,8 +30,8 @@ def test_mlmc():
     :return: None
     """
     #np.random.seed(3)   # To be reproducible
-    n_levels = [1] #[1, 2, 3, 5, 7]
-    n_moments = [8]
+    n_levels = [2] #[1, 2, 3, 5, 7]
+    n_moments = [25]
 
     clean = True
 
@@ -67,17 +67,28 @@ def test_mlmc():
                 # number of samples on each level
                 estimator = mlmc.estimate.Estimate(mc_test.mc)
 
-                mc_test.mc.set_initial_n_samples([1000])
+                mc_test.mc.set_initial_n_samples()
                 mc_test.mc.refill_samples()
                 mc_test.mc.wait_for_simulations()
 
-                #mc_test.mc.select_values({"quantity": (b"quantity_1", "=")})#, "value": (-100, ">")})
-                #estimator.target_var_adding_samples(0.0001, mc_test.moments_fn)
+                # mc_test.mc.update_moments(mc_test.moments_fn)
+                #
+                # moments_mean, moments_var = estimator.estimate_moments(mc_test.moments_fn)
+                # moments_mean = np.squeeze(moments_mean)
+                # moments_var = np.squeeze(moments_var)
+                #
+                # print("moments mean ", moments_mean)
+                # print("moments var ", moments_var)
+                # exit()
+
+                #mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "value": (-100, ">")})
+                mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (1, "<")})
+                estimator.target_var_adding_samples(0.00001, mc_test.moments_fn)
 
                 #mc_test.mc.clean_select()
                 #mc_test.mc.select_values({"quantity": (b"quantity_1", "=")})
                 #mc_test.mc.select_values(None, selected_param="values")
-                mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (1, "<")})
+                #mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (1, "<")})
 
                 cl = mlmc.estimate.CompareLevels([mc_test.mc],
                                    output_dir=src_path,
@@ -90,11 +101,19 @@ def test_mlmc():
 
                 mc_test.mc.update_moments(mc_test.moments_fn)
 
+                moments_mean, moments_var = estimator.estimate_moments(mc_test.moments_fn)
+                moments_mean = np.squeeze(moments_mean)
+                moments_var = np.squeeze(moments_var)
+
+                print("moments mean ", moments_mean)
+                print("moments var ", moments_var)
+
+
                 #total_samples = mc_test.mc.sample_range(10000, 100)
                 #mc_test.generate_samples(total_samples)
                 total_samples = mc_test.mc.n_samples
 
-                mc_test.collect_subsamples(1, 100)
+                mc_test.collect_subsamples(1, 1000)
                 #
                 mc_test.test_variance_of_variance()
                 mc_test.test_mean_var_consistency()

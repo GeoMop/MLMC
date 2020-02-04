@@ -103,7 +103,7 @@ class SimulationTest(mlmc.sim.simulation.Simulation):
             time, position = self.generate_random_data()
             quantity = quantities[i]
             unit = unit_dict[quantity]
-            result_values.append((value + i, time + i, position, quantity, unit))
+            result_values.append((value+i, i, position, quantity, unit))
 
         return result_values
 

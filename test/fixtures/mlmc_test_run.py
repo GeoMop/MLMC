@@ -8,7 +8,7 @@ from test.fixtures.synth_simulation import SimulationTest
 
 
 class MLMCTest:
-    def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None, quantile=None):
+    def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None, quantile=None, moments_class=moments.Legendre):
         """
         Create TestMLMC object instance
         :param n_levels: number of levels
@@ -20,7 +20,9 @@ class MLMCTest:
         """
         # Not work for one level method
         print("\n")
-        print("L: {} R: {} distr: {} sim: {}".format(n_levels, n_moments, distr.dist.__class__.__name__, sim_method))
+
+        print("L: {} R: {} distr: {} sim: {}".format(n_levels, n_moments, distr.dist.__class__.__name__ if 'dist' in distr.__dict__ else '',
+                                                     sim_method))
 
         self.distr = distr
         self.n_levels = n_levels
@@ -41,12 +43,24 @@ class MLMCTest:
         self.estimator = mlmc.estimate.Estimate(self.mc)
 
         # reference variance
+        # if 'domain' in distr.__dict__:
+        #     true_domain = distr.domain
         if quantile is not None:
-            true_domain = distr.ppf([quantile, 1 - quantile])
+            if quantile == 0:
+                X = distr.rvs(size=1000)
+                true_domain = (np.min(X), np.max(X))
+
+                if hasattr(distr, "domain"):
+                    true_domain = distr.domain
+                else:
+                    X = distr.rvs(size=1000)
+                    true_domain = (np.min(X), np.max(X))
+            else:
+                true_domain = distr.ppf([quantile, 1 - quantile])
         else:
             true_domain = distr.ppf([0.0001, 0.9999])
 
-        self.moments_fn = moments.Legendre(n_moments, true_domain, is_log)
+        self.moments_fn = moments_class(n_moments, true_domain, is_log)
 
         # Exact means and vars estimation from distribution
         sample_size = 10000
@@ -62,7 +76,7 @@ class MLMCTest:
         if have_nan or rel_error > 1 / np.sqrt(sample_size):
             # bad match, probably bad domain, use MC estimates instead
             # TODO: still getting NaNs constantly, need to determine inversion of Simultaion._sample_fn and
-            # map the true domain for which the moments fn are constructed into integration domain so that
+            # map the true idomain for which the moments fn are constructed into integration domain so that
             # integration domain mapped by _sample_fn is subset of true_domain.
             means, vars = self.estimator.estimate_diff_var(self.sims, self.distr, self.moments_fn, sample_size)
             self.ref_means = np.sum(np.array(means), axis=0)
@@ -207,7 +221,6 @@ class MLMCTest:
         # 95% of means are within 3 sigma
         exact_moments = self.ref_means[1:]
         for i_mom, exact_mom in enumerate(exact_moments):
-
             assert np.abs(mean_means[i_mom] - exact_mom) < mean_std_est[i_mom], \
                 "moment: {}, diff: {}, std: {}".format(i_mom, np.abs(mean_means[i_mom] - exact_mom), mean_std_est[i_mom])
 

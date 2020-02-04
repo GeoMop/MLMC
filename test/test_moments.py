@@ -1,6 +1,10 @@
 """
 Test class monomials
 """
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import numpy as np
 import mlmc.moments
 import mlmc.distribution
@@ -17,7 +21,7 @@ def test_monomials():
     ref = [values**r for r in range(size)]
 
     # Monomials moments object
-    moments_fn  = mlmc.moments.Monomial(size, safe_eval=False)
+    moments_fn = mlmc.moments.Monomial(size, safe_eval=False)
 
     # Calculated moments
     moments = moments_fn(values)
@@ -69,6 +73,17 @@ def test_legendre():
     ref = [np.ones_like(values), values, (3*values**2 - 1.0) / 2.0, (5*values**3 - 3 * values) / 2.0]
 
     assert np.allclose(np.array(ref).T, moments)
+
+
+def test_spline():
+    size = 10
+    moments_fn = mlmc.moments.Spline(size, (-1.0, 1.0), smoothing_factor=1)
+
+    values = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+
+    moments = moments_fn(values)
+
+    print("moments ", moments)
 
 
 def test_moments():
@@ -265,3 +280,5 @@ def test_transform():
         transform_means.append(np.mean(t))
 
 test_legendre()
+
+test_spline()

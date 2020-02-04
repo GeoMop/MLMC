@@ -85,6 +85,7 @@ class Level:
         self.coarse_times = []
         self._select_condition = None
         self._select_param = None
+        self._select_bool_mask = None
         # Load simulations from log
         self.load_samples(regen_failed)
 
@@ -104,6 +105,7 @@ class Level:
         self.coarse_times = []
         self._select_condition = None
         self._select_param = None
+        self._select_bool_mask = None
         self.collected_samples = []
 
     @property
@@ -242,7 +244,11 @@ class Level:
             self.enlarge_samples(2 * self._n_collected_samples)
 
         # Add fine and coarse sample
-        self._sample_values[self._n_collected_samples, :] = (fine, coarse)
+        if self._select_bool_mask is not None:
+            self._sample_values[self._n_collected_samples, :] = (np.array(fine)[self._select_bool_mask],
+                                                                 np.array(coarse)[self._select_bool_mask])
+        else:
+            self._sample_values[self._n_collected_samples, :] = (fine, coarse)
         self._n_collected_samples += 1
 
     def enlarge_samples(self, size):
@@ -397,7 +403,7 @@ class Level:
             # however coarse sample is created for easier processing
             if not self.is_zero_level:
                 coarse_sample = self.coarse_simulation.extract_result(coarse_sample)
-                coarse_done = np.all(np.isnan(coarse_sample.result))
+                coarse_done = not np.any(np.isnan(coarse_sample.result))
             else:
                 coarse_done = True
 
@@ -569,12 +575,11 @@ class Level:
 
             self._remove_outliers_moments()
 
-        # if self.sample_indices is None:
-        #     return self.last_moments_eval
-        # else:
-        #     m_fine, m_coarse = self.last_moments_eval
-        #     return m_fine[self.sample_indices, :], m_coarse[self.sample_indices, :]
-        return self.last_moments_eval
+        if self.sample_indices is None:
+            return self.last_moments_eval
+        else:
+            m_fine, m_coarse = self.last_moments_eval
+            return m_fine[self.sample_indices, :], m_coarse[self.sample_indices, :]
 
     def _remove_outliers_moments(self, ):
         """
@@ -587,16 +592,16 @@ class Level:
 
         # Common mask for coarse and fine
         ok_fine_coarse = np.logical_and(ok_fine, ok_coarse)
-        bool_mask = np.ones((ok_fine_coarse[0].shape))
-        for bool_array in ok_fine_coarse:
-            bool_mask = np.logical_and(bool_mask, bool_array)
+        bool_mask = np.ones((len(ok_fine_coarse),), dtype=bool)
+
+        for index, bool_array in enumerate(ok_fine_coarse):
+            bool_mask[index] = np.sum(bool_array) == len(bool_array)
 
         ok_fine_coarse = bool_mask
 
         # New moments without outliers
-        self.last_moments_eval = self.last_moments_eval[0][:, ok_fine_coarse],\
-                                 self.last_moments_eval[1][:, ok_fine_coarse]
-
+        self.last_moments_eval = self.last_moments_eval[0][ok_fine_coarse],\
+                                 self.last_moments_eval[1][ok_fine_coarse]
 
     def estimate_level_var(self, moments_fn):
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
@@ -748,9 +753,11 @@ class Level:
                     bool_masks.append(sample_additional_data[param] <= value)
 
             if len(bool_masks) == 1:
-                samples = self._sample_values[:, :, bool_masks[0]]
+                self._select_bool_mask = bool_masks[0]
             else:
-                samples = self._sample_values[:, :, np.logical_and(*bool_masks)]
+                self._select_bool_mask = np.logical_and(*bool_masks)
+
+            samples = self._sample_values[:, :, self._select_bool_mask]
 
         # Select param from sample additional data
         # TODO: get param values for string
