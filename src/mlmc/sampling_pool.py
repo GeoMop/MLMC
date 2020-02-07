@@ -5,7 +5,7 @@ import numpy as np
 from typing import List
 from abc import ABC, abstractmethod
 from multiprocessing import Pool as ProcPool
-from multiprocessing.pool import ThreadPool as Threads
+from multiprocessing import pool
 from level_simulation import LevelSimulation
 
 
@@ -160,5 +160,5 @@ class OneProcessPool(SamplingPool):
 # class ThreadPool(ProcessPool):
 #
 #     def __init__(self, n_thread):
-#         self._pool = Threads(n_thread)
+#         self._pool = pool.ThreadPool(n_thread)
 #         self._queue = queue.Queue()
