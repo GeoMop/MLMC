@@ -6,7 +6,7 @@ import numpy as np
 from typing import List
 from abc import ABC, abstractmethod
 from multiprocessing import Pool as ProcPool
-from multiprocessing.pool import ThreadPool as Threads
+from multiprocessing import pool
 from level_simulation import LevelSimulation
 
 
@@ -187,6 +187,9 @@ class OneProcessPool(SamplingPool):
 
 
 class ProcessPool(OneProcessPool):
+    """
+    Suitable for local parallel sampling for simulations WITHOUT external program call
+    """
 
     def __init__(self, n_processes, work_dir=None):
         self._pool = ProcPool(n_processes)
@@ -211,9 +214,12 @@ class ProcessPool(OneProcessPool):
 
 
 class ThreadPool(ProcessPool):
+    """
+    Suitable local parallel sampling for simulations WITH external program call
+    """
 
     def __init__(self, n_thread, work_dir=False):
-        self._pool = Threads(n_thread)
+        self._pool = pool.ThreadPool(n_thread)
         self._work_dir = work_dir
         self._failed_queues = {}
         self._queues = {}
