@@ -64,6 +64,16 @@ class SampleStorageHDF(SampleStorage):
         # Save result format (QuantitySpec)
         self.save_result_format(result_format, res_dtype)
 
+    def load_scheduled_samples(self):
+        """
+        Get scheduled samples for each level
+        :return: List[List]
+        """
+        scheduled = list(np.empty(len(self._level_groups)))
+        for level in self._level_groups:
+            scheduled[int(level.level_id)] = [sample[0].decode() for sample in level.scheduled()]
+        return scheduled
+
     def save_result_format(self, result_format: List[QuantitySpec], res_dtype):
         """
         Save result format to hdf
@@ -135,3 +145,18 @@ class SampleStorageHDF(SampleStorage):
             n_finished[int(level.level_id)] += len(level.get_finished_ids())
 
         return n_finished
+
+    def save_n_ops(self, n_ops):
+        for level_id, (time, n_samples) in n_ops.items():
+            self._level_groups[level_id].n_ops_estimate = time/n_samples
+
+    def get_n_ops(self):
+        """
+        Get number of estimated operations on each level
+        :return: List
+        """
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.n_ops_estimate
+
+        return n_ops

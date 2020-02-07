@@ -128,8 +128,8 @@ class Sampler:
 
                 samples.append(sample_id)
 
-                # Store scheduled samples
-                self.sample_storage.save_scheduled_samples(level_id, samples)
+            # Store scheduled samples
+            self.sample_storage.save_scheduled_samples(level_id, samples)
 
     def ask_sampling_pool_for_samples(self, sleep=0, timeout=None):
         """
@@ -146,7 +146,7 @@ class Sampler:
         n_running = 1
         t0 = time.clock()
         while n_running > 0:
-            successful_samples, failed_samples, n_running = self._sampling_pool.get_finished()
+            successful_samples, failed_samples, n_running, n_ops = self._sampling_pool.get_finished()
 
             for level_id, s_samples in successful_samples.items():
                 self._n_finished_samples[level_id] += len(s_samples)
@@ -155,7 +155,7 @@ class Sampler:
 
             # Store finished samples
             if len(successful_samples) > 0:
-                self._store_samples(successful_samples, failed_samples)
+                self._store_samples(successful_samples, failed_samples, n_ops)
 
             time.sleep(sleep)
             if 0 < timeout < (time.clock() - t0):
@@ -163,14 +163,16 @@ class Sampler:
 
         return n_running
 
-    def _store_samples(self, successful_samples, failed_samples):
+    def _store_samples(self, successful_samples, failed_samples, n_ops):
         """
         Store finished samples
         :param successful_samples: List[Tuple[sample_id:str, Tuple[ndarray, ndarray]]]
         :param failed_samples: List[Tuple[sample_id: str, error message: str]]
+        :param n_ops: Dict[level_id: int, List[total time: float, number of success samples: int]]
         :return: None
         """
         self.sample_storage.save_samples(successful_samples, failed_samples)
+        self.sample_storage.save_n_ops(n_ops)
 
     def process_adding_samples(self, n_estimated, sleep, add_coef=0.1):
         """
@@ -223,6 +225,7 @@ class Sampler:
         while np.any(n_finished[greater_items] < fin_sample_coef * n_scheduled[greater_items]):
             # Wait a while
             time.sleep(sleep)
+            self.ask_sampling_pool_for_samples()
             n_finished = self.n_finished_samples
 
     def set_level_target_n_samples(self, n_samples, fraction=1.0):

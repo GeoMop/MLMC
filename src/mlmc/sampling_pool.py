@@ -1,6 +1,7 @@
 import os
 import shutil
 import queue
+import time
 import hashlib
 import numpy as np
 from typing import List
@@ -59,12 +60,15 @@ class SamplingPool(ABC):
         seed = SamplingPool.compute_seed(sample_id)
         res = (None, None)
         err_msg = ""
+        running_time = 0
         try:
+            start = time.time()
             res = level_sim.calculate(level_sim.config_dict, seed)
+            running_time = time.time() - start
         except Exception as err:
             err_msg = str(err)
 
-        return sample_id, res, err_msg
+        return sample_id, res, err_msg, running_time
 
     def _change_to_sample_directory(self, path: str):
         """
@@ -142,6 +146,7 @@ class OneProcessPool(SamplingPool):
         self._failed_queues = {}
         self._queues = {}
         self._n_running = 0
+        self.times = {}
 
     def schedule_sample(self, sample_id, level_sim):
         self._n_running += 1
@@ -149,7 +154,10 @@ class OneProcessPool(SamplingPool):
         if level_sim.need_sample_workspace:
             self._handle_sim_files(sample_id, level_sim)
 
-        sample_id, result, err_msg = SamplingPool.calculate_sample(sample_id, level_sim)
+        sample_id, result, err_msg, running_time = SamplingPool.calculate_sample(sample_id, level_sim)
+
+        # Save running time for n_ops
+        self._save_running_time(level_sim.level_id , running_time)
 
         if not err_msg:
             self._queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
@@ -157,6 +165,21 @@ class OneProcessPool(SamplingPool):
         else:
             self._failed_queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, err_msg))
             self._move_failed_dir(sample_id)
+
+    def _save_running_time(self, level_id, running_time):
+        """
+        Save running time to dictionary, store total time and number of samples
+        :param level_id: int
+        :param running_time: float
+        :return: None
+        """
+        # Save sample times [total time, number of samples]
+        if level_id not in self.times:
+            self.times[level_id] = [0, 0]
+        # Failed samples have running time equal 0 by default
+        if running_time != 0:
+            self.times[level_id][0] += running_time
+            self.times[level_id][1] += 1
 
     def have_permanent_sample(self, sample_id):
         return False
@@ -168,7 +191,7 @@ class OneProcessPool(SamplingPool):
         successful = self._queues_to_list(self._queues)
         failed = self._queues_to_list(self._failed_queues)
 
-        return successful, failed, self._n_running
+        return successful, failed, self._n_running, self.times
 
     def _queues_to_list(self, queue_dict):
         results = {}
@@ -201,10 +224,12 @@ class ProcessPool(OneProcessPool):
         if level_sim.need_sample_workspace:
             self._handle_sim_files(sample_id, level_sim)
 
-        res = self._pool.apply_async(SamplingPool.calculate_sample,
-                                                            args=(sample_id, level_sim,))
+        res = self._pool.apply_async(SamplingPool.calculate_sample, args=(sample_id, level_sim,))
 
-        sample_id, result, err_msg = res.get()
+        sample_id, result, err_msg, running_time = res.get()
+
+        # Save sample running time
+        self._save_running_time(level_sim.level_id, running_time)
 
         if not err_msg:
             self._queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
@@ -218,9 +243,10 @@ class ThreadPool(ProcessPool):
     Suitable local parallel sampling for simulations WITH external program call
     """
 
-    def __init__(self, n_thread, work_dir=False):
+    def __init__(self, n_thread, work_dir=None):
         self._pool = pool.ThreadPool(n_thread)
         self._work_dir = work_dir
         self._failed_queues = {}
         self._queues = {}
         self._n_running = 0
+        self.times = {}

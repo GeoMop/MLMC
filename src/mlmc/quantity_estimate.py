@@ -18,7 +18,17 @@ class QuantityEstimate:
 
     @property
     def levels_results(self):
-        return self._sample_storage.sample_pairs()
+        level_results = self._sample_storage.sample_pairs()
+
+        # @TODO: it does not works with arrays quantities, remove ASAP
+        new_level_results = []
+        if level_results[0].shape[0] > 1:
+            for l_res in level_results:
+                new_level_results.append(l_res[0])
+        else:
+            new_level_results = level_results
+
+        return new_level_results
 
     def estimate_diff_vars_regression(self, n_created_samples, moments_fn=None, raw_vars=None):
         """
