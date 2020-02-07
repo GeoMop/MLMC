@@ -8,8 +8,10 @@ sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
 from synth_simulation import SynthSimulation
 from sampler import Sampler
 from sample_storage import Memory
-from sampling_pool import ProcessPool, ThreadPool, OneProcessPool
+from sampling_pool import OneProcessPool
 from mlmc.moments import Legendre, Monomial
+from quantity_estimate import QuantityEstimate
+import new_estimator
 
 
 def one_process_sampler_test():
@@ -23,7 +25,7 @@ def one_process_sampler_test():
     failed_fraction = 0.1
     distr = stats.norm(loc=1, scale=2)
 
-    step_range = [0.01]#, 0.001, 0.0001]
+    step_range = [0.01, 0.001, 0.0001]
 
     # Create simulation instance
     simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
@@ -41,14 +43,30 @@ def one_process_sampler_test():
     #moments_fn = Monomial(n_moments, true_domain)
 
     sampler.set_initial_n_samples()
-    #sampler.set_initial_n_samples([10000])
+    sampler.set_initial_n_samples([10000])
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    sampler.target_var_adding_samples(1e-4, moments_fn, sleep=0)
-    print("collected samples ", sampler._n_created_samples)
+    q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
 
-    means, vars = sampler.estimate_moments(moments_fn)
+    target_var=1e-5
+    sleep=0
+    add_coef=0.1
+
+    # @TODO: test
+    # New estimation according to already finished samples
+    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+    n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                       n_levels=sampler.n_levels)
+    # Loop until number of estimated samples is greater than the number of scheduled samples
+    while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
+        # New estimation according to already finished samples
+        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+        n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                           n_levels=sampler.n_levels)
+
+    print("collected samples ", sampler._n_created_samples)
+    means, vars = q_estimator.estimate_moments(moments_fn)
 
     print("means ", means)
     print("vars ", vars)

@@ -26,9 +26,36 @@ class SampleStorage(metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def save_scheduled_samples(self):
+        """
+        Save scheduled samples ids
+        """
+
+    @abstractmethod
+    def load_scheduled_samples(self):
+        """
+        Load scheduled samples
+        :return: Dict[level_id, List[sample_id: str]]
+        """
+
+    @abstractmethod
     def sample_pairs(self):
         """
         Get results from storage
+        :return: List[Array[M, N, 2]]
+        """
+
+    @abstractmethod
+    def n_finished(self):
+        """
+        Number of finished samples
+        :return: List
+        """
+
+    @abstractmethod
+    def get_n_ops(self):
+        """
+        Number of operations per sample
         :return:
         """
 
@@ -41,6 +68,7 @@ class Memory(SampleStorage):
         self._successful_sample_ids = {}
         self._scheduled = {}
         self._result_specification = []
+        self._n_ops = {}
 
     def save_samples(self, successful_samples, failed_samples):
         """
@@ -95,7 +123,7 @@ class Memory(SampleStorage):
         Number of finished samples on each level
         :return: List
         """
-        n_finished = np.empty(len(self._results.keys()))
+        n_finished = np.empty(max(self._results.items(), key=lambda k: k[0])[0]+1)
         for level_id, results in self._results.items():
             n_finished[level_id] = len(results)
 
@@ -132,3 +160,7 @@ class Memory(SampleStorage):
             levels_results[level_id] = results.transpose((2, 0, 1))
 
         return levels_results
+
+    # @TODO: save n ops estimate
+    def get_n_ops(self):
+        return np.ones(len(self._results.keys()))
