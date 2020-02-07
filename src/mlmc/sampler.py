@@ -30,6 +30,10 @@ class Sampler:
         self._create_level_sim_objects(len(step_range), sim_factory)
 
     @property
+    def n_levels(self):
+        return len(self._level_sim_objects)
+
+    @property
     def n_finished_samples(self):
         """
         Retrieve number of all finished samples
@@ -63,7 +67,7 @@ class Sampler:
         :param nL: int
         :return: np.array of length L = n_levels.
         """
-        return np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), len(self._level_sim_objects)))).astype(int)
+        return np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), self.n_levels))).astype(int)
 
     def set_initial_n_samples(self, n_samples=None):
         """
