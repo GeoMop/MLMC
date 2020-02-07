@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import List
 import pickle
 import json
+import glob
 from level_simulation import LevelSimulation
 from sampling_pool import SamplingPool
 
@@ -48,6 +49,8 @@ class SamplingPoolPBS(SamplingPool):
 
         self.qsub_cmd = None
         self._scheduled = []
+        
+        self._level_dir = {}
 
         self._output_dir = None
         self._jobs_dir = None
@@ -62,14 +65,27 @@ class SamplingPoolPBS(SamplingPool):
         self._create_job_dir()
 
     def _create_output_dir(self):
+        print("self work dir ", self._work_dir)
         if self._work_dir is None:
             raise NotADirectoryError("Working directory must be pass to Sampler init")
 
         if self._output_dir is None:
             self._output_dir = os.path.join(self._work_dir, SamplingPoolPBS.OUTPUT_DIR)
+
+            #  @TODO: remove
+            if os.path.isdir(self._output_dir):
+                shutil.rmtree(self._output_dir)
+
             os.makedirs(self._output_dir, mode=0o775, exist_ok=True)
 
+        print("output dir ", self._output_dir)
+
     def _create_level_workspace(self, level_id):
+        """
+        Create level directory
+        :param level_id: Level identifier
+        :return: None
+        """
         if self._output_dir is not None:
             if not os.path.isdir(os.path.join(self._output_dir, SamplingPoolPBS.LEVEL_DIR.format(level_id))):
                 level_dir = os.path.join(self._output_dir, SamplingPoolPBS.LEVEL_DIR.format(level_id))
@@ -109,9 +125,9 @@ class SamplingPoolPBS(SamplingPool):
         self._pbs_header_template = ["#!/bin/bash",
                                      '#PBS -S /bin/bash',
                                      '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}{select_flags}',
-                                     '#PBS -l walltime=4:00:00',
+                                     '#PBS -l walltime=1:00:00',
                                      '#PBS -q {queue}',
-                                     '#PBS -N Flow123d',
+                                     '#PBS -N MLMC_sim',
                                      '#PBS -j oe',
                                      '#PBS -o {pbs_output_dir}/{job_name}.OU',
                                      '#PBS -e {pbs_output_dir}/{job_name}.ER',
@@ -132,7 +148,7 @@ class SamplingPoolPBS(SamplingPool):
         :param path: str
         :return: None
         """
-        sample_dir = os.path.join(self._work_dir, )
+        sample_dir = os.path.join(self._level_dir[level_id], sample_id)
         if not os.path.isdir(sample_dir):
             os.makedirs(sample_dir, mode=0o775, exist_ok=True)
         os.chdir(sample_dir)
@@ -165,7 +181,8 @@ class SamplingPoolPBS(SamplingPool):
         :param level_sim: LevelSimulation instance
         :return: None
         """
-        #level_sim.config_dict["sample_id"] = sample_id
+        self._create_level_workspace(level_sim.level_id)
+        print("scheduled sample_id: {}, level_sim: {}".format(sample_id, level_sim))
 
         self._handle_sim_files(sample_id, level_sim)
 
@@ -261,8 +278,11 @@ class SamplingPoolPBS(SamplingPool):
         """
         self.execute()
         job_ids = self._qstat_pbs_job()
-        results, n_running = self.get_result_files(job_ids)
-        return results, n_running
+        results, n_running, times = self.get_result_files(job_ids)
+
+        failed = {}
+        times = {}
+        return results, failed, n_running, times
 
     @property
     def jobs_dir(self):
@@ -288,19 +308,6 @@ class SamplingPoolPBS(SamplingPool):
         if self._files_structure is None:
             raise FileNotFoundError
         return self._files_structure
-
-    def _create_output_dir(self):
-        if self._work_dir is None:
-            raise NotADirectoryError("Working directory must be pass to Sampler init")
-
-        if self._output_dir is None:
-            self._output_dir = os.path.join(self._work_dir, SamplingPoolPBS.OUTPUT_DIR)
-
-            #  @TODO: remove
-            if os.path.isdir(self._output_dir):
-                shutil.rmtree(self._output_dir)
-
-            os.makedirs(self._output_dir, mode=0o775, exist_ok=True)
 
     def _create_job_dir(self):
         if self._work_dir is None:
@@ -395,7 +402,7 @@ class SamplingPoolPBS(SamplingPool):
         file = glob.glob(reg)
 
         n_running = 0
-        results = []
+        results = {}
         for f in file:
             job_id, pbs_id = re.findall("(\d+)_(\d+)", f)[0]
 
@@ -406,10 +413,20 @@ class SamplingPoolPBS(SamplingPool):
                     n_running += len(lines)
                 continue
 
+            print("job id ", job_id)
+            print("pbs id ", pbs_id)
+            print("unfinished pbs jobs ", unfinished_pbs_jobs)
+
             res = self._read_results(job_id)
+            print("res ", res)
             results.extend(res)
 
-        return results, n_running
+        print("results ", results)
+
+        # @TODO: return failed samples, calculate time
+
+
+        return results, n_running, 1
 
     def _read_results(self, job_id):
         """
@@ -417,6 +434,7 @@ class SamplingPoolPBS(SamplingPool):
         :param job_id: str
         :return:
         """
+
         with open(os.path.join(self._jobs_dir, SamplingPoolPBS.RESULTS.format(job_id)), "r") as reader:
             results = yaml.load(reader)
 

@@ -8,7 +8,7 @@ src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
 from synth_simulation_workspace import SynthSimulationWorkspace
 
-from mlmc.moments import Legendre
+from moments import Legendre
 from sampler import Sampler
 from sample_storage import Memory
 from sampling_pool_pbs import SamplingPoolPBS
@@ -47,8 +47,6 @@ def sampler_test_pbs():
 
     sampling_pool.pbs_common_setting(flow_3=True, **pbs_config)
 
-
-
     # Plan and compute samples
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
                       step_range=step_range)
@@ -56,12 +54,12 @@ def sampler_test_pbs():
     true_domain = distr.ppf([0.0001, 0.9999])
     moments_fn = Legendre(n_moments, true_domain)
 
-    sampler.set_initial_n_samples()
+    sampler.set_initial_n_samples([1])
     # sampler.set_initial_n_samples([1000])
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    sampler.target_var_adding_samples(1e-4, moments_fn, sleep=20)
+    # sampler.target_var_adding_samples(1e-4, moments_fn, sleep=20)
     print("collected samples ", sampler._n_created_samples)
 
     means, vars = sampler.estimate_moments(moments_fn)
