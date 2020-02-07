@@ -1,6 +1,7 @@
+import numpy as np
 import attr
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Any
 from mlmc.level_simulation import LevelSimulation
 
 
@@ -11,6 +12,7 @@ class QuantitySpec:
     shape: Tuple[int, int]
     times: List[float]
     locations: Union[List[str], List[Tuple[float, float, float]]]
+    used_attributes: List = ["name", "unit", "shape", "times", "locations"]
 
 
 class Simulation(ABC):

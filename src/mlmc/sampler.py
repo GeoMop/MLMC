@@ -29,6 +29,9 @@ class Sampler:
         self._level_sim_objects = []
         self._create_level_sim_objects(len(step_range), sim_factory)
 
+        sample_storage.save_global_data(step_range=step_range,
+                                        result_format=sim_factory.result_format())
+
     @property
     def n_levels(self):
         return len(self._level_sim_objects)
@@ -53,7 +56,7 @@ class Sampler:
                 level_sim = sim_factory.level_instance([self._step_range[level_id]], [0])
 
             else:
-                level_sim = sim_factory.level_instance([self._step_range[level_id]], [self._step_range[level_id-1]])
+                level_sim = sim_factory.level_instance([self._step_range[level_id]], [self._step_range[level_id - 1]])
 
             level_sim.calculate = sim_factory.calculate
             level_sim.level_id = level_id
