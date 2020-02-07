@@ -32,7 +32,6 @@ def sampler_hdf_test():
     simulation_factory = SynthSimulation(simulation_config)
 
     sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_{}.hdf5".format(len(step_range))))
-    sample_storage.save_global_data(step_range=step_range, result_format=SynthSimulation.result_format())
     sampling_pool = OneProcessPool()
 
     # Plan and compute samples

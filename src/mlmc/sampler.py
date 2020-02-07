@@ -37,6 +37,9 @@ class Sampler:
         self._level_sim_objects = []
         self._create_level_sim_objects()
 
+        sample_storage.save_global_data(step_range=step_range,
+                                        result_format=sim_factory.result_format())
+
     @property
     def n_finished_samples(self):
         """

@@ -123,6 +123,9 @@ class SynthSimulation(Simulation):
     def n_ops_estimate(self, step):
         return (1 / step) ** self.config['complexity'] * np.log(max(1 / step, 2.0))
 
+    def result_format(self):
+        return SynthSimulation.result_format()
+
     @staticmethod
     def result_format() -> List[QuantitySpec]:
         """

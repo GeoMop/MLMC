@@ -135,13 +135,14 @@ class HDF5:
         """
         return "result_format"
 
-    def save_result_format(self, result_format):
+    def save_result_format(self, result_format, res_dtype):
         """
         Save result format to dataset
         :param result_format: List[QuantitySpec]
+        :param res_dtype: result numpy dtype
         :return: None
         """
-        result_format_dtype = result_format[0].dtype
+        result_format_dtype = res_dtype
 
         # Create data set
         with h5py.File(self.file_name, 'a') as hdf_file:

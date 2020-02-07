@@ -23,6 +23,28 @@ class SampleStorageHDF(SampleStorage):
         self._hdf_object = hdf.HDF5(file_path=file_path, load_from_file=load_from_file)
         self._level_groups = []
 
+    def _hdf_result_format(self, locations, times):
+        """
+        QuantitySpec data type, necessary for hdf storage
+        :return:
+        """
+        if len(locations[0]) == 3:
+            tuple_dtype = np.dtype((np.float, (3,)))
+            loc_dtype = np.dtype((tuple_dtype, (len(locations),)))
+        else:
+            loc_dtype = np.dtype(('S50', (len(locations),)))
+
+        result_dtype = {'names': ('name', 'unit', 'shape', 'times', 'locations'),
+                        'formats': ('S50',
+                                    'S50',
+                                    np.dtype((np.int32, (2,))),
+                                    np.dtype((np.float, (len(times),))),
+                                    loc_dtype
+                                    )
+                        }
+
+        return result_dtype
+
     def save_global_data(self, step_range: List[np.float], result_format: List[QuantitySpec]):
         """
         Save hdf5 file global attributes
@@ -30,6 +52,8 @@ class SampleStorageHDF(SampleStorage):
         :param result_format: simulation result format
         :return: None
         """
+        res_dtype = self._hdf_result_format(result_format[0].locations, result_format[0].times)
+
         # Create file structure
         self._hdf_object.create_file_structure(step_range)
 
@@ -38,15 +62,15 @@ class SampleStorageHDF(SampleStorage):
             self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
 
         # Save result format (QuantitySpec)
-        self.save_result_format(result_format)
+        self.save_result_format(result_format, res_dtype)
 
-    def save_result_format(self, result_format: List[QuantitySpec]):
+    def save_result_format(self, result_format: List[QuantitySpec], res_dtype):
         """
         Save result format to hdf
         :param result_format: List[QuantitySpec]
         :return: None
         """
-        self._hdf_object.save_result_format(result_format)
+        self._hdf_object.save_result_format(result_format, res_dtype)
 
     def load_result_format(self) -> List[QuantitySpec]:
         """
