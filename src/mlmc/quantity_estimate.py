@@ -20,6 +20,11 @@ class QuantityEstimate:
     def levels_results(self):
         level_results = self._sample_storage.sample_pairs()
 
+        print("level results ", level_results)
+
+        if len(level_results) == 0:
+            raise Exception("No data")
+
         # @TODO: it does not works with arrays quantities, remove ASAP
         new_level_results = []
         if level_results[0].shape[0] > 1:

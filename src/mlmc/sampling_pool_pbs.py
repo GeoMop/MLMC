@@ -3,7 +3,6 @@ import shutil
 import subprocess
 import yaml
 import re
-from abc import ABC, abstractmethod
 from typing import List
 import pickle
 import json
@@ -18,7 +17,9 @@ class SamplingPoolPBS(SamplingPool):
     LEVEL_DIR = "level_{}"
     JOBS_DIR = "jobs"
     SCHEDULED = "{}_scheduled.yaml"
-    RESULTS = "{}_results.yaml"
+    SUCCESSFUL_RESULTS = "{}_successful_results.yaml"
+    FAILED_RESULTS = "{}_failed_results.yaml"
+    TIME = "{}_times.yaml"
     PBS_ID = "{}_"
     JOB = "{}_job.sh"
     LEVEL_SIM_CONFIG = "level_simulation_config"
@@ -55,7 +56,7 @@ class SamplingPoolPBS(SamplingPool):
         self._output_dir = None
         self._jobs_dir = None
         self._scheduled_file = None
-        self._results_file = None
+        #self._results_file = None
         self._pbs_id_file = None
         self._job_file = None
         self._levels_config = None
@@ -182,15 +183,24 @@ class SamplingPoolPBS(SamplingPool):
         :return: None
         """
         self._create_level_workspace(level_sim.level_id)
+        self.serialize_level_sim(level_sim)
         print("scheduled sample_id: {}, level_sim: {}".format(sample_id, level_sim))
 
         self._handle_sim_files(sample_id, level_sim)
 
-        self._scheduled.append((level_sim.level_id, sample_id))
+        seed = self.compute_seed(sample_id)
+        self._scheduled.append((level_sim.level_id, sample_id, seed))
+
+        print("level_sim taks size ", level_sim.task_size)
 
         self._number_of_realizations += 1
         self._current_job_weight += level_sim.task_size
         if self._current_job_weight > self.job_weight or self._number_of_realizations > self.max_realizations:
+            print("self.current job weight ", self._current_job_weight)
+
+            print("self job weight ", self.job_weight)
+            print("self number of realization ", self._number_of_realizations)
+            print("self mas realizations ", self.max_realizations)
             self.execute()
 
     def have_permanent_sample(self, sample_id):
@@ -244,6 +254,8 @@ class SamplingPoolPBS(SamplingPool):
         :return: None
         """
         job_id = "{:04d}".format(self._job_count)
+
+        print("execute scheduled ", self._scheduled)
         self.create_files(job_id)
         self.save_scheduled(self._scheduled)
 
@@ -260,16 +272,18 @@ class SamplingPoolPBS(SamplingPool):
 
         #  @TODO: qsub command is required for PBS
 
-        process = subprocess.run(['qsub', self.pbs_job_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        if process.returncode != 0:
-            raise Exception(process.stderr.decode('ascii'))
+        subprocess.call(self.pbs_job_file)
 
-        self._parse_qsub_output(process)
+        # process = subprocess.run(['qsub', self.pbs_job_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        # if process.returncode != 0:
+        #     raise Exception(process.stderr.decode('ascii'))
+        # self._parse_qsub_output(process)
 
         # Clean script for other usage
         # self.clean_script()
         self._current_job_weight = 0
         self._number_of_realizations = 0
+        self._scheduled = []
 
     def get_finished(self):
         """
@@ -277,12 +291,12 @@ class SamplingPoolPBS(SamplingPool):
         :return:
         """
         self.execute()
-        job_ids = self._qstat_pbs_job()
-        results, n_running, times = self.get_result_files(job_ids)
+        job_ids = []#self._qstat_pbs_job()
+        successful, failed, n_running, times = self.get_result_files(job_ids)
 
         failed = {}
         times = {}
-        return results, failed, n_running, times
+        return successful, failed, n_running, times
 
     @property
     def jobs_dir(self):
@@ -337,7 +351,7 @@ class SamplingPoolPBS(SamplingPool):
 
     def create_files(self, job_id):
         self._scheduled_file = os.path.join(self._jobs_dir, SamplingPoolPBS.SCHEDULED.format(job_id))
-        self._results_file = os.path.join(self._jobs_dir, SamplingPoolPBS.RESULTS.format(job_id))
+        #self._results_file = os.path.join(self._jobs_dir, SamplingPoolPBS.RESULTS.format(job_id))
         self._pbs_id_file = os.path.join(self._jobs_dir, SamplingPoolPBS.PBS_ID.format(job_id))
         self._job_file = os.path.join(self._jobs_dir, SamplingPoolPBS.JOB.format(job_id))
 
@@ -384,7 +398,9 @@ class SamplingPoolPBS(SamplingPool):
         :return: None
         """
         files_structure = {"scheduled": os.path.join(self._jobs_dir, SamplingPoolPBS.SCHEDULED),
-                           "results": os.path.join(self._jobs_dir, SamplingPoolPBS.RESULTS),
+                           "successful_results": SamplingPoolPBS.SUCCESSFUL_RESULTS,
+                           "failed_results": SamplingPoolPBS.FAILED_RESULTS,
+                           "time": SamplingPoolPBS.TIME,
                            "levels_config": os.path.join(self._output_dir, SamplingPoolPBS.LEVELS_CONFIG)}
 
         with open(self._files_structure, "w") as writer:
@@ -402,7 +418,9 @@ class SamplingPoolPBS(SamplingPool):
         file = glob.glob(reg)
 
         n_running = 0
-        results = {}
+        successful_results = {}
+        failed_results = {}
+        times = {}
         for f in file:
             job_id, pbs_id = re.findall("(\d+)_(\d+)", f)[0]
 
@@ -417,16 +435,24 @@ class SamplingPoolPBS(SamplingPool):
             print("pbs id ", pbs_id)
             print("unfinished pbs jobs ", unfinished_pbs_jobs)
 
-            res = self._read_results(job_id)
-            print("res ", res)
-            results.extend(res)
+            for level_id, path in self._level_dir.items():
 
-        print("results ", results)
+                successful, failed, time = self._read_results(job_id)
 
-        # @TODO: return failed samples, calculate time
+                print("successful ", successful)
+                print("failed ", failed)
+                print("time ", time)
 
+                successful_results.setdefault(level_id, []).extend(successful)
+                failed_results.setdefault(level_id, []).extend(failed)
 
-        return results, n_running, 1
+                times[level_id] = time
+
+            print("successful_results ", successful_results)
+            print("failed_results ", failed_results)
+            print("times ", times)
+
+        return successful_results, failed_results, n_running, 1
 
     def _read_results(self, job_id):
         """
@@ -434,11 +460,23 @@ class SamplingPoolPBS(SamplingPool):
         :param job_id: str
         :return:
         """
+        successful = {}
+        failed = {}
+        time = 0
 
-        with open(os.path.join(self._jobs_dir, SamplingPoolPBS.RESULTS.format(job_id)), "r") as reader:
-            results = yaml.load(reader)
+        if os.path.exists(os.path.join(self._jobs_dir, SamplingPoolPBS.SUCCESSFUL_RESULTS.format(job_id))):
+            with open(os.path.join(self._jobs_dir, SamplingPoolPBS.SUCCESSFUL_RESULTS.format(job_id)), "r") as reader:
+                successful = yaml.load(reader)
 
-        return results
+        if os.path.exists(os.path.join(self._jobs_dir, SamplingPoolPBS.FAILED_RESULTS.format(job_id))):
+            with open(os.path.join(self._jobs_dir, SamplingPoolPBS.FAILED_RESULTS.format(job_id)), "r") as reader:
+                failed = yaml.load(reader)
+
+        if os.path.exists(os.path.join(self._jobs_dir, SamplingPoolPBS.TIME.format(job_id))):
+            with open(os.path.join(self._jobs_dir, SamplingPoolPBS.TIME.format(job_id)), "r") as reader:
+                time = yaml.load(reader)
+
+        return successful, failed, time
 
     def save_to_storage(self):
         return {"work_dir": self._work_dir,

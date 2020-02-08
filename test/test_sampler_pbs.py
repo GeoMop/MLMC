@@ -12,6 +12,8 @@ from moments import Legendre
 from sampler import Sampler
 from sample_storage import Memory
 from sampling_pool_pbs import SamplingPoolPBS
+from quantity_estimate import QuantityEstimate
+import new_estimator
 
 
 def sampler_test_pbs():
@@ -33,10 +35,9 @@ def sampler_test_pbs():
     simulation_factory = SynthSimulationWorkspace(simulation_config)
 
     sample_storage = Memory()
-    sampling_pool = SamplingPoolPBS(job_weight=200000, job_count=0, work_dir=work_dir)
+    sampling_pool = SamplingPoolPBS(job_weight=20000000, job_count=0, work_dir=work_dir)
 
     pbs_config = dict(
-        job_weight=250000,  # max number of elements per job
         n_cores=1,
         n_nodes=1,
         select_flags=['cgroups=cpuacct'],
@@ -54,15 +55,31 @@ def sampler_test_pbs():
     true_domain = distr.ppf([0.0001, 0.9999])
     moments_fn = Legendre(n_moments, true_domain)
 
-    sampler.set_initial_n_samples([1])
+    sampler.set_initial_n_samples([10, 4])
     # sampler.set_initial_n_samples([1000])
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    # sampler.target_var_adding_samples(1e-4, moments_fn, sleep=20)
-    print("collected samples ", sampler._n_created_samples)
+    q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
 
-    means, vars = sampler.estimate_moments(moments_fn)
+    target_var = 1e-5
+    sleep = 0
+    add_coef = 0.1
+
+    # @TODO: test
+    # New estimation according to already finished samples
+    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+    n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                       n_levels=sampler.n_levels)
+    # Loop until number of estimated samples is greater than the number of scheduled samples
+    while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
+        # New estimation according to already finished samples
+        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+        n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                           n_levels=sampler.n_levels)
+
+    print("collected samples ", sampler._n_created_samples)
+    means, vars = q_estimator.estimate_moments(moments_fn)
 
     print("means ", means)
     print("vars ", vars)
