@@ -108,11 +108,13 @@ class SampleStorageHDF(SampleStorage):
 
     def _save_succesful(self, successful_samples):
         for level, samples in successful_samples.items():
-            self._level_groups[level].append_successful(np.array(samples))
+            if len(samples) > 0:
+                self._level_groups[level].append_successful(np.array(samples))
 
     def _save_failed(self, failed_samples):
         for level, samples in failed_samples.items():
-            self._level_groups[level].append_failed(samples)
+            if len(samples) > 0:
+                self._level_groups[level].append_failed(samples)
 
     def save_scheduled_samples(self, level_id, samples: List[str]):
         """
@@ -147,8 +149,16 @@ class SampleStorageHDF(SampleStorage):
         return n_finished
 
     def save_n_ops(self, n_ops):
+        """
+        Save number of operations (time) of samples
+        :param n_ops: Dict[level_id, List[overall time, number of successful samples]]
+        :return: None
+        """
         for level_id, (time, n_samples) in n_ops.items():
-            self._level_groups[level_id].n_ops_estimate = time/n_samples
+            if n_samples == 0:
+                self._level_groups[level_id].n_ops_estimate = 0
+            else:
+                self._level_groups[level_id].n_ops_estimate = time/n_samples
 
     def get_n_ops(self):
         """

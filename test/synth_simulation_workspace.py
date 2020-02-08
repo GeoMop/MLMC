@@ -131,14 +131,16 @@ class SynthSimulationWorkspace(Simulation):
         for result in [fine_result, coarse_result]:
             quantities = []
             for quantity in quantity_format:
-                locations = np.array([result + i for i in range(len(quantity.locations))])
+                if coarse_step == 0:
+                    locations = np.array([result for _ in range(len(quantity.locations))])
+                else:
+                    locations = np.array([result + i for i in range(len(quantity.locations))])
                 times = np.array([locations for _ in range(len(quantity.times))])
                 quantities.append(times)
 
             results.append(np.array(quantities))
 
         return results[0].flatten(), results[1].flatten()
-
 
     def n_ops_estimate(self, step):
         # @TODO: how to determine n ops

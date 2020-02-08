@@ -12,8 +12,6 @@ sys.path.append(os.path.join(src_path, '..', '..', 'src'))
 sys.path.append(os.path.join(src_path, '..', '..', 'test'))
 sys.path.append(os.path.join(src_path))
 
-print("sys.path ", sys.path)
-
 
 class PbsProcess:
 
@@ -38,13 +36,14 @@ class PbsProcess:
         self._job_id = sys.argv[2]
 
     def get_files(self):
+        """
+        Get path and name of some crucial files
+        :return:
+        """
         # Get LevelSimulations anf paths to each level directory
         self._get_level_config()
 
-        print("level sims ", self._level_simulations)
-        print("l paths ", self._level_paths)
         self._scheduled_file_path = self._files['scheduled'].format(self._job_id)
-        print("scheduled file path ", self._scheduled_file_path)
         self._failed_result_file = self._files['failed_results'].format(self._job_id)
         self._successful_result_file = self._files['successful_results'].format(self._job_id)
         self._time_file = self._files['time'].format(self._job_id)
@@ -52,7 +51,7 @@ class PbsProcess:
     def _get_level_config(self):
         """
         Deserialize LevelSimulation object
-        :return:
+        :return: None
         """
         with open(self._files['levels_config'], "r") as reader:
             level_config_files = reader.read().splitlines()
@@ -68,41 +67,42 @@ class PbsProcess:
             self._level_paths[l_sim.level_id] = path.parent
 
     def _read_file_structure(self, file_path):
+        """
+        Read file structure - necessary files
+        :param file_path: str
+        :return: None
+        """
         with open(file_path, "r") as reader:
             self._files = json.load(reader)
 
     def _get_level_id_sample_id_seed(self):
+        """
+        Get scheduled samples
+        :return: List[Tuple[level_id: int, sample_id: str, seed: int]]
+        """
         with open(self._scheduled_file_path) as file:
-            level_id_sample_id_seed = yaml.load(file)
+            level_id_sample_id_seed = yaml.load(file, yaml.Loader)
 
         return level_id_sample_id_seed
 
-    def schedule_samples(self):
+    def calculate_samples(self):
         """
-
-        :param level_id_sample_id:
-        :param level_sims:
-        :param result_file_path:
+        Calculate scheduled samples
         :return:
         """
-
+        # List of Tuple[level id, sample id, random seed]
         level_id_sample_id_seed = self._get_level_id_sample_id_seed()
-        print("level id sample id seed", level_id_sample_id_seed)
 
         failed = {}
         success = {}
         times = {}
         for level_id, sample_id, seed in level_id_sample_id_seed:
-            print("level id ", level_id)
-            print("sample id ", sample_id)
-            print("seed ", seed)
             level_sim = self._level_simulations[level_id]
-
             assert level_sim.level_id == level_id
-
-            print("l_paths[level_id] ", self._level_paths[level_id])
+            # Go to sample directory
             os.chdir(os.path.join(self._level_paths[level_id], sample_id))
 
+            # Calculate sample
             res = (None, None)
             err_msg = ""
             running_time = 0
@@ -126,18 +126,16 @@ class PbsProcess:
             else:
                 failed.setdefault(level_sim.level_id, []).append((sample_id, err_msg))
 
-            # results.append([sample_id, res, err_msg, running_time])
-
         # Write all results at one go otherwise there is duplicate key error
         self._write_results_to_file(success, failed, times)
 
     def _write_results_to_file(self, success, failed, times):
         """
         Write success samples, failed samples and average time
-        :param success:
-        :param failed:
-        :param times:
-        :return:
+        :param success: successful samples
+        :param failed: failed samples
+        :param times: n ops estimated
+        :return: None
         """
 
         for level_id, results in success.items():
@@ -146,27 +144,8 @@ class PbsProcess:
         for level_id, results in failed.items():
             self._append_file(results, os.path.join(self._level_paths[level_id], self._failed_result_file))
 
-        for level_id, (time, n_samples) in times.items():
-            self._append_file(time/n_samples, os.path.join(self._level_paths[level_id], self._time_file))
-
-        # f = {}
-        # s = {}
-        # t = 0
-        # if os.path.exists(os.path.join(self._level_paths[level_id], self._failed_result_file)):
-        #     with open(os.path.join(self._level_paths[level_id], self._failed_result_file), "r") as reader:
-        #         f = yaml.load(reader)
-        #
-        # if os.path.join(self._level_paths[level_id], self._successful_result_file):
-        #     with open(os.path.join(self._level_paths[level_id], self._successful_result_file), "r") as reader:
-        #         s = yaml.load(reader)
-        #
-        # if os.path.join(self._level_paths[level_id], self._time_file):
-        #     with open(os.path.join(self._level_paths[level_id], self._time_file), "r") as reader:
-        #         t = yaml.load(reader)
-        #
-        # print("failed ", f)
-        # print("successful ", s)
-        # print("times" , t)
+        for level_id, time_n_samples in times.items():
+            self._append_file(time_n_samples, os.path.join(self._level_paths[level_id], self._time_file))
 
     def _append_file(self, data, path):
         with open(path, "a") as f:
@@ -176,4 +155,4 @@ class PbsProcess:
 if __name__ == "__main__":
     pbs_process = PbsProcess()
     pbs_process.get_files()
-    pbs_process.schedule_samples()
+    pbs_process.calculate_samples()

@@ -25,7 +25,6 @@ class Sampler:
         self._n_created_samples = np.zeros(len(step_range))
         # Number of target samples
         self._n_target_samples = np.zeros(len(step_range))
-        self._n_finished_samples = np.zeros(len(step_range))
         self._level_sim_objects = []
         self._create_level_sim_objects(len(step_range), sim_factory)
 
@@ -148,14 +147,8 @@ class Sampler:
         while n_running > 0:
             successful_samples, failed_samples, n_running, n_ops = self._sampling_pool.get_finished()
 
-            for level_id, s_samples in successful_samples.items():
-                self._n_finished_samples[level_id] += len(s_samples)
-            for level_id, f_samples in failed_samples.items():
-                self._n_finished_samples[level_id] += len(f_samples)
-
             # Store finished samples
-            if len(successful_samples) > 0:
-                self._store_samples(successful_samples, failed_samples, n_ops)
+            self._store_samples(successful_samples, failed_samples, n_ops)
 
             time.sleep(sleep)
             if 0 < timeout < (time.clock() - t0):
