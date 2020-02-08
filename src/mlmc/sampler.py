@@ -159,8 +159,8 @@ class Sampler:
     def _store_samples(self, successful_samples, failed_samples, n_ops):
         """
         Store finished samples
-        :param successful_samples: List[Tuple[sample_id:str, Tuple[ndarray, ndarray]]]
-        :param failed_samples: List[Tuple[sample_id: str, error message: str]]
+        :param successful_samples: Dict[level_id, List[Tuple[sample_id:str, Tuple[ndarray, ndarray]]]]
+        :param failed_samples: Dict[level_id, List[Tuple[sample_id: str, error message: str]]]
         :param n_ops: Dict[level_id: int, List[total time: float, number of success samples: int]]
         :return: None
         """
