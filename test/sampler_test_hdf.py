@@ -7,6 +7,7 @@ from scipy import stats
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
 from synth_simulation import SynthSimulation
+from synth_simulation_workspace import SynthSimulationWorkspace
 from sampler import Sampler
 from sample_storage_hdf import SampleStorageHDF
 from sampling_pool import OneProcessPool

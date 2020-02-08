@@ -11,6 +11,7 @@ from synth_simulation_workspace import SynthSimulationWorkspace
 from moments import Legendre
 from sampler import Sampler
 from sample_storage import Memory
+from sample_storage_hdf import SampleStorageHDF
 from sampling_pool_pbs import SamplingPoolPBS
 from quantity_estimate import QuantityEstimate
 import new_estimator
@@ -34,7 +35,7 @@ def sampler_test_pbs():
     simulation_config = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
     simulation_factory = SynthSimulationWorkspace(simulation_config)
 
-    sample_storage = Memory()
+    sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_{}.hdf5".format(len(step_range))))
     sampling_pool = SamplingPoolPBS(job_weight=20000000, job_count=0, work_dir=work_dir)
 
     pbs_config = dict(
