@@ -22,7 +22,7 @@ class SimpleDistribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=40, reg_param_beta=0, mom_2nd_der_err=None):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=20, reg_param_beta=0, mom_2nd_der_err=None):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -1393,7 +1393,7 @@ def lsq_reconstruct(cov, eval, evec, treshold):
     return Q
 
 
-def _cut_eigenvalues(cov_center, tol, moments):
+def _cut_eigenvalues(cov_center, tol):
     eval, evec = np.linalg.eigh(cov_center)
     print("cut eigenvalues tol ", tol)
 
@@ -1425,6 +1425,41 @@ def _cut_eigenvalues(cov_center, tol, moments):
 
     eval = np.flip(new_eval, axis=0)
     evec = np.flip(new_evec, axis=1)
+
+    return eval, evec, threshold
+
+
+def _cut_eigenvalues_to_constant(cov_center, tol):
+    eval, evec = np.linalg.eigh(cov_center)
+    print("cut eigenvalues tol ", tol)
+
+    # threshold given by eigenvalue magnitude
+    threshold = np.argmax(eval > tol)
+
+    # add the |smallest eigenvalue - tol(^2??)| + eigenvalues[:-1]
+
+    #threshold = 0
+    print("threshold ", threshold)
+
+    #treshold, _ = self.detect_treshold(eval, log=True, window=8)
+
+    # tresold by MSE of eigenvalues
+    #treshold = self.detect_treshold_mse(eval, std_evals)
+
+    # treshold
+
+    #self.lsq_reconstruct(cov_center, fixed_eval, evec, treshold)
+    print("original eval ", eval)
+    print("threshold ", threshold)
+
+    # cut eigen values under treshold
+    eval[:threshold] = tol
+    #new_evec = evec[:, threshold:]
+
+    eval = np.flip(eval, axis=0)
+    print("eval ", eval)
+    evec = np.flip(evec, axis=1)
+    print("evec ", evec)
 
     return eval, evec, threshold
 
@@ -1467,7 +1502,7 @@ def _add_to_eigenvalues(cov_center, tol, moments):
     return eval, evec, original_eval
 
 
-def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, add_diagonal=False):
+def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_method=1):
     """
     For given moments find the basis orthogonal with respect to the covariance matrix, estimated from samples.
     :param moments: moments object
@@ -1489,16 +1524,25 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, add_diagon
 
     #print("centered cov ", cov_center)
 
-    # eval_flipped, evec_flipped, threshold = _cut_eigenvalues(cov_center, tol=tol, moments=moments)
-    #
-    # print("eval flipped ", eval_flipped)
-    # print("evec flipped ", evec_flipped)
-    # print("threshold ", threshold)
-    #
-    # original_eval = eval_flipped
+    # Add const to eigenvalues
+    if orth_method == 1:
+        eval_flipped, evec_flipped, original_eval = _add_to_eigenvalues(cov_center, tol=tol, moments=moments)
 
-    eval_flipped, evec_flipped, original_eval = _add_to_eigenvalues(cov_center, tol=tol, moments=moments)
+    # Cut eigenvalues below threshold
+    elif orth_method == 2:
+        eval_flipped, evec_flipped, threshold = _cut_eigenvalues(cov_center, tol=tol)
+        print("eval flipped ", eval_flipped)
+        print("evec flipped ", evec_flipped)
+        print("threshold ", threshold)
+        original_eval = eval_flipped
 
+    # Add const to eigenvalues below threshold
+    elif orth_method == 3:
+        eval_flipped, evec_flipped, threshold = _cut_eigenvalues_to_constant(cov_center, tol=tol)
+        print("eval flipped ", eval_flipped)
+        print("evec flipped ", evec_flipped)
+        print("threshold ", threshold)
+        original_eval = eval_flipped
 
     print("eval ", eval_flipped)
 

@@ -201,7 +201,7 @@ class DistributionDomainCase:
     #
     #     return corr
 
-    def setup_moments(self, moments_data, noise_level, reg_param=0, reg_param_beta=0):
+    def setup_moments(self, moments_data, noise_level, reg_param=0, orth_method=1):
         """
         Setup moments without transformation.
         :param moments_data: config tuple
@@ -224,8 +224,8 @@ class DistributionDomainCase:
             base_moments = self.moments_fn
 
             # @TODO: remove regularization
-            exact_cov, reg_matrix = mlmc.simple_distribution.compute_semiexact_cov_2(base_moments, self.pdf, reg_param=reg_param,
-                                                                         reg_param_beta=reg_param_beta)
+            exact_cov, reg_matrix = mlmc.simple_distribution.compute_semiexact_cov_2(base_moments, self.pdf,
+                                                                                     reg_param=reg_param)
 
             self.moments_without_noise = exact_cov[:, 0]
 
@@ -243,7 +243,8 @@ class DistributionDomainCase:
             self.moments_fn, info, cov_centered = mlmc.simple_distribution.construct_orthogonal_moments(base_moments,
                                                                                                         cov,
                                                                                                         noise_level,
-                                                                                                        reg_param=reg_param)
+                                                                                                        reg_param=reg_param,
+                                                                                                        orth_method=orth_method)
             self._cov_with_noise = cov
             self._cov_centered = cov_centered
             original_evals, evals, threshold, L = info
@@ -312,11 +313,11 @@ class DistributionDomainCase:
         #     fail + ": ({:5.3g}, {:5.3g});  failed: {} cumit: {} tavg: {:5.3g};  s1: {:5.3g} s0: {:5.3g} kl: ({:5.3g}, {:5.3g})".format(
         #         inter_points_domain[0], inter_points_domain[1], n_failed[-1], tot_nit, cumtime / tot_nit, s1, s0, min_err, max_err))
 
-    def make_approx(self, distr_class, noise, moments_data, tol, reg_param=0, prior_distr_obj=None, reg_param_beta=0):
+    def make_approx(self, distr_class, noise, moments_data, tol, reg_param=0):
         result = ConvResult()
 
         distr_obj = distr_class(self.moments_fn, moments_data,
-                                domain=self.domain, force_decay=self.cut_distr.force_decay, reg_param=reg_param, reg_param_beta=reg_param_beta)
+                                domain=self.domain, force_decay=self.cut_distr.force_decay, reg_param=reg_param)
 
         # multipliers = None
         # if prior_distr_obj is not None:
@@ -1025,6 +1026,89 @@ class DistributionDomainCase:
         ax.plot(gradients)
         plt.show()
 
+    def compare_orthogonalization(self):
+        """
+        Test density approximation for maximal number of moments
+        and varying amount of noise added to covariance matrix.
+        :return:
+        """
+        min_noise = 1e-6
+        max_noise = 0.01
+        results = []
+
+        orth_methods = [1, 2, 3] # 1 - add constant to all eigenvalues,
+                                 # 2 - cut eigenvalues below threshold,
+                                 # 3 - add const to eigenvalues below threhold
+
+        titles = {1: "add noise-min(eval, 0) to eigenvalues",
+                  2: "cut eigenvalues",
+                  3: "add const to eigenvalues below threshold"}
+
+        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 5))
+        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
+
+        noise_levels = noise_levels[:1]
+        print("noise levels ", noise_levels)
+
+        reg_param = 5e-6
+
+        mom_class, min_mom, max_mom, log_flag = self.moments_data
+        self.use_covariance = True
+
+        for orth_method in orth_methods:
+            distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=titles[orth_method], cdf_plot=False,
+                                           log_x=self.log_flag, error_plot='kl')
+
+            self.eigenvalues_plot = plot.Eigenvalues(title="Eigenvalues, " + self.title)
+
+            for noise in noise_levels:
+
+                self.moments_data = (mom_class, max_mom, max_mom, log_flag)
+                info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
+                                                              reg_param=reg_param, orth_method=orth_method)
+
+                original_evals, evals, threshold, L = info
+                new_moments = np.matmul(moments_with_noise, L.T)
+
+                n_moments = len(moments_with_noise)
+
+                moments_data = np.empty((len(new_moments), 2))
+                moments_data[:, 0] = new_moments
+                moments_data[:, 1] = noise ** 2
+                moments_data[0, 1] = 1.0
+
+                print("moments data ", moments_data)
+
+                modif_cov = mlmc.simple_distribution.compute_semiexact_cov(self.moments_fn, self.pdf)
+
+                print("modif_cov ", modif_cov)
+
+                # diff_norm = np.linalg.norm(modif_cov - np.eye(*modif_cov.shape)) / n_moments
+                # ref_moments = np.zeros(n_moments)
+                # ref_moments[0] = 1.0
+                # mom_err = np.linalg.norm(self.exact_moments[:n_moments] - ref_moments) / np.sqrt(n_moments)
+                # print("noise: {:6.2g} error of natural cov: {:6.2g} natural moments: {:6.2g}".format(
+                #     noise, diff_norm, mom_err))
+
+                # assert mom_err/(noise + 1e-10) < 50  - 59 for five fingers dist
+
+                result, distr_obj = self.make_approx(mlmc.simple_distribution.SimpleDistribution, noise,
+                                                     moments_data, reg_param=reg_param, tol=1e-8)
+
+                distr_plot.add_distribution(distr_obj,
+                                            label="m: {}, th: {}, noise: {}, KL: {}".format(n_moments, threshold,
+                                                                                            noise, result.kl))
+                results.append(result)
+
+
+
+            # self.check_convergence(results)
+            #self.eigenvalues_plot.show(None)  # file=self.pdfname("_eigenvalues"))
+            distr_plot.show(None)  # "PDF aprox")#file=self.pdfname("_pdf_iexact"))
+            distr_plot.reset()
+            plt.show()
+        return results
+
     def inexact_conv(self):
         """
         Test density approximation for maximal number of moments
@@ -1165,6 +1249,7 @@ def test_pdf_approx_exact_moments(moments, distribution):
         #tests = [case.exact_conv]
         #tests = [case.determine_regularization_param]
         tests = [case.find_regularization_param]
+        tests = [case.compare_orthogonalization]
         for test_fn in tests:
             name = test_fn.__name__
             test_results = test_fn()
@@ -1312,8 +1397,8 @@ def run_distr():
     for m in mom:
         for distr in enumerate(distribution_list):
             #compare_spline_vs_max_ent(distr, m)
-            test_spline_approx(m, distr)
-            #test_pdf_approx_exact_moments(m, distr)
+            #test_spline_approx(m, distr)
+            test_pdf_approx_exact_moments(m, distr)
 
 
 def compare_spline_vs_max_ent(distr, moments):
