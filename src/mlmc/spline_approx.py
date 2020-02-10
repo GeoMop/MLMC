@@ -271,15 +271,33 @@ class SplineApproximation:
 
         self._setup()
 
-        distribution = np.empty(len(points))
-        for index, x in enumerate(points):
-            lagrange_poly = []
+        print("self interpolation points ", np.array(self.interpolation_points).shape)
+        print("points ", points.shape)
 
-            # Lagrange polynomials at interpolation points
-            for n, s in enumerate(self.interpolation_points):
-                lagrange_poly.append(self.lagrange_basis_polynomial(x, n))
+        lagrange_poly = []
+        # Lagrange polynomials at interpolation points
+        for n, s in enumerate(self.interpolation_points):
+            lagrange_poly.append(self.lagrange_basis_polynomial(points, n))
 
-            distribution[index] = np.sum(self.all_levels_indicator * np.array(lagrange_poly).T)
+        distribution = np.sum(self.all_levels_indicator * np.array(lagrange_poly).T, axis=1)
+
+
+        print("lagrange poly ", lagrange_poly)
+
+        print("distribution ", distribution)
+
+        print("len lagrange poly ", len(lagrange_poly))
+
+
+        # distribution = np.empty(len(points))
+        # for index, x in enumerate(points):
+        #     lagrange_poly = []
+        #
+        #     # Lagrange polynomials at interpolation points
+        #     for n, s in enumerate(self.interpolation_points):
+        #         lagrange_poly.append(self.lagrange_basis_polynomial(x, n))
+        #
+        #     distribution[index] = np.sum(self.all_levels_indicator * np.array(lagrange_poly).T)
 
         #return distribution
 

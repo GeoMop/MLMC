@@ -308,6 +308,135 @@ class Spline(Moments):
     #
     #     return eval_values
 
+class BSpline(Moments):
+
+    def __init__(self, size, domain, log=False, safe_eval=True, smoothing_factor=1, interpolation_points=None):
+        self.ref_domain = (-1, 1)
+        self.poly_degree = 3
+        self.smothing_factor = smoothing_factor
+        self.polynomial = None
+
+        ################################
+        #accuracy = 1e-3
+
+        #self.smothing_factor = accuracy *(1/(1+self.poly_degree))
+
+        if interpolation_points is None:
+            self.interpolation_points = np.linspace(self.ref_domain[0], self.ref_domain[1], size)
+        else:
+            self.interpolation_points = interpolation_points
+
+        self._create_polynomial()
+        super().__init__(size, domain, log, safe_eval)
+
+    def _create_polynomial(self):
+        coeficients_matrix = np.empty((self.poly_degree + 1, self.poly_degree + 1))
+        constants_matrix = np.empty(self.poly_degree + 1)
+
+        # g(1) = 0, g(-1) = 1
+        coeficients_matrix[0] = np.ones(self.poly_degree + 1)
+        coeficients_matrix[1] = [1 if i % 2 != 0 or i == self.poly_degree else -1 for i in range(self.poly_degree + 1)]
+        constants_matrix[0] = 0
+        constants_matrix[1] = 1
+
+        for j in range(self.poly_degree - 1):
+            coeficients_matrix[j + 2] = np.flip(np.array([(1 ** (i + j + 1) - (-1) ** (i + j + 1)) / (i + j + 1) for i
+                                                          in range(self.poly_degree + 1)]))
+            constants_matrix[j + 2] = (-1) ** j / (j + 1)
+
+        poly_coefs = np.linalg.solve(coeficients_matrix, constants_matrix)
+        self.polynomial = np.poly1d(poly_coefs)
+
+    def _eval_value(self, x, size):
+        values = np.zeros(size)
+        values[0] = 1
+        for index in range(self.interpolation_points-1):
+            values[index+1] = self.polynomial(x - self.interpolation_points[index+1]) - self.polynomial(x - self.interpolation_points[index])
+        return values
+
+    def _eval_all(self, x, size):
+        x = self.transform(np.atleast_1d(x))
+        values = np.zeros((len(x), size))
+        values[:, 0] = 1
+        index = 0
+
+        # poly_1 = self.polynomial((x - self.interpolation_points[index + 1])/self.smothing_factor)
+        # poly_2 = self.polynomial((x - self.interpolation_points[index])/self.smothing_factor)
+        pom_values = []
+
+        pom_values.append(np.ones(x.shape))
+        for index in range(len(self.interpolation_points) - 1):
+            # values[:, index + 1] = self.polynomial((x - self.interpolation_points[index + 1])/self.smothing_factor) - \
+            #                     self.polynomial((x - self.interpolation_points[index])/self.smothing_factor)
+
+            pom_values.append((self.polynomial((x - self.interpolation_points[index + 1]) / self.smothing_factor) - \
+                                   self.polynomial((x - self.interpolation_points[index]) / self.smothing_factor)))
+
+        pom_values = np.array(pom_values)
+
+        if len(pom_values.shape) == 3:
+            return pom_values.transpose((1, 2, 0))
+        return pom_values.T
+
+    def _eval_all_der(self, x, size, degree=1):
+        """
+        Derivative of Legendre polynomials
+        :param x: values to evaluate
+        :param size: number of moments
+        :param degree: degree of derivative
+        :return:
+        """
+        x = self.transform(np.atleast_1d(x))
+        polynomial = self.polynomial.deriv(degree)
+
+        values = np.zeros((len(x), size))
+        values[:, 0] = 1
+
+        # poly_1 = polynomial((x - self.interpolation_points[index + 1]) / self.smothing_factor)
+        # poly_2 = polynomial((x - self.interpolation_points[index]) / self.smothing_factor)
+
+        pom_values = []
+
+        pom_values.append(np.ones(x.shape))
+        for index in range(len(self.interpolation_points) - 1):
+            # values[:, index + 1] = self.polynomial((x - self.interpolation_points[index + 1])/self.smothing_factor) - \
+            #                     self.polynomial((x - self.interpolation_points[index])/self.smothing_factor)
+
+            pom_values.append((polynomial((x - self.interpolation_points[index + 1]) / self.smothing_factor) - \
+                               polynomial((x - self.interpolation_points[index]) / self.smothing_factor)))
+
+
+        pom_values = np.array(pom_values)
+
+        if len(pom_values.shape) == 3:
+            return pom_values.transpose((1, 2, 0))
+
+        return pom_values.T
+
+
+    # def _eval_all_der(self, value, size, degree=1):
+    #     """
+    #     Derivative of Legendre polynomials
+    #     :param value: values to evaluate
+    #     :param size: number of moments
+    #     :param degree: degree of derivative
+    #     :return:
+    #     """
+    #     value = self.transform(np.atleast_1d(value))
+    #     eval_values = np.empty((value.shape + (size,)))
+    #
+    #     for s in range(size):
+    #         if s == 0:
+    #             coef = [1]
+    #         else:
+    #             coef = np.zeros(s+1)
+    #             coef[-1] = 1
+    #
+    #         coef = numpy.polynomial.legendre.legder(coef, degree)
+    #         eval_values[:, s] = numpy.polynomial.legendre.legval(value, coef)#COEF[s])
+    #
+    #     return eval_values
+
 
 class TransformedMoments(Moments):
     def __init__(self, other_moments, matrix):
