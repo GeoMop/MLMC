@@ -1401,6 +1401,7 @@ def run_distr():
             test_pdf_approx_exact_moments(m, distr)
 
 
+
 def compare_spline_vs_max_ent(distr, moments):
     moments_class, n_moments, _, _ = moments
     target_var = 1e-4
@@ -1521,6 +1522,83 @@ def _test_interpolation_points(cut_distr, distr_obj, moments_fn,  X, n_samples, 
     plt.legend()
     plt.show()
     exit()
+
+
+def splines_indicator_vs_smooth(m, distr):
+    np.random.seed(1234)
+    quantiles = np.array([0.001])
+    # i_distr, distr = distr
+    # distribution, log_flag = distr
+    n_levels = 1
+    n_moments = 2
+
+    target_var = 1e-5
+
+    for quantile in quantiles:
+
+        spline_plot = plot.Spline_plot(bspline=True)
+
+        distr_domain_case = DistributionDomainCase(m, distr, quantile)
+
+        i_distr, distribution = distr
+        distr, log_flag = distribution
+
+        distr = distr_domain_case.cut_distr.distr  # CutDistribution(distribution, quantile)
+        cut_distr = distr_domain_case.cut_distr
+
+        moments_fn = Legendre(n_moments, distr_domain_case.cut_distr.domain, log=log_flag, safe_eval=True)
+        mlmc = run_mlmc(n_levels, n_moments, cut_distr.distr, log_flag, quantile, moments_fn, target_var=target_var)
+
+        n_samples = []
+        for level in mlmc.levels:
+            n_samples.append(level._n_collected_samples)
+
+        int_points_domain = cut_distr.domain
+
+        interpolation_points = 5
+        polynomial_degree = 3  # r=3
+        accuracy = 1e-6
+
+        # X = np.linspace(cut_distr.inter_points_domain[0]-10, cut_distr.inter_points_domain[1]+10, 1000)
+        X = np.linspace(cut_distr.domain[0], cut_distr.domain[1], 1000)
+
+        distr_obj = make_spline_approx(int_points_domain, mlmc, polynomial_degree, accuracy)
+
+        interpolation_points = [10, 20, 30, 50]
+
+        spline_plot.interpolation_points = interpolation_points
+
+        for n_int_points in interpolation_points:
+            distr_obj = make_spline_approx(int_points_domain, mlmc, polynomial_degree, accuracy)
+            distr_obj.moments_fn = moments_fn
+            distr_obj.indicator_method_name = "indicator"
+            distr_obj.n_interpolation_points = n_int_points
+            cdf = distr_obj.cdf(X)
+            spline_plot.add_indicator((X[distr_obj.distr_mask], cdf))
+
+            distr_obj = make_spline_approx(int_points_domain, mlmc, polynomial_degree, accuracy)
+            distr_obj.moments_fn = moments_fn
+            distr_obj.indicator_method_name = "smooth"
+            distr_obj.n_interpolation_points = n_int_points
+            cdf = distr_obj.cdf(X)
+            spline_plot.add_smooth((X[distr_obj.distr_mask], cdf))
+
+            distr_obj = make_spline_approx(int_points_domain, mlmc, polynomial_degree, accuracy, bspline=True)
+            distr_obj.moments_fn = moments_fn
+            distr_obj.n_interpolation_points = n_int_points
+            cdf = distr_obj.cdf(X)
+            spline_plot.add_bspline((X, cdf))
+
+        spline_plot.add_exact_values(X, cut_distr.distr.cdf(X))
+        from statsmodels.distributions.empirical_distribution import ECDF
+        level = mlmc.levels[0]
+        moments = level.evaluate_moments(moments_fn)
+        fine_values = np.squeeze(moments[0])[:, 1]
+        fine_values = moments_fn.inv_linear(fine_values)
+        ecdf = ECDF(fine_values)
+        spline_plot.add_ecdf(X, ecdf(X))
+
+        spline_plot.show()
 
 
 def _test_polynomial_degrees(cut_distr, distr_obj, moments_fn,  X, n_samples, accuracy, log_flag, distr_plot=None, bspline=False, mlmc=None):
