@@ -33,6 +33,7 @@ class SplineApproximation:
 
         self.distr_mask = None
         self.density_mask = None
+        self.mask = None
 
         # It is necessary for distribution plot
         self.domain = None
@@ -282,13 +283,6 @@ class SplineApproximation:
         distribution = np.sum(self.all_levels_indicator * np.array(lagrange_poly).T, axis=1)
 
 
-        print("lagrange poly ", lagrange_poly)
-
-        print("distribution ", distribution)
-
-        print("len lagrange poly ", len(lagrange_poly))
-
-
         # distribution = np.empty(len(points))
         # for index, x in enumerate(points):
         #     lagrange_poly = []
@@ -318,18 +312,15 @@ class SplineApproximation:
             return self.pdf
 
         self._setup()
-        density = np.empty(len(points))
 
-        for index, x in enumerate(points):
-            lagrange_poly = []
+        lagrange_poly = []
+        # Derivative of lagrange polynomials at interpolation points
+        for n, s in enumerate(self.interpolation_points):
+            lagrange_poly.append(self.lagrange_basis_polynomial_derivative(points, n))
 
-            # Derivative of lagrange polynomials at interpolation points
-            for n, s in enumerate(self.interpolation_points):
-                lagrange_poly.append(self.lagrange_basis_polynomial_derivative(x, n))
+        density = np.sum(self.all_levels_indicator * np.array(lagrange_poly).T, axis=1)
 
-            density[index] = np.sum(self.all_levels_indicator * np.array(lagrange_poly).T)
-
-        mask = (density >= 0)
+        mask = (density >= 0) & (density <= 1.2)
         self.mask = mask
         return density[mask]
 

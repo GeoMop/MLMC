@@ -65,8 +65,6 @@ class CutDistribution:
         self.distr = distr
         self.quantile = quantile
         self.domain, self.force_decay = self.domain_for_quantile(distr, quantile)
-
-        print("DOMAIN ", self.domain)
         p0, p1 = distr.cdf(self.domain)
         self.shift = p0
         self.scale = 1 / (p1 - p0)
@@ -1314,8 +1312,8 @@ def run_distr():
     for m in mom:
         for distr in enumerate(distribution_list):
             #compare_spline_vs_max_ent(distr, m)
-            #test_spline_approx(distr)
-            test_pdf_approx_exact_moments(m, distr)
+            test_spline_approx(m, distr)
+            #test_pdf_approx_exact_moments(m, distr)
 
 
 def compare_spline_vs_max_ent(distr, moments):
@@ -1407,11 +1405,11 @@ def run_mlmc(n_levels, n_moments, cut_distr, log_flag, quantile, moments_fn, tar
     mc_test.moments_fn = moments_fn
 
     #estimator = mlmc.estimate.Estimate(mc_test.mc)
-    mc_test.mc.set_initial_n_samples([500000])#[10000, 2000, 500, 50])
+    mc_test.mc.set_initial_n_samples()#[500000])#[10000, 2000, 500, 50])
     mc_test.mc.refill_samples()
     mc_test.mc.wait_for_simulations()
     mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (1, "<")})
-    #mc_test.estimator.target_var_adding_samples(target_var, moments_fn, sleep=0)
+    mc_test.estimator.target_var_adding_samples(target_var, moments_fn, sleep=0)
     mc_test.mc.wait_for_simulations()
 
     mc_test.mc.update_moments(mc_test.moments_fn)
@@ -1451,13 +1449,17 @@ def _test_polynomial_degrees(cut_distr, distr_obj, moments_fn,  X, n_samples, ac
         fine_values = np.squeeze(moments[0])[:, 1]
         fine_values = moments_fn.inv_linear(fine_values)
 
-        print("fine values sorted ", np.sort(fine_values))
-        ecdf = ECDF(fine_values)
-        plt.plot(X, ecdf(X), label="ECDF")
+        print("fine values ", fine_values)
+        print("fine values len ", len(fine_values))
 
-    interpolation_points = [500]
+        print("fine values sorted ", np.sort(fine_values))
+
+
+    #interpolation_points = [100, 120, 140, 160]
+    interpolation_points = [10, 20, 30]
     if not bspline:
-        interpolation_points = [1250]
+        interpolation_points = [10, 20, 30]
+        #interpolation_points = [1250, 1350, 1450]
     #interpolation_points = [500]#[700, 900, 1000, 1200, 1500]
 
     distr_obj.moments_fn = moments_fn
@@ -1518,8 +1520,10 @@ def _test_polynomial_degrees(cut_distr, distr_obj, moments_fn,  X, n_samples, ac
             distribution = distr_obj.cdf(X)
 
         print("distr_obj.distr_mask ", distr_obj.distr_mask)
-        distr_obj.mask = None
-        print("distr_obj.mask  ", distr_obj.mask)
+        if distr_obj.distr_mask is not None:
+            distr_obj.mask = None
+        #distr_obj.mask = None
+        #print("distr_obj.mask  ", distr_obj.mask)
         if distr_obj.distr_mask is not None or distr_obj.mask is not None:
             if distr_obj.distr_mask is not None:
                 mask = distr_obj.distr_mask
@@ -1537,9 +1541,11 @@ def _test_polynomial_degrees(cut_distr, distr_obj, moments_fn,  X, n_samples, ac
             #                                                                                        )))
 
     if density:
-        plt.plot(X, cut_distr.distr.pdf(X), color='C{}'.format(index+1), linestyle="--", label="exact")
+        plt.plot(X, cut_distr.distr.pdf(X), color='C{}'.format(index+1), label="exact")
     else:
-        plt.plot(X, cut_distr.distr.cdf(X), color='C{}'.format(index+1), linestyle="--", label="exact")
+        plt.plot(X, cut_distr.distr.cdf(X), color='C{}'.format(index+1), label="exact")
+        # ecdf = ECDF(fine_values)
+        # plt.plot(X, ecdf(X), label="ECDF")
 
     # density = False
     # for poly_degree in polynomial_degrees:
@@ -1577,32 +1583,34 @@ def _test_polynomial_degrees(cut_distr, distr_obj, moments_fn,  X, n_samples, ac
     exit()
 
 
-def test_spline_approx(distr):
-    quantiles = np.array([0.0])
-    i_distr, distr = distr
-    distribution, log_flag = distr
-    n_levels = 1
+def test_spline_approx(m, distr):
+    np.random.seed(1234)
+    quantiles = np.array([0.001])
+    #i_distr, distr = distr
+    #distribution, log_flag = distr
+    n_levels = 5
     n_moments = 2
 
-    target_var = 1e-6
+    target_var = 1e-5
 
     bspline = False
 
     for quantile in quantiles:
-        if 'dist' not in distribution.__dict__:
-            quantile = 0
-
-        print("distribution ", distribution)
+        print("distr ", distr)
         print("qunatile ", quantile)
 
-        cut_distr = CutDistribution(distribution, quantile)
-        #data = cut_distr.distr.rvs(size=1000)
+        distr_domain_case = DistributionDomainCase(m, distr, quantile)
 
-        moments_fn = Legendre(n_moments, cut_distr.domain, log=log_flag, safe_eval=True)
+        i_distr, distribution = distr
+        distr, log_flag = distribution
 
-        mlmc = run_mlmc(n_levels, n_moments, cut_distr, log_flag, quantile, moments_fn, target_var=target_var)
+        distr = distr_domain_case.cut_distr.distr#CutDistribution(distribution, quantile)
+        cut_distr = distr_domain_case.cut_distr
 
-        n_samples =[]
+        moments_fn = Legendre(n_moments, distr_domain_case.cut_distr.domain, log=log_flag, safe_eval=True)
+        mlmc = run_mlmc(n_levels, n_moments, cut_distr.distr, log_flag, quantile, moments_fn, target_var=target_var)
+
+        n_samples = []
         for level in mlmc.levels:
             n_samples.append(level._n_collected_samples)
 
@@ -1612,12 +1620,12 @@ def test_spline_approx(distr):
 
         print("cut distr domain ", cut_distr.domain)
 
-        if not bspline:
-            int_points_domain = [0, 0]
-            int_points_domain[0] = cut_distr.domain[0] * 3
-            int_points_domain[1] = cut_distr.domain[1] * 3
+        #if not bspline:
+        # int_points_domain = [0, 0]
+        # int_points_domain[0] = cut_distr.domain[0] - 100
+        # int_points_domain[1] = cut_distr.domain[1] + 100
             #[-500, 500]
-            int_points_domain = [-30, 30]
+            #int_points_domain = [-30, 30]
         #inter_points_domain = [-50, 50] # not good
 
         # Remove data standardisation
@@ -1627,6 +1635,8 @@ def test_spline_approx(distr):
         #
         # moments = moments_fn.eval_all(data)
         # data = moments[:, 1]
+
+        print("int points domain ", int_points_domain)
 
         interpolation_points = 5
         polynomial_degree = 3  # r=3
@@ -1698,9 +1708,11 @@ def test_spline_approx(distr):
 
 def make_spline_approx(domain, mlmc, polynomial_degree=7, accuracy=0.01, bspline=False):
     if bspline is False:
-        spline_approx_instance = spline_approx.SplineApproximation(mlmc, domain, poly_degree=polynomial_degree, accuracy=accuracy)
+        spline_approx_instance = spline_approx.SplineApproximation(mlmc, domain, poly_degree=polynomial_degree,
+                                                                   accuracy=accuracy)
     else:
-        spline_approx_instance = spline_approx.BSplineApproximation(mlmc, domain, poly_degree=polynomial_degree, accuracy=accuracy)
+        spline_approx_instance = spline_approx.BSplineApproximation(mlmc, domain, poly_degree=polynomial_degree,
+                                                                    accuracy=accuracy)
     return spline_approx_instance
 
 
@@ -1729,13 +1741,13 @@ if __name__ == "__main__":
     #run_distr()
     # print("celkový čas ", t.time() - zacatek)
 
-    # import cProfile
-    # import pstats
-    # pr = cProfile.Profile()
-    # pr.enable()
+    import cProfile
+    import pstats
+    pr = cProfile.Profile()
+    pr.enable()
 
     my_result = run_distr()
 
-    # pr.disable()
-    # ps = pstats.Stats(pr).sort_stats('cumtime')
-    # ps.print_stats()
+    pr.disable()
+    ps = pstats.Stats(pr).sort_stats('cumtime')
+    ps.print_stats()

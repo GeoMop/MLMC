@@ -25,6 +25,7 @@ class Gamma(st.rv_continuous):
 
 
 class TwoGaussians(st.rv_continuous):
+
     distributions = [st.norm(5, 3),
                      st.norm(0, 0.5)]
     weights = [0.93, .07]
@@ -37,11 +38,11 @@ class TwoGaussians(st.rv_continuous):
             result += weight * distr.pdf(x)
         return result
 
-    # def _cdf(self, x):
-    #     result = 0
-    #     for weight, distr in zip(TwoGaussians.weights, TwoGaussians.distributions):
-    #         result += weight * distr.cdf(x)
-    #     return result
+    def _cdf(self, x):
+        result = 0
+        for weight, distr in zip(TwoGaussians.weights, TwoGaussians.distributions):
+            result += weight * distr.cdf(x)
+        return result
 
     def rvs(self, size):
         mixture_idx = np.random.choice(len(TwoGaussians.weights), size=size, replace=True, p=TwoGaussians.weights)
@@ -154,14 +155,7 @@ def test_two_gaussians():
 
     assert np.isclose(integrate.quad(tg._pdf, -np.inf, np.inf)[0], 1)
 
-    # x = np.linspace(0, 1, 100000)
-    # plt.plot(x, ff.cdf(x), label="cdf")
-    # plt.plot(x, ff.ppf(x), "r-", label="ppf")
-    # plt.legend()
-    # plt.ylim(-0.5, 4)
-    # plt.xlim(-0.1, 1)
-    # plt.show()
-
+    domain = tg.ppf([0.001, 0.999])
     a = np.random.uniform(-5, 20, 1)
     b = np.random.uniform(-5, 20, 1)
     assert np.isclose(tg.cdf(b) - tg.cdf(a), integrate.quad(tg.pdf, a, b)[0])
@@ -171,6 +165,15 @@ def test_two_gaussians():
     x = np.linspace(-10, 20, size)
     plt.plot(x, tg.pdf(x), 'r-', alpha=0.6, label='two gaussians pdf')
     plt.hist(values, bins=1000, density=True, alpha=0.2)
+    plt.xlim(-10, 20)
+    plt.legend()
+    plt.show()
+
+    from statsmodels.distributions.empirical_distribution import ECDF
+    ecdf = ECDF(values)
+    x = np.linspace(-10, 20, size)
+    plt.plot(x, ecdf(x), label="ECDF")
+    plt.plot(x, tg.cdf(x), 'r--', alpha=0.6, label='two gaussians cdf')
     plt.xlim(-10, 20)
     plt.legend()
     plt.show()
@@ -195,7 +198,8 @@ def test_five_fingers():
     from statsmodels.distributions.empirical_distribution import ECDF
     ecdf = ECDF(values)
     plt.plot(x, ecdf(x), label="ECDF")
-    plt.plot(x, ff.cdf(x), label="exact cumulative distr function")
+    plt.plot(x, ff.cdf(x), 'r--', label="cdf")
+    plt.legend()
     plt.show()
 
 
@@ -288,8 +292,8 @@ def test_discountinuous():
 
 
 if __name__ == "__main__":
-    test_cauchy()
-    test_gamma()
+    # test_cauchy()
+    # test_gamma()
     test_five_fingers()
-    test_two_gaussians()
-    test_discountinuous()
+    #test_two_gaussians()
+    #test_discountinuous()
