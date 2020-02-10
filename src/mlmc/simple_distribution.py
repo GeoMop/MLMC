@@ -940,9 +940,9 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
     jacobian_matrix = (quad_moments.T * q_density_w) @ quad_moments
 
     reg_term = (quad_moments_2nd_der.T * quad_weights) @ quad_moments_2nd_der
-    jacobian_matrix += 2 * reg_param * reg_term
+    reg_matrix = 2 * reg_param * reg_term
 
-    return jacobian_matrix
+    return jacobian_matrix, reg_matrix
 
 
 def compute_semiexact_cov(moments_fn, density, tol=1e-10):
@@ -1477,6 +1477,8 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, add_diagon
     # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
     #     print("cov ")
     #     print(pd.DataFrame(cov))
+    #
+    # print("cov matrix rank ", numpy.linalg.matrix_rank(cov))
 
     # centered covariance
     M = np.eye(moments.size)
@@ -1497,6 +1499,9 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, add_diagon
 
     eval_flipped, evec_flipped, original_eval = _add_to_eigenvalues(cov_center, tol=tol, moments=moments)
 
+
+    print("eval ", eval_flipped)
+
     #original_eval, _ = np.linalg.eigh(cov_center)
 
     # Compute eigen value errors.
@@ -1515,7 +1520,7 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, add_diagon
 
     ortogonal_moments = mlmc.moments.TransformedMoments(moments, L_mn)
 
-    mlmc.tool.plot.moments(ortogonal_moments, size=ortogonal_moments.size, title=str(reg_param), file=None)
+    #mlmc.tool.plot.moments(ortogonal_moments, size=ortogonal_moments.size, title=str(reg_param), file=None)
 
     #ortogonal_moments = mlmc.moments.TransformedMoments(moments, cov_sqrt_t.T)
 
