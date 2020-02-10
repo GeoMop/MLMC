@@ -2,7 +2,7 @@ import numpy as np
 import scipy.stats as st
 from scipy import interpolate
 import matplotlib.pyplot as plt
-
+from matplotlib.ticker import MaxNLocator, FixedLocator
 
 def create_color_bar(range, label, ax=None):
     """
@@ -660,6 +660,125 @@ def moments(moments_fn, size=None, title="", file=""):
     _show_and_save(fig, file, title)
 
 
+class Spline_plot:
+    """
+    Plot of KL divergence
+    """
+    def __init__(self, bspline=False):
+        self._ylim = None
+        self.i_plot = 0
+        self.title = "Indicator vs smooth"
+        self.colormap = plt.cm.tab20
+
+        self.indicator_ax = None
+        self.smooth_ax = None
+        self.bspline_ax = None
+
+        self.interpolation_points = None
+
+        if bspline:
+            self.fig_spline, axes = plt.subplots(1, 3, figsize=(22, 10))
+            self.fig_iter = None
+            self.indicator_ax = axes[0]
+            self.smooth_ax = axes[1]
+            self.bspline_ax = axes[2]
+            self.bspline_ax.set_title("Bspline")
+        else:
+            self.fig_spline, axes = plt.subplots(1, 2, figsize=(22, 10))
+            self.fig_iter = None
+            self.indicator_ax = axes[0]
+            self.smooth_ax = axes[1]
+
+        self.indicator_ax.set_title("Indicator")
+        self.smooth_ax.set_title("Smooth")
+
+        # Display integers on x axes
+        self.indicator_ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        self.indicator_x = []
+        self.indicator_y = []
+        self.smooth_x = []
+        self.smooth_y = []
+        self.bspline_x = []
+        self.bspline_y = []
+        self.exact_x = None
+        self.exact_y = None
+        self.ecdf_x = None
+        self.ecdf_y = None
+
+    def add_indicator(self, values):
+        """
+        Add one KL div value
+        :param values: tuple
+        :return:
+        """
+        self.indicator_x.append(values[0])
+        self.indicator_y.append(values[1])
+
+    def add_smooth(self, values):
+        self.smooth_x.append(values[0])
+        self.smooth_y.append(values[1])
+
+    def add_bspline(self, values):
+        self.bspline_x.append(values[0])
+        self.bspline_y.append(values[1])
+
+    def _plot_values(self):
+
+        if self.exact_x is not None:
+            self.indicator_ax.plot(self.exact_x, self.exact_y, color="black", label="exact")
+            self.smooth_ax.plot(self.exact_x, self.exact_y, color="black", label="exact")
+            self.bspline_ax.plot(self.exact_x, self.exact_y, color="black", label="exact")
+
+        color = 'C{}'.format(0)
+        if self.ecdf_x is not None:
+            self.indicator_ax.plot(self.ecdf_x, self.ecdf_y, color=color, label="ECDF")
+            self.smooth_ax.plot(self.ecdf_x, self.ecdf_y, color=color, label="ECDF")
+            self.bspline_ax.plot(self.ecdf_x, self.ecdf_y, color=color, label="ECDF")
+
+        for i in range(1, len(self.indicator_x)+1):
+            color ='C{}'.format(i) # 'C{}'.format(self.i_plot)
+
+            print("self.indicator_x[i-1] ", len(self.indicator_x[i-1]))
+            print("self.indicator_y[i-1] ", len(self.indicator_y[i-1]))
+
+            self.indicator_ax.plot(self.indicator_x[i-1], self.indicator_y[i-1], color=color, linestyle="--",
+                                   label="{}".format(self.interpolation_points[i-1]))
+
+            self.smooth_ax.plot(self.smooth_x[i-1], self.smooth_y[i-1], color=color, linestyle="--",
+                                label="{}".format(self.interpolation_points[i-1]))
+
+            if self.bspline_ax is not None:
+                self.bspline_ax.plot(self.bspline_x[i - 1], self.bspline_y[i - 1], color=color, linestyle="--",
+                                    label="{}".format(self.interpolation_points[i - 1]))
+
+    def add_exact_values(self, x, y):
+        self.exact_x = x
+        self.exact_y = y
+
+    def add_ecdf(self, x, y):
+        self.ecdf_x = x
+        self.ecdf_y = y
+
+    def show(self, file=""):
+        """
+        Show the plot or save to file.
+        :param file: filename base, None for show.
+        :return:
+        """
+        self._plot_values()
+        self.indicator_ax.legend()
+        self.smooth_ax.legend()
+        self.bspline_ax.legend()
+
+        self.fig_spline.show()
+        # file = self.title
+        # if file[-3:] != "pdf":
+        #     file = file + ".pdf"
+        #
+        # self.fig_spline.savefig(file)
+
+
 class VarianceBreakdown:
     """
     Plot total variance average over moments and variances of individual moments,
@@ -1279,6 +1398,7 @@ def plot_mlmc_conv(n_moments, vars_est, exact_mean, means_est, target_var):
         ax.legend()
         ax.set_ylabel("observed var. of mean est.")
     plt.show()
+
 
 def plot_n_sample_est_distributions(title, cost, total_std, n_samples, rel_moments):
     fig = plt.figure(figsize=(30,10))
