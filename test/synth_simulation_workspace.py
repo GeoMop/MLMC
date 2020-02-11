@@ -130,8 +130,12 @@ class SynthSimulationWorkspace(Simulation):
         results = []
         for result in [fine_result, coarse_result]:
             quantities = []
+
             for quantity in quantity_format:
-                locations = np.array([result + i for i in range(len(quantity.locations))])
+                if coarse_step == 0:
+                    locations = np.array([result for _ in range(len(quantity.locations))])
+                else:
+                    locations = np.array([result + i for i in range(len(quantity.locations))])
                 times = np.array([locations for _ in range(len(quantity.times))])
                 quantities.append(times)
 

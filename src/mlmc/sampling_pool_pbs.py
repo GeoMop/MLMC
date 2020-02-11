@@ -41,16 +41,13 @@ class SamplingPoolPBS(SamplingPool):
         self.max_realizations = 10
         self._number_of_realizations = 0
         # Lines to put at the beginning of the PBS script.
-        self.pbs_script_heading = None
         self.pbs_script = None
-        # Set q sub command or direct execution.
-        # self.qsub_cmd = qsub
         self._pbs_config = None
         self._pbs_header_template = None
 
-        self.qsub_cmd = None
         self._scheduled = []
         
+        # Level directories
         self._level_dir = {}
 
         self._output_dir = None
@@ -66,7 +63,10 @@ class SamplingPoolPBS(SamplingPool):
         self._create_job_dir()
 
     def _create_output_dir(self):
-        print("self work dir ", self._work_dir)
+        """
+        Create output dir in working directory, remove existing output dir
+        :return: None
+        """
         if self._work_dir is None:
             raise NotADirectoryError("Working directory must be pass to Sampler init")
 
@@ -78,8 +78,6 @@ class SamplingPoolPBS(SamplingPool):
                 shutil.rmtree(self._output_dir)
 
             os.makedirs(self._output_dir, mode=0o775, exist_ok=True)
-
-        print("output dir ", self._output_dir)
 
     def _create_level_workspace(self, level_id):
         """
@@ -96,6 +94,12 @@ class SamplingPoolPBS(SamplingPool):
             raise NotADirectoryError("Create output directory at the first place")
 
     def change_to_sample_directory(self, path: str, level_id=None):
+        """
+        Create sample directory
+        :param path:
+        :param level_id:
+        :return:
+        """
         sample_dir = os.path.join(self._level_dir[level_id], path)
         os.makedirs(sample_dir, mode=0o775, exist_ok=True)
         return sample_dir
@@ -133,7 +137,6 @@ class SamplingPoolPBS(SamplingPool):
                                      '#PBS -o {pbs_output_dir}/{job_name}.OU',
                                      '#PBS -e {pbs_output_dir}/{job_name}.ER',
                                      '']
-        #  @TODO: prepare environment
         if flow_3:
             self._pbs_header_template.extend(('module use /storage/praha1/home/jan-hybs/modules',
                                               'module load python36-modules-gcc'
@@ -146,7 +149,8 @@ class SamplingPoolPBS(SamplingPool):
     def _change_to_sample_directory(self, level_id, sample_id):
         """
         Create sample directory and change working directory
-        :param path: str
+        :param level_id: str
+        :param sample_id: str
         :return: None
         """
         sample_dir = os.path.join(self._level_dir[level_id], sample_id)
@@ -184,23 +188,14 @@ class SamplingPoolPBS(SamplingPool):
         """
         self._create_level_workspace(level_sim.level_id)
         self.serialize_level_sim(level_sim)
-        print("scheduled sample_id: {}, level_sim: {}".format(sample_id, level_sim))
-
         self._handle_sim_files(sample_id, level_sim)
 
         seed = self.compute_seed(sample_id)
         self._scheduled.append((level_sim.level_id, sample_id, seed))
 
-        print("level_sim taks size ", level_sim.task_size)
-
         self._number_of_realizations += 1
         self._current_job_weight += level_sim.task_size
         if self._current_job_weight > self.job_weight or self._number_of_realizations > self.max_realizations:
-            print("self.current job weight ", self._current_job_weight)
-
-            print("self job weight ", self.job_weight)
-            print("self number of realization ", self._number_of_realizations)
-            print("self mas realizations ", self.max_realizations)
             self.execute()
 
     def have_permanent_sample(self, sample_id):
@@ -237,10 +232,11 @@ class SamplingPoolPBS(SamplingPool):
         job_id = stdout.split(".")[0]
         self.write_pbs_id(job_id)
 
-        # TODO: remove
-        #self._qstat_pbs_job()
-
     def _create_script(self):
+        """
+        Format pbs script
+        :return: None
+        """
         # Job output with similar name to job
         self._pbs_config['job_name'] = "{:04d}".format(self._job_count)
         self._pbs_config['pbs_output_dir'] = self.jobs_dir
@@ -253,31 +249,29 @@ class SamplingPoolPBS(SamplingPool):
         Execute pbs script
         :return: None
         """
-        job_id = "{:04d}".format(self._job_count)
+        if len(self._scheduled) > 0:
+            job_id = "{:04d}".format(self._job_count)
+            self.create_files(job_id)
+            self.save_scheduled(self._scheduled)
 
-        print("execute scheduled ", self._scheduled)
-        self.create_files(job_id)
-        self.save_scheduled(self._scheduled)
-
-        if self.pbs_script is None:
             self._create_script()
 
-        if self.pbs_script is None or self._number_of_realizations == 0:
-            return
+            if self.pbs_script is None or self._number_of_realizations == 0:
+                return
 
-        # Write pbs script
-        script_content = "\n".join(self.pbs_script)
-        self.write_pbs_job_file(script_content)
-        self._job_count += 1
+            # Write pbs script
+            script_content = "\n".join(self.pbs_script)
+            self.write_pbs_job_file(script_content)
+            self._job_count += 1
 
-        #  @TODO: qsub command is required for PBS
+            #  @TODO: qsub command is required for PBS
 
-        subprocess.call(self.pbs_job_file)
+            #subprocess.call(self.pbs_job_file)
 
-        # process = subprocess.run(['qsub', self.pbs_job_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        # if process.returncode != 0:
-        #     raise Exception(process.stderr.decode('ascii'))
-        # self._parse_qsub_output(process)
+            process = subprocess.run(['qsub', self.pbs_job_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            if process.returncode != 0:
+                raise Exception(process.stderr.decode('ascii'))
+            self._parse_qsub_output(process)
 
         # Clean script for other usage
         # self.clean_script()
@@ -310,12 +304,6 @@ class SamplingPoolPBS(SamplingPool):
         if self._job_file is None:
             raise FileNotFoundError
         return self._job_file
-
-    # @property
-    # def levels_config_file(self):
-    #     if self._levels_config is None:
-    #         raise FileNotFoundError
-    #     return self._levels_config
 
     @property
     def files_structure(self):
