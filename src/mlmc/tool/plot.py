@@ -664,30 +664,59 @@ class Spline_plot:
     """
     Plot of KL divergence
     """
-    def __init__(self, bspline=False):
+    def __init__(self, bspline=False, title="Spline approximation", density=False):
         self._ylim = None
         self.i_plot = 0
-        self.title = "Indicator vs smooth"
+        self.title = title
         self.colormap = plt.cm.tab20
 
         self.indicator_ax = None
         self.smooth_ax = None
         self.bspline_ax = None
 
+        self.indicator_density_ax = None
+        self.smooth_density_ax = None
+        self.bspline_density_ax = None
+
         self.interpolation_points = None
 
-        if bspline:
-            self.fig_spline, axes = plt.subplots(1, 3, figsize=(22, 10))
-            self.fig_iter = None
-            self.indicator_ax = axes[0]
-            self.smooth_ax = axes[1]
-            self.bspline_ax = axes[2]
-            self.bspline_ax.set_title("Bspline")
+        if density:
+            if bspline:
+                self.fig_spline, axes = plt.subplots(2, 3, figsize=(22, 10))
+                self.fig_iter = None
+
+                self.indicator_ax = axes[0][0]
+                self.smooth_ax = axes[0][1]
+                self.bspline_ax = axes[0][2]
+                self.bspline_ax.set_title("Bspline")
+
+                self.indicator_density_ax = axes[1][0]
+                self.smooth_density_ax = axes[1][1]
+                self.bspline_density_ax = axes[1][2]
+
+            else:
+                self.fig_spline, axes = plt.subplots(2, 2, figsize=(22, 10))
+                self.fig_iter = None
+                self.indicator_ax = axes[0][0]
+                self.smooth_ax = axes[0][1]
+                self.indicator_density_ax = axes[1][0]
+                self.smooth_density_ax = axes[1][1]
+
         else:
-            self.fig_spline, axes = plt.subplots(1, 2, figsize=(22, 10))
-            self.fig_iter = None
-            self.indicator_ax = axes[0]
-            self.smooth_ax = axes[1]
+            if bspline:
+                self.fig_spline, axes = plt.subplots(2, 3, figsize=(22, 10))
+                self.fig_iter = None
+                self.indicator_ax = axes[0][0]
+                self.smooth_ax = axes[0][1]
+                self.bspline_ax = axes[0][2]
+                self.bspline_ax.set_title("Bspline")
+            else:
+                self.fig_spline, axes = plt.subplots(2, 2, figsize=(22, 10))
+                self.fig_iter = None
+                self.indicator_ax = axes[0]
+                self.smooth_ax = axes[1]
+
+        self.fig_spline.suptitle(self.title)
 
         self.indicator_ax.set_title("Indicator")
         self.smooth_ax.set_title("Smooth")
@@ -706,6 +735,16 @@ class Spline_plot:
         self.ecdf_x = None
         self.ecdf_y = None
 
+        self.indicator_density_x = []
+        self.indicator_density_y = []
+        self.smooth_density_x = []
+        self.smooth_density_y = []
+        self.bspline_density_x = []
+        self.bspline_density_y = []
+        self.exact_density_x = None
+        self.exact_density_y = None
+
+
     def add_indicator(self, values):
         """
         Add one KL div value
@@ -723,18 +762,36 @@ class Spline_plot:
         self.bspline_x.append(values[0])
         self.bspline_y.append(values[1])
 
-    def _plot_values(self):
+    def add_indicator_density(self, values):
+        """
+        Add one KL div value
+        :param values: tuple
+        :return:
+        """
+        self.indicator_density_x.append(values[0])
+        self.indicator_density_y.append(values[1])
 
+    def add_smooth_density(self, values):
+        self.smooth_density_x.append(values[0])
+        self.smooth_density_y.append(values[1])
+
+    def add_bspline_density(self, values):
+        self.bspline_density_x.append(values[0])
+        self.bspline_density_y.append(values[1])
+
+    def _plot_values(self):
         if self.exact_x is not None:
             self.indicator_ax.plot(self.exact_x, self.exact_y, color="black", label="exact")
             self.smooth_ax.plot(self.exact_x, self.exact_y, color="black", label="exact")
-            self.bspline_ax.plot(self.exact_x, self.exact_y, color="black", label="exact")
+            if self.bspline_ax is not None:
+                self.bspline_ax.plot(self.exact_x, self.exact_y, color="black", label="exact")
 
         color = 'C{}'.format(0)
         if self.ecdf_x is not None:
             self.indicator_ax.plot(self.ecdf_x, self.ecdf_y, color=color, label="ECDF")
             self.smooth_ax.plot(self.ecdf_x, self.ecdf_y, color=color, label="ECDF")
-            self.bspline_ax.plot(self.ecdf_x, self.ecdf_y, color=color, label="ECDF")
+            if self.bspline_ax is not None:
+                self.bspline_ax.plot(self.ecdf_x, self.ecdf_y, color=color, label="ECDF")
 
         for i in range(1, len(self.indicator_x)+1):
             color ='C{}'.format(i) # 'C{}'.format(self.i_plot)
@@ -752,6 +809,31 @@ class Spline_plot:
                 self.bspline_ax.plot(self.bspline_x[i - 1], self.bspline_y[i - 1], color=color, linestyle="--",
                                     label="{}".format(self.interpolation_points[i - 1]))
 
+        if self.exact_density_x is not None:
+            self.indicator_density_ax.plot(self.exact_density_x, self.exact_density_y, color="black", label="exact")
+            self.smooth_density_ax.plot(self.exact_density_x, self.exact_density_y, color="black", label="exact")
+
+            if self.bspline_density_ax is not None:
+                self.bspline_density_ax.plot(self.exact_density_x, self.exact_density_y, color="black", label="exact")
+
+        color = 'C{}'.format(0)
+
+        for i in range(1, len(self.indicator_density_x)+1):
+            color ='C{}'.format(i) # 'C{}'.format(self.i_plot)
+
+            print("self.indicator_x[i-1] ", len(self.indicator_density_x[i-1]))
+            print("self.indicator_y[i-1] ", len(self.indicator_density_y[i-1]))
+
+            self.indicator_density_ax.plot(self.indicator_density_x[i-1], self.indicator_density_y[i-1], color=color, linestyle="--",
+                                   label="{}".format(self.interpolation_points[i-1]))
+
+            self.smooth_density_ax.plot(self.smooth_density_x[i-1], self.smooth_density_y[i-1], color=color, linestyle="--",
+                                label="{}".format(self.interpolation_points[i-1]))
+
+            if self.bspline_density_ax is not None:
+                self.bspline_density_ax.plot(self.bspline_density_x[i - 1], self.bspline_density_y[i - 1], color=color,
+                                             linestyle="--", label="{}".format(self.interpolation_points[i - 1]))
+
     def add_exact_values(self, x, y):
         self.exact_x = x
         self.exact_y = y
@@ -759,6 +841,11 @@ class Spline_plot:
     def add_ecdf(self, x, y):
         self.ecdf_x = x
         self.ecdf_y = y
+
+    def add_density_exact_values(self, x, y):
+        self.exact_density_x = x
+        self.exact_density_y = y
+
 
     def show(self, file=""):
         """
@@ -769,7 +856,14 @@ class Spline_plot:
         self._plot_values()
         self.indicator_ax.legend()
         self.smooth_ax.legend()
-        self.bspline_ax.legend()
+        if self.indicator_density_ax is not None:
+            self.indicator_density_ax.legend()
+            self.smooth_density_ax.legend()
+
+        if self.bspline_ax is not None:
+            self.bspline_ax.legend()
+            if self.bspline_density_ax is not None:
+                self.bspline_density_ax.legend()
 
         self.fig_spline.show()
         # file = self.title

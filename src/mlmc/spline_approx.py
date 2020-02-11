@@ -332,29 +332,25 @@ class SplineApproximation:
         """
         self._setup()
 
-        distribution = np.empty(len(points))
-        density = np.empty(len(points))
-        for index, x in enumerate(points):
-            lagrange_poly = []
-            lagrange_poly_der = []
+        lagrange_poly = []
+        lagrange_poly_der = []
 
-            # Lagrange polynomials at interpolation points
-            for n, s in enumerate(self.interpolation_points):
-                lagrange_poly.append(self.lagrange_basis_polynomial(x, n))
-                lagrange_poly_der.append(self.lagrange_basis_polynomial_derivative(x, n))
+        # Lagrange polynomials at interpolation points
+        for n, s in enumerate(self.interpolation_points):
+            lagrange_poly.append(self.lagrange_basis_polynomial(points, n))
+            lagrange_poly_der.append(self.lagrange_basis_polynomial_derivative(points, n))
 
-            distribution[index] = np.sum(self.all_levels_indicator * np.array(lagrange_poly).T)
-            density[index] = np.sum(self.all_levels_indicator * np.array(lagrange_poly_der).T)
+        distribution = np.sum(self.all_levels_indicator * np.array(lagrange_poly).T, axis=1)
 
         mask = (distribution >= 0) & (distribution <= 1)
-        distr_sorted = np.sort(distribution)#[mask])
-        self.distribution = distr_sorted
-        #self.distr_mask = mask
+        distr_sorted = distribution[mask]  # np.sort(distribution[mask])
+        self.distr_mask = mask
 
-        # mask = (density >= 0)
-        # self.density_mask = mask
-        # self.pdf = density[mask]
-        return distr_sorted, density#[mask]
+        density = np.sum(self.all_levels_indicator * np.array(lagrange_poly_der).T, axis=1)
+        mask = (density >= 0) & (density <= 1.2)
+        self.mask = mask
+
+        return distr_sorted, density[mask]
 
 
 class BSplineApproximation(SplineApproximation):

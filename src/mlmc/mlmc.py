@@ -36,14 +36,15 @@ class MLMC:
         # Create hdf5 file - contains metadata and samples at levels
         self._hdf_object = hdf.HDF5(file_name="mlmc_{}.hdf5".format(n_levels), work_dir=self._process_options['output_dir'])
 
-    def load_from_file(self):
+    def load_from_file(self, file=None):
         """
         Run mlmc according to setup parameters, load setup from hdf file {n_levels, step_range} and create levels
         :return: None
         """
+        if file is not None:
+            self._hdf_object.file_name = file
         # Load mlmc params from file
         self._hdf_object.load_from_file()
-
         self._n_levels = self._hdf_object.n_levels
         self.step_range = self._hdf_object.step_range
 
