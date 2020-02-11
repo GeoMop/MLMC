@@ -143,7 +143,6 @@ class SynthSimulationWorkspace(Simulation):
 
         return results[0].flatten(), results[1].flatten()
 
-
     def n_ops_estimate(self, step):
         # @TODO: how to determine n ops
         return (1 / step) ** 2 * np.log(max(1 / step, 2.0))

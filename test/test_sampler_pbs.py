@@ -63,7 +63,7 @@ def sampler_test_pbs():
 
     q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
 
-    target_var = 1e-5
+    target_var = 1e-3
     sleep = 0
     add_coef = 0.1
 
@@ -79,7 +79,7 @@ def sampler_test_pbs():
         n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                            n_levels=sampler.n_levels)
 
-    print("collected samples ", sampler._n_created_samples)
+    #print("collected samples ", sampler._n_created_samples)
     means, vars = q_estimator.estimate_moments(moments_fn)
 
     print("means ", means)

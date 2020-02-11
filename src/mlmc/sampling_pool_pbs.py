@@ -53,7 +53,6 @@ class SamplingPoolPBS(SamplingPool):
         self._output_dir = None
         self._jobs_dir = None
         self._scheduled_file = None
-        #self._results_file = None
         self._pbs_id_file = None
         self._job_file = None
         self._levels_config = None
@@ -67,6 +66,7 @@ class SamplingPoolPBS(SamplingPool):
         Create output dir in working directory, remove existing output dir
         :return: None
         """
+
         if self._work_dir is None:
             raise NotADirectoryError("Working directory must be pass to Sampler init")
 
@@ -138,9 +138,9 @@ class SamplingPoolPBS(SamplingPool):
                                      '#PBS -e {pbs_output_dir}/{job_name}.ER',
                                      '']
         if flow_3:
-            self._pbs_header_template.extend(('module use /storage/praha1/home/jan-hybs/modules',
-                                              'module load python36-modules-gcc'
-                                              'module load flow123d', ''))
+            self._pbs_header_template.extend(['module use /storage/praha1/home/jan-hybs/modules',
+                                              'source /storage/liberec3-tul/home/martin_spetlik/MLMC_new_design/test/load_modules.sh',
+                                              'source env/bin/activate', ''])
 
         self._pbs_header_template.extend((
                                          'python3 {pbs_process_file_dir}/pbs_process.py {files_structure} {job_name} >{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
@@ -202,8 +202,7 @@ class SamplingPoolPBS(SamplingPool):
         """
         List of permanent samples or find per call?
         """
-        pass
-
+        
     def _qstat_pbs_job(self):
         """
         Parse qstat output and get all unfinished job ids
@@ -266,6 +265,7 @@ class SamplingPoolPBS(SamplingPool):
 
             #  @TODO: qsub command is required for PBS
 
+
             #subprocess.call(self.pbs_job_file)
 
             process = subprocess.run(['qsub', self.pbs_job_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -285,11 +285,9 @@ class SamplingPoolPBS(SamplingPool):
         :return:
         """
         self.execute()
-        job_ids = []#self._qstat_pbs_job()
+        job_ids = self._qstat_pbs_job()
         successful, failed, n_running, times = self.get_result_files(job_ids)
 
-        failed = {}
-        times = {}
         return successful, failed, n_running, times
 
     @property
@@ -333,13 +331,8 @@ class SamplingPoolPBS(SamplingPool):
             with open(self._levels_config, "a") as w:
                 w.write(file_path + '\n')
 
-            # with open(file_path, "rb") as f:
-            #     l_sim = pickle.load(f)
-            #     print("L SIM DES ", l_sim)
-
     def create_files(self, job_id):
         self._scheduled_file = os.path.join(self._jobs_dir, SamplingPoolPBS.SCHEDULED.format(job_id))
-        #self._results_file = os.path.join(self._jobs_dir, SamplingPoolPBS.RESULTS.format(job_id))
         self._pbs_id_file = os.path.join(self._jobs_dir, SamplingPoolPBS.PBS_ID.format(job_id))
         self._job_file = os.path.join(self._jobs_dir, SamplingPoolPBS.JOB.format(job_id))
 
@@ -360,19 +353,19 @@ class SamplingPoolPBS(SamplingPool):
         except FileNotFoundError:
             print("Make sure you call _create_files method previously")
 
-        # with open(self._scheduled_file) as file:
-        #     documents = yaml.load(file)
-        #     print("doc ", documents)
-
     def write_pbs_job_file(self, content):
         with open(self._job_file, "w") as f:
             f.write(content)
-
         os.chmod(self._job_file, 0o774)
 
-    def delete_pbs(self):
+    def delete_pbs_id_file(self, file_path):
+        """
+        Delete jobId_pbsId file - it indicates finished job
+        :param file_path: str
+        :return: None
+        """
         try:
-            os.remove(self._pbs_id_file)
+            os.remove(file_path)
         except FileNotFoundError:
             print("Failed to remove PBS id file, file not found")
 
@@ -401,10 +394,10 @@ class SamplingPoolPBS(SamplingPool):
         :return:
         """
         os.chdir(self.jobs_dir)
-
+        # Find all files "jobId_pbsId"
         reg = "*_*[0-9]"
         file = glob.glob(reg)
-
+        
         n_running = 0
         successful_results = {}
         failed_results = {}
@@ -412,63 +405,55 @@ class SamplingPoolPBS(SamplingPool):
         for f in file:
             job_id, pbs_id = re.findall("(\d+)_(\d+)", f)[0]
 
+            # Get number of running samples
             if pbs_id in unfinished_pbs_jobs:
-                print("scheduled file ", self._scheduled_file)
-                with open(self._scheduled_file) as file:
-                    lines = yaml.load(file)
+                with open(os.path.join(self._jobs_dir, SamplingPoolPBS.SCHEDULED.format(job_id))) as file:
+                    lines = yaml.load(file, yaml.Loader)
                     n_running += len(lines)
                 continue
 
-            print("job id ", job_id)
-            print("pbs id ", pbs_id)
-            print("unfinished pbs jobs ", unfinished_pbs_jobs)
-
+            # Get sample results
             for level_id, path in self._level_dir.items():
-
-                successful, failed, time = self._read_results(job_id)
-
-                print("successful ", successful)
-                print("failed ", failed)
-                print("time ", time)
-
+                successful, failed, time = self._read_results(level_id, job_id)
                 successful_results.setdefault(level_id, []).extend(successful)
                 failed_results.setdefault(level_id, []).extend(failed)
 
                 times[level_id] = time
 
-            print("successful_results ", successful_results)
-            print("failed_results ", failed_results)
-            print("times ", times)
+            self.delete_pbs_id_file(f)
 
-        return successful_results, failed_results, n_running, 1
+        return successful_results, failed_results, n_running, times
 
-    def _read_results(self, job_id):
+    def _read_results(self, level_id, job_id):
         """
         Read result file for given job id
+        :param level_id: int
         :param job_id: str
-        :return:
+        :return: successful: Dict[level_id, List[Tuple[sample_id:str, Tuple[ndarray, ndarray]]]]
+                 failed: Dict[level_id, List[Tuple[sample_id: str, error message: str]]]
+                time: Dict[level_id: int, List[total time: float, number of success samples: int]]
         """
         successful = {}
         failed = {}
-        time = 0
+        time = [0, 0]
 
-        if os.path.exists(os.path.join(self._jobs_dir, SamplingPoolPBS.SUCCESSFUL_RESULTS.format(job_id))):
-            with open(os.path.join(self._jobs_dir, SamplingPoolPBS.SUCCESSFUL_RESULTS.format(job_id)), "r") as reader:
-                successful = yaml.load(reader)
+        if os.path.exists(os.path.join(self._level_dir[level_id], SamplingPoolPBS.SUCCESSFUL_RESULTS.format(job_id))):
+            with open(os.path.join(self._level_dir[level_id], SamplingPoolPBS.SUCCESSFUL_RESULTS.format(job_id)), "r") as reader:
+                successful = yaml.load(reader, yaml.Loader)
 
-        if os.path.exists(os.path.join(self._jobs_dir, SamplingPoolPBS.FAILED_RESULTS.format(job_id))):
-            with open(os.path.join(self._jobs_dir, SamplingPoolPBS.FAILED_RESULTS.format(job_id)), "r") as reader:
-                failed = yaml.load(reader)
+        if os.path.exists(os.path.join(self._level_dir[level_id], SamplingPoolPBS.FAILED_RESULTS.format(job_id))):
+            with open(os.path.join(self._level_dir[level_id], SamplingPoolPBS.FAILED_RESULTS.format(job_id)), "r") as reader:
+                failed = yaml.load(reader, yaml.Loader)
 
-        if os.path.exists(os.path.join(self._jobs_dir, SamplingPoolPBS.TIME.format(job_id))):
-            with open(os.path.join(self._jobs_dir, SamplingPoolPBS.TIME.format(job_id)), "r") as reader:
-                time = yaml.load(reader)
+        if os.path.exists(os.path.join(self._level_dir[level_id], SamplingPoolPBS.TIME.format(job_id))):
+            with open(os.path.join(self._level_dir[level_id], SamplingPoolPBS.TIME.format(job_id)), "r") as reader:
+                time = yaml.load(reader, yaml.Loader)
 
         return successful, failed, time
 
-    def save_to_storage(self):
-        return {"work_dir": self._work_dir,
-                "job_dir": self._jobs_dir}
-
-    def get_from_storage(self):
-        pass
+    # def save_to_storage(self):
+    #     return {"work_dir": self._work_dir,
+    #             "job_dir": self._jobs_dir}
+    #
+    # def get_from_storage(self):
+    #     pass

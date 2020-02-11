@@ -157,7 +157,7 @@ class OneProcessPool(SamplingPool):
         sample_id, result, err_msg, running_time = SamplingPool.calculate_sample(sample_id, level_sim)
 
         # Save running time for n_ops
-        self._save_running_time(level_sim.level_id , running_time)
+        self._save_running_time(level_sim.level_id, running_time)
 
         if not err_msg:
             self._queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
