@@ -158,6 +158,38 @@ class MLMC:
     #     for level in self.levels:
     #         level.reset_moment_fn(moments_fn)
 
+    def process_adding_samples(self, n_estimated, pbs, sleep, add_coef=0.1):
+        """
+        Process adding samples
+        :param n_estimated: Number of estimated samples on each level, list
+        :param pbs: src.Pbs instance
+        :param sleep: Sample waiting time
+        :param add_coef: default value 0.1
+        :return: bool, if True adding samples is complete
+        """
+        # Get default scheduled samples
+        n_scheduled = np.array(self.l_scheduled_samples())
+
+        # New scheduled sample will be 10 percent of difference
+        # between current number of target samples and new estimated one
+        # If 10 percent of estimated samples is greater than difference between estimated and scheduled samples,
+        # set scheduled samples to estimated samples
+        new_scheduled = np.where((n_estimated * add_coef) > (n_estimated - n_scheduled),
+                                 n_estimated,
+                                 n_scheduled + (n_estimated - n_scheduled) * add_coef)
+
+        n_scheduled = np.ceil(np.where(n_estimated < n_scheduled,
+                                       n_scheduled,
+                                       new_scheduled))
+
+        # Levels where estimated are greater than scheduled
+        greater_items = np.where(np.greater(n_estimated, n_scheduled))[0]
+
+        # Scheduled samples and wait until at least half of the samples are done
+        self.set_scheduled_and_wait(n_scheduled, greater_items, pbs, sleep)
+
+        return np.all(n_estimated[greater_items] == n_scheduled[greater_items])
+
     def set_scheduled_and_wait(self, n_scheduled, greater_items, pbs, sleep, fin_sample_coef=0.5):
         """
         Scheduled samples on each level and wait until at least half of the samples is done
@@ -165,7 +197,7 @@ class MLMC:
         :param greater_items: Items where n_estimated is greater than n_scheduled
         :param pbs: Pbs script generator object
         :param sleep: Time waiting for samples
-        :param done_sample_coef: The proportion of samples to finished for further estimate
+        :param fin_sample_coef: The proportion of samples to finished for further estimate
         :return: None
         """
 
@@ -237,7 +269,6 @@ class MLMC:
                 break
 
         return n_running
-
 
     def subsample(self, sub_samples=None):
         """

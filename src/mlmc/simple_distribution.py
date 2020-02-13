@@ -355,7 +355,7 @@ class SimpleDistribution:
 
         end_diff = np.dot(self._end_point_diff, multipliers)
         fun = np.sum(self.moment_means * multipliers / self._moment_errs) + jacobian_matrix[0,0] * self._moment_errs[0]**2
-        for side in [0,1]:
+        for side in [0, 1]:
             if end_diff[side] > 0:
                 penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
                 jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
@@ -370,7 +370,6 @@ class SimpleDistribution:
         #print("means:", self.moment_means)
         #print("\n jac:", np.diag(jacobian_matrix))
         return jac
-
 
 
 def compute_exact_moments(moments_fn, density, tol=1e-10):
@@ -391,9 +390,11 @@ def compute_exact_moments(moments_fn, density, tol=1e-10):
         integral[i] = integrate.quad(fn, a, b, epsabs=tol)[0]
     return integral
 
+
 def compute_semiexact_moments(moments_fn, density, tol=1e-10):
     a, b = moments_fn.domain
     m = moments_fn.size - 1
+
     def integrand(x):
         moms = moments_fn.eval_all(x)[0, :]
         return density(x) * moms[m]
@@ -443,7 +444,6 @@ def compute_exact_cov(moments_fn, density, tol=1e-10):
     return integral
 
 
-
 def compute_semiexact_cov(moments_fn, density, tol=1e-10):
     """
     Compute approximation of covariance matrix using exact density.
@@ -483,7 +483,6 @@ def compute_semiexact_cov(moments_fn, density, tol=1e-10):
     return jacobian_matrix
 
     return jacobian_matrix
-
 
 
 def KL_divergence(prior_density, posterior_density, a, b):
@@ -855,7 +854,7 @@ def construct_ortogonal_moments(moments, cov, tol=None):
     new_evec = evec[:, threshold:]
 
     # we need highest eigenvalues first
-    eval_flipped = np.flip(new_eval)
+    eval_flipped = np.flip(new_eval, axis=0)
     evec_flipped = np.flip(new_evec, axis=1)
     #conv_sqrt = -M.T @ evec_flipped * (1 / np.sqrt(eval_flipped))[:, None]
     #icov_sqrt_t = -M.T @ evec_flipped * (1/np.sqrt(eval_flipped))[None, :]
@@ -863,7 +862,7 @@ def construct_ortogonal_moments(moments, cov, tol=None):
     R_nm, Q_mm  = sc.linalg.rq(icov_sqrt_t, mode='full')
     # check
     L_mn = R_nm.T
-    if L_mn[0,0] < 0 :
+    if L_mn[0, 0] < 0:
         L_mn = -L_mn
 
 

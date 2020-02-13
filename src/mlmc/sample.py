@@ -85,6 +85,7 @@ class Sample:
         return self.sample_id == other.sample_id and \
                self.prepare_time == other.prepare_time and\
                self.queued_time == other.queued_time and \
+               self.time == other.time and \
                self.result == other.result
 
     def __str__(self):

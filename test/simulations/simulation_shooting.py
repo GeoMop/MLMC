@@ -1,6 +1,7 @@
 import src.mlmc.simulation as simulation
 import random as rn
 import numpy as np
+import mlmc.sample
 
 
 class SimulationShooting(simulation.Simulation):
@@ -9,7 +10,7 @@ class SimulationShooting(simulation.Simulation):
     Inherits from Simulation
     """
 
-    def __init__(self, step, config):
+    def __init__(self, step, level_id, config):
         """
         :param coord:       starting position
         :param v:           starting speed
@@ -26,9 +27,10 @@ class SimulationShooting(simulation.Simulation):
         self.sim_param = int(2/step)
         self.step = step
         self._coarse_simulation = None
+        self.coarse_sim_set = False
         self._result_dict = {}
 
-    def simulation_sample(self, sim_id):
+    def simulation_sample(self, tag, sample_id, start_time):
         """
         Simulation of 2D shooting
         :param sim_id:    simulation id
@@ -63,9 +65,9 @@ class SimulationShooting(simulation.Simulation):
                 break
 
         # Set simulation data
-        self._result_dict[sim_id] = y
+        self._result_dict[tag] = float(y)
 
-        return sim_id
+        return mlmc.sample.Sample(sample_id=sample_id, directory=tag)
 
     def generate_rnd_sample(self):
         # -1 for shooting simulation
@@ -124,8 +126,12 @@ class SimulationShooting(simulation.Simulation):
             self._coarse_simulation._input_sample = avg = fields_sample[self.sim_param:]
             #self._coarse_simulation.input_sample = avg = self.averaging(self.sim_param, self._coarse_simulation.sim_param, self.input_sample)
 
-    def extract_result(self, sim_id):
-        return self._result_dict[sim_id]
+    def _extract_result(self, sample):
+        time = np.random.random()
+        return self._result_dict[sample.directory], time
+
+    def n_ops_estimate(self):
+        return self.sim_param
 
     def averaging(self, n_coarse, n_fine, F):
         """
@@ -163,3 +169,4 @@ class SimulationShooting(simulation.Simulation):
         :return: None
         """
         self._coarse_simulation = coarse_simulation
+        self.coarse_sim_set = True

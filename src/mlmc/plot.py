@@ -3,6 +3,7 @@ import scipy.stats as st
 from scipy import interpolate
 import matplotlib.pyplot as plt
 
+
 def create_color_bar(range, label, ax = None):
     """
     Create colorbar for a variable with given range and add it to given axes.
@@ -176,7 +177,6 @@ class Distribution:
         sX = np.linspace(domain[0], domain[1], 1000)
         self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4)
 
-
     def add_distribution(self, distr_object, label=None):
         """
         Add plot for distribution 'distr_object' with given label.
@@ -292,8 +292,6 @@ class Distribution:
         else:
             X = np.linspace(domain[0], domain[1], size)
         return X
-
-
 
 
 class Eigenvalues:
@@ -760,12 +758,6 @@ class Aux:
         #exit()
 
 
-
-
-
-
-
-
     def plot_var_regression(self, i_moments = None):
         """
         Plot total and level variances and their regression and errors of regression.
@@ -811,3 +803,253 @@ class Aux:
         #ax.legend(loc=2)
         fig.savefig('level_vars_regression.pdf')
         plt.show()
+
+
+###########################################
+# test.fixture.mlmc_test_run plot methods #
+###########################################
+
+def plot_n_sample_est_distributions(cost, total_std, n_samples):
+
+    fig = plt.figure(figsize=(30,10))
+    ax1 = fig.add_subplot(1, 3, 1)
+    ax1.hist(cost, normed=1)
+    ax1.set_xlabel("cost")
+    cost_99 = np.percentile(cost, [99])
+    ax1.axvline(x=cost_99, label=str(cost_99), c='red')
+    ax1.legend()
+
+    ax2 = fig.add_subplot(1, 3, 2)
+    ax2.hist(total_std, normed=1)
+    ax2.set_xlabel("total var")
+    tstd_99 = np.percentile(total_std, [99])
+    ax2.axvline(x=tstd_99, label=str(tstd_99), c='red')
+    ax2.legend()
+
+    ax3 = fig.add_subplot(1, 3, 3)
+    ax3.hist(n_samples, normed=1)
+    ax3.set_xlabel("n_samples")
+    ns_99 = np.percentile(n_samples, [99])
+    ax3.axvline(x=ns_99, label=str(ns_99), c='red')
+    ax3.legend()
+    plt.show()
+
+
+def plot_diff_var_subsample(level_variance_diff, n_levels):
+    """
+    Plot diff between V* and V
+    :param level_variance_diff: array of moments sqrt(V/V*)
+    :param n_levels: array, number of levels
+    :return: None
+    """
+    import matplotlib.cm as cm
+    if len(level_variance_diff) > 0:
+        colors = iter(cm.rainbow(np.linspace(0, 1, len(level_variance_diff) + 1)))
+        x = np.arange(0, len(level_variance_diff[0]))
+        [plt.plot(x, var_diff, 'o', label="%dLMC" % n_levels[index], color=next(colors)) for index, var_diff in
+         enumerate(level_variance_diff)]
+        plt.legend()
+        plt.ylabel(r'$ \sqrt{\frac{V}{V^{*}}}$', rotation=0)
+        plt.xlabel("moments")
+        plt.show()
+
+        # Levels on x axes
+        moments = []
+        level_variance_diff = np.array(level_variance_diff)
+        for index in range(len(level_variance_diff[0])):
+            moments.append(level_variance_diff[:, index])
+
+        colors = iter(cm.rainbow(np.linspace(0, 1, len(moments) + 1)))
+        [plt.plot(n_levels, moment, 'o', label=index+1, color=next(colors)) for index, moment in enumerate(moments)]
+        plt.ylabel(r'$ \sqrt{\frac{V}{V^{*}}}$', rotation=0)
+        plt.xlabel("levels method")
+        plt.legend(title="moments")
+        plt.show()
+
+
+def plot_vars(moments_mean, moments_var, n_levels, exact_moments=None, ex_moments=None):
+    """
+    Plot means with variance whiskers
+    :param moments_mean: array, moments mean
+    :param moments_var: array, moments variance
+    :param n_levels: array, number of levels
+    :param exact_moments: array, moments from distribution
+    :param ex_moments: array, moments from distribution samples
+    :return: None
+    """
+    import matplotlib.cm as cm
+    colors = iter(cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
+
+    x = np.arange(0, len(moments_mean[0]))
+    x = x - 0.3
+    default_x = x
+
+    for index, means in enumerate(moments_mean):
+        if index == int(len(moments_mean)/2) and exact_moments is not None:
+            plt.plot(default_x, exact_moments, 'ro', label="Exact moments")
+        else:
+            x = x + (1 / (len(moments_mean)*1.5))
+            plt.errorbar(x, means, yerr=moments_var[index], fmt='o', capsize=3, color=next(colors), label="%dLMC" % n_levels[index])
+
+    if ex_moments is not None:
+        plt.plot(default_x-0.125, ex_moments, 'ko', label="Exact moments")
+
+    plt.legend()
+    plt.show()
+
+
+def plot_convergence(quantiles, conv_val, title):
+    """
+    Plot convergence with moment size for various quantiles.
+    :param quantiles: iterable with quantiles
+    :param conv_val: matrix of ConvResult, n_quantiles x n_moments
+    :param title: plot title and filename used to save
+    :return:
+    """
+    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+
+    for iq, q in enumerate(quantiles):
+        results = conv_val[iq]
+        #X = [r.size for r in results]
+        X = np.arange(len(results))
+        kl = [r.kl for r in results]
+        l2 = [r.l2 for r in results]
+        col = plt.cm.tab10(plt.Normalize(0,10)(iq))
+        ax.plot(X, kl, ls='solid', c=col, label="kl_q="+str(q), marker='o')
+        ax.plot(X, l2, ls='dashed', c=col, label="l2_q=" + str(q), marker='d')
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    fig.legend()
+    fig.suptitle(title)
+    fname = title + ".pdf"
+    fig.savefig(fname)
+
+
+def plot_diff_var(ref_mc_diff_vars, n_moments, steps):
+    """
+    Plot level diff vars
+    """
+    fig = plt.figure(figsize=(10, 20))
+    ax = fig.add_subplot(1, 1, 1)
+
+    error_power = 2.0
+    for m in range(1, n_moments):
+        color = 'C' + str(m)
+
+        Y = ref_mc_diff_vars[:, m] / (steps ** error_power)
+
+        ax.plot(steps[1:], Y[1:], c=color, label=str(m))
+        ax.plot(steps[0], Y[0], 'o', c=color)
+
+        # Y = np.percentile(self.vars_est[:, :, m],  [10, 50, 90], axis=1)
+        # ax.plot(target_var, Y[1,:], c=color)
+        # ax.plot(target_var, Y[0,:], c=color, ls='--')
+        # ax.plot(target_var, Y[2, :], c=color, ls ='--')
+        # Y = (self.exact_mean[m] - self.means_est[:, :, m])**2
+        # Y = np.percentile(Y, [10, 50, 90], axis=1)
+        # ax.plot(target_var, Y[1,:], c='gray')
+        # ax.plot(target_var, Y[0,:], c='gray', ls='--')
+        # ax.plot(target_var, Y[2, :], c='gray', ls ='--')
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    ax.legend()
+    ax.set_ylabel("observed var. of mean est.")
+    plt.show()
+
+
+def plot_var_regression(ref_level_vars, reg_vars, n_levels, n_moments):
+    """
+    Plot levels variance regression
+    """
+    # Plot variance regression for exact level variances
+    X = np.outer(np.arange(n_levels), np.ones(n_moments - 1)) + 0.1 * np.outer(np.ones(n_levels),
+                                                                                         np.arange(n_moments - 1))
+    col = np.outer(np.ones(n_levels), np.arange(n_moments - 1))
+    plt.scatter(X.ravel(), ref_level_vars[:, 1:].ravel(), c=col.ravel(), cmap=plt.cm.tab10,
+                norm=plt.Normalize(0, 10), marker='o')
+    for i_mom in range(n_moments - 1):
+        col = plt.cm.tab10(plt.Normalize(0, 10)(i_mom))
+        plt.plot(X[:, i_mom], reg_vars[:, i_mom + 1], c=col)
+    plt.legend()
+    plt.yscale('log')
+    plt.ylim(1e-10, 1)
+    plt.show()
+
+
+def plot_regression_diffs(all_diffs, n_moments):
+    """
+    Plot level variance difference regression
+    :param all_diffs: list, difference between Estimate._variance_regression result and Estimate.estimate_diff_var result
+    :param n_moments: number of moments
+    :return:
+    """
+    for i_mom in range(n_moments - 1):
+        diffs = [sample[:, i_mom] for sample in all_diffs]
+        diffs = np.array(diffs)
+        N, L = diffs.shape
+        X = np.outer(np.ones(N), np.arange(L)) + i_mom * 0.1
+        col = np.ones_like(diffs) * i_mom
+        plt.scatter(X, diffs, c=col, cmap=plt.cm.tab10, norm=plt.Normalize(0, 10), marker='o', label=str(i_mom))
+    plt.legend()
+    plt.yscale('log')
+    plt.ylim(1e-10, 1)
+    plt.show()
+
+
+def plot_mlmc_conv(n_moments, vars_est, exact_mean, means_est, target_var):
+
+    fig = plt.figure(figsize=(10,20))
+    for m in range(1, n_moments):
+        ax = fig.add_subplot(2, 2, m)
+        color = 'C' + str(m)
+        Y = np.var(means_est[:,:,m], axis=1)
+        ax.plot(target_var, Y, 'o', c=color, label=str(m))
+
+        Y = np.percentile(vars_est[:, :, m],  [10, 50, 90], axis=1)
+        ax.plot(target_var, Y[1,:], c=color)
+        ax.plot(target_var, Y[0,:], c=color, ls='--')
+        ax.plot(target_var, Y[2, :], c=color, ls ='--')
+        Y = (exact_mean[m] - means_est[:, :, m])**2
+        Y = np.percentile(Y, [10, 50, 90], axis=1)
+        ax.plot(target_var, Y[1,:], c='gray')
+        ax.plot(target_var, Y[0,:], c='gray', ls='--')
+        ax.plot(target_var, Y[2, :], c='gray', ls ='--')
+        ax.set_yscale('log')
+        ax.set_xscale('log')
+        ax.legend()
+        ax.set_ylabel("observed var. of mean est.")
+    plt.show()
+
+def plot_n_sample_est_distributions(title, cost, total_std, n_samples, rel_moments):
+    fig = plt.figure(figsize=(30,10))
+    ax1 = fig.add_subplot(2, 2, 1)
+    plot_error(cost, ax1, "cost err")
+
+    ax2 = fig.add_subplot(2, 2, 2)
+    plot_error(total_std, ax2, "total std err")
+
+    ax3 = fig.add_subplot(2, 2, 3)
+    plot_error(n_samples, ax3, "n. samples err")
+
+    ax4 = fig.add_subplot(2, 2, 4)
+    plot_error(rel_moments, ax4, "moments err")
+    fig.suptitle(title)
+    plt.show()
+
+
+def plot_error(arr, ax, label):
+    ax.hist(arr, normed=1)
+    ax.set_xlabel(label)
+    prc = np.percentile(arr, [99])
+    ax.axvline(x=prc, label=str(prc), c='red')
+    ax.legend()
+
+# @staticmethod
+# def box_plot(ax, X, Y):
+#     bp = boxplot(column='age', by='pclass', grid=False)
+#     for i in [1, 2, 3]:
+#         y = titanic.age[titanic.pclass == i].dropna()
+#         # Add some random "jitter" to the x-axis
+#         x = np.random.normal(i, 0.04, size=len(y))
+#         plot(x, y, 'r.', alpha=0.2)
+
