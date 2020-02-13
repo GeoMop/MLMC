@@ -8,7 +8,8 @@ from test.fixtures.synth_simulation import SimulationTest
 
 
 class MLMCTest:
-    def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None, quantile=None, moments_class=moments.Legendre):
+    def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None, quantile=None,
+                 moments_class=moments.Legendre, mlmc_file=None):
         """
         Create TestMLMC object instance
         :param n_levels: number of levels
@@ -24,6 +25,7 @@ class MLMCTest:
         print("L: {} R: {} distr: {} sim: {}".format(n_levels, n_moments, distr.dist.__class__.__name__ if 'dist' in distr.__dict__ else '',
                                                      sim_method))
 
+        self.mlmc_file = mlmc_file
         self.distr = distr
         self.n_levels = n_levels
         self.n_moments = n_moments
@@ -100,7 +102,10 @@ class MLMCTest:
                         'keep_collected': True,
                         'regen_failed': False}
         mc = MLMC(self.n_levels, simulation_factory, step_range, mlmc_options)
-        mc.create_new_execution()
+        if self.mlmc_file is not None:
+            mc.load_from_file(self.mlmc_file)
+        else:
+            mc.create_new_execution()
 
         sims = [level.fine_simulation for level in mc.levels]
         return mc, sims

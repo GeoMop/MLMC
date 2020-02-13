@@ -1495,8 +1495,12 @@ def compare_spline_vs_max_ent(distr, moments):
         distr_plot.show(None)
 
 
-def run_mlmc(n_levels, n_moments, cut_distr, log_flag, quantile, moments_fn, target_var):
-    mc_test = MLMCTest(n_levels, n_moments, cut_distr, log_flag, sim_method='_sample_fn', quantile=quantile)
+def run_mlmc(n_levels, n_moments, cut_distr, log_flag, quantile, moments_fn, target_var, mlmc_file=None):
+    print("run mlmc")
+    mc_test = MLMCTest(n_levels, n_moments, cut_distr, log_flag, sim_method='_sample_fn', quantile=quantile,
+                       mlmc_file=mlmc_file)
+
+    print("mlmc test")
 
     mc_test.moments_fn = moments_fn
 
@@ -1505,9 +1509,10 @@ def run_mlmc(n_levels, n_moments, cut_distr, log_flag, quantile, moments_fn, tar
     mc_test.mc.refill_samples()
     mc_test.mc.wait_for_simulations()
     mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (1, "<")})
-    mc_test.estimator.target_var_adding_samples(target_var, moments_fn, sleep=0)
-    mc_test.mc.wait_for_simulations()
+    if mlmc_file is None:
+        mc_test.estimator.target_var_adding_samples(target_var, moments_fn, sleep=0)
 
+    mc_test.mc.wait_for_simulations()
     mc_test.mc.update_moments(mc_test.moments_fn)
     #
     # moments_mean, moments_var = estimator.estimate_moments(mc_test.moments_fn)
@@ -1542,11 +1547,9 @@ def splines_indicator_vs_smooth(m, distr):
     n_levels = 1
     n_moments = 2
 
-    target_var = 1e-5
+    target_var = 1e-6
 
     for quantile in quantiles:
-
-        spline_plot = plot.Spline_plot(bspline=True)
 
         distr_domain_case = DistributionDomainCase(m, distr, quantile)
 
@@ -1557,7 +1560,11 @@ def splines_indicator_vs_smooth(m, distr):
         cut_distr = distr_domain_case.cut_distr
 
         moments_fn = Legendre(n_moments, distr_domain_case.cut_distr.domain, log=log_flag, safe_eval=True)
-        mlmc = run_mlmc(n_levels, n_moments, cut_distr.distr, log_flag, quantile, moments_fn, target_var=target_var)
+
+        mlmc_file = None
+        #mlmc_file = "/home/martin/Documents/MLMC_spline/data/target_var_1e-2/mlmc_{}.hdf5".format(n_levels)
+        mlmc = run_mlmc(n_levels, n_moments, cut_distr.distr, log_flag, quantile, moments_fn, target_var=target_var,
+                        mlmc_file=mlmc_file)
 
         n_samples = []
         for level in mlmc.levels:
@@ -1565,41 +1572,68 @@ def splines_indicator_vs_smooth(m, distr):
 
         int_points_domain = cut_distr.domain
 
+        # int_points_domain = [0, 0]
+        # int_points_domain[0] = cut_distr.domain[0] - 1000
+        # int_points_domain[1] = cut_distr.domain[1] + 1000
+
+        density = False
+
+        spline_plot = plot.Spline_plot(bspline=True,
+                                       title="levels: {}, int_points_domain: {}".format(n_levels, int_points_domain),
+                                       density=density)
+
         interpolation_points = 5
         polynomial_degree = 3  # r=3
         accuracy = 1e-6
 
         # X = np.linspace(cut_distr.inter_points_domain[0]-10, cut_distr.inter_points_domain[1]+10, 1000)
-        X = np.linspace(cut_distr.domain[0], cut_distr.domain[1], 1000)
+        X = np.linspace(cut_distr.domain[0], cut_distr.domain[1], 10000)
 
-        distr_obj = make_spline_approx(int_points_domain, mlmc, polynomial_degree, accuracy)
+        #distr_obj = make_spline_approx(int_points_domain, mlmc, polynomial_degree, accuracy)
 
-        interpolation_points = [10, 20, 30, 50]
+        #interpolation_points = [300, 500, 750, 1000, 1250]
+
+        interpolation_points = [10, 20, 30]
 
         spline_plot.interpolation_points = interpolation_points
 
         for n_int_points in interpolation_points:
+            print("n int points ", n_int_points)
             distr_obj = make_spline_approx(int_points_domain, mlmc, polynomial_degree, accuracy)
             distr_obj.moments_fn = moments_fn
             distr_obj.indicator_method_name = "indicator"
             distr_obj.n_interpolation_points = n_int_points
-            cdf = distr_obj.cdf(X)
+            if density:
+                cdf, pdf = distr_obj.cdf_pdf(X)
+                spline_plot.add_indicator_density((X[distr_obj.mask], pdf))
+            else:
+                cdf = distr_obj.cdf(X)
             spline_plot.add_indicator((X[distr_obj.distr_mask], cdf))
 
             distr_obj = make_spline_approx(int_points_domain, mlmc, polynomial_degree, accuracy)
             distr_obj.moments_fn = moments_fn
             distr_obj.indicator_method_name = "smooth"
             distr_obj.n_interpolation_points = n_int_points
-            cdf = distr_obj.cdf(X)
+            if density:
+                cdf, pdf = distr_obj.cdf_pdf(X)
+                spline_plot.add_smooth_density((X[distr_obj.mask], pdf))
+            else:
+                cdf = distr_obj.cdf(X)
             spline_plot.add_smooth((X[distr_obj.distr_mask], cdf))
 
             distr_obj = make_spline_approx(int_points_domain, mlmc, polynomial_degree, accuracy, bspline=True)
             distr_obj.moments_fn = moments_fn
             distr_obj.n_interpolation_points = n_int_points
             cdf = distr_obj.cdf(X)
+            if density:
+                pdf = distr_obj.density(X)
+                spline_plot.add_bspline_density((X, pdf))
             spline_plot.add_bspline((X, cdf))
 
         spline_plot.add_exact_values(X, cut_distr.distr.cdf(X))
+        if density:
+            spline_plot.add_density_exact_values(X, cut_distr.distr.pdf(X))
+
         from statsmodels.distributions.empirical_distribution import ECDF
         level = mlmc.levels[0]
         moments = level.evaluate_moments(moments_fn)
@@ -1607,7 +1641,6 @@ def splines_indicator_vs_smooth(m, distr):
         fine_values = moments_fn.inv_linear(fine_values)
         ecdf = ECDF(fine_values)
         spline_plot.add_ecdf(X, ecdf(X))
-
         spline_plot.show()
 
 
