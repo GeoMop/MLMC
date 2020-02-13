@@ -22,7 +22,7 @@ class SimpleDistribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=20, reg_param_beta=0, mom_2nd_der_err=None):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=20, regularization=None):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -32,6 +32,8 @@ class SimpleDistribution:
 
         # Family of moments basis functions.
         self.moments_basis = moments_obj
+
+        self.regularization = regularization
 
         # Moment evaluation function with bounded number of moments and their inter_points_domain.
         self.moments_fn = None
@@ -68,7 +70,6 @@ class SimpleDistribution:
         self._reg_term_jacobian = None
 
         self.reg_param = reg_param
-        self.reg_param_beta = reg_param_beta
         self.max_iter = max_iter
 
         self.gradients = []
@@ -196,7 +197,7 @@ class SimpleDistribution:
     def mult_mom_der(self, value, degree=1):
         moms = self.eval_moments_der(value, degree)
         return -np.sum(moms * self.multipliers, axis=1)
-    #
+
     # def _current_regularization(self):
     #     return np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
 
@@ -256,19 +257,19 @@ class SimpleDistribution:
     # def multipliers_dot_phi(self, value):
     #     return self.reg_param * np.dot(self.eval_moments(value), self.multipliers)
     #
-    # def density_derivation(self, value):
-    #     moms = self.eval_moments(value)
-    #     power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
-    #     power = np.minimum(np.maximum(power, -200), 200)
-    #     return np.exp(power) * np.sum(-self.multipliers * self.eval_moments_der(value))
-    #
-    # def density_second_derivation(self, value):
-    #     moms = self.eval_moments(value)
-    #
-    #     power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
-    #     power = np.minimum(np.maximum(power, -200), 200)
-    #     return (np.exp(power) * np.sum(-self.multipliers * self.eval_moments_der(value, degree=2))) +\
-    #            (np.exp(power) * np.sum(self.multipliers * moms)**2)
+    def density_derivation(self, value):
+        moms = self.eval_moments(value)
+        power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
+        power = np.minimum(np.maximum(power, -200), 200)
+        return np.exp(power) * np.sum(-self.multipliers * self.eval_moments_der(value))
+
+    def density_second_derivation(self, value):
+        moms = self.eval_moments(value)
+
+        power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
+        power = np.minimum(np.maximum(power, -200), 200)
+        return (np.exp(power) * np.sum(-self.multipliers * self.eval_moments_der(value, degree=2))) +\
+               (np.exp(power) * np.sum(self.multipliers * moms)**2)
 
     # def distr_den(self, values):
     #     distr = np.empty(len(values))
@@ -515,6 +516,15 @@ class SimpleDistribution:
     #         print("eigen vectors ")
     #         print(pd.DataFrame(eigenvectors))
 
+    # def _functional(self):
+    #     self._update_quadrature(self.multipliers, True)
+    #     q_density = self._density_in_quads(self.multipliers)
+    #     integral = np.dot(q_density, self._quad_weights)
+    #     sum = np.sum(self.moment_means * self.multipliers / self._moment_errs)
+    #     fun = sum + integral
+    #
+    #     return fun
+
     def _calculate_functional(self, multipliers):
         """
         Minimized functional.
@@ -532,8 +542,8 @@ class SimpleDistribution:
         # penalty = np.sum(np.maximum(end_diff, 0) ** 2)
         # fun = fun + np.abs(fun) * self._penalty_coef * penalty
 
-        reg_term = np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
-        fun += self.reg_param * reg_term
+        #reg_term = np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
+        fun += self.reg_param * self.regularization.functional_term(self)
         self.functional_value = fun
         return fun
 
@@ -622,9 +632,9 @@ class SimpleDistribution:
         #     # w = w.flatten()
         #     # reg_term = (np.sum(w * integrand(x), axis=1) * 0.5 * (b - a))
 
-        quad_moments_2nd_der = self._quad_moments_2nd_der
-        reg_term = np.sum(self._quad_weights * (np.dot(quad_moments_2nd_der, self.multipliers) * quad_moments_2nd_der.T), axis=1)
-        gradient += 2 * self.reg_param * reg_term
+        #reg_term = np.sum(self._quad_weights *
+        #                  (np.dot(self._quad_moments_2nd_der, self.multipliers) * self._quad_moments_2nd_der.T), axis=1)
+        gradient += self.reg_param * self.regularization.gradient_term(self)
         self.gradients.append(gradient)
 
         return gradient
@@ -641,8 +651,8 @@ class SimpleDistribution:
         if self._reg_term_jacobian is None:
             self._calculate_reg_term_jacobian()
 
-        reg_term = self._reg_term_jacobian
-        jacobian_matrix += 2 * self.reg_param * reg_term
+        #reg_term = self._reg_term_jacobian
+        jacobian_matrix += self.reg_param * self.regularization.jacobian_term(self)
 
         return jacobian_matrix
 
@@ -655,6 +665,44 @@ class SimpleDistribution:
 
         jacobian_matrix = self._calc_jac()
         return jacobian_matrix
+
+
+class Regularization1:
+
+    def functional_term(self, simple_distr):
+        return np.sum(simple_distr._quad_weights *
+                      (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) ** 2))
+
+    def gradient_term(self, simple_distr):
+        print("simple_distr ", simple_distr)
+        reg_term = np.sum(simple_distr._quad_weights *
+                          (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers)
+                           * simple_distr._quad_moments_2nd_der.T), axis=1)
+        return 2 * reg_term
+
+    def jacobian_term(self, simple_distr):
+        return 2 * (simple_distr._quad_moments_2nd_der.T * simple_distr._quad_weights) @\
+               simple_distr._quad_moments_2nd_der
+
+
+class RegularizationTV:
+
+    def functional_term(self, simple_distr):
+        return total_variation_int(simple_distr.density, simple_distr.domain[0], simple_distr.domain[1])
+
+    def gradient_term(self, simple_distr):
+        return total_variation_int(simple_distr.density_derivation, simple_distr.domain[0], simple_distr.domain[1])
+
+        #return egrad(self.functional_term(simple_distr))
+
+    def jacobian_term(self, simple_distr):
+
+        return total_variation_int(simple_distr.density_second_derivation,  simple_distr.domain[0], simple_distr.domain[1])
+
+        #return hessian(self.functional_term(simple_distr))
+
+
+
 
 
 def compute_exact_moments(moments_fn, density, tol=1e-10):
@@ -1543,8 +1591,9 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
         print("evec flipped ", evec_flipped)
         print("threshold ", threshold)
         original_eval = eval_flipped
+    else:
+        raise Exception("No eigenvalues method")
 
-    print("eval ", eval_flipped)
 
     #original_eval, _ = np.linalg.eigh(cov_center)
 
