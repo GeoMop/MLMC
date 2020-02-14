@@ -205,7 +205,7 @@ class Distribution:
         self.adjust_domain(domain)
         N = len(samples)
         bins = self._grid(0.5 * np.sqrt(N))
-        #self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
+        self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
 
         # Ecdf
         X = np.sort(samples)
@@ -221,8 +221,8 @@ class Distribution:
         w[N - size_8:] = 1 / (1 - Y[N - size_8:])
         spl = interpolate.UnivariateSpline(X, Y, w, k=3, s=1)
         sX = np.linspace(domain[0], domain[1], 1000)
-        if self._reg_param == 0:
-            self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4, label="derivative of Bspline CDF")
+        # if self._reg_param == 0:
+        #     self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4, label="derivative of Bspline CDF")
 
     def add_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0):
         """
@@ -231,7 +231,6 @@ class Distribution:
         :param label: string label for legend
         :return:
         """
-        print("add distribution")
 
         self._reg_param = reg_param
 
@@ -246,7 +245,6 @@ class Distribution:
         color = self.colormap(self.i_plot)#'C{}'.format(self.i_plot)
 
         line_styles = ['-', ':', '-.', '--']
-
         plots = []
 
         Y_pdf = distr_object.density(X)
@@ -312,11 +310,10 @@ class Distribution:
 
             #self.ax_cdf.plot(X, distr_object.multipliers_dot_phi(X), label="\lambda * \phi", color=color)
         else:
-            print("reg plot false cdf")
-            Y_cdf = np.zeros(len(X))#distr_object.cdf(X)
+            Y_cdf = distr_object.cdf(X)
 
         if self.ax_cdf is not None:
-            self.ax_cdf.plot(X, Y_cdf, color=color)
+            self.ax_cdf.plot(X, Y_cdf, color=color, label=label)
             self._plot_borders(self.ax_cdf, color, domain)
 
         # if self._error_plot and self._exact_distr is not None:

@@ -9,12 +9,12 @@ class SplineApproximation:
         """
         Cdf and pdf spline approximation
         :param mlmc: MLMC instance
-        :param inter_points_domain: interpolation points inter_points_domain
+        :param inter_points_domain: interpolation points domain
         :param poly_degree: degree of polynomial
         :param accuracy: RMSE accurancy, used to smooth
         """
         self.mlmc = mlmc
-        self.inter_points_domain = inter_points_domain
+        self.domain = inter_points_domain
         self.poly_degree = poly_degree
         self.accuracy = accuracy
 
@@ -35,16 +35,13 @@ class SplineApproximation:
         self.density_mask = None
         self.mask = None
 
-        # It is necessary for distribution plot
-        self.domain = None
-
     def determine_interpolation_points(self, n_points):
         """
         Determine equidistant points at which the cdf (or pdf) is calculated
         :param n_points: number of interpolation points
         :return: list
         """
-        self.interpolation_points = np.linspace(self.inter_points_domain[0], self.inter_points_domain[1], n_points)
+        self.interpolation_points = np.linspace(self.domain[0], self.domain[1], n_points)
 
     def compute_smoothing_factor(self, data, level_id):
         """
@@ -361,35 +358,18 @@ class BSplineApproximation(SplineApproximation):
         :param points: list of points (1D)
         :return: distribution
         """
-        import scipy.interpolate as si
         self._setup()
-
-        print("BSpline cdf poly degree ", self.poly_degree)
-        print("all levels indicator ", self.all_levels_indicator)
-        print("self.interpolation points ", self.interpolation_points)
-        #bspline = si.BSpline(self.interpolation_points, self.all_levels_indicator, k=self.poly_degree)
-
         spl = splrep(self.interpolation_points, self.all_levels_indicator)
-
-        # distribution = np.zeros(len(points))
-        # for index, x in enumerate(points):
-        #     distribution[index] = bspline(x)
-        #
-        # return distribution
-
-        #res = bspline(points)
         return splev(points, spl)
-
-        print("BSpline CDF")
-        print("res ", res)
-        print("res ", res)
-        return res
 
     def density(self, points):
         self._setup()
         spl = splrep(self.interpolation_points, self.all_levels_indicator)
 
         return splev(points, spl, der=1)
+
+    def density_log(self, points):
+        return np.log(self.density(points))
 
     # def density(self, points):
     #     import numdifftools as nd

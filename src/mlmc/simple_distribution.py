@@ -6,6 +6,7 @@ import mlmc.moments
 from autograd import elementwise_grad as egrad
 from autograd import hessian
 import mlmc.tool.plot
+from abc import ABC, abstractmethod
 
 from scipy.special import  softmax
 import pandas as pd
@@ -26,8 +27,8 @@ class SimpleDistribution:
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
-        :param domain: Explicit inter_points_domain fo reconstruction. None = use inter_points_domain of moments.
-        :param force_decay: Flag for each inter_points_domain side to enforce decay of the PDF approximation.
+        :param domain: Explicit domain fo reconstruction. None = use domain of moments.
+        :param force_decay: Flag for each domain side to enforce decay of the PDF approximation.
         """
 
         # Family of moments basis functions.
@@ -35,14 +36,14 @@ class SimpleDistribution:
 
         self.regularization = regularization
 
-        # Moment evaluation function with bounded number of moments and their inter_points_domain.
+        # Moment evaluation function with bounded number of moments and their domain.
         self.moments_fn = None
 
         # Domain of the density approximation (and moment functions).
         if domain is None:
             domain = moments_obj.domain
         self.domain = domain
-        # Indicates whether force decay of PDF at inter_points_domain endpoints.
+        # Indicates whether force decay of PDF at domain endpoints.
         self.decay_penalty = force_decay
 
         self.functional_value = None
@@ -96,7 +97,7 @@ class SimpleDistribution:
         res = || (F_i - \mu_i) / \sigma_i ||_2
         :return: None
         """
-        # Initialize inter_points_domain, multipliers, ...
+        # Initialize domain, multipliers, ...
         self._initialize_params(self.approx_size, tol)
         max_it = self.max_iter
 
@@ -281,7 +282,7 @@ class SimpleDistribution:
     #     return distr, density
     #
     # def distr(self, value):
-    #     return integrate.quad(self.density, self.inter_points_domain[0], value)[0]
+    #     return integrate.quad(self.density, self.domain[0], value)[0]
     #
     # def density_from_distr(self, value):
     #     return egrad(self.distr)(value)
@@ -416,7 +417,7 @@ class SimpleDistribution:
 
     def end_point_derivatives(self):
         """
-        Compute approximation of moment derivatives at endpoints of the inter_points_domain.
+        Compute approximation of moment derivatives at endpoints of the domain.
         :return: array (2, n_moments)
         """
         eps = 1e-10
@@ -543,7 +544,8 @@ class SimpleDistribution:
         # fun = fun + np.abs(fun) * self._penalty_coef * penalty
 
         #reg_term = np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
-        fun += self.reg_param * self.regularization.functional_term(self)
+        if self.regularization is not None:
+            fun += self.reg_param * self.regularization.functional_term(self)
         self.functional_value = fun
         return fun
 
@@ -634,7 +636,8 @@ class SimpleDistribution:
 
         #reg_term = np.sum(self._quad_weights *
         #                  (np.dot(self._quad_moments_2nd_der, self.multipliers) * self._quad_moments_2nd_der.T), axis=1)
-        gradient += self.reg_param * self.regularization.gradient_term(self)
+        if self.regularization is not None:
+            gradient += self.reg_param * self.regularization.gradient_term(self)
         self.gradients.append(gradient)
 
         return gradient
@@ -652,7 +655,8 @@ class SimpleDistribution:
             self._calculate_reg_term_jacobian()
 
         #reg_term = self._reg_term_jacobian
-        jacobian_matrix += self.reg_param * self.regularization.jacobian_term(self)
+        if self.regularization is not None:
+            jacobian_matrix += self.reg_param * self.regularization.jacobian_term(self)
 
         return jacobian_matrix
 
@@ -667,14 +671,34 @@ class SimpleDistribution:
         return jacobian_matrix
 
 
-class Regularization1:
+class Regularization(ABC):
+
+    @abstractmethod
+    def functional_term(self, simple_distr):
+        """
+        Regularization added to functional
+        """
+
+    @abstractmethod
+    def gradient_term(self, simple_distr):
+        """
+        Regularization to gradient
+        """
+
+    @abstractmethod
+    def jacobian_term(self, simple_distr):
+        """
+        Regularization to jacobian matrix
+        """
+
+
+class Regularization1(Regularization):
 
     def functional_term(self, simple_distr):
         return np.sum(simple_distr._quad_weights *
                       (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) ** 2))
 
     def gradient_term(self, simple_distr):
-        print("simple_distr ", simple_distr)
         reg_term = np.sum(simple_distr._quad_weights *
                           (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers)
                            * simple_distr._quad_moments_2nd_der.T), axis=1)
@@ -685,7 +709,7 @@ class Regularization1:
                simple_distr._quad_moments_2nd_der
 
 
-class RegularizationTV:
+class RegularizationTV(Regularization):
 
     def functional_term(self, simple_distr):
         return total_variation_int(simple_distr.density, simple_distr.domain[0], simple_distr.domain[1])
@@ -926,6 +950,7 @@ def compute_exact_cov(moments_fn, density, tol=1e-10, reg_param=0, domain=None):
 
             def fn(x):
                 moments = moments_fn.eval_all(x)[0, :]
+                print("moments ", moments)
 
                 density_value = density(x)
                 if type(density_value).__name__ == 'ArrayBox':
@@ -933,13 +958,13 @@ def compute_exact_cov(moments_fn, density, tol=1e-10, reg_param=0, domain=None):
 
                 return moments[i] * moments[j] * density_value # * density(x)
 
-            int_2 = integrate.quad(fn_moments_der, a_2, b_2, epsabs=tol)[0]
             integral[j][i] = integral[i][j] = integrate.quad(fn, a, b, epsabs=tol)[0]
 
+            int_2 = integrate.quad(fn_moments_der, a_2, b_2, epsabs=tol)[0]
             int_reg[j][i] = int_reg[i][j] = int_2
 
     int_reg = 2 * reg_param * int_reg
-    return integral + int_reg
+    return integral, int_reg
 
 
 def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_size=None, domain=None, reg_param_beta=0):
@@ -1639,7 +1664,7 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
 #     """
 #     Construct approximation of the density using given moment functions.
 #     Args:
-#         moments_fn: Moments object, determines also inter_points_domain and n_moments.
+#         moments_fn: Moments object, determines also domain and n_moments.
 #         tol: Tolerance of the fitting problem, with account for variances in moments.
 #              Default value 1.95 corresponds to the two tail confidency 0.95.
 #         reg_param: Regularization parameter.
@@ -1653,14 +1678,14 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
 #     min_var, max_var = np.min(est_vars[1:]), np.max(est_vars[1:])
 #     print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
 #     moments_data = np.stack((est_moments, est_vars), axis=1)
-#     distr_obj = SimpleDistribution(moments_obj, moments_data, inter_points_domain=moments_obj.inter_points_domain)
+#     distr_obj = SimpleDistribution(moments_obj, moments_data, domain=moments_obj.domain)
 #     distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
 #     self._distribution = distr_obj
 #
 #     # # [print("integral density ", integrate.simps(densities[index], x[index])) for index, density in
 #     # # enumerate(densities)]
 #     # moments_fn = self.moments
-#     # inter_points_domain = moments_fn.inter_points_domain
+#     # domain = moments_fn.domain
 #     #
 #     # #self.mlmc.update_moments(moments_fn)
 #     # cov = self._covariance = self.mlmc.estimate_covariance(moments_fn)
@@ -1755,7 +1780,7 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
 #     # print("moments: ", est_moments)
 #     # est_moments[1:] = 0
 #     # moments_data = np.stack((est_moments, est_vars), axis=1)
-#     # distr_obj = Distribution(natural_moments, moments_data, inter_points_domain=inter_points_domain)
+#     # distr_obj = Distribution(natural_moments, moments_data, domain=domain)
 #     # distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
 #     #
 #     #

@@ -279,6 +279,7 @@ class Estimate:
 
         params, res, rank, sing_vals = np.linalg.lstsq(WX, log_vars)
         new_vars = raw_vars.copy()
+
         new_vars[1:] = np.exp(np.dot(X, params))
         return new_vars
 
@@ -452,23 +453,26 @@ class Estimate:
 
         return self.cov_mat
 
-    def mom_mom_integral(self, tol):
-        if self.moments_2_integral is None:
+    def regularization(self, tol):
+        """
 
-            integral = np.zeros((self.moments.size, self.moments.size))
+        Args:
+            tol:
 
-            for i in range(self.moments.size):
-                for j in range(i + 1):
-                    def fn_moments(x):
-                        moments = self.moments.eval_all_der(x, degree=2)[0, :]
-                        return moments[i] * moments[j]
+        Returns:
 
-                    integ = integrate.quad(fn_moments, self.moments.domain[0], self.moments.domain[1], epsabs=tol)[0]
-                    integral[i][j] = integral[j][i] = integ#integrate.quad(fn_moments, self.moments.domain[0], self.moments.domain[0], epsabs=tol)[0]
+        """
+        integral = np.zeros((self.moments.size, self.moments.size))
+        for i in range(self.moments.size):
+            for j in range(i + 1):
+                def fn_moments(x):
+                    moments = self.moments.eval_all_der(x, degree=2)[0, :]
+                    return moments[i] * moments[j]
 
-            self.moments_2_integral = integral
+                integ = integrate.quad(fn_moments, self.moments.domain[0], self.moments.domain[1], epsabs=tol)[0]
+                integral[i][j] = integral[j][i] = integ
+        return integral
 
-        return self.moments_2_integral
 
     def construct_density(self, tol=1.95, reg_param=1e-7*5, orth_moments_tol=1e-2, exact_pdf=None):
         """
@@ -481,13 +485,11 @@ class Estimate:
         """
         import pandas as pd
         cov = self.estimate_covariance(self.moments, self.mlmc.levels)
-        integral = self.mom_mom_integral(tol)#np.zeros((self.moments.size, self.moments.size))
-        cov += 2 * reg_param * integral
+        reg_term = self.regularization(tol)
 
+        cov += 2 * reg_param * reg_term
 
-        #cov = mlmc.simple_distribution.compute_semiexact_cov(self.moments, exact_pdf)
-
-        moments_obj, info = simple_distribution.construct_orthogonal_moments(self.moments, cov, tol=orth_moments_tol)
+        moments_obj, info, cov_centered = simple_distribution.construct_orthogonal_moments(self.moments, cov, tol=orth_moments_tol)
         print("n levels: ", self.n_levels, "size: ", moments_obj.size)
 
         est_moments, est_vars = self.estimate_moments(moments_obj)
@@ -523,8 +525,10 @@ class Estimate:
         # moments_data = np.empty((len(exact_moments), 2))
         # moments_data[:, 0] = exact_moments
         moments_data[:, 1] = 1.0
+
+        regularization = mlmc.simple_distribution.Regularization1()
         distr_obj = simple_distribution.SimpleDistribution(moments_obj, moments_data, domain=moments_obj.domain,
-                                                           reg_param=reg_param, mom_2nd_der_err=var_vec)
+                                                           reg_param=reg_param, regularization=regularization)
         distr_obj.estimate_density_minimize(tol)  # 0.95 two side quantile
         self._distribution = distr_obj
 

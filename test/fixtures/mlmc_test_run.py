@@ -62,6 +62,7 @@ class MLMCTest:
         else:
             true_domain = distr.ppf([0.0001, 0.9999])
 
+        self.true_domain = true_domain
         self.moments_fn = moments_class(n_moments, true_domain, is_log)
 
         # Exact means and vars estimation from distribution
@@ -87,6 +88,9 @@ class MLMCTest:
         self.ref_level_means = np.array(means)
         self.ref_vars = np.sum(np.array(vars) / sample_size, axis=0)
         self.ref_mc_diff_vars = None
+
+    def set_moments_fn(self, moments_class):
+        self.moments_fn = moments_class(self.n_moments, self.true_domain, self.is_log)
 
     def make_simulation_mc(self, step_range, sim_method=None):
         """
