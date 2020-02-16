@@ -43,7 +43,7 @@ def sampler_test_pbs():
         n_nodes=1,
         select_flags=['cgroups=cpuacct'],
         mem='128mb',
-        queue='charon',
+        queue='charon_2h',
         home_dir='/storage/liberec3-tul/home/martin_spetlik/',
         pbs_process_file_dir='/auto/liberec3-tul/home/martin_spetlik/MLMC_new_design/src/mlmc')
 
@@ -63,35 +63,31 @@ def sampler_test_pbs():
 
     q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
 
-    target_var = 1e-3
-    sleep = 0
-    add_coef = 0.1
-
-    # @TODO: test
-    # New estimation according to already finished samples
-    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
-    n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-                                                                       n_levels=sampler.n_levels)
-    # Loop until number of estimated samples is greater than the number of scheduled samples
-    while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
-        # New estimation according to already finished samples
-        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
-        n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-                                                                           n_levels=sampler.n_levels)
+    # target_var = 1e-3
+    # sleep = 0
+    # add_coef = 0.1
+    #
+    # # @TODO: test
+    # # New estimation according to already finished samples
+    # variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+    # n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+    #                                                                    n_levels=sampler.n_levels)
+    # # Loop until number of estimated samples is greater than the number of scheduled samples
+    # while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
+    #     # New estimation according to already finished samples
+    #     variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+    #     n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+    #                                                                        n_levels=sampler.n_levels)
 
     #print("collected samples ", sampler._n_created_samples)
     means, vars = q_estimator.estimate_moments(moments_fn)
 
     print("means ", means)
     print("vars ", vars)
-    assert means[0] == 1
-    assert np.isclose(means[1], 0, atol=1e-2)
-    assert vars[0] == 0
-    sampler.schedule_samples()
-    sampler.ask_sampling_pool_for_samples()
-
-    storage = sampler.sample_storage
-    results = storage.sample_pairs()
+    # assert means[0] == 1
+    # assert np.isclose(means[1], 0, atol=1e-2)
+    # assert vars[0] == 0
+    
 
 
 if __name__ == "__main__":

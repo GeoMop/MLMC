@@ -1,9 +1,11 @@
 import os
+import shutil
 import sys
 import yaml
 import time
 import pickle
 import json
+from typing import List
 from pathlib import Path
 
 
@@ -99,8 +101,10 @@ class PbsProcess:
         for level_id, sample_id, seed in level_id_sample_id_seed:
             level_sim = self._level_simulations[level_id]
             assert level_sim.level_id == level_id
+            self._handle_sim_files(sample_id, level_sim)
+
             # Go to sample directory
-            os.chdir(os.path.join(self._level_paths[level_id], sample_id))
+            #os.chdir(os.path.join(self._level_paths[level_id], sample_id))
 
             # Calculate sample
             res = (None, None)
@@ -150,6 +154,37 @@ class PbsProcess:
     def _append_file(self, data, path):
         with open(path, "a") as f:
             yaml.dump(data, f)
+
+    def _change_to_sample_directory(self, level_id, sample_id):
+        """
+        Create sample directory and change working directory
+        :param level_id: str
+        :param sample_id: str
+        :return: None
+        """
+        sample_dir = os.path.join(self._level_paths[level_id], sample_id)
+        if not os.path.isdir(sample_dir):
+            os.makedirs(sample_dir, mode=0o775, exist_ok=True)
+        os.chdir(sample_dir)
+
+    def _copy_sim_files(self, files: List[str]):
+        """
+        Copy simulation common files to current simulation sample directory
+        :param files: List of files
+        :return: None
+        """
+        for file in files:
+            shutil.copy(file, os.getcwd())
+
+    def _handle_sim_files(self, sample_id, level_sim):
+        """
+        Change working directory to sample dir and copy common files
+        :param sample_id: str
+        :param level_sim: LevelSimulation
+        :return: None
+        """
+        self._change_to_sample_directory(level_sim.level_id, sample_id)
+        self._copy_sim_files(level_sim.common_files)
 
 
 if __name__ == "__main__":
