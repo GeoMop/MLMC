@@ -151,6 +151,7 @@ class Legendre(Moments):
 
     def _eval_all(self, value, size):
         value = self.transform(np.atleast_1d(value))
+
         return numpy.polynomial.legendre.legvander(value, deg=size - 1)
 
     def _eval_all_der(self, value, size, degree=1):
@@ -176,6 +177,87 @@ class Legendre(Moments):
             #eval_values[:, 0] = 1
 
         return eval_values
+
+import pandas as pd
+class BivariateMoments:
+
+    def __init__(self, moment_x, moment_y):
+
+        self.moment_x = moment_x
+        self.moment_y = moment_y
+
+        assert self.moment_y.size == self.moment_x.size
+
+        self.size = self.moment_x.size
+        self.domain = [self.moment_x.domain, self.moment_y.domain]
+
+    def eval_value(self, value):
+        x, y = value
+        results = np.empty((self.size, self.size))
+        for i in range(self.size):
+            for j in range(self.size):
+                results[i, j] = np.squeeze(self.moment_x(x))[i] * np.squeeze(self.moment_y(y))[j]
+
+        # print("results ")
+        # print(pd.DataFrame(results))
+
+        return results
+
+    def eval_all(self, value):
+        print("EVAL_ALL value ", value)
+        print("value type ", type(value))
+
+        if not isinstance(value[0], (list, tuple, np.ndarray)):
+            return self.eval_value(value)
+
+        value = np.array(value)
+        print("value ", value)
+        print("value.shape ", value.shape)
+
+        x = value[0, :]
+        y = value[1, :]
+        print("x", x)
+        print("y", y)
+
+        results = np.empty((len(value[0]), self.size, self.size))
+        print("results ", results)
+
+        print("results shape ", results.shape)
+        for i in range(self.size):
+            for j in range(self.size):
+                # print("fn(x)[:, i] ", fn(x)[:, i])
+                print("fn(x)[:, i]*fn(x)[:, j] ", np.squeeze(self.moment_x(x))[:, i] * np.squeeze(self.moment_y(y))[:, j])
+                results[:, i, j] = np.squeeze(self.moment_x(x))[:, i] * np.squeeze(self.moment_y(y))[:, j]
+        return results
+
+    def eval_all_der(self, value, degree=1):
+        print("EVAL_ALL DERIVATIVE value ", value)
+        print("value type ", type(value))
+
+        if not isinstance(value[0], (list, tuple, np.ndarray)):
+            return self.eval_value(value)
+
+        value = np.array(value)
+        print("value ", value)
+        print("value.shape ", value.shape)
+
+        x = value[0, :]
+        y = value[1, :]
+        print("x", x)
+        print("y", y)
+
+        results = np.empty((len(value[0]), self.size, self.size))
+        print("results ", results)
+
+        print("results shape ", results.shape)
+        for i in range(self.size):
+            for j in range(self.size):
+                # print("fn(x)[:, i] ", fn(x)[:, i])
+                print("fn(x)[:, i]*fn(x)[:, j] ", np.squeeze(self.moment_x.eval_all_der(x, degree=degree))[:, i] *
+                      np.squeeze(self.moment_y.eval_all_der(y, degree=degree))[:, j])
+                results[:, i, j] = np.squeeze(self.moment_x.eval_all_der(x, degree=degree))[:, i] *\
+                                   np.squeeze(self.moment_y.eval_all_der(y, degree=degree))[:, j]
+        return results
 
 
 # class Spline(Moments):
