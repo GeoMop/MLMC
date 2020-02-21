@@ -45,7 +45,20 @@ def sampler_test_pbs():
         mem='128mb',
         queue='charon_2h',
         home_dir='/storage/liberec3-tul/home/martin_spetlik/',
-        pbs_process_file_dir='/auto/liberec3-tul/home/martin_spetlik/MLMC_new_design/src/mlmc')
+        pbs_process_file_dir='/auto/liberec3-tul/home/martin_spetlik/MLMC_new_design/src/mlmc',
+        python='python3',
+        modules=['module use /storage/praha1/home/jan-hybs/modules',
+                 'module -fs purge',
+                 'module load metabase',
+                 'module load cmake-3.6.1',
+                 'module load gcc-6.4.0',
+                 'module load boost-1.60-gcc',
+                 'module load mpich-3.0.2-gcc',
+                 'module rm python-2.7.6-gcc',
+                 'module load python-3.6.2-gcc',
+                 'module load python36-modules-gcc',
+                 'module list']
+    )
 
     sampling_pool.pbs_common_setting(flow_3=True, **pbs_config)
 
@@ -69,13 +82,13 @@ def sampler_test_pbs():
     #
     # # @TODO: test
     # # New estimation according to already finished samples
-    # variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+    # variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
     # n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
     #                                                                    n_levels=sampler.n_levels)
     # # Loop until number of estimated samples is greater than the number of scheduled samples
     # while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
     #     # New estimation according to already finished samples
-    #     variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+    #     variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
     #     n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
     #                                                                        n_levels=sampler.n_levels)
 

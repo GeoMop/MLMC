@@ -22,7 +22,7 @@ class Sampler:
         self._step_range = step_range
 
         # Number of created samples
-        self._n_created_samples = np.zeros(len(step_range))
+        self._n_scheduled_samples = np.zeros(len(step_range))
         # Number of target samples
         self._n_target_samples = np.zeros(len(step_range))
         self._level_sim_objects = []
@@ -30,6 +30,9 @@ class Sampler:
 
         sample_storage.save_global_data(step_range=step_range,
                                         result_format=sim_factory.result_format())
+
+        # @TODO: get unfinished samples from sampler and call have permanent samples -> add results to pool's queues,
+        # before scheduled samples call, call get_finished - we need to know how many samples is finished
 
     @property
     def n_levels(self):
@@ -99,7 +102,7 @@ class Sampler:
         :param level_id: identifier of current level
         :return: str
         """
-        return "L{:02d}_S{:07d}".format(level_id, int(self._n_created_samples[level_id]))
+        return "L{:02d}_S{:07d}".format(level_id, int(self._n_scheduled_samples[level_id]))
 
     def schedule_samples(self):
         """
@@ -111,7 +114,8 @@ class Sampler:
         :return: None
         """
         self.ask_sampling_pool_for_samples()
-        plan_samples = self._n_target_samples - self._n_created_samples
+        # @TODO: avoid negative number of planned samples
+        plan_samples = self._n_target_samples - self._n_scheduled_samples
 
         for level_id, n_samples in enumerate(plan_samples):
             samples = []
@@ -123,7 +127,7 @@ class Sampler:
                 # Schedule current sample
                 self._sampling_pool.schedule_sample(sample_id, level_sim)
                 # Increment number of created samples at current level
-                self._n_created_samples[level_id] += 1
+                self._n_scheduled_samples[level_id] += 1
 
                 samples.append(sample_id)
 

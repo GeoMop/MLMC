@@ -50,23 +50,16 @@ class PbsProcess:
         self._successful_result_file = self._files['successful_results'].format(self._job_id)
         self._time_file = self._files['time'].format(self._job_id)
 
-    def _get_level_config(self):
+    def _get_level_sim_config(self, level_id):
         """
         Deserialize LevelSimulation object
         :return: None
         """
-        with open(self._files['levels_config'], "r") as reader:
-            level_config_files = reader.read().splitlines()
+        with open(self._files['level_sim_config'].format(level_id), "rb") as reader:
 
-        self._level_simulations = {}
-        self._level_paths = {}
-        for level_config_file_path in level_config_files:
             with open(level_config_file_path, "rb") as f:
                 l_sim = pickle.load(f)
                 self._level_simulations[l_sim.level_id] = l_sim
-
-            path = Path(level_config_file_path)
-            self._level_paths[l_sim.level_id] = path.parent
 
     def _read_file_structure(self, file_path):
         """
@@ -84,6 +77,12 @@ class PbsProcess:
         """
         with open(self._scheduled_file_path) as file:
             level_id_sample_id_seed = yaml.load(file, yaml.Loader)
+            
+        print("level id sample id seed ", level_id_sample_id_seed)
+
+        level_id_sample_id_seed.sort(key=lambda tup: tup[0])
+
+        print("SORTED level id sample id seed ", level_id_sample_id_seed)
 
         return level_id_sample_id_seed
 
@@ -95,43 +94,65 @@ class PbsProcess:
         # List of Tuple[level id, sample id, random seed]
         level_id_sample_id_seed = self._get_level_id_sample_id_seed()
 
-        failed = {}
-        success = {}
-        times = {}
+        # @TODO: sort samples by level ASC, measure time for level chunks
+
+        failed = []
+        success = []
+        times = []
+        current_level = 0
+        start_time = time.time()
+        chunk_to_file = 10  # Number of samples which are saved to file at one time
         for level_id, sample_id, seed in level_id_sample_id_seed:
+            # Deserialize level simulation config
+            if level_id not in self._level_simulations:
+                self._get_level_sim_config(level_id)
+
+            # Start measuring time
+            if current_level != level_id:
+                times = [0, 0]
+                times[0] = time.time() - start_time
+                start_time = time.time()
+                current_level = level_id
+                self._write_new_level(level_id)
+
             level_sim = self._level_simulations[level_id]
             assert level_sim.level_id == level_id
             self._handle_sim_files(sample_id, level_sim)
-
             # Go to sample directory
             #os.chdir(os.path.join(self._level_paths[level_id], sample_id))
 
             # Calculate sample
             res = (None, None)
             err_msg = ""
-            running_time = 0
+            #running_time = 0
             try:
-                start = time.time()
+                #start = time.time()
                 res = level_sim.calculate(level_sim.config_dict, seed)
-                running_time = time.time() - start
+                #running_time = time.time() - start
             except Exception as err:
                 err_msg = str(err)
 
-            # Save sample times [total time, number of samples]
-            if level_id not in times:
-                times[level_id] = [0, 0]
-            # Failed samples have running time equal 0 by default
-            if running_time != 0:
-                times[level_id][0] += running_time
-                times[level_id][1] += 1
+            times[1] += 1
+            chunk_to_file -= 1
 
             if not err_msg:
-                success.setdefault(level_sim.level_id, []).append((sample_id, (res[0], res[1])))
+                success.append((sample_id, (res[0], res[1])))
+                #self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
             else:
-                failed.setdefault(level_sim.level_id, []).append((sample_id, err_msg))
+                failed.append((sample_id, err_msg))
+                #self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
 
-        # Write all results at one go otherwise there is duplicate key error
-        self._write_results_to_file(success, failed, times)
+            if chunk_to_file == 0:
+                chunk_to_file = 10
+
+                # Write all results at one go otherwise there is duplicate key error
+                self._write_results_to_file(success, failed, times)
+
+                success = []
+                failed = []
+                times = []
+
+        self._add_end_mark()
 
     def _write_results_to_file(self, success, failed, times):
         """
@@ -141,15 +162,17 @@ class PbsProcess:
         :param times: n ops estimated
         :return: None
         """
+        print("success ", success)
+        print("failed ", failed)
+        print("times ", times)
+        self._append_file(success, self._successful_result_file)
+        self._append_file(failed, self._failed_result_file)
+        self._append_file(times, self._time_file)
 
-        for level_id, results in success.items():
-            self._append_file(results, os.path.join(self._level_paths[level_id], self._successful_result_file))
-
-        for level_id, results in failed.items():
-            self._append_file(results, os.path.join(self._level_paths[level_id], self._failed_result_file))
-
-        for level_id, time_n_samples in times.items():
-            self._append_file(time_n_samples, os.path.join(self._level_paths[level_id], self._time_file))
+    def _add_end_mark(self):
+        self._append_file("#", self._successful_result_file)
+        self._append_file("#", self._failed_result_file)
+        self._append_file("#", self._time_file)
 
     def _append_file(self, data, path):
         with open(path, "a") as f:
@@ -183,6 +206,8 @@ class PbsProcess:
         :param level_sim: LevelSimulation
         :return: None
         """
+        # @TODO: not create if need_workspace is not set
+
         self._change_to_sample_directory(level_sim.level_id, sample_id)
         self._copy_sim_files(level_sim.common_files)
 
