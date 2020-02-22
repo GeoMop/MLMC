@@ -21,7 +21,7 @@ def oneprocess_test():
     n_moments = 5
 
     distr = stats.norm(loc=1, scale=2)
-    step_range = [0.01, 0.001]
+    step_range = [0.01, 0.001, 0.0001]
 
     # Set work dir
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -57,17 +57,17 @@ def oneprocess_test():
 
     # @TODO: test
     # New estimation according to already finished samples
-    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
     n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                        n_levels=sampler.n_levels)
     # Loop until number of estimated samples is greater than the number of scheduled samples
     while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
         # New estimation according to already finished samples
-        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
         n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                            n_levels=sampler.n_levels)
 
-    print("collected samples ", sampler._n_created_samples)
+    print("collected samples ", sampler._n_scheduled_samples)
     means, vars = q_estimator.estimate_moments(moments_fn)
 
 
@@ -87,7 +87,7 @@ def multiprocess_test():
     np.random.seed(3)
     n_moments = 5
     distr = stats.norm(loc=1, scale=2)
-    step_range = [0.01]#, 0.001, 0.0001]
+    step_range = [0.01, 0.001]#, 0.001, 0.0001]
 
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
@@ -122,17 +122,17 @@ def multiprocess_test():
 
     # @TODO: test
     # New estimation according to already finished samples
-    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
     n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                        n_levels=sampler.n_levels)
     # Loop until number of estimated samples is greater than the number of scheduled samples
     while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
         # New estimation according to already finished samples
-        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
         n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                            n_levels=sampler.n_levels)
 
-    print("collected samples ", sampler._n_created_samples)
+    print("collected samples ", sampler._n_scheduled_samples)
     means, vars = q_estimator.estimate_moments(moments_fn)
 
     print("means ", means)
@@ -197,5 +197,5 @@ def thread_test():
 
 if __name__ == "__main__":
     multiprocess_test()
-    oneprocess_test()
-    thread_test()
+    #oneprocess_test()
+    #thread_test()
