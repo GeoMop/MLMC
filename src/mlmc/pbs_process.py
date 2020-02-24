@@ -201,6 +201,11 @@ class PbsProcess:
         self._write_end_mark(times_file)
 
     def _write_end_mark(self, path):
+        """
+        Write end mark to the file
+        :param path: str, file path
+        :return: None
+        """
         if os.path.exists(path):
             with open(path, "r") as reader:
                 data = yaml.load(reader, yaml.Loader)
@@ -209,8 +214,6 @@ class PbsProcess:
             with open(path, "w") as f:
                 yaml.dump(data, f)
 
-            # with open(path, "r") as reader:
-            #     data = yaml.load(reader, yaml.Loader)
 
     def _append_file(self, data, path, level_id, time=False):
         """
@@ -227,15 +230,11 @@ class PbsProcess:
                 if time:
                     file_data[level_id] = data[level_id]
                 else:
-                    print("file data ", file_data)
                     if level_id not in file_data:
                         file_data[level_id] = []
 
                     file_data[level_id].extend(data[level_id])
-
                 data = file_data
-
-        print("data ", data)
 
         with open(path, "w") as f:
             yaml.dump(data, f)
