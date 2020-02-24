@@ -10,7 +10,7 @@ from synth_simulation import SynthSimulation
 from synth_simulation_workspace import SynthSimulationWorkspace
 from sampler import Sampler
 from sample_storage_hdf import SampleStorageHDF
-from sampling_pool import OneProcessPool
+from sampling_pool import OneProcessPool, ProcessPool
 from mlmc.moments import Legendre
 from quantity_estimate import QuantityEstimate
 import new_estimator
@@ -35,7 +35,7 @@ def sampler_hdf_test():
     simulation_factory = SynthSimulation(simulation_config)
 
     sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_{}.hdf5".format(len(step_range))))
-    sampling_pool = OneProcessPool()
+    sampling_pool = ProcessPool(4)
 
     # Plan and compute samples
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
@@ -58,18 +58,18 @@ def sampler_hdf_test():
 
     # @TODO: test
     # New estimation according to already finished samples
-    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
     n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                        n_levels=sampler.n_levels)
 
     # Loop until number of estimated samples is greater than the number of scheduled samples
     while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
         # New estimation according to already finished samples
-        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
         n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                            n_levels=sampler.n_levels)
 
-    print("collected samples ", sampler._n_created_samples)
+    print("collected samples ", sampler._n_scheduled_samples)
     means, vars = q_estimator.estimate_moments(moments_fn)
 
     print("means ", means)

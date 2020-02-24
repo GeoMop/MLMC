@@ -237,7 +237,7 @@ class ProcessPool(OneProcessPool):
             self._queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
         else:
             self._failed_queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, err_msg))
-            self._move_failed_dir(sample_id)
+            self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
 
 
 class ThreadPool(ProcessPool):
