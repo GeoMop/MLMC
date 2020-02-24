@@ -1,7 +1,6 @@
 import os
 import shutil
 import subprocess
-import yaml
 import re
 import pickle
 import json
@@ -32,7 +31,7 @@ class SamplingPoolPBS(SamplingPool):
         # Current collected weight.
         self._job_count = job_count
         # Current number of jobs - sort of jobID
-        self._number_of_realizations = 0
+        self._n_samples_in_job = 0
         # Number of samples in job
         self.pbs_script = None
         self._pbs_config = None
@@ -126,7 +125,7 @@ class SamplingPoolPBS(SamplingPool):
         seed = self.compute_seed(sample_id)
         self._scheduled.append((level_sim.level_id, sample_id, seed))
 
-        self._number_of_realizations += 1
+        self._n_samples_in_job += 1
         self._current_job_weight += level_sim.task_size
         if self._current_job_weight > self.job_weight:
             self.execute()
@@ -159,7 +158,7 @@ class SamplingPoolPBS(SamplingPool):
             # Format pbs script
             self._create_script()
 
-            if self.pbs_script is None or self._number_of_realizations == 0:
+            if self.pbs_script is None or self._n_samples_in_job == 0:
                 return
 
             # Write pbs script
@@ -181,7 +180,7 @@ class SamplingPoolPBS(SamplingPool):
             pbs_process.write_pbs_id(pbs_id)
 
         self._current_job_weight = 0
-        self._number_of_realizations = 0
+        self._n_samples_in_job = 0
         self._scheduled = []
 
     def _create_script(self):

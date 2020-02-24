@@ -132,6 +132,10 @@ class PbsProcess:
         Calculate scheduled samples
         :return:
         """
+        success_file = os.path.join(self._jobs_dir, PbsProcess.SUCCESSFUL_RESULTS.format(self._job_id))
+        failed_file = os.path.join(self._jobs_dir, PbsProcess.FAILED_RESULTS.format(self._job_id))
+        times_file = os.path.join(self._jobs_dir, PbsProcess.TIME.format(self._job_id))
+
         # List of Tuple[level id, sample id, random seed]
         level_id_sample_id_seed = self._get_level_id_sample_id_seed()
 
@@ -183,28 +187,30 @@ class PbsProcess:
 
                 # Write results to files
                 if success:
-                    self._append_file(success, os.path.join(self._jobs_dir, PbsProcess.SUCCESSFUL_RESULTS.format(self._job_id)), level_id)
+                    self._append_file(success, success_file, level_id)
                 if failed:
-                    self._append_file(failed, os.path.join(self._jobs_dir, PbsProcess.FAILED_RESULTS.format(self._job_id)), level_id)
+                    self._append_file(failed, failed_file, level_id)
                 if times:
-                    self._append_file(times, os.path.join(self._jobs_dir, PbsProcess.TIME.format(self._job_id)), level_id, True)
+                    self._append_file(times, times_file, level_id, True)
 
                 success = {}
                 failed = {}
 
-        #self._add_end_mark()
+        self._write_end_mark(success_file)
+        self._write_end_mark(failed_file)
+        self._write_end_mark(times_file)
 
-    def _add_end_mark(self):
-        # end_mark = {"end": "#"}
-        # self._append_file(end_mark, self._successful_result_file)
-        # self._append_file(end_mark, self._failed_result_file)
-        # self._append_file(end_mark, self._time_file)
+    def _write_end_mark(self, path):
+        if os.path.exists(path):
+            with open(path, "r") as reader:
+                data = yaml.load(reader, yaml.Loader)
+            # Add end mark to the file
+            data["end"] = ""
+            with open(path, "w") as f:
+                yaml.dump(data, f)
 
-        if os.path.exists(self._successful_result_file):
-            with open(self._successful_result_file, "r") as reader:
-                successful = yaml.load(reader, yaml.Loader)
-
-            print("successful ", successful)
+            # with open(path, "r") as reader:
+            #     data = yaml.load(reader, yaml.Loader)
 
     def _append_file(self, data, path, level_id, time=False):
         """
@@ -215,7 +221,6 @@ class PbsProcess:
         :param time: bool, if true save time data
         :return: None
         """
-
         if os.path.exists(path):
             with open(path, "r") as reader:
                 file_data = yaml.load(reader, yaml.Loader)
