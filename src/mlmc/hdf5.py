@@ -353,6 +353,8 @@ class LevelGroup:
         :return: all dataset values, TODO: generator in future
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
+            if 'collected_values' not in hdf_file[self.level_group_path]:
+                return None
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
             values = dataset[()]
 

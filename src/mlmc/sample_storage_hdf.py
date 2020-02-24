@@ -133,6 +133,9 @@ class SampleStorageHDF(SampleStorage):
         levels_results = list(np.empty(len(self._level_groups)))
         for level in self._level_groups:
             results = level.collected()
+            if results is None:
+                continue
+                
             levels_results[int(level.level_id)] = results.transpose((2, 0, 1))
 
         return levels_results

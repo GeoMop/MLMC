@@ -20,8 +20,6 @@ class QuantityEstimate:
     def levels_results(self):
         level_results = self._sample_storage.sample_pairs()
 
-        print("level results ", level_results)
-
         if len(level_results) == 0:
             raise Exception("No data")
 
@@ -29,7 +27,8 @@ class QuantityEstimate:
         new_level_results = []
         if level_results[0].shape[0] > 1:
             for l_res in level_results:
-                new_level_results.append(l_res[0])
+                if isinstance(l_res, np.ndarray):
+                    new_level_results.append(l_res[0])
         else:
             new_level_results = level_results
 
