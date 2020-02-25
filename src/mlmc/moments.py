@@ -151,7 +151,6 @@ class Legendre(Moments):
 
     def _eval_all(self, value, size):
         value = self.transform(np.atleast_1d(value))
-
         return numpy.polynomial.legendre.legvander(value, deg=size - 1)
 
     def _eval_all_der(self, value, size, degree=1):
@@ -188,76 +187,206 @@ class BivariateMoments:
 
         assert self.moment_y.size == self.moment_x.size
 
-        self.size = self.moment_x.size
+        self.size = self.moment_x.size * self.moment_y.size
         self.domain = [self.moment_x.domain, self.moment_y.domain]
+
+    def _eval_value(self, value):
+        return self.eval_value(value)
 
     def eval_value(self, value):
         x, y = value
-        results = np.empty((self.size, self.size))
-        for i in range(self.size):
-            for j in range(self.size):
-                results[i, j] = np.squeeze(self.moment_x(x))[i] * np.squeeze(self.moment_y(y))[j]
+        results = []
 
-        # print("results ")
+        x_mom = self.moment_x(x)[0]
+        y_mom = self.moment_y(y)[0]
+
+
+        # # # pom = np.empty((self.size, self.size))
+        # for i in range(self.moment_x.size):
+        #     for j in range(self.moment_y.size):
+        #         # print("x_mom ", x_mom)
+        #         # print("y_mom ", y_mom)
+        #         # print("x_mom[0, i]", x_mom[0, i])
+        #         # print("y_mom[0, j]", y_mom[0, j])
+        #         results.append(x_mom[i] * y_mom[j])
+        #     # print("results ", results)
+
+        # print("results EVAL_VALUE")
         # print(pd.DataFrame(results))
+        #
+        #
+        # print("np.outer(x_mom, y_mom).flatten()")
+        # print(pd.DataFrame(np.outer(x_mom, y_mom).flatten()))
 
-        return results
+        # print("np.array([results]).shape ", np.array([results]).shape)
+        # print("np.outer(x_mom, y_mom).flatten().shape ", np.outer(x_mom, y_mom).flatten().shape)
 
-    def eval_all(self, value):
-        print("EVAL_ALL value ", value)
-        print("value type ", type(value))
+        return np.array([np.outer(x_mom, y_mom).flatten()])
 
-        if not isinstance(value[0], (list, tuple, np.ndarray)):
-            return self.eval_value(value)
+        #return np.array([results])
 
-        value = np.array(value)
-        print("value ", value)
-        print("value.shape ", value.shape)
+    def _eval_all(self, value, size=None):
+        return self.eval_all(value)
 
-        x = value[0, :]
-        y = value[1, :]
-        print("x", x)
-        print("y", y)
-
-        results = np.empty((len(value[0]), self.size, self.size))
-        print("results ", results)
-
-        print("results shape ", results.shape)
-        for i in range(self.size):
-            for j in range(self.size):
-                # print("fn(x)[:, i] ", fn(x)[:, i])
-                print("fn(x)[:, i]*fn(x)[:, j] ", np.squeeze(self.moment_x(x))[:, i] * np.squeeze(self.moment_y(y))[:, j])
-                results[:, i, j] = np.squeeze(self.moment_x(x))[:, i] * np.squeeze(self.moment_y(y))[:, j]
-        return results
-
-    def eval_all_der(self, value, degree=1):
-        print("EVAL_ALL DERIVATIVE value ", value)
-        print("value type ", type(value))
+    def eval_all(self, value, size=None):
+        # print("EVAL_ALL value ", value)
+        # print("value type ", type(value))
 
         if not isinstance(value[0], (list, tuple, np.ndarray)):
             return self.eval_value(value)
 
         value = np.array(value)
-        print("value ", value)
-        print("value.shape ", value.shape)
+        # print("value ", value)
+        # print("value.shape ", value.shape)
 
         x = value[0, :]
         y = value[1, :]
-        print("x", x)
-        print("y", y)
+        # print("x", x)
+        #print("self size ", self.size)
+        # print("y", y)
 
-        results = np.empty((len(value[0]), self.size, self.size))
-        print("results ", results)
+        results = []#np.empty((len(value[0]), self.size, self.size))
+        #print("results ", results)
 
-        print("results shape ", results.shape)
-        for i in range(self.size):
-            for j in range(self.size):
-                # print("fn(x)[:, i] ", fn(x)[:, i])
-                print("fn(x)[:, i]*fn(x)[:, j] ", np.squeeze(self.moment_x.eval_all_der(x, degree=degree))[:, i] *
-                      np.squeeze(self.moment_y.eval_all_der(y, degree=degree))[:, j])
-                results[:, i, j] = np.squeeze(self.moment_x.eval_all_der(x, degree=degree))[:, i] *\
-                                   np.squeeze(self.moment_y.eval_all_der(y, degree=degree))[:, j]
-        return results
+        x_mom = self.moment_x.eval_all(x, self.moment_x.size)
+        y_mom = self.moment_y.eval_all(y, self.moment_y.size)
+
+        # print("x mom ", x_mom)
+        # print("y mom ", y_mom)
+
+        res = np.einsum('ni,nj->nij', x_mom, y_mom)
+        res = res.reshape(-1, res.shape[1] * res.shape[2])
+
+        return res
+
+        # print("res")
+        # print(res)
+        # print("res shape ", res.shape)
+        #
+        # #print("results shape ", results.shape)
+        # for x_m, y_m in zip(x_mom, y_mom):
+        #     # item_res = []
+        #     # #pom = np.empty((self.size, self.size))
+        #     # for i in range(self.moment_x.size):
+        #     #     for j in range(self.moment_y.size):
+        #     #         item_res.append(x_m[i] * y_m[j])
+        #
+        #             #pom[i,j] = x_m[i] * y_m[j]
+        #     item_res = np.outer(x_m, y_m).flatten()
+        #
+        #     #print("item_res ", item_res)
+        #     #print("pom.flatten() ", pom.flatten())
+        #
+        #
+        #     results.append(np.array(item_res))
+        #
+        # print("EVAL ALL")
+        # print(pd.DataFrame(results))
+        # print("results.shape ",  np.array(results).shape)
+        #
+        # exit()
+        #
+        # return np.array(results)
+
+    def _eval_all_der(self, value, size, degree):
+        return self.eval_all_der(value, size, degree=degree)
+
+    def eval_value_der(self, value, size, degree):
+        x, y = value
+        results = []
+
+        x_mom = self.moment_x._eval_all_der(x, size=self.moment_x.size, degree=degree)[0]
+        y_mom = self.moment_y._eval_all_der(y, size=self.moment_y.size, degree=degree)[0]
+
+        return np.outer(x_mom, y_mom).flatten()
+
+        # # pom = np.empty((self.size, self.size))
+        # for i in range(self.moment_x.size):
+        #     for j in range(self.moment_y.size):
+        #         # print("x_mom ", x_mom)
+        #         # print("y_mom ", y_mom)
+        #         # print("x_mom[0, i]", x_mom[0, i])
+        #         # print("y_mom[0, j]", y_mom[0, j])
+        #         results.append(x_mom[0, i] * y_mom[0, j])
+        #     #print("results ", results)
+        #
+        # # print("results EVAL_VALUE_DER")
+        # # print(pd.DataFrame(results))
+        #
+        # return np.array(results)
+
+    def eval_all_der(self, value, size=None, degree=1):
+        # print("EVAL_ALL DERIVATIVE value ", value)
+        # print("value type ", type(value))
+        if size is None:
+            size = self.size
+
+        if not isinstance(value[0], (list, tuple, np.ndarray)):
+            return self.eval_value_der(value, size=size, degree=degree)
+
+        value = np.array(value)
+        # print("value ", value)
+        # print("value.shape ", value.shape)
+
+        x = value[0, :]
+        y = value[1, :]
+        # print("x", x)
+        # print("y", y)
+
+        x_mom = self.moment_x._eval_all_der(x, self.moment_x.size, degree=degree)
+        y_mom = self.moment_y._eval_all_der(y, self.moment_y.size, degree=degree)
+
+        res = np.einsum('ni,nj->nij', x_mom, y_mom)
+        print("res shape ", res.shape)
+        res = res.reshape(-1, res.shape[1] * res.shape[2])
+        print("res reshaped shape ", res.shape)
+
+        return res
+
+        # # print("x mom der", x_mom)
+        # # print("y mom der", y_mom)
+        #
+        # results = []
+        #
+        # # print("results shape ", results.shape)
+        # for x_m, y_m in zip(x_mom, y_mom):
+        #     item_res = []
+        #     # pom = np.empty((self.size, self.size))
+        #     for i in range(self.moment_x.size):
+        #         for j in range(self.moment_y.size):
+        #             item_res.append(x_m[i] * y_m[j])
+        #
+        #             # pom[i,j] = x_m[i] * y_m[j]
+        #
+        #     #print("item_res ", item_res)
+        #     # print("pom.flatten() ", pom.flatten())
+        #
+        #     results.append(np.array(item_res))
+        #
+        # #print("results ", results)
+        # # print("EVAL ALL DER")
+        # # print(pd.DataFrame(results))
+        #
+        # return np.array(results)
+
+
+        # results = np.empty((len(value[0]), self.size, self.size))
+        # # print("results ", results)
+        # #
+        # # print("results shape ", results.shape)
+        # for i in range(self.size):
+        #     for j in range(self.size):
+        #         # print("fn(x)[:, i] ", fn(x)[:, i])
+        #         #print("fn(x)[:, i]*fn(x)[:, j] ", np.squeeze(self.moment_x.eval_all_der(x, degree=degree))[:, i] *
+        #         #      np.squeeze(self.moment_y.eval_all_der(y, degree=degree))[:, j])
+        #         results[:, i, j] = np.squeeze(self.moment_x._eval_all_der(x, size=size, degree=degree))[:, i] *\
+        #                            np.squeeze(self.moment_y._eval_all_der(y, size=size, degree=degree))[:, j]
+
+        # print("results EVAL_ALL_DER")
+        # print(pd.DataFrame(results))
+        # exit()
+        #
+        # return results
 
 
 # class Spline(Moments):
@@ -555,7 +684,11 @@ class TransformedMoments(Moments):
 
     def _eval_all(self, value, size):
         orig_moments = self._origin._eval_all(value, self._origin.size)
+        # print("orig_moments ", orig_moments)
+        # print("self._transform.T ", self._transform.T)
         x1 = np.matmul(orig_moments, self._transform.T)
+
+        #print("size ", size)
 
         return x1[:, :size]
 
