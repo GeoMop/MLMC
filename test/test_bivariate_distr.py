@@ -350,38 +350,10 @@ class DistributionDomainCase:
         :return:
         """
         results = []
-        # distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_exact", cdf_plot=False,
-        #                                     log_x=self.log_flag, error_plot='kl', multipliers_plot=True)
+        distr_plot = plot.BivariateDistribution(exact_distr=self.cut_distr, title=self.title+"_exact")
 
         mom_class, min_mom, max_mom, log_flag = self.moments_data
         moments_num = [max_mom]
-
-        x, y = np.mgrid[-4:4:.01, -4:4:.01]
-        print("x.shape ", x.shape)
-        print("y.shape ", y.shape)
-
-        # print("x ", x)
-        # print("y ", y)
-        # print(" x[:, 0] ", x[:, 0])
-        # print(" y[:, 0] ", y[0, :])
-
-        pos = np.empty(x.shape + (2,))
-        pos[:, :, 0] = x
-        pos[:, :, 1] = y
-
-        rv = multivariate_normal([0, 0], [[1, 0], [0, 1]])
-        # pos = [[3.10074263, 3.10074263],
-        #        [3.10863558, 3.10863558],
-        #        [3.11502949, 3.11502949],
-        #        [3.11992162, 3.11992162],
-        #        [3.12330996, 3.12330996],
-        #        [3.12519381, 3.12519381]]
-
-        #print("rv.pdf((1, 1)) ", rv.pdf(pos))
-        #plt.contourf(x, y, rv.pdf(pos))
-
-        #plt.contourf(x, y, rv.pdf(pos), 20, cmap='RdGy')
-        #plt.show()
 
         for i_m, n_moments in enumerate(moments_num):
             self.moments_data = (mom_class, n_moments, n_moments, log_flag)
@@ -403,8 +375,8 @@ class DistributionDomainCase:
             result, distr_obj = self.make_approx(mlmc.bivariate_simple_distr.SimpleDistribution, 0.0, moments_data,
                                                  tol=1e-7)
 
-            # distr_plot.add_distribution(distr_obj, label="#{}".format(n_moments) +
-            #                                              "\n total variation {:6.2g}".format(result.tv))
+            distr_plot.add_distribution(distr_obj, label="#{}".format(n_moments) +
+                                                         "\n total variation {:6.2g}".format(result.tv))
             results.append(result)
 
         # mult_tranform_back = distr_obj.multipliers  # @ np.linalg.inv(self.L)
@@ -416,26 +388,9 @@ class DistributionDomainCase:
         M = np.eye(len(self._cov_with_noise[0]))
         M[:, 0] = -self._cov_with_noise[:, 0]
 
-        # print("x ", x)
-        # print("y ", y)
-
-        density_values = np.empty(x.shape)
-        for index, (x, y) in enumerate(zip(x, y)):
-            # x = x[0]
-            # for i, y_val in enumerate(y):
-            # print("distr_obj.density(x, y) ", distr_obj.density((x, y)))
-            # print("distr_obj.density(x, y).shape ", distr_obj.density((x, y)).shape)
-            density_values[index, :] = distr_obj.density((x, y))
-
-        print("density_values ", density_values)
-        print("rv.pdf(pos) ", rv.pdf(pos))
-
-        print("density_values.shape ", density_values.shape)
-        print("rv.pdf(pos).shape ", rv.pdf(pos).shape)
-
-        #plt.contourf(x, y, density_values, 20, cmap='RdGy')
-        plt.contourf(x, y, rv.pdf(pos), 20, cmap='RdGy')
-        plt.show()
+        # plt.contourf(x, y, density_values, 20, cmap='RdGy')
+        # #plt.contourf(x, y, rv.pdf(pos), 20, cmap='RdGy')
+        # plt.show()
 
         # print("M @ L-1 @ H @ L.T-1 @ M.T")
         # print(pd.DataFrame(
@@ -444,12 +399,10 @@ class DistributionDomainCase:
         # print("orig cov centered")
         # print(pd.DataFrame(self._cov_centered))
 
-
-
         #self.check_convergence(results)
         #plt.show()
-        # distr_plot.show(None)#file=self.pdfname("_pdf_exact"))
-        # distr_plot.reset()
+        distr_plot.show(None)#file=self.pdfname("_pdf_exact"))
+        distr_plot.reset()
 
         #self._plot_kl_div(moments_num, [r.kl for r in results])
         #self._plot_kl_div(moments_num, [r.kl_2 for r in results])
@@ -733,7 +686,7 @@ def run_distr():
         #(bd.Gamma(name='gamma'), False) # pass
         #(stats.norm(loc=1, scale=2), False),
         #(stats.norm(loc=0, scale=1), False),
-        (bd.MultivariateNorm(name='Multivariate_norm'), False)
+        (bd.BivariateNorm(name='Bivariate_norm'), False)
         #(stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
         #(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
         # (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.

@@ -3,6 +3,7 @@ import scipy.stats as st
 from scipy import interpolate
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, FixedLocator
+from mpl_toolkits import mplot3d
 
 def create_color_bar(range, label, ax=None):
     """
@@ -474,6 +475,150 @@ class Distribution:
         else:
             X = np.linspace(domain[0], domain[1], size)
         return X
+
+
+class BivariateDistribution:
+    """
+    mlmc.plot.Distribution
+
+    Class for plotting distribution approximation: PDF and CDF (optional)
+    Provides methods to: add more plots, add exact PDF, add ECDF/histogram from single level MC
+    """
+    def __init__(self, exact_distr, title="", quantity_name="X", legend_title=""):
+        """
+        Plot configuration
+        Simple difference is used for CDF for both options.
+        """
+        self._exact_distr = exact_distr
+        self._domain = None
+        self._title = title
+        self._legend_title = legend_title
+        self.plot_matrix = []
+        self.i_plot = 0
+
+        self._reg_param = 0
+        self.colormap = plt.cm.tab20
+
+        self.fig = plt.figure(figsize=(22, 10))
+
+
+        self.ax_2d_exact = self.fig.add_subplot(2, 2, 1)
+        self.ax_2d = self.fig.add_subplot(2, 2, 2)
+        self.ax_3d_exact = self.fig.add_subplot(2, 2, 3, projection='3d')
+        self.ax_3d = self.fig.add_subplot(2, 2, 4, projection='3d')
+
+        self.ax_2d_exact.set_title("2D exact")
+        self.ax_2d.set_title("2D")
+        self.ax_3d_exact.set_title("3D exact")
+        self.ax_3d.set_title("3D")
+
+        self.ax_3d_exact.set_xlabel('x')
+        self.ax_3d_exact.set_ylabel('y')
+        self.ax_3d_exact.set_zlabel('z')
+
+        self.ax_3d.set_xlabel('x')
+        self.ax_3d.set_ylabel('y')
+        self.ax_3d.set_zlabel('z')
+
+        self.ax_3d.view_init(60, 35)
+        self.ax_3d_exact.view_init(60, 35)
+
+        self.fig.suptitle(title, y=0.99)
+
+    def add_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0):
+        """
+        Add plot for distribution 'distr_object' with given label.
+        :param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain
+        :param label: string label for legend
+        :return:
+        """
+        domain = distr_object.domain
+        self.adjust_domain(domain)
+
+        X, Y = self._grid(1000, domain=domain)
+
+        Z = np.empty(X.shape)
+        for index, (x, y) in enumerate(zip(X, Y)):
+            Z[index, :] = distr_object.density((x, y))
+
+        self.ax_2d.contourf(X, Y, Z, 20, cmap='RdGy')
+        self.ax_3d.contour3D(X, Y, Z, 50, cmap='binary')
+
+        self.i_plot += 1
+
+    def show(self, file=""):
+        """
+        Set colors according to the number of added plots.
+        Set domain from all plots.
+        Plot exact distribution.
+        show, possibly save to file.
+        :param file: None, or filename, default name is same as plot title.
+        """
+        self._add_exact_distr()
+        self.ax_2d_exact.legend()#, loc='upper right', bbox_to_anchor=(0.5, -0.05))
+        self.ax_2d.legend()
+        self.ax_3d_exact.legend()
+        self.ax_3d.legend()
+
+        _show_and_save(self.fig, file, self._title)
+
+    def reset(self):
+        plt.close()
+        self._domain = None
+
+    def _plot_borders(self, ax, color, domain=None):
+        """
+        Add vertical lines to the plot for endpoints of the 'domain'.
+        :return: Pair of line objects.
+        """
+        if domain is None:
+            domain = self._domain
+        l1 = ax.axvline(x=domain[0], ymin=0, ymax=0.1, color=color)
+        l2 = ax.axvline(x=domain[1], ymin=0, ymax=0.1, color=color)
+        return [l1, l2]
+
+    def adjust_domain(self, domain):
+        """
+        Enlarge common domain by given bounds.
+        :param value: [lower_bound, upper_bound]
+        """
+        if self._domain is None:
+            self._domain = domain
+        else:
+            self._domain = [min(self._domain[0], domain[0]), max(self._domain[1], domain[1])]
+
+    def _add_exact_distr(self):
+        """
+        Plot exact PDF and CDF.
+        :return:
+        """
+        if self._exact_distr is None:
+            return
+        X, Y = self._grid(1000)
+
+        coordinates = np.empty(X.shape + (2,))
+        coordinates[:, :, 0] = X
+        coordinates[:, :, 1] = Y
+
+        Z = self._exact_distr.pdf(coordinates)
+
+        self.ax_2d_exact.contourf(X, Y, Z, 20, cmap='RdGy')
+        self.ax_3d_exact.contour3D(X, Y, Z, 50, cmap='binary')
+
+    def _grid(self, size, domain=None):
+        """
+        X values grid for given domain. Optionally use the log scale.
+        """
+        if domain is None:
+            domain = self._domain
+        print("domain ", domain)
+        x_domain, y_domain = domain
+
+        step_x = (np.abs(x_domain[0]) + np.abs(x_domain[1])) / size
+        step_y = (np.abs(y_domain[0]) + np.abs(y_domain[1])) / size
+        X, Y = np.mgrid[x_domain[0]:x_domain[1]:step_x, y_domain[0]:y_domain[1]:step_y]
+
+        return X, Y
 
 
 class Eigenvalues:

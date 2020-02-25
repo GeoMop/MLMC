@@ -23,7 +23,7 @@ class SimpleDistribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=2, regularization=None):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=25, regularization=None):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -42,7 +42,7 @@ class SimpleDistribution:
         # Domain of the density approximation (and moment functions).
         if domain is None:
             domain = moments_obj.domain
-        self.domain = domain[0]  # @TODO: temporary workaround
+        self.domain = domain  # @TODO: temporary workaround
         # Indicates whether force decay of PDF at domain endpoints.
         self.decay_penalty = force_decay
 
@@ -349,7 +349,7 @@ class SimpleDistribution:
 
         # Start with uniform distribution
         self.multipliers = np.zeros((size))
-        self.multipliers[0] = -np.log(1/(self.domain[1] - self.domain[0]))
+        self.multipliers[0] = -np.log(1/(self.domain[0][1] - self.domain[0][0]))
         # Log to store error messages from quad, report only on conv. problem.
         self._quad_log = []
 
@@ -406,7 +406,8 @@ class SimpleDistribution:
             return np.exp(power) * moms[:, m]
 
         # @TODO: different domains
-        y, abserr = sc.integrate.dblquad(integrand, self.domain[0], self.domain[1], self.domain[0], self.domain[1])
+        y, abserr = sc.integrate.dblquad(integrand, self.domain[0][0], self.domain[0][1],
+                                         self.domain[1][0], self.domain[1][1])
 
         # result = sc.integrate.quad(integrand, self.domain[0], self.domain[1],
         #                            epsabs=self._quad_tolerance, full_output=full_output)
@@ -445,11 +446,11 @@ class SimpleDistribution:
         # points = (pt[None, :] + 1) / 2 * (self.domain[1] - self.domain[0]) + self.domain[0]
         # weights = w[None, :] * (self.domain[1] - self.domain[0]) / 2
 
-        x_points = (pt[None, :] + 1) / 2 * (self.domain[1] - self.domain[0]) + self.domain[0]
-        x_weights = w[None, :] * (self.domain[1] - self.domain[0]) / 2
+        x_points = (pt[None, :] + 1) / 2 * (self.domain[0][1] - self.domain[0][0]) + self.domain[0][0]
+        x_weights = w[None, :] * (self.domain[0][1] - self.domain[0][0]) / 2
 
-        y_points = (pt[None, :] + 1) / 2 * (self.domain[1] - self.domain[0]) + self.domain[0]
-        y_weights = w[None, :] * (self.domain[1] - self.domain[0]) / 2
+        y_points = (pt[None, :] + 1) / 2 * (self.domain[1][1] - self.domain[1][0]) + self.domain[1][0]
+        y_weights = w[None, :] * (self.domain[1][1] - self.domain[1][0]) / 2
 
         self.x_quad_points = x_points.flatten()
         self.x_quad_weights = x_weights.flatten()
@@ -475,19 +476,19 @@ class SimpleDistribution:
         self._last_multipliers = multipliers
         self._last_gradient = integral
 
-    def end_point_derivatives(self):
-        """
-        Compute approximation of moment derivatives at endpoints of the domain.
-        :return: array (2, n_moments)
-        """
-        eps = 1e-10
-        left_diff = right_diff = np.zeros((1, self.approx_size))
-        if self.decay_penalty[0]:
-            left_diff = self.eval_moments(self.domain[0] + eps) - self.eval_moments(self.domain[0])
-        if self.decay_penalty[1]:
-            right_diff = -self.eval_moments(self.domain[1]) + self.eval_moments(self.domain[1] - eps)
-
-        return np.stack((left_diff[0,:], right_diff[0,:]), axis=0)/eps/self._moment_errs[None, :]
+    # def end_point_derivatives(self):
+    #     """
+    #     Compute approximation of moment derivatives at endpoints of the domain.
+    #     :return: array (2, n_moments)
+    #     """
+    #     eps = 1e-10
+    #     left_diff = right_diff = np.zeros((1, self.approx_size))
+    #     if self.decay_penalty[0]:
+    #         left_diff = self.eval_moments(self.domain[0] + eps) - self.eval_moments(self.domain[0])
+    #     if self.decay_penalty[1]:
+    #         right_diff = -self.eval_moments(self.domain[1]) + self.eval_moments(self.domain[1] - eps)
+    #
+    #     return np.stack((left_diff[0,:], right_diff[0,:]), axis=0)/eps/self._moment_errs[None, :]
 
     def _density_in_quads(self, multipliers):
         power = -np.dot(self._quad_moments, multipliers / self._moment_errs)
