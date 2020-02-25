@@ -235,6 +235,14 @@ class DistributionDomainCase:
             # @TODO: remove regularization
             exact_cov, reg_matrix = mlmc.bivariate_simple_distr.compute_semiexact_cov_2(base_moments, self.pdf,
                                                                                      reg_param=reg_param)
+
+            # exact_cov, reg_matrix = mlmc.bivariate_simple_distr.compute_exact_cov(base_moments, self.pdf,
+            #                                                                             reg_param=reg_param)
+
+            print("exact cov ")
+            print(pd.DataFrame(exact_cov))
+            print("reg matrix ", reg_matrix)
+
             self.moments_without_noise = exact_cov[:, 0]
 
             # Add regularization
@@ -308,7 +316,7 @@ class DistributionDomainCase:
         t0 = time.time()
         min_result = distr_obj.estimate_density_minimize(tol=tol, multipliers=None)
 
-        moments = mlmc.simple_distribution.compute_semiexact_moments(self.moments_fn, distr_obj.density)
+        moments = mlmc.bivariate_simple_distr.compute_semiexact_moments(self.moments_fn, distr_obj.density)
 
         print("moments approx error: ", np.linalg.norm(moments - self.exact_moments), "m0: ", moments[0])
 
@@ -323,14 +331,15 @@ class DistributionDomainCase:
         if result.success:
             result.nit = min_result.nit
         a, b = self.domain
-        result.kl = mlmc.simple_distribution.KL_divergence(self.pdf, distr_obj.density, a, b)
-        result.kl_2 = mlmc.simple_distribution.KL_divergence_2(self.pdf, distr_obj.density, a, b)
-        result.l2 = mlmc.simple_distribution.L2_distance(self.pdf, distr_obj.density, a, b)
+        result.kl = mlmc.bivariate_simple_distr.KL_divergence(self.pdf, distr_obj.density, a, b)
+        result.kl_2 = mlmc.bivariate_simple_distr.KL_divergence_2(self.pdf, distr_obj.density, a, b)
+        result.l2 = mlmc.bivariate_simple_distr.L2_distance(self.pdf, distr_obj.density, a, b)
         result.tv = 0#mlmc.simple_distribution.total_variation_int(distr_obj.density_derivation, a, b)
         print(result)
-        X = np.linspace(self.cut_distr.domain[0], self.cut_distr.domain[1], 10)
-        density_vals = distr_obj.density(X)
-        exact_vals = self.pdf(X)
+        # X = np.linspace(self.cut_distr.domain[0], self.cut_distr.domain[1], 10)
+        # Y = np.linspace(self.cut_distr.domain[0], self.cut_distr.domain[1], 10)
+        # density_vals = distr_obj.density(X, Y)
+        # exact_vals = self.pdf(X, Y)
         #print("vals: ", density_vals)
         #print("exact: ", exact_vals)
         return result, distr_obj
@@ -341,11 +350,38 @@ class DistributionDomainCase:
         :return:
         """
         results = []
-        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_exact", cdf_plot=False,
-                                            log_x=self.log_flag, error_plot='kl', multipliers_plot=True)
+        # distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_exact", cdf_plot=False,
+        #                                     log_x=self.log_flag, error_plot='kl', multipliers_plot=True)
 
         mom_class, min_mom, max_mom, log_flag = self.moments_data
         moments_num = [max_mom]
+
+        x, y = np.mgrid[-4:4:.01, -4:4:.01]
+        print("x.shape ", x.shape)
+        print("y.shape ", y.shape)
+
+        # print("x ", x)
+        # print("y ", y)
+        # print(" x[:, 0] ", x[:, 0])
+        # print(" y[:, 0] ", y[0, :])
+
+        pos = np.empty(x.shape + (2,))
+        pos[:, :, 0] = x
+        pos[:, :, 1] = y
+
+        rv = multivariate_normal([0, 0], [[1, 0], [0, 1]])
+        # pos = [[3.10074263, 3.10074263],
+        #        [3.10863558, 3.10863558],
+        #        [3.11502949, 3.11502949],
+        #        [3.11992162, 3.11992162],
+        #        [3.12330996, 3.12330996],
+        #        [3.12519381, 3.12519381]]
+
+        #print("rv.pdf((1, 1)) ", rv.pdf(pos))
+        #plt.contourf(x, y, rv.pdf(pos))
+
+        #plt.contourf(x, y, rv.pdf(pos), 20, cmap='RdGy')
+        #plt.show()
 
         for i_m, n_moments in enumerate(moments_num):
             self.moments_data = (mom_class, n_moments, n_moments, log_flag)
@@ -356,24 +392,19 @@ class DistributionDomainCase:
                 continue
             # moments_fn = moment_fn(n_moments, domain, log=log_flag, safe_eval=False )
             # print(i_m, n_moments, domain, force_decay)
+            # print("self exact moments ", self.exact_moments)
+            # print("self.moments_fn ", self.moments_fn)
+            n_moments = (self.moments_fn._origin.moment_x.size * self.moments_fn._origin.moment_y.size)
             moments_data = np.empty((n_moments, 2))
+
             moments_data[:, 0] = self.exact_moments[:n_moments]
             moments_data[:, 1] = 1.0
 
-            if self.use_covariance:
-                # modif_cov, reg = mlmc.simple_distribution.compute_exact_cov(self.moments_fn, self.pdf)
-                # diff_norm = np.linalg.norm(modif_cov - np.eye(*modif_cov.shape))
-                # print("#{} cov mat norm: {}".format(n_moments, diff_norm))
+            result, distr_obj = self.make_approx(mlmc.bivariate_simple_distr.SimpleDistribution, 0.0, moments_data,
+                                                 tol=1e-7)
 
-                result, distr_obj = self.make_approx(mlmc.simple_distribution.SimpleDistribution, 0.0, moments_data,
-                                                     tol=1e-10)
-            else:
-                # TODO:
-                # Use SimpleDistribution only as soon as it use regularization that improve convergency even without
-                # cov matrix. preconditioning.
-                result, distr_obj = self.make_approx(mlmc.distribution.Distribution, 0.0, moments_data)
-            distr_plot.add_distribution(distr_obj, label="#{}".format(n_moments) +
-                                                         "\n total variation {:6.2g}".format(result.tv))
+            # distr_plot.add_distribution(distr_obj, label="#{}".format(n_moments) +
+            #                                              "\n total variation {:6.2g}".format(result.tv))
             results.append(result)
 
         # mult_tranform_back = distr_obj.multipliers  # @ np.linalg.inv(self.L)
@@ -381,9 +412,30 @@ class DistributionDomainCase:
 
         final_jac = distr_obj.final_jac
 
-        distr_obj_exact_conv_int = mlmc.simple_distribution.compute_exact_cov(distr_obj.moments_fn, distr_obj.density)
+        #distr_obj_exact_conv_int = mlmc.bivariate_simple_distr.compute_exact_cov(distr_obj.moments_fn, distr_obj.density)
         M = np.eye(len(self._cov_with_noise[0]))
         M[:, 0] = -self._cov_with_noise[:, 0]
+
+        # print("x ", x)
+        # print("y ", y)
+
+        density_values = np.empty(x.shape)
+        for index, (x, y) in enumerate(zip(x, y)):
+            # x = x[0]
+            # for i, y_val in enumerate(y):
+            # print("distr_obj.density(x, y) ", distr_obj.density((x, y)))
+            # print("distr_obj.density(x, y).shape ", distr_obj.density((x, y)).shape)
+            density_values[index, :] = distr_obj.density((x, y))
+
+        print("density_values ", density_values)
+        print("rv.pdf(pos) ", rv.pdf(pos))
+
+        print("density_values.shape ", density_values.shape)
+        print("rv.pdf(pos).shape ", rv.pdf(pos).shape)
+
+        #plt.contourf(x, y, density_values, 20, cmap='RdGy')
+        plt.contourf(x, y, rv.pdf(pos), 20, cmap='RdGy')
+        plt.show()
 
         # print("M @ L-1 @ H @ L.T-1 @ M.T")
         # print(pd.DataFrame(
@@ -392,10 +444,12 @@ class DistributionDomainCase:
         # print("orig cov centered")
         # print(pd.DataFrame(self._cov_centered))
 
+
+
         #self.check_convergence(results)
         #plt.show()
-        distr_plot.show(None)#file=self.pdfname("_pdf_exact"))
-        distr_plot.reset()
+        # distr_plot.show(None)#file=self.pdfname("_pdf_exact"))
+        # distr_plot.reset()
 
         #self._plot_kl_div(moments_num, [r.kl for r in results])
         #self._plot_kl_div(moments_num, [r.kl_2 for r in results])
@@ -564,11 +618,11 @@ def test_pdf_approx_exact_moments(moments, distribution):
             values = conv.setdefault(name, (case.title, []))
             values[1].append(test_results)
 
-    for key, values in conv.items():
-        title, results = values
-        title = "{}_conv_{}".format(title, key)
-        if results[0] is not None:
-            plot.plot_convergence(quantiles, results, title=title)
+    # for key, values in conv.items():
+    #     title, results = values
+    #     title = "{}_conv_{}".format(title, key)
+    #     if results[0] is not None:
+    #         plot.plot_convergence(quantiles, results, title=title)
 
     # kl_collected = np.empty( (len(quantiles), len(moment_sizes)) )
     # l2_collected = np.empty_like(kl_collected)
@@ -698,7 +752,7 @@ def run_distr():
         # (moments.Monomial, 3, 10),
         # (moments.Fourier, 5, 61),
         # (moments.Legendre, 7,61, False),
-        (moments.Legendre, 5, 5, True),
+        (moments.Legendre, 3, 3, True),
         #(moments.Spline, 5, 5, True),
     ]
 
@@ -706,57 +760,6 @@ def run_distr():
         for distr in enumerate(distribution_list):
             #test_spline_approx(m, distr)
             test_pdf_approx_exact_moments(m, distr)
-
-if __name__ == "__main__":
-    # import scipy as sc
-    # sc.linalg.norm([1], 2)
-
-    #plot_derivatives()
-    #test_total_variation()
-
-    # import time as t
-    # zacatek = t.time()
-    #run_distr()
-    # print("celkový čas ", t.time() - zacatek)
-
-    import cProfile
-    import pstats
-    pr = cProfile.Profile()
-    pr.enable()
-
-    my_result = run_distr()
-
-    pr.disable()
-    ps = pstats.Stats(pr).sort_stats('cumtime')
-    ps.print_stats()
-
-
-# def run_distr():
-#     mean = np.array([0, 0])
-#     cov = np.array([[1, 0.0], [0.0, 1]])
-#     x = np.random.uniform(size=(100, 2))
-#     y = multivariate_normal.pdf(x, mean=mean, cov=cov)
-#     print(y)
-#
-#     #
-#     # x = np.linspace(0, 5, 100, endpoint=False)
-#     # y = multivariate_normal.pdf(x, mean=2.5, cov=0.5)
-#     #
-#     # print("x ", x)
-#     # print("y ", y)
-#
-#
-#     #plt.plot(x, y)
-#
-#     x, y = np.mgrid[-1:1:.01, -1:1:.01]
-#     pos = np.empty(x.shape + (2,))
-#     pos[:, :, 0] = x
-#     pos[:, :, 1] = y
-#     rv = multivariate_normal([0, 0], [[1, 0], [0, 1]])
-#     plt.contourf(x, y, rv.pdf(pos))
-#     plt.contourf(x, y, rv.pdf(pos), 20, cmap='RdGy')
-#
-#     plt.show()
 
 
 if __name__ == "__main__":

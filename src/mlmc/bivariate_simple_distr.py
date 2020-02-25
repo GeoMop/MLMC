@@ -14,7 +14,7 @@ import pandas as pd
 import numdifftools as nd
 
 EXACT_QUAD_LIMIT = 1000
-GAUSS_DEGREE = 151
+GAUSS_DEGREE = 50
 HUBERT_MU = 0.001
 
 
@@ -23,7 +23,7 @@ class SimpleDistribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=20, regularization=None):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=2, regularization=None):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -42,17 +42,24 @@ class SimpleDistribution:
         # Domain of the density approximation (and moment functions).
         if domain is None:
             domain = moments_obj.domain
-        self.domain = domain
+        self.domain = domain[0]  # @TODO: temporary workaround
         # Indicates whether force decay of PDF at domain endpoints.
         self.decay_penalty = force_decay
 
         self.functional_value = None
+
+        print("moment data ", moment_data)
 
         # Approximation of moment values.
         if moment_data is not None:
             self.moment_means = moment_data[:, 0]
             self.moment_errs = np.sqrt(moment_data[:, 1])
         self.moment_errs[:] = 1
+
+        print("moment_means ", self.moment_means)
+        print("moment_errs ", self.moment_errs)
+        print("domain ", self.domain)
+
 
         # Approximation parameters. Lagrange multipliers for moment equations.
         self._multipliers = None
@@ -111,6 +118,7 @@ class SimpleDistribution:
         #method = 'trust-ncg'
 
         print("init multipliers ", self.multipliers)
+
         result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
                                       jac=self._calculate_gradient,
                                       hess=self._calculate_jacobian_matrix,
@@ -126,9 +134,9 @@ class SimpleDistribution:
 
         jac = self._calculate_jacobian_matrix(self.multipliers)
         self.final_jac = jac
-        # print("final jacobian")
-        # with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
-        #     print(pd.DataFrame(jac))
+        print("final jacobian")
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
+            print(pd.DataFrame(jac))
 
         eval, evec = np.linalg.eigh(jac)
 
@@ -149,19 +157,21 @@ class SimpleDistribution:
         result.eigvals = np.linalg.eigvalsh(jac)
         kappa = np.max(result.eigvals) / np.min(result.eigvals)
         print("condition number ", kappa)
-        #result.residual = jac[0] * self._moment_errs
-        #result.residual[0] *= self._moment_errs[0]
-        result.solver_res = result.jac
-        # Fix normalization
-        moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
-        m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1], epsabs=self._quad_tolerance)[0]
-        print("moment[0]: {} m0: {}".format(moment_0, m0))
-
-        self.multipliers[0] += np.log(moment_0)
-
-        #m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1])[0]
-        #moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
-        #print("moment[0]: {} m0: {}".format(moment_0, m0))
+        # #result.residual = jac[0] * self._moment_errs
+        # #result.residual[0] *= self._moment_errs[0]
+        # result.solver_res = result.jac
+        # # Fix normalization
+        #
+        # moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
+        # m0 = sc.integrate.dblquad(self.density_2, self.domain[0], self.domain[1], self.domain[0], self.domain[1],
+        #                           epsabs=self._quad_tolerance)[0]
+        # print("moment[0]: {} m0: {}".format(moment_0, m0))
+        #
+        # self.multipliers[0] += np.log(moment_0)
+        #
+        # #m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1])[0]
+        # #moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
+        # #print("moment[0]: {} m0: {}".format(moment_0, m0))
 
         if result.success or jac_norm < tol:
             result.success = True
@@ -171,13 +181,30 @@ class SimpleDistribution:
 
         return result
 
+    def density_2(self, x_points, y_points):
+        """
+        :param value: float or np.array
+        :return: density for passed value
+        """
+        moms = self.eval_moments(x_points, y_points)
+        power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
+        power = np.minimum(np.maximum(power, -200), 200)
+
+        if type(power).__name__ == 'ArrayBox':
+            power = power._value
+            if type(power).__name__ == 'ArrayBox':
+                power = power._value
+
+        return np.exp(power)
+
     def density(self, value):
         """
         :param value: float or np.array
-        :param moments_fn: counting moments function
         :return: density for passed value
         """
-        moms = self.eval_moments(value)
+        x_points, y_points = value
+
+        moms = self.eval_moments(x_points, y_points)
         power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
         power = np.minimum(np.maximum(power, -200), 200)
 
@@ -313,6 +340,7 @@ class SimpleDistribution:
         """
         assert self.domain is not None
 
+
         assert tol is not None
         #self._quad_tolerance = tol / 1024
         self._quad_tolerance = 1e-10
@@ -320,20 +348,24 @@ class SimpleDistribution:
         self._moment_errs = self.moment_errs
 
         # Start with uniform distribution
-        self.multipliers = np.zeros(size)
+        self.multipliers = np.zeros((size))
         self.multipliers[0] = -np.log(1/(self.domain[1] - self.domain[0]))
         # Log to store error messages from quad, report only on conv. problem.
         self._quad_log = []
 
+        print("self multipliers ", self.multipliers)
+
         # Evaluate endpoint derivatives of the moments.
-        self._end_point_diff = self.end_point_derivatives()
+        #self._end_point_diff = self.end_point_derivatives()
         self._update_quadrature(self.multipliers, force=True)
 
-    def eval_moments(self, x):
-        return self.moments_fn.eval_all(x, self.approx_size)
+    def eval_moments(self, x, y):
+        #print("self.approx size ", self.approx_size)
+        #print("self moments fn ", self.moments_fn)
+        return self.moments_fn.eval_all((x, y), self.approx_size)
 
-    def eval_moments_der(self, x, degree=1):
-        return self.moments_fn.eval_all_der(x, self.approx_size, degree)
+    def eval_moments_der(self, x, y, degree=1):
+        return self.moments_fn.eval_all_der((x, y), self.approx_size, degree)
 
     # def _calc_exact_moments(self):
     #     integral = np.zeros(self.moments_fn.size)
@@ -353,9 +385,14 @@ class SimpleDistribution:
         :param full_output:
         :return:
         """
-        def integrand(x):
-            moms = self.eval_moments(x)
+
+        def integrand(x, y):
+            moms = self.eval_moments(x, y)
+            # print("moms ", moms)
+            # print("multipliers ", multipliers)
+            # print("moms * multipliers ", moms * multipliers)
             power = -np.sum(moms * multipliers / self._moment_errs, axis=1)
+            #print("power ", power)
             power = np.minimum(np.maximum(power, -200), 200)
 
             if type(power).__name__ == 'ArrayBox':
@@ -363,12 +400,18 @@ class SimpleDistribution:
                 if type(power).__name__ == 'ArrayBox':
                     power = power._value
 
+            # print("power ", power)
+            #
+            # print("np.exp(power) * moms[:, m] ", np.exp(power) * moms[:, m])
             return np.exp(power) * moms[:, m]
 
-        result = sc.integrate.quad(integrand, self.domain[0], self.domain[1],
-                                   epsabs=self._quad_tolerance, full_output=full_output)
+        # @TODO: different domains
+        y, abserr = sc.integrate.dblquad(integrand, self.domain[0], self.domain[1], self.domain[0], self.domain[1])
 
-        return result[0], result
+        # result = sc.integrate.quad(integrand, self.domain[0], self.domain[1],
+        #                            epsabs=self._quad_tolerance, full_output=full_output)
+
+        return y, abserr
 
     def _update_quadrature(self, multipliers, force=False):
         """
@@ -386,32 +429,49 @@ class SimpleDistribution:
             if quad_err_estimate < self._quad_tolerance:
                 return
 
-        val, result = self._calculate_exact_moment(multipliers, m=self.approx_size-1, full_output=1)
+        val, abserr = self._calculate_exact_moment(multipliers, m=self.approx_size-1, full_output=1)
 
-        if len(result) > 3:
-            y, abserr, info, message = result
-            self._quad_log.append(result)
-        else:
-            y, abserr, info = result
-            message =""
+        # if len(result) > 3:
+        #     y, abserr, info, message = result
+        #     self._quad_log.append(result)
+        # else:
+        #     y, abserr, info = result
+        #     message =""
         pt, w = numpy.polynomial.legendre.leggauss(self._gauss_degree)
-        K = info['last']
-        #print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
-        a = info['alist'][:K, None]
-        b = info['blist'][:K, None]
-        points = (pt[None, :] + 1) / 2 * (b - a) + a
-        weights = w[None, :] * (b - a) / 2
-        self._quad_points = points.flatten()
-        self._quad_weights = weights.flatten()
+        # K = info['last']
+        # #print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
+        # a = info['alist'][:K, None]
+        # b = info['blist'][:K, None]
+        # points = (pt[None, :] + 1) / 2 * (self.domain[1] - self.domain[0]) + self.domain[0]
+        # weights = w[None, :] * (self.domain[1] - self.domain[0]) / 2
 
-        #print("quad points ", self._quad_points)
-        self._quad_moments = self.eval_moments(self._quad_points)
-        self._quad_moments_2nd_der = self.eval_moments_der(self._quad_points, degree=2)
+        x_points = (pt[None, :] + 1) / 2 * (self.domain[1] - self.domain[0]) + self.domain[0]
+        x_weights = w[None, :] * (self.domain[1] - self.domain[0]) / 2
 
-        power = -np.dot(self._quad_moments, multipliers/self._moment_errs)
+        y_points = (pt[None, :] + 1) / 2 * (self.domain[1] - self.domain[0]) + self.domain[0]
+        y_weights = w[None, :] * (self.domain[1] - self.domain[0]) / 2
+
+        self.x_quad_points = x_points.flatten()
+        self.x_quad_weights = x_weights.flatten()
+
+        self.y_quad_points = y_points.flatten()
+        self.y_quad_weights = y_weights.flatten()
+
+        self._quad_moments = self.eval_moments(self.x_quad_points, self.y_quad_points)
+        self._quad_moments_2nd_der = self.eval_moments_der(self.x_quad_points, self.y_quad_points, degree=2)
+
+        # print("self._quad_moments ", self._quad_moments)
+        # print("self._quad_moments.shape ", self._quad_moments.shape)
+        #
+        # print("multipliers ", multipliers)
+        # print("multipliers.shape ", multipliers.shape)
+
+        #jacobian_matrix = np.einsum('ijn,njk ->ik', quad_moments.T * q_density_w, quad_moments)
+
+        power = -np.dot(self._quad_moments, multipliers)
         power = np.minimum(np.maximum(power, -200), 200)
         q_gradient = self._quad_moments.T * np.exp(power)
-        integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
+        integral = np.dot(q_gradient, self.x_quad_weights * self.y_quad_weights) / self._moment_errs
         self._last_multipliers = multipliers
         self._last_gradient = integral
 
@@ -532,10 +592,17 @@ class SimpleDistribution:
         :param multipliers: current multipliers
         :return: float
         """
+        print("CALCULATE FUNCTIONAL")
         self.multipliers = multipliers
         self._update_quadrature(multipliers, True)
-        q_density = self._density_in_quads(multipliers)
-        integral = np.dot(q_density, self._quad_weights)
+        # q_density = self._density_in_quads(multipliers)
+        # integral = np.dot(q_density, self.x_quad_weights * self.y_quad_weights)
+        integral = 0
+        for i in range(len(self.x_quad_points)):
+            q_density = self.density((np.full(len(self.y_quad_points), self.x_quad_points[i]), self.y_quad_points))
+            integ = np.dot(q_density, self.x_quad_weights[i] * self.y_quad_weights)
+            integral += integ
+
         sum = np.sum(self.moment_means * multipliers / self._moment_errs)
         fun = sum + integral
 
@@ -547,53 +614,47 @@ class SimpleDistribution:
         if self.regularization is not None:
             fun += self.reg_param * self.regularization.functional_term(self)
         self.functional_value = fun
-        return fun
 
-    # def derivative(self, f, a, method='central', h=0.01):
-    #     '''Compute the difference formula for f'(a) with step size h.
-    #
-    #     Parameters
-    #     ----------
-    #     f : function
-    #         Vectorized function of one variable
-    #     a : number
-    #         Compute derivative at x = a
-    #     method : string
-    #         Difference formula: 'forward', 'backward' or 'central'
-    #     h : number
-    #         Step size in difference formula
-    #
-    #     Returns
-    #     -------
-    #     float
-    #         Difference formula:
-    #             central: f(a+h) - f(a-h))/2h
-    #             forward: f(a+h) - f(a))/h
-    #             backward: f(a) - f(a-h))/h
-    #     '''
-    #     if method == 'central':
-    #         return (f(a + h) - f(a - h)) / (2 * h)
-    #     elif method == 'forward':
-    #         return (f(a + h) - f(a)) / h
-    #     elif method == 'backward':
-    #         return (f(a) - f(a - h)) / h
-    #     else:
-    #         raise ValueError("Method must be 'central', 'forward' or 'backward'.")
+        print("functional value ", fun)
+        return fun
 
     def _calculate_gradient(self, multipliers):
         """
         Gradient of th functional
         :return: array, shape (n_moments,)
         """
+        print("CALCULATE GRADIENT")
         self._update_quadrature(multipliers)
-        q_density = self._density_in_quads(multipliers)
-        q_gradient = self._quad_moments.T * q_density
-        integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
+        # q_density = self._density_in_quads(multipliers)
+        # q_gradient = self._quad_moments.T * q_density
+        # integral = np.dot(q_gradient, self.x_quad_weights * self.y_quad_weights) / self._moment_errs
+
+        integral = np.zeros(self.approx_size)
+        for i in range(len(self.x_quad_points)):
+            pos = np.empty(self.x_quad_points.shape + (2,))
+            pos[:, 0] = np.full(len(self.y_quad_points), self.x_quad_points[i])
+            pos[:, 1] = self.y_quad_points
+
+            q_density = self.density((np.full(len(self.y_quad_points), self.x_quad_points[i]), self.y_quad_points))\
+                        * (self.x_quad_weights[i] * self.y_quad_weights)
+            mom = self.eval_moments(np.full(len(self.y_quad_points), self.x_quad_points[i]), self.y_quad_points)
+            # jacobian_matrix += (mom.T * q_density) @ mom
+
+            # print("mom shape ", mom.shape)
+            # print("q_density.shape ", q_density.shape)
+            # print("mom.T * q_density ", np.dot(mom.T, q_density).shape)
+
+            integral += np.dot(mom.T, q_density).T
+
 
         #end_diff = np.dot(self._end_point_diff, multipliers)
         #penalty = 2 * np.dot(np.maximum(end_diff, 0), self._end_point_diff)
         #fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
         gradient = self.moment_means / self._moment_errs - integral# + np.abs(fun) * self._penalty_coef * penalty
+
+        print("gradient ", gradient)
+
+        #print("egrad gradient ", egrad(self._calculate_functional)(multipliers))
 
         #########################
         # Numerical derivation
@@ -646,16 +707,28 @@ class SimpleDistribution:
         self._reg_term_jacobian = (self._quad_moments_2nd_der.T * self._quad_weights) @ self._quad_moments_2nd_der
 
     def _calc_jac(self):
-        q_density = self.density(self._quad_points)
-        q_density_w = q_density * self._quad_weights
+        jacobian_matrix = np.zeros((self.approx_size, self.approx_size))
+        for i in range(len(self.x_quad_points)):
+            q_density = self.density((np.full(len(self.y_quad_points), self.x_quad_points[i]), self.y_quad_points))\
+                        * (self.x_quad_weights[i] * self.y_quad_weights)
+            mom = self.eval_moments(np.full(len(self.y_quad_points), self.x_quad_points[i]), self.y_quad_points)
+            #print("mom ", mom)
+            jacobian_matrix += (mom.T * q_density) @ mom
 
-        jacobian_matrix = (self._quad_moments.T * q_density_w) @ self._quad_moments
+        print("jacobian matrix")
+        print(pd.DataFrame(jacobian_matrix))
+
+        # q_density = self.density((self.x_quad_points, self.y_quad_points))
+        # q_density_w = q_density * self.x_quad_weights * self.y_quad_weights
+        #
+        # jacobian_matrix = (self._quad_moments.T * q_density_w) @ self._quad_moments
         # if self.reg_param != 0:
-        if self._reg_term_jacobian is None:
-            self._calculate_reg_term_jacobian()
 
         #reg_term = self._reg_term_jacobian
         if self.regularization is not None:
+            if self._reg_term_jacobian is None:
+                self._calculate_reg_term_jacobian()
+
             jacobian_matrix += self.reg_param * self.regularization.jacobian_term(self)
 
         return jacobian_matrix
@@ -664,10 +737,15 @@ class SimpleDistribution:
         """
         :return: jacobian matrix, symmetric, (n_moments, n_moments)
         """
-        # jacobian_matrix_hess = hessian(self._calculate_functional)(multipliers)
-        # print(pd.DataFrame(jacobian_matrix_hess))
+        print("CALCULATE JACOBIAN")
+        jacobian_matrix_hess = hessian(self._calculate_functional)(multipliers)
+        print("hessian")
+        print(pd.DataFrame(jacobian_matrix_hess))
 
         jacobian_matrix = self._calc_jac()
+
+        print("jacobian matrix _calc_jac")
+        print(pd.DataFrame(jacobian_matrix))
         return jacobian_matrix
 
 
@@ -726,9 +804,6 @@ class RegularizationTV(Regularization):
         #return hessian(self.functional_term(simple_distr))
 
 
-
-
-
 def compute_exact_moments(moments_fn, density, tol=1e-10):
     """
     Compute approximation of moments using exact density.
@@ -737,48 +812,176 @@ def compute_exact_moments(moments_fn, density, tol=1e-10):
     :param tol: Tolerance of integration.
     :return: np.array, moment values
     """
-    a, b = moments_fn.domain
+    x_domain, y_domain = moments_fn.domain
     integral = np.zeros(moments_fn.size)
 
     for i in range(moments_fn.size):
-        def fn(x):
-             return moments_fn.eval(i, x) * density(x)
+        def fn(x, y):
+            #print("moments_fn._eval_all((x, y), i+1) ", moments_fn._eval_all((x, y), i+1)[:, i])
+            return moments_fn._eval_all((x, y), i+1)[:, i] * density((x, y))
 
-        integral[i] = integrate.quad(fn, a, b, epsabs=tol)[0]
+        integral[i] = sc.integrate.dblquad(fn, x_domain[0], x_domain[1], y_domain[0], y_domain[1])[0]
 
+    print("exact moments ")
+    print(pd.DataFrame(integral))
     return integral
 
 
 def compute_semiexact_moments(moments_fn, density, tol=1e-10):
-    a, b = moments_fn.domain
+
+    compute_exact_moments(moments_fn, density)
+    x_domain, y_domain = moments_fn.domain
     m = moments_fn.size - 1
 
-    def integrand(x):
-        moms = moments_fn.eval_all(x)[0, :]
-        return density(x) * moms[m]
+    # def integrand(x, y):
+    #     moms = moments_fn.eval_all((x, y))[0, :]
+    #     return density(x, y) * moms[m]
+    #
+    # y, abserr = sc.integrate.dblquad(integrand, x_domain[0], x_domain[1], y_domain[0], y_domain[1])
 
-    result = sc.integrate.quad(integrand, a, b,
-                               epsabs=tol, full_output=True)
+    a, b = x_domain[0], x_domain[1]
 
-    if len(result) > 3:
-        y, abserr, info, message = result
-    else:
-        y, abserr, info = result
     pt, w = numpy.polynomial.legendre.leggauss(GAUSS_DEGREE)
-    K = info['last']
-    # print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
-    a = info['alist'][:K, None]
-    b = info['blist'][:K, None]
-    points = (pt[None, :] + 1) / 2 * (b - a) + a
-    weights = w[None, :] * (b - a) / 2
-    quad_points = points.flatten()
-    quad_weights = weights.flatten()
-    quad_moments = moments_fn.eval_all(quad_points)
-    q_density = density(quad_points)
-    q_density_w = q_density * quad_weights
 
-    moments = q_density_w @ quad_moments
+    x_points = (pt[None, :] + 1) / 2 * (x_domain[1] - x_domain[0]) + x_domain[0]
+    x_weights = w[None, :] * (x_domain[1] - x_domain[0]) / 2
+
+    y_points = (pt[None, :] + 1) / 2 * (y_domain[1] - y_domain[0]) + y_domain[0]
+    y_weights = w[None, :] * (y_domain[1] - y_domain[0]) / 2
+
+    x_quad_points = x_points.flatten()
+    x_quad_weights = x_weights.flatten()
+
+    y_quad_points = y_points.flatten()
+    y_quad_weights = y_weights.flatten()
+
+    pos = np.empty(x_quad_points.shape + (2,))
+    pos[:, 0] = x_quad_points
+    pos[:, 1] = y_quad_points
+    # print("pos ", pos)
+
+    try:
+        q_density = density(pos)
+    except:
+        q_density = density((x_quad_points, y_quad_points))
+    # print("q density ", q_density)
+
+    # quad_moments = moments_fn.eval_all((x_quad_points, y_quad_points))
+    # print("quad moments ", quad_moments)
+
+    # q_density_w = q_density * x_quad_weights * y_quad_weights
+    #
+    # print("q_density_w.shape ", q_density_w.shape)
+    # print("quad_moments.shape ", quad_moments.shape)
+    # print("quad_moments.T.shape ", quad_moments.T.shape)
+    #
+    # print("(quad_moments.T * q_density_w).shape ", (quad_moments.T * q_density_w).shape)
+    #
+    # jacobian_matrix = (quad_moments.T * q_density_w) @ quad_moments
+    #
+    # print("jacobian matrix ")
+    # print(pd.DataFrame(jacobian_matrix))
+
+    # jacobian_m = np.empty((moments_fn.size, moments_fn.size))
+    moments = np.zeros((moments_fn.size))
+    total_density = 0
+    for i in range(len(x_quad_points)):
+        for j in range(len(y_quad_points)):
+            try:
+                q_density = density(x_quad_points[i], y_quad_points[j]) * x_quad_weights[i] * y_quad_weights[j]
+            except:
+                q_density = density((x_quad_points[i], y_quad_points[j])) * x_quad_weights[i] * y_quad_weights[j]
+
+            # print("moments_fn.eval_all((x_quad_points[i], y_quad_points[j])) ", moments_fn.eval_all((x_quad_points[i], y_quad_points[j])))
+            mom = moments_fn.eval_all((x_quad_points[i], y_quad_points[j]))[0, :]
+            # m_j = moments_fn.eval_all((x_quad_points[i], y_quad_points[j]))
+
+            #print("mom ", mom)
+            # print("m_j ", m_j)
+
+            moments += mom.T * q_density
+
+            # print("m_i.T * q_density @ @ m_j" , (m_i.T * q_density) @ m_j)
+
+            # print("quad_moments[i].shape ", quad_moments[i].shape)
+            #
+            # (quad_moments[i].T * q_density) @  quad_moments[j]
+            #
+            # print("quad_moments[j].T.shape ", quad_moments[j].shape)
+            # print("quad_moments[i] @ quad_moments[j]", quad_moments[i] @ quad_moments[j].T)
+
+    print("moments ")
+    print(pd.DataFrame(moments))
+
+    print("total_denstiy ", total_density)
+
     return moments
+
+# def compute_semiexact_moments(moments_fn, density, tol=1e-10):
+#     x_mom_domain, y_mom_domain = moments_fn.domain
+#
+#     m = moments_fn.size - 1
+#
+#     def integrand(x, y):
+#         moms = moments_fn.eval_all((x, y))[0, :]
+#
+#         # print("moms ", moms)
+#         # print("({}, {}) ".format(x, y))
+#         #
+#         # print("density(x, y) ", density(x, y))
+#         # print("moms[m] ", moms[m])
+#         # print("density(x) * moms[m] * moms[m] ", density(x, y) * moms[m] * moms[m])
+#         return density(x, y) * moms[m] * moms[m]
+#
+#     y, abserr = sc.integrate.dblquad(integrand, x_mom_domain[0], x_mom_domain[1], y_mom_domain[0], y_mom_domain[1])
+#
+#
+#     # if len(result) > 3:
+#     #     y, abserr, info, message = result
+#     # else:
+#     #    y, abserr, info = result
+#     pt, w = numpy.polynomial.legendre.leggauss(GAUSS_DEGREE)
+#     # K = info['last']
+#     # # print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
+#     # a = info['alist'][:K, None]
+#     # b = info['blist'][:K, None]
+#     x_points = (pt[None, :] + 1) / 2 * (x_mom_domain[1] - x_mom_domain[0]) + x_mom_domain[0]
+#     x_weights = w[None, :] * (x_mom_domain[1] - x_mom_domain[0]) / 2
+#
+#     y_points = (pt[None, :] + 1) / 2 * (y_mom_domain[1] - y_mom_domain[0]) + y_mom_domain[0]
+#     y_weights = w[None, :] * (y_mom_domain[1] - y_mom_domain[0]) / 2
+#
+#     x_quad_points = x_points.flatten()
+#     x_quad_weights = x_weights.flatten()
+#
+#     y_quad_points = y_points.flatten()
+#     y_quad_weights = y_weights.flatten()
+#
+#     quad_moments = moments_fn.eval_all((x_quad_points, y_quad_points))
+#
+#     pos = np.empty(x_quad_points.shape + (2,))
+#     pos[:, 0] = x_quad_points
+#     pos[:, 1] = y_quad_points
+#     # print("pos ", pos)
+#     # print("pos.shape ", pos.shape)
+#
+#     q_density = density(pos)
+#     q_density_w = q_density * x_quad_weights * y_quad_weights
+#
+#     print("q_density_w.shape ", q_density_w.shape)
+#     print("quad_moments.shape ", quad_moments.shape)
+#     print("q_density_w ", q_density_w)
+#     print("quad moments ", quad_moments)
+#
+#
+#     moments = np.einsum('n,nik ->ik', q_density_w, quad_moments)
+#
+#     print("moments ", moments)
+#
+#     return moments
+#
+#     moments = q_density_w @ quad_moments
+#     return moments
 
 
 # def hessian_reg_term(moments_fn, density, reg_param, tol=1e-10):
@@ -921,7 +1124,6 @@ def compute_semiexact_moments(moments_fn, density, tol=1e-10):
 #
 #     return integral
 
-
 def compute_exact_cov(moments_fn, density, tol=1e-10, reg_param=0, domain=None):
     """
     Compute approximation of covariance matrix using exact density.
@@ -930,41 +1132,161 @@ def compute_exact_cov(moments_fn, density, tol=1e-10, reg_param=0, domain=None):
     :param tol: Tolerance of integration.
     :return: np.array, moment values
     """
-    a, b = moments_fn.domain
-    if domain is not None:
-        a_2, b_2 = domain
-    else:
-        a_2, b_2 = a, b
+    x_domain, y_domain = moments_fn.domain
+    # if domain is not None:
+    #     a_2, b_2 = domain
+    # else:
+    #     a_2, b_2 = a, b
 
     integral = np.zeros((moments_fn.size, moments_fn.size))
     int_reg = np.zeros((moments_fn.size, moments_fn.size))
 
-    print("a_2: {}, b_2: {}".format(a_2, b_2))
+    # print("x_domain: {}, y_domain: {}".format(x_domain, y_domain))
+    #
+    # print("moments_fn.size ", moments_fn.size)
 
     for i in range(moments_fn.size):
         for j in range(i+1):
 
-            def fn_moments_der(x):
-                moments = moments_fn.eval_all_der(x, degree=2)[0, :]
+            def fn_moments_der(x, y):
+                moments = moments_fn.eval_all_der((x, y), degree=2)#[0, :]
+                #print("moments ", moments)
                 return moments[i] * moments[j]
 
-            def fn(x):
-                moments = moments_fn.eval_all(x)[0, :]
-                print("moments ", moments)
+            def fn(x, y):
+                moments = moments_fn.eval_all((x, y))[0, :]
+                #print("moments ", moments)
 
-                density_value = density(x)
+                density_value = density(x, y)
                 if type(density_value).__name__ == 'ArrayBox':
                     density_value = density_value._value
 
                 return moments[i] * moments[j] * density_value # * density(x)
 
-            integral[j][i] = integral[i][j] = integrate.quad(fn, a, b, epsabs=tol)[0]
+            integral[j][i] = integral[i][j] = integrate.nquad(fn, [[x_domain[0], x_domain[1]], [y_domain[0], y_domain[1]]],
+                                                                   full_output=True)[0]
 
-            int_2 = integrate.quad(fn_moments_der, a_2, b_2, epsabs=tol)[0]
+            int_2 = integrate.nquad(fn_moments_der, [[x_domain[0], x_domain[1]], [y_domain[0], y_domain[1]]], full_output=True)[0]
             int_reg[j][i] = int_reg[i][j] = int_2
+
+    print("exact COV ")
+    print(pd.DataFrame(integral))
 
     int_reg = 2 * reg_param * int_reg
     return integral, int_reg
+
+#
+# def compute_exact_cov(moments_fn, density, tol=1e-10, reg_param=0, domain=None):
+#     """
+#     Compute approximation of covariance matrix using exact density.
+#     :param moments_fn: Moments function.
+#     :param density: Density function (must accept np vectors).
+#     :param tol: Tolerance of integration.
+#     :return: np.array, moment values
+#     """
+#     a, b = moments_fn.domain[0]
+#
+#     # print("a ", a)
+#     # print("b ", b)
+#     # if domain is not None:
+#     #     a_2, b_2 = domain
+#     # else:
+#     #     a_2, b_2 = a, b
+#
+#     integral = np.zeros((moments_fn.size, moments_fn.size))
+#     int_reg = np.zeros((moments_fn.size, moments_fn.size))
+#
+#     print("a: {}, b: {}".format(a, b))
+#
+#     for i in range(moments_fn.size):
+#         for j in range(i+1):
+#
+#             def fn_moments_der(x, y):
+#                 moments = moments_fn.eval_all_der((x, y), degree=2)
+#                 return moments[i, j] * moments[j, i]
+#
+#             def fn(x, y):
+#                 #print("moments_fn.eval_all((x,y)) ", moments_fn.eval_all((x,y)))
+#                 moments = moments_fn.eval_all((x, y))#[0, :]
+#                 #print("moments ", moments)
+#
+#                 #moments = np.sum(moments, axis=0)
+#                 #print("moments sum ", moments)
+#                 density_value = density(x,y)
+#                 #print("density value ", density_value)
+#
+#                 # print("moments[i, :] * moments[:, j] ", moments[i, :] * moments[:, j])
+#                 # print("moments[i, :] * moments[:, j] ", np.dot(moments[i, :], moments[:, j]))
+#                 #print("moments[i, :] * moments[:, j] ", np.dot(moments[i, :], moments[:, j]))
+#
+#                 #return moments[i, j] * moments[j, i] * density_value  # * density(x)
+#
+#                 return np.dot(moments[i,:], moments[:,j]) * density_value
+#
+#             result = integrate.nquad(fn, [[a, b], [a, b]], full_output=True)
+#             print("result ", result)
+#
+#             integral[j][i] = integral[i][j] = result[0]#integrate.dblquad(fn, a, b, a, b)[0]
+#
+#
+#             int_2 = integrate.dblquad(fn_moments_der, a, b, a, b)[0]
+#             int_reg[j][i] = int_reg[i][j] = int_2
+#
+#     print("exact cov matrix ")
+#     print(pd.DataFrame(integral))
+#
+#     exit()
+#
+#     int_reg = 2 * reg_param * int_reg
+#     return integral, int_reg
+
+
+# def integrate_density(density):
+#     print("INTEGRATE DENSITY")
+#     domain = [-10, 10]
+#     def fn(x, y):
+#         # print("moments_fn.eval_all((x,y)) ", moments_fn.eval_all((x,y)))
+#         return density((x, y))  # [0, :]
+#         # print("moments ", moments)
+#
+#     result = integrate.dblquad(fn, domain[0], domain[1], domain[0], domain[1])
+#
+#     print("result ", result)
+#     print("QUADRATURE INTEGRATION")
+#
+#     pt, w = numpy.polynomial.legendre.leggauss(50)
+#
+#     # K = info['last']
+#     # # print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
+#     # a = info['alist'][:K, None]
+#     # b = info['blist'][:K, None]
+#
+#     x_points = (pt[None, :] + 1) / 2 * (domain[1] - domain[0]) + domain[0]
+#     x_weights = w[None, :] * (domain[1] - domain[0]) / 2
+#
+#     y_points = (pt[None, :] + 1) / 2 * (domain[1] - domain[0]) + domain[0]
+#     y_weights = w[None, :] * (domain[1] - domain[0]) / 2
+#
+#     x_quad_points = x_points.flatten()
+#     x_quad_weights = x_weights.flatten()
+#
+#     y_quad_points = y_points.flatten()
+#     y_quad_weights = y_weights.flatten()
+#
+#     overall_sum = 0
+#     for i in range(len(x_quad_points)):
+#         summation = 0
+#         for j in range(len(y_quad_points)):
+#             print("x point.shape ", x_points.shape)
+#             print("x_points[i] ", x_quad_points[i])
+#             print("y_points[j] ", y_quad_points[j])
+#             print("density(x_points[i], y_points[j]) * x_quad_weights[j] ", density((x_quad_points[i], y_quad_points[j])) * x_quad_weights[j])
+#
+#             summation += density((x_quad_points[i], y_quad_points[j])) * x_quad_weights[i] * y_quad_weights[j]
+#
+#         overall_sum += summation
+#
+#     print("overall_sum ", overall_sum)
 
 
 def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_size=None, domain=None, reg_param_beta=0):
@@ -975,43 +1297,54 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
     :param tol: Tolerance of integration.
     :return: np.array, moment values
     """
+    #compute_exact_cov(moments_fn, density)
     print("COMPUTE SEMIEXACT COV")
 
-    x_mom_domain, y_mom_domain = moments_fn.domain
-
+    x_domain, y_domain = moments_fn.domain
     if mom_size is not None:
         moments_fn.size = mom_size
     m = moments_fn.size - 1
 
-    def integrand(x, y):
-        moms = moments_fn.eval_all((x, y))[0, :]
+    # def integrand(x, y):
+    #     m = 0
+    #     moms = moments_fn.eval_all((x, y))[0, :]
+    #
+    #     # print("moms ", moms)
+    #     #
+    #     # print("({}, {}) ".format(x,y))
+    #     #
+    #     # print("density(x, y) ", density(x, y))
+    #     # print("density(0, 0) ", density(0,0))
+    #     # print("moms[m] ", moms[m])
+    #     # print("density(x) * moms[m] * moms[m] ", density(x, y) * moms[m] * moms[m])
+    #
+    #     return density(x, y) * moms[m] * moms[m]
+    #
+    # y, abserr = sc.integrate.dblquad(integrand, x_domain[0], x_domain[1], y_domain[0], y_domain[1])
+    # a, b = x_domain[0], x_domain[1]
 
-        print("moms ", moms)
-        print("({}, {}) ".format(x,y))
-
-        print("density(x, y) ", density(x, y))
-        print("moms[m] ", moms[m])
-        print("density(x) * moms[m] * moms[m] ", density(x, y) * moms[m] * moms[m])
-        return density(x, y) * moms[m] * moms[m]
-
-    y, abserr = sc.integrate.dblquad(integrand, x_mom_domain[0], x_mom_domain[1], y_mom_domain[0], y_mom_domain[1])
-
-    print("The resultant integral ", y)
-    print("An estimate of the error ", abserr)
-
+    # def integrand(x):
+    #     m = 0
+    #     moms = moments_fn.eval_all(x)[0, :]
+    #     return density(x) * moms[m] * moms[m]
+    #
+    # result = sc.integrate.quad(integrand, a, b, epsabs=tol, full_output=True)
+    #
+    # print("result ", result)
+    #
+    #
+    # if len(result) > 3:
+    #     y, abserr, info, message = result
+    # else:
+    #     y, abserr, info = result
     # Computes the sample points and weights for Gauss-Legendre quadrature
     pt, w = numpy.polynomial.legendre.leggauss(GAUSS_DEGREE)
 
-    # K = info['last']
-    # # print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
-    # a = info['alist'][:K, None]
-    # b = info['blist'][:K, None]
+    x_points = (pt[None, :] + 1) / 2 * (x_domain[1] - x_domain[0]) + x_domain[0]
+    x_weights = w[None, :] * (x_domain[1] - x_domain[0]) / 2
 
-    x_points = (pt[None, :] + 1) / 2 * (x_mom_domain[1] - x_mom_domain[0]) + x_mom_domain[0]
-    x_weights = w[None, :] * (x_mom_domain[1] - x_mom_domain[0]) / 2
-
-    y_points = (pt[None, :] + 1) / 2 * (y_mom_domain[1] - y_mom_domain[0]) + y_mom_domain[0]
-    y_weights = w[None, :] * (y_mom_domain[1] - y_mom_domain[0]) / 2
+    y_points = (pt[None, :] + 1) / 2 * (y_domain[1] - y_domain[0]) + y_domain[0]
+    y_weights = w[None, :] * (y_domain[1] - y_domain[0]) / 2
 
     x_quad_points = x_points.flatten()
     x_quad_weights = x_weights.flatten()
@@ -1019,37 +1352,266 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
     y_quad_points = y_points.flatten()
     y_quad_weights = y_weights.flatten()
 
-    quad_moments = moments_fn.eval_all((x_quad_points, y_quad_points))
-    quad_moments_2nd_der = moments_fn.eval_all_der((x_quad_points, y_quad_points), degree=2)
-
     pos = np.empty(x_quad_points.shape + (2,))
+
     pos[:, 0] = x_quad_points
     pos[:, 1] = y_quad_points
+
+    # pos[:, :, 0] = x_quad_points
+    # pos[:, :, 1] = y_quad_points
     # print("pos ", pos)
     # print("pos.shape ", pos.shape)
+    # exit()
+    #q_density = density(pos)
 
-    q_density = density(pos)
-    print("q density shape ", q_density.shape)
-    print("x_quad_weights.shape ", x_quad_weights.shape)
-    print("y_quad_weights ", y_quad_weights.shape)
-    q_density_w = q_density * x_quad_weights * y_quad_weights
+    #print("q density ", q_density)
 
-    print("quad_moments.shape ", quad_moments.shape)
-    print("quad_moments.T.shape ", quad_moments.T.shape)
+    #quad_moments = moments_fn.eval_all((x_quad_points, y_quad_points))
+    #print("quad moments ", quad_moments)
 
-    jacobian_matrix = (quad_moments.T * q_density_w) @ quad_moments
+    # q_density_w = q_density * x_quad_weights * y_quad_weights
+    #
+    # print("q_density_w.shape ", q_density_w.shape)
+    # print("quad_moments.shape ", quad_moments.shape)
+    # print("quad_moments.T.shape ", quad_moments.T.shape)
+    #
+    # print("(quad_moments.T * q_density_w).shape ", (quad_moments.T * q_density_w).shape)
+    #
+    # jacobian_matrix = (quad_moments.T * q_density_w) @ quad_moments
+    #
+    # print("jacobian matrix ")
+    # print(pd.DataFrame(jacobian_matrix))
 
-    print("jacobian matrix")
+
+    # jacobian_m = np.zeros((moments_fn.size, moments_fn.size))
+    # total_density = 0
+    # for i in range(len(x_quad_points)):
+    #     for j in range(len(y_quad_points)):
+    #         q_density = density(x_quad_points[i], y_quad_points[j]) * x_quad_weights[i] * y_quad_weights[j]
+    #         mom = moments_fn.eval_all((x_quad_points[i], y_quad_points[j]))
+    #         jacobian_m += (mom.T * q_density) @ mom
+    #
+    #
+    # print("jacobian matrix ")
+    # print(pd.DataFrame(jacobian_m))
+
+    jacobian_matrix = np.zeros((moments_fn.size, moments_fn.size))
+    for i in range(len(x_quad_points)):
+        pos = np.empty(x_quad_points.shape + (2,))
+        pos[:, 0] = np.full(len(y_quad_points), x_quad_points[i])
+        pos[:, 1] = y_quad_points
+
+        q_density = density(pos) * (x_quad_weights[i] * y_quad_weights)
+        mom = moments_fn.eval_all((np.full(len(y_quad_points), x_quad_points[i]), y_quad_points))
+        jacobian_matrix += (mom.T * q_density) @ mom
+
+    print("jacobian matrix 2")
     print(pd.DataFrame(jacobian_matrix))
 
-    reg_term = (quad_moments_2nd_der.T * x_quad_weights * y_quad_weights) @ quad_moments_2nd_der
-    reg_matrix = 2 * reg_param * reg_term
+    # print("FUNCTIONAL")
+    # density_integral = 0
+    # for i in range(len(x_quad_points)):
+    #     pos = np.empty(x_quad_points.shape + (2,))
+    #     pos[:, 0] = np.full(len(y_quad_points), x_quad_points[i])
+    #     pos[:, 1] = y_quad_points
+    #
+    #     q_density = density(pos)
+    #     integral = np.dot(q_density, x_quad_weights[i] * y_quad_weights)
+    #
+    #     density_integral += integral
+    # print("density integral ", density_integral)
+    # exit()
 
-    print("reg term matrix")
-    print(pd.DataFrame(reg_param))
-    exit()
+    # print("GRADIENT")
+    # q_gradient = np.zeros(moments_fn.size)
+    # for i in range(len(x_quad_points)):
+    #     pos = np.empty(x_quad_points.shape + (2,))
+    #     pos[:, 0] = np.full(len(y_quad_points), x_quad_points[i])
+    #     pos[:, 1] = y_quad_points
+    #
+    #     q_density = density(pos) * (x_quad_weights[i] * y_quad_weights)
+    #     mom = moments_fn.eval_all((np.full(len(y_quad_points), x_quad_points[i]), y_quad_points))
+    #     #jacobian_matrix += (mom.T * q_density) @ mom
+    #
+    #     print("mom shape ", mom.shape)
+    #     print("q_density.shape ", q_density.shape)
+    #     print("mom.T * q_density ", np.dot(mom.T,q_density).shape)
+    #
+    #     q_gradient += np.dot(mom.T, q_density).T
+    #
+    # print("q_gradient ")
+    # print(pd.DataFrame(q_gradient))
+    #
+    #
+    # #integral = np.dot(q_gradient, self.x_quad_weights * self.y_quad_weights) / self._moment_errs
+    #
+    # exit()
+
+
+    # q_density = density(pos)
+    # q_density_w = q_density * x_quad_weights * y_quad_weights
+    # quad_moments = moments_fn.eval_all((x_quad_points, y_quad_points))
+    # jacobian_matrix = (quad_moments.T * q_density_w) @ quad_moments
+    #
+    # print("quad_moments shape ", quad_moments.shape)
+    #
+    # print("(quad_moments.T * q_density_w) ", (quad_moments.T * q_density_w))
+    # res = np.einsum('ni,nj->nij', (quad_moments.T * q_density_w), quad_moments)
+    # print("res shape ", res.shape)
+    # res = res.reshape(-1, res.shape[1] * res.shape[2])
+    # print("res reshaped ", res)
+    # print("jac matrix matmul")
+    # print(pd.DataFrame(jacobian_matrix))
+    # exit()
+
+
+    #quad_moments_2nd_der = moments_fn.eval_all_der((x_quad_points, y_quad_points), degree=2)
+    #reg_term = (quad_moments_2nd_der.T * x_quad_weights * y_quad_weights) @ quad_moments_2nd_der
+    #reg_matrix = 2 * reg_param * reg_term
+    reg_matrix = np.zeros(jacobian_matrix.shape)
+    # print("reg matrix ")
+    # print(pd.DataFrame(reg_matrix))
+    #jacobian_matrix = jacobian_m_2
 
     return jacobian_matrix, reg_matrix
+
+#
+# def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_size=None, domain=None, reg_param_beta=0):
+#     """
+#     Compute approximation of covariance matrix using exact density.
+#     :param moments_fn: Moments function.
+#     :param density: Density function (must accept np vectors).
+#     :param tol: Tolerance of integration.
+#     :return: np.array, moment values
+#     """
+#     # @TODO: try cubature, chaospy
+#     # @TODO: remove ASAP
+#     compute_exact_cov(moments_fn, density)
+#
+#     print("COMPUTE SEMIEXACT COV")
+#
+#     #integrate_density(density)
+#
+#     x_mom_domain, y_mom_domain = moments_fn.domain
+#
+#     print("x mom domain ", x_mom_domain)
+#     print("y mom domain ", y_mom_domain)
+#
+#     if mom_size is not None:
+#         moments_fn.size = mom_size
+#     m = moments_fn.size - 1
+#
+#     def integrand(x, y):
+#         m = 0
+#         moms = moments_fn.eval_all((x, y))[0, :]
+#
+#         # print("moms ", moms)
+#         #
+#         # print("({}, {}) ".format(x,y))
+#         #
+#         # print("density(x, y) ", density(x, y))
+#         # print("density(0, 0) ", density(0,0))
+#         # print("moms[m] ", moms[m])
+#         # print("density(x) * moms[m] * moms[m] ", density(x, y) * moms[m] * moms[m])
+#
+#         return density(x, y) * moms[m] * moms[m]
+#
+#     y, abserr = sc.integrate.dblquad(integrand, x_mom_domain[0], x_mom_domain[1], y_mom_domain[0], y_mom_domain[1])
+#
+#     print("The resultant integral ", y)
+#     print("An estimate of the error ", abserr)
+#
+#
+#     # Computes the sample points and weights for Gauss-Legendre quadrature
+#     pt, w = numpy.polynomial.legendre.leggauss(GAUSS_DEGREE)
+#
+#     # K = info['last']
+#     # # print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
+#     # a = info['alist'][:K, None]
+#     # b = info['blist'][:K, None]
+#
+#     # x_points = (pt[None, :] + 1) / 2 * (x_mom_domain[1] - x_mom_domain[0]) + x_mom_domain[0]
+#     # x_weights = w[None, :] * (x_mom_domain[1] - x_mom_domain[0]) / 2
+#     #
+#     # y_points = (pt[None, :] + 1) / 2 * (y_mom_domain[1] - y_mom_domain[0]) + y_mom_domain[0]
+#     # y_weights = w[None, :] * (y_mom_domain[1] - y_mom_domain[0]) / 2
+#     #
+#     # x_quad_points = x_points.flatten()
+#     # x_quad_weights = x_weights.flatten()
+#     #
+#     # y_quad_points = y_points.flatten()
+#     # y_quad_weights = y_weights.flatten()
+#     #
+#     # quad_moments = moments_fn.eval_all((x_quad_points, y_quad_points))
+#     # quad_moments_2nd_der = moments_fn.eval_all_der((x_quad_points, y_quad_points), degree=2)
+#     #
+#     # jac = np.zeros((moments_fn.size, moments_fn.size))
+#     # for r in range(moments_fn.size):
+#     #     for s in range(moments_fn.size):
+#     #
+#     #         overall_sum = 0
+#     #         for i in range(len(x_quad_points)):
+#     #             summation = 0
+#     #             for j in range(len(y_quad_points)):
+#     #                 print("x point.shape ", x_points.shape)
+#     #                 print("x_points[i] ", x_quad_points[i])
+#     #                 print("y_points[j] ", y_quad_points[j])
+#     #                 print("density(x_points[i], y_points[j]) * x_quad_weights[j] ", density((x_quad_points[i], y_quad_points[j])) * x_quad_weights[j])
+#     #
+#     #                 print("quad_moments.shape ", quad_moments.shape)
+#     #                 print("quad_moments[i] ", quad_moments[i])
+#     #                 print("quad_moments[j] ", quad_moments[j])
+#     #
+#     #
+#     #                 summation += quad_moments[i][r,s] * quad_moments[j][s,r] * density((x_quad_points[i], y_quad_points[j])) * x_quad_weights[i] * y_quad_weights[j]
+#     #             print("summation ", summation)
+#     #             overall_sum += summation
+#     #
+#     #         print("overall_sum ", overall_sum)
+#     #
+#     #     jac[r, s] = overall_sum
+#     #
+#     # print("jac ")
+#     # print(pd.DataFrame(jac))
+#
+#     # pos = np.empty(x_quad_points.shape + (2,))
+#     # pos[:, 0] = x_quad_points
+#     # pos[:, 1] = y_quad_points
+#     # # print("pos ", pos)
+#     # # print("pos.shape ", pos.shape)
+#     #
+#     # q_density = density(pos)
+#     # print("q density shape ", q_density.shape)
+#     # print("x_quad_weights.shape ", x_quad_weights.shape)
+#     # print("y_quad_weights ", y_quad_weights.shape)
+#     # q_density_w = q_density * x_quad_weights * y_quad_weights
+#     #
+#     # print("quad_moments.shape ", quad_moments.shape)
+#     # print("quad moments ", quad_moments)
+#     # print("quad_moments.T.shape ", quad_moments.T.shape)
+#     #
+#     # print("q_density_w ", q_density_w)
+#     #
+#     # print("(quad_moments.T * q_density_w) ", (quad_moments.T * q_density_w))
+#
+#     #jacobian_matrix = (quad_moments.T * q_density_w) @ quad_moments
+#
+#     # jacobian_matrix = np.einsum('ijn,njk ->ik', quad_moments.T * q_density_w, quad_moments)
+#     #
+#     # print("jacobian matrix")
+#     # print(jacobian_matrix)
+#     # exit()
+#     #
+#     #
+#     # #reg_term = (quad_moments_2nd_der.T * x_quad_weights * y_quad_weights) @ quad_moments_2nd_der
+#     #
+#     # reg_term = np.einsum('ijn,njk ->ik', quad_moments_2nd_der.T * x_quad_weights * y_quad_weights, quad_moments_2nd_der)
+#     # reg_matrix = 2 * reg_param * reg_term
+#     #
+#     # print("reg term matrix")
+#     # print(reg_param)
+#     #
+#     # return jacobian_matrix, reg_matrix
 
 
 def compute_semiexact_cov(moments_fn, density, tol=1e-10):
@@ -1094,15 +1656,15 @@ def compute_semiexact_cov(moments_fn, density, tol=1e-10):
 
 
 def KL_divergence_2(prior_density, posterior_density, a, b):
-    def integrand(x):
+    def integrand(x, y):
         # prior
-        p = prior_density(x)
+        p = prior_density((x, y))
         # posterior
-        q = max(posterior_density(x), 1e-300)
+        q = max(posterior_density((x, y)), 1e-300)
         # modified integrand to provide positive value even in the case of imperfect normalization
         return p * np.log(p / q)
 
-    value = integrate.quad(integrand, a, b)#, epsabs=1e-10)
+    value = integrate.dblquad(integrand, a[0], a[1], b[0], b[1])#, epsabs=1e-10)
 
     return value[0]
 
@@ -1114,18 +1676,16 @@ def KL_divergence(prior_density, posterior_density, a, b):
     :param posterior_density: Q
     :return: KL divergence value
     """
-    def integrand(x):
+    def integrand(x, y):
         # prior
-        p = prior_density(x)
+        p = prior_density((x, y))
         # posterior
-        q = max(posterior_density(x), 1e-300)
+        q = max(posterior_density((x, y)), 1e-300)
         # modified integrand to provide positive value even in the case of imperfect normalization
         return p * np.log(p / q) - p + q
 
-    value = integrate.quad(integrand, a, b)#, epsabs=1e-10)
-
+    value = integrate.dblquad(integrand, a[0], a[1], b[0], b[1])#, epsabs=1e-10)
     return value[0]
-    #return max(value[0], 1e-10)
 
 
 def L2_distance(prior_density, posterior_density, a, b):
@@ -1137,8 +1697,8 @@ def L2_distance(prior_density, posterior_density, a, b):
     :param b:
     :return:
     """
-    integrand = lambda x: (posterior_density(x) - prior_density(x)) ** 2
-    return np.sqrt(integrate.quad(integrand, a, b))[0]
+    integrand = lambda x, y: (posterior_density((x, y)) - prior_density((x, y))) ** 2
+    return np.sqrt(integrate.dblquad(integrand, a[0], a[1], b[0], b[1]))[0]
 
 
 def total_variation_int(func, a, b):
@@ -1616,9 +2176,9 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     :return: orthogonal moments object of the same size.
     """
     threshold = 0
-    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    #     print("cov ")
-    #     print(pd.DataFrame(cov))
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print("cov ")
+        print(pd.DataFrame(cov))
     #
     # print("cov matrix rank ", numpy.linalg.matrix_rank(cov))
 
