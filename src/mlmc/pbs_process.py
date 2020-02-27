@@ -169,12 +169,13 @@ class PbsProcess:
             except Exception as err:
                 err_msg = str(err)
 
-            # Increment number of samples for measured time
-            times[level_id][1] += 1
+            # Decrement number of samples, if zero then it is saved
             chunk_to_file -= 1
 
             if not err_msg:
                 success.setdefault(level_id, []).append((sample_id, (res[0], res[1])))
+                # Increment number of successful samples for measured time
+                times[level_id][1] += 1
                 #self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
             else:
                 failed.setdefault(level_id, []).append((sample_id, err_msg))
