@@ -2,7 +2,7 @@ import numpy as np
 from abc import ABCMeta
 from abc import abstractmethod
 from typing import List, Dict
-from new_simulation import QuantitySpec
+from simulation import QuantitySpec
 
 
 class SampleStorage(metaclass=ABCMeta):

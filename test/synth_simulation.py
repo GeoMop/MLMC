@@ -1,8 +1,7 @@
 import numpy as np
 from typing import List
-from new_simulation import Simulation
+from simulation import Simulation, QuantitySpec
 from level_simulation import LevelSimulation
-from new_simulation import QuantitySpec
 
 
 class SynthSimulation(Simulation):

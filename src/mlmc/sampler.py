@@ -3,7 +3,7 @@ import numpy as np
 from typing import List
 from sample_storage import SampleStorage
 from sampling_pool import SamplingPool
-from new_simulation import Simulation
+from simulation import Simulation
 
 
 class Sampler:

@@ -293,9 +293,9 @@ class SamplingPoolPBS(SamplingPool):
 
         return successful_results, failed_results, n_running, times
 
-    def have_permanent_sample(self, sample_id):
+    def have_permanent_samples(self, sample_ids):
         """
-        List of permanent samples or find per call?
+        
         """
 
     @staticmethod

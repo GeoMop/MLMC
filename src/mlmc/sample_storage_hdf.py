@@ -2,7 +2,7 @@ import os
 import numpy as np
 from typing import List
 from sample_storage import SampleStorage
-from new_simulation import QuantitySpec
+from simulation import QuantitySpec
 import hdf5 as hdf
 
 
