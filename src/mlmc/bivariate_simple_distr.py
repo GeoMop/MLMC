@@ -774,18 +774,21 @@ class Regularization(ABC):
 class Regularization1(Regularization):
 
     def functional_term(self, simple_distr):
-        return np.sum(simple_distr._quad_weights *
-                      (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) ** 2))
+        return np.sum(simple_distr._quad_weights * (np.dot(simple_distr._quad_moments_2nd_der,
+                                                           simple_distr.multipliers) ** 2))
 
     def gradient_term(self, simple_distr):
         reg_term = np.sum(simple_distr._quad_weights *
-                          (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers)
-                           * simple_distr._quad_moments_2nd_der.T), axis=1)
+                          (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) *
+                           simple_distr._quad_moments_2nd_der.T), axis=1)
+
         return 2 * reg_term
 
     def jacobian_term(self, simple_distr):
-        return 2 * (simple_distr._quad_moments_2nd_der.T * simple_distr._quad_weights) @\
-               simple_distr._quad_moments_2nd_der
+        reg = 2 * (simple_distr._quad_moments_2nd_der.T * simple_distr._quad_weights) @ \
+              simple_distr._quad_moments_2nd_der
+
+        return reg
 
 
 class RegularizationTV(Regularization):
