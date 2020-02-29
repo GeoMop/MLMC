@@ -501,7 +501,6 @@ class BivariateDistribution:
 
         self.fig = plt.figure(figsize=(22, 10))
 
-
         self.ax_2d_exact = self.fig.add_subplot(2, 2, 1)
         self.ax_2d = self.fig.add_subplot(2, 2, 2)
         self.ax_3d_exact = self.fig.add_subplot(2, 2, 3, projection='3d')
@@ -523,7 +522,6 @@ class BivariateDistribution:
         self.ax_3d.view_init(60, 35)
         self.ax_3d_exact.view_init(60, 35)
 
-        self.fig.suptitle(title, y=0.99)
 
     def add_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0):
         """
@@ -542,7 +540,8 @@ class BivariateDistribution:
             Z[index, :] = distr_object.density((x, y))
 
         self.ax_2d.contourf(X, Y, Z, 20, cmap='RdGy')
-        self.ax_3d.contour3D(X, Y, Z, 50, cmap='binary')
+        self.ax_3d.plot_wireframe(X, Y, Z, color='black')
+        #self.ax_3d.contour3D(X, Y, Z, 50, cmap='binary')
 
         self.i_plot += 1
 
@@ -559,6 +558,8 @@ class BivariateDistribution:
         self.ax_2d.legend()
         self.ax_3d_exact.legend()
         self.ax_3d.legend()
+
+        self.fig.suptitle(self._title, y=0.99)
 
         _show_and_save(self.fig, file, self._title)
 
@@ -603,7 +604,8 @@ class BivariateDistribution:
         Z = self._exact_distr.pdf(coordinates)
 
         self.ax_2d_exact.contourf(X, Y, Z, 20, cmap='RdGy')
-        self.ax_3d_exact.contour3D(X, Y, Z, 50, cmap='binary')
+        self.ax_3d_exact.plot_wireframe(X, Y, Z, color='black')
+        #self.ax_3d_exact.contour3D(X, Y, Z, 50, cmap='binary')
 
     def _grid(self, size, domain=None):
         """
@@ -799,6 +801,36 @@ def moments(moments_fn, size=None, title="", file=""):
     for m, y in enumerate(Y.T):
         color = cmap(m)
         ax.plot(X, y, color=color, linewidth=0.5)
+    _show_and_save(fig, file, title)
+
+def moments3D(moments_fn, size=None, title="", file=""):
+    """
+    Plot moment functions.
+    :param moments_fn:
+    :param size:
+    :param title:
+    :param file:
+    :return:
+    """
+    from mpl_toolkits.mplot3d.axes3d import Axes3D
+    if size == None:
+        size = max(moments_fn.size, 21)
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    cmap = create_color_bar(size, 'moments', ax)
+    n_pt = 1000
+    X = np.linspace(moments_fn.domain[0][0], moments_fn.domain[0][1], n_pt)
+    Y = np.linspace(moments_fn.domain[1][0], moments_fn.domain[1][1], n_pt)
+    Z = moments_fn._eval_all((X, Y), size=size)
+    central_band = Z[int(n_pt*0.1):int(n_pt*0.9), :]
+    ax.set_zlim((np.min(central_band), np.max(central_band)))
+    for m, z in enumerate(Z.T):
+        color = cmap(m)
+        # print("X ", X)
+        # print("Y ", Y)
+        # print("z ", z)
+        # exit()
+        ax.plot(X, Y, z, color=color)
     _show_and_save(fig, file, title)
 
 

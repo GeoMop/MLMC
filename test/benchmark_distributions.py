@@ -4,6 +4,7 @@ from scipy import integrate
 from scipy.special import erf, erfinv
 import matplotlib.pyplot as plt
 from statsmodels.distributions.empirical_distribution import ECDF
+from mpl_toolkits import mplot3d
 
 
 class Gamma(st.rv_continuous):
@@ -97,6 +98,7 @@ class FiveFingers(st.rv_continuous):
         y = np.fromiter((FiveFingers.distributions[i].rvs() for i in mixture_idx), dtype=np.float64)
         return y
 
+
 class Cauchy(st.rv_continuous):
 
     domain = [-20, 20]
@@ -149,19 +151,34 @@ class Discontinuous(st.rv_continuous):
         return y
 
 
-class MultivariateNorm(st.rv_continuous):
-    distr = st.multivariate_normal([0, 0], [[1, 0], [0, 1]])
+class BivariateNorm(st.rv_continuous):
+    cov_matrix = [[1, 0], [0, 1]]
 
-    domain = [np.array([0, 1]), np.array([0, 1])]
+    theta = np.pi/3
+    R = np.array([[np.cos(theta), -np.sin(theta)],
+                  [np.sin(theta), np.cos(theta)]])
+    # Rotation matrix
+    S = np.diag([1, 5])
+    # Scale matrix
+    cov_matrix = R @ S @ R.T
+    print("cov matrix ", cov_matrix)
+
+    distr = st.multivariate_normal([0, 0], cov_matrix)
+    #domain = [np.array([-6, 6]), np.array([-6, 6])]
+
+    # without scale and rotation
+    domain = [[-2.3314920916072635, 2.3138243437098813], [-2.3314920916072635, 2.3138243437098813]]
+    # rotated which converge
+    domain = [[-4.660711459582694, 4.658294931027472], [-3.289568357766129, 3.290929576432855]]
 
     def pdf(self, values):
-        print("PDF input values ", values)
-        print("MultivariateNorm.distr.pdf(values) ", MultivariateNorm.distr.pdf(values))
-        return MultivariateNorm.distr.pdf(values)
+        # print("PDF input values ", values)
+        # print("MultivariateNorm.distr.pdf(values) ", MultivariateNorm.distr.pdf(values))
+        return BivariateNorm.distr.pdf(values)
 
     def cdf(self, x):
-        print("MultivariateNorm.distr.cdf(x) ", MultivariateNorm.distr.cdf([[0, 1], [0,1]]))
-        return MultivariateNorm.distr.cdf(x)
+        #print("MultivariateNorm.distr.cdf(x) ", MultivariateNorm.distr.cdf([[0, 1], [0,1]]))
+        return BivariateNorm.distr.cdf(x)
 
     # def _cdf(self, x):
     #     def summation():
@@ -172,8 +189,117 @@ class MultivariateNorm(st.rv_continuous):
     #     return summation()
 
     def rvs(self, size):
-        return MultivariateNorm.distr.rvs(size)
+        print("RVS size ", size)
+        return BivariateNorm.distr.rvs(size)
 
+
+class BivariateTwoGaussians(st.rv_continuous):
+
+    cov_matrix = [[1, 0], [0, 1]]
+
+    distributions = [st.multivariate_normal([5, 3], cov_matrix),
+                     st.multivariate_normal([0, 0.5], cov_matrix)]
+
+    weights = [0.5,  0.5]
+    weights = [0.93, .07]
+    #domain = [np.array([-6.642695234009825, 14.37690544689409]), np.array([-6.642695234009825, 14.37690544689409])]
+
+    domain = [[-2.0524503142530817, 7.060607769217207], [-1.5591957102507406, 5.063146613002412]]
+
+    domain = [[-1.0563049676270957, 7.290949302241237], [-0.5773930412104145, 5.304943821188195]]
+
+
+    def pdf(self, values):
+        #print("values ", values)
+        result = 0
+        for weight, distr in zip(BivariateTwoGaussians.weights, BivariateTwoGaussians.distributions):
+            #print("distr.pdf(values) ", distr.pdf(values))
+            result += weight * distr.pdf(values)
+        return result
+
+    def cdf(self, x):
+        result = 0
+        for weight, distr in zip(BivariateTwoGaussians.weights, BivariateTwoGaussians.distributions):
+            result += weight * distr.cdf(x)
+        return result
+
+    def rvs(self, size):
+        print("size ", size)
+        mixture_idx = np.random.choice(len(BivariateTwoGaussians.weights), size=size, replace=True, p=BivariateTwoGaussians.weights)
+        # y is the mixture sample
+        print("muxture_idx ", mixture_idx)
+
+        data = []
+        for i in mixture_idx:
+
+            data.append(BivariateTwoGaussians.distributions[i].rvs())
+
+        return np.array(data)
+
+        #print("data ", data)
+        # exit()
+        #
+        # print("np.dtype([(np.float64), (np.float64)])) ", np.dtype([("f1", np.float64), ("f2", np.float64)]))
+        #
+        #
+        # # print(" ", np.fromiter((BivariateTwoGaussians.distributions[i].rvs() for i in mixture_idx),
+        # #                        dtype=np.ndarray))
+        # y, x = np.fromiter((BivariateTwoGaussians.distributions[i].rvs() for i in mixture_idx))
+
+        return y
+
+
+def test_bivariate_two_gaussians():
+    distr = BivariateTwoGaussians()
+
+    x, y = np.mgrid[distr.domain[0][0]:distr.domain[0][1]:.01, distr.domain[1][0]:distr.domain[1][1]:.01]
+    print("x.shape ", x.shape)
+    print("y.shape ", y.shape)
+
+    ax = plt.axes(projection='3d')
+    pos = np.empty(x.shape + (2,))
+    pos[:, :, 0] = x
+    pos[:, :, 1] = y
+
+    #plt.contourf(x, y, distr.pdf(pos))
+    #plt.contourf(x, y, distr.pdf(pos), 50, cmap='RdGy')
+
+    #ax.contour3D(x, y, distr.pdf(pos), 50, cmap='binary')
+
+    # ax.plot_surface(x, y, distr.pdf(pos), rstride=1, cstride=1,
+    #                 cmap='viridis', edgecolor='none')
+
+    ax.plot_wireframe(x, y, distr.pdf(pos), color='black')
+
+    plt.show()
+
+
+def test_bivariate_norm():
+    x = np.random.uniform(size=(100, 2))
+    distr = BivariateNorm()
+    #y = distr.pdf(x, mean=mean, cov=cov)
+    # print(y)
+
+    #
+    # x = np.linspace(0, 5, 100, endpoint=False)
+    # y = multivariate_normal.pdf(x, mean=2.5, cov=0.5)
+    #
+    # print("x ", x)
+    # print("y ", y)
+
+    # plt.plot(x, y)
+
+    x, y = np.mgrid[distr.domain[0][0]:distr.domain[0][1]:.01, distr.domain[1][0]:distr.domain[1][1]:.01]
+    print("x.shape ", x.shape)
+    print("y.shape ", y.shape)
+    pos = np.empty(x.shape + (2,))
+    pos[:, :, 0] = x
+    pos[:, :, 1] = y
+
+    plt.contourf(x, y, distr.pdf(pos))
+    plt.contourf(x, y, distr.pdf(pos), 20, cmap='RdGy')
+
+    plt.show()
 
 
 def test_two_gaussians():
@@ -323,7 +449,9 @@ def test_discountinuous():
 if __name__ == "__main__":
     # test_cauchy()
     # test_gamma()
-    test_five_fingers()
+    #test_five_fingers()
     #test_two_gaussians()
     #test_discountinuous()
+    #test_bivariate_norm()
+    test_bivariate_two_gaussians()
 

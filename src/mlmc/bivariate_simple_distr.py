@@ -406,8 +406,7 @@ class SimpleDistribution:
             return np.exp(power) * moms[:, m]
 
         # @TODO: different domains
-        y, abserr = sc.integrate.dblquad(integrand, self.domain[0][0], self.domain[0][1],
-                                         self.domain[1][0], self.domain[1][1])
+        y, abserr = sc.integrate.nquad(integrand, [self.domain[0], self.domain[1]])
 
         # result = sc.integrate.quad(integrand, self.domain[0], self.domain[1],
         #                            epsabs=self._quad_tolerance, full_output=full_output)
@@ -430,7 +429,7 @@ class SimpleDistribution:
             if quad_err_estimate < self._quad_tolerance:
                 return
 
-        val, abserr = self._calculate_exact_moment(multipliers, m=self.approx_size-1, full_output=1)
+        #val, abserr = self._calculate_exact_moment(multipliers, m=self.approx_size-1, full_output=1)
 
         # if len(result) > 3:
         #     y, abserr, info, message = result
@@ -738,10 +737,11 @@ class SimpleDistribution:
         """
         :return: jacobian matrix, symmetric, (n_moments, n_moments)
         """
+        self._update_quadrature(multipliers)
         print("CALCULATE JACOBIAN")
-        jacobian_matrix_hess = hessian(self._calculate_functional)(multipliers)
-        print("hessian")
-        print(pd.DataFrame(jacobian_matrix_hess))
+        # jacobian_matrix_hess = hessian(self._calculate_functional)(multipliers)
+        # print("hessian")
+        # print(pd.DataFrame(jacobian_matrix_hess))
 
         jacobian_matrix = self._calc_jac()
 
@@ -824,7 +824,7 @@ def compute_exact_moments(moments_fn, density, tol=1e-10):
             #print("moments_fn._eval_all((x, y), i+1) ", moments_fn._eval_all((x, y), i+1)[:, i])
             return moments_fn._eval_all((x, y), i+1)[:, i] * density((x, y))
 
-        integral[i] = sc.integrate.dblquad(fn, x_domain[0], x_domain[1], y_domain[0], y_domain[1])[0]
+        integral[i] = sc.integrate.nquad(fn, [[x_domain[0], x_domain[1]], [y_domain[0], y_domain[1]]])[0]
 
     print("exact moments ")
     print(pd.DataFrame(integral))
@@ -833,7 +833,7 @@ def compute_exact_moments(moments_fn, density, tol=1e-10):
 
 def compute_semiexact_moments(moments_fn, density, tol=1e-10):
 
-    compute_exact_moments(moments_fn, density)
+    #compute_exact_moments(moments_fn, density)
     x_domain, y_domain = moments_fn.domain
     m = moments_fn.size - 1
 
@@ -1668,7 +1668,7 @@ def KL_divergence_2(prior_density, posterior_density, a, b):
         # modified integrand to provide positive value even in the case of imperfect normalization
         return p * np.log(p / q)
 
-    value = integrate.dblquad(integrand, a[0], a[1], b[0], b[1])#, epsabs=1e-10)
+    value = integrate.nquad(integrand, [[a[0], a[1]], [b[0], b[1]]])#, epsabs=1e-10)
 
     return value[0]
 
@@ -1688,7 +1688,7 @@ def KL_divergence(prior_density, posterior_density, a, b):
         # modified integrand to provide positive value even in the case of imperfect normalization
         return p * np.log(p / q) - p + q
 
-    value = integrate.dblquad(integrand, a[0], a[1], b[0], b[1])#, epsabs=1e-10)
+    value = integrate.nquad(integrand, [[a[0], a[1]], [b[0], b[1]]])
     return value[0]
 
 
@@ -1702,7 +1702,7 @@ def L2_distance(prior_density, posterior_density, a, b):
     :return:
     """
     integrand = lambda x, y: (posterior_density((x, y)) - prior_density((x, y))) ** 2
-    return np.sqrt(integrate.dblquad(integrand, a[0], a[1], b[0], b[1]))[0]
+    return np.sqrt(integrate.nquad(integrand, [[a[0], a[1]], [b[0], b[1]]]))[0]
 
 
 def total_variation_int(func, a, b):
@@ -2236,7 +2236,7 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
 
     ortogonal_moments = mlmc.moments.TransformedMoments(moments, L_mn)
 
-    #mlmc.tool.plot.moments(ortogonal_moments, size=ortogonal_moments.size, title=str(reg_param), file=None)
+    #mlmc.tool.plot.moments3D(ortogonal_moments, size=ortogonal_moments.size, title=str(reg_param), file=None)
 
     #ortogonal_moments = mlmc.moments.TransformedMoments(moments, cov_sqrt_t.T)
 
