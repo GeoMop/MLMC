@@ -151,6 +151,18 @@ class SampleStorageHDF(SampleStorage):
 
         return n_finished
 
+    def unfinished_ids(self):
+        """
+        List of unfinished ids
+        :return: list
+        """
+        unfinished = []
+
+        for level in self._level_groups:
+            unfinished.extend(level.get_unfinished_ids())
+
+        return unfinished
+
     def save_n_ops(self, n_ops):
         """
         Save number of operations (time) of samples

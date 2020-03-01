@@ -370,6 +370,14 @@ class LevelGroup:
             successful_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.collected_ids_dset][()]]
             return np.concatenate((np.array(successful_ids), np.array(failed_ids)), axis=0)
 
+    def get_unfinished_ids(self):
+        """
+        Get unfinished sample ids as difference between scheduled ids and finished ids
+        :return: list
+        """
+        scheduled_ids = [sample[0].decode() for sample in self.scheduled()]
+        return list(set(scheduled_ids) - set(self.get_finished_ids()))
+
     def get_failed_ids(self):
         """
         Failed samples ids

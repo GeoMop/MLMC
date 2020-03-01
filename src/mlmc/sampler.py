@@ -31,6 +31,11 @@ class Sampler:
         sample_storage.save_global_data(step_range=step_range,
                                         result_format=sim_factory.result_format())
 
+        self._n_scheduled_samples = [len(level_scheduled) for level_scheduled in sample_storage.load_scheduled_samples()]
+
+        # Are there any unfinished samples which have already finished?
+        self._check_failed_samples()
+
         # @TODO: get unfinished samples from sampler and call have permanent samples -> add results to pool's queues,
         # before scheduled samples call, call get_finished - we need to know how many samples is finished
 
@@ -133,6 +138,14 @@ class Sampler:
 
             # Store scheduled samples
             self.sample_storage.save_scheduled_samples(level_id, samples)
+            
+    def _check_failed_samples(self):
+        """
+        Get unfinished samples and check if failed samples have saved results then collect them
+        :return:
+        """
+        unfinished_sample_ids = self.sample_storage.unfinished_ids()
+        self._sampling_pool.have_permanent_samples(unfinished_sample_ids)
 
     def ask_sampling_pool_for_samples(self, sleep=0, timeout=None):
         """
@@ -179,6 +192,8 @@ class Sampler:
         :param add_coef: default value 0.1
         :return: bool, if True adding samples is complete
         """
+        self.ask_sampling_pool_for_samples()
+
         # Get default scheduled samples
         n_scheduled = self.l_scheduled_samples()
 
