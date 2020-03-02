@@ -519,8 +519,8 @@ class BivariateDistribution:
         self.ax_3d.set_ylabel('y')
         self.ax_3d.set_zlabel('z')
 
-        self.ax_3d.view_init(60, 35)
-        self.ax_3d_exact.view_init(60, 35)
+        #self.ax_3d.view_init(60, 35)
+        #self.ax_3d_exact.view_init(60, 35)
 
 
     def add_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0):
@@ -540,7 +540,7 @@ class BivariateDistribution:
             Z[index, :] = distr_object.density((x, y))
 
         self.ax_2d.contourf(X, Y, Z, 20, cmap='RdGy')
-        self.ax_3d.plot_wireframe(X, Y, Z, color='black')
+        self.ax_3d.plot_wireframe(X, Y, Z)
         #self.ax_3d.contour3D(X, Y, Z, 50, cmap='binary')
 
         self.i_plot += 1
@@ -604,7 +604,7 @@ class BivariateDistribution:
         Z = self._exact_distr.pdf(coordinates)
 
         self.ax_2d_exact.contourf(X, Y, Z, 20, cmap='RdGy')
-        self.ax_3d_exact.plot_wireframe(X, Y, Z, color='black')
+        self.ax_3d_exact.plot_wireframe(X, Y, Z)
         #self.ax_3d_exact.contour3D(X, Y, Z, 50, cmap='binary')
 
     def _grid(self, size, domain=None):

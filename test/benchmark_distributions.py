@@ -169,7 +169,12 @@ class BivariateNorm(st.rv_continuous):
     # without scale and rotation
     domain = [[-2.3314920916072635, 2.3138243437098813], [-2.3314920916072635, 2.3138243437098813]]
     # rotated which converge
+    # quantile 0.01
     domain = [[-4.660711459582694, 4.658294931027472], [-3.289568357766129, 3.290929576432855]]
+    # quantile 0.001
+    domain = [[-6.140244463903041, 6.177752737538267], [-4.319387540342072, 4.346500163341569]]
+
+    #domain = [[-5.140244463903041, 5.577752737538267], [-3.819387540342072, 3.846500163341569]]
 
     def pdf(self, values):
         # print("PDF input values ", values)
@@ -197,16 +202,31 @@ class BivariateTwoGaussians(st.rv_continuous):
 
     cov_matrix = [[1, 0], [0, 1]]
 
-    distributions = [st.multivariate_normal([5, 3], cov_matrix),
-                     st.multivariate_normal([0, 0.5], cov_matrix)]
+    distributions = [st.multivariate_normal(mean=[5, 3], cov=cov_matrix),
+                     st.multivariate_normal(mean=[0, 0.5], cov=cov_matrix)]
+
+    # quantile = 0.01
+    # domain_0 = st.norm(5).ppf([quantile, 1 - quantile])
+    # domain_1 = st.norm(0).ppf([quantile, 1 - quantile])
+    #
+    # print("domain 0 ", domain_0)
+    # print("domain 1 ", domain_1)
+    # exit()
+
 
     weights = [0.5,  0.5]
-    weights = [0.93, .07]
-    #domain = [np.array([-6.642695234009825, 14.37690544689409]), np.array([-6.642695234009825, 14.37690544689409])]
+    # quantile 0.01
+    #domain = [[-2.0524503142530817, 7.060607769217207], [-1.5591957102507406, 5.063146613002412]]
+    # quantile 0.001
+    #domain = [[-2.8862275843108507, 7.926870091821058], [-2.390911372521532, 5.8899990982502075]]
 
-    domain = [[-2.0524503142530817, 7.060607769217207], [-1.5591957102507406, 5.063146613002412]]
+    ##############################################################
 
-    domain = [[-1.0563049676270957, 7.290949302241237], [-0.5773930412104145, 5.304943821188195]]
+    weights = [.8, .2]
+    # quantile 0.01
+    #domain = [[-1.6372417936274075, 7.229829996175572], [-1.1486875841433914, 5.249333502773785]]
+    # quantile 0.001
+    # domain = [[-2.5346290813531427, 8.047565706537377], [-2.0800682573833424, 6.030247662630675]]
 
 
     def pdf(self, values):

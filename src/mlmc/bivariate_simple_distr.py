@@ -14,7 +14,7 @@ import pandas as pd
 import numdifftools as nd
 
 EXACT_QUAD_LIMIT = 1000
-GAUSS_DEGREE = 50
+GAUSS_DEGREE = 150
 HUBERT_MU = 0.001
 
 
@@ -610,8 +610,11 @@ class SimpleDistribution:
         # penalty = np.sum(np.maximum(end_diff, 0) ** 2)
         # fun = fun + np.abs(fun) * self._penalty_coef * penalty
 
+        print("self reg param ", self.reg_param)
+
         #reg_term = np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
         if self.regularization is not None:
+            print("func regularization ", self.reg_param * self.regularization.functional_term(self))
             fun += self.reg_param * self.regularization.functional_term(self)
         self.functional_value = fun
 
@@ -698,13 +701,14 @@ class SimpleDistribution:
         #reg_term = np.sum(self._quad_weights *
         #                  (np.dot(self._quad_moments_2nd_der, self.multipliers) * self._quad_moments_2nd_der.T), axis=1)
         if self.regularization is not None:
+            print("gradient reg term ", self.reg_param * self.regularization.gradient_term(self))
             gradient += self.reg_param * self.regularization.gradient_term(self)
         self.gradients.append(gradient)
 
         return gradient
 
-    def _calculate_reg_term_jacobian(self):
-        self._reg_term_jacobian = (self._quad_moments_2nd_der.T * self._quad_weights) @ self._quad_moments_2nd_der
+    # def _calculate_reg_term_jacobian(self):
+    #     self._reg_term_jacobian = (self._quad_moments_2nd_der.T * self._quad_weights) @ self._quad_moments_2nd_der
 
     def _calc_jac(self):
         jacobian_matrix = np.zeros((self.approx_size, self.approx_size))
@@ -723,12 +727,12 @@ class SimpleDistribution:
         #
         # jacobian_matrix = (self._quad_moments.T * q_density_w) @ self._quad_moments
         # if self.reg_param != 0:
+        # if self._reg_term_jacobian is None:
+        #     self._calculate_reg_term_jacobian()
 
         #reg_term = self._reg_term_jacobian
         if self.regularization is not None:
-            if self._reg_term_jacobian is None:
-                self._calculate_reg_term_jacobian()
-
+            print("jacobian reg term ", self.reg_param * self.regularization.jacobian_term(self))
             jacobian_matrix += self.reg_param * self.regularization.jacobian_term(self)
 
         return jacobian_matrix
@@ -774,21 +778,59 @@ class Regularization(ABC):
 class Regularization1(Regularization):
 
     def functional_term(self, simple_distr):
-        return np.sum(simple_distr._quad_weights * (np.dot(simple_distr._quad_moments_2nd_der,
-                                                           simple_distr.multipliers) ** 2))
+        reg_term = 0
+        for i in range(len(simple_distr.x_quad_points)):
+            moments_2nd_der = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                                    simple_distr.x_quad_points[i]),
+                                                            simple_distr.y_quad_points, degree=2)
+
+            weights = simple_distr.x_quad_weights[i] * simple_distr.y_quad_weights
+
+            reg_term += np.sum(weights * np.dot(moments_2nd_der, simple_distr.multipliers) ** 2)
+
+        return reg_term
+        #
+        #
+        # return np.sum(simple_distr._quad_weights * (np.dot(simple_distr._quad_moments_2nd_der,
+        #                                                    simple_distr.multipliers) ** 2))
 
     def gradient_term(self, simple_distr):
-        reg_term = np.sum(simple_distr._quad_weights *
-                          (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) *
-                           simple_distr._quad_moments_2nd_der.T), axis=1)
+        reg_term = np.zeros(simple_distr.approx_size)
+        for i in range(len(simple_distr.x_quad_points)):
+            moments_2nd_der = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                                    simple_distr.x_quad_points[i]),
+                                                            simple_distr.y_quad_points, degree=2)
+
+            weights = simple_distr.x_quad_weights[i] * simple_distr.y_quad_weights
+
+
+            reg_term += np.sum(weights * (np.dot(moments_2nd_der, simple_distr.multipliers) * moments_2nd_der.T), axis=1)
+
+        return 2 * reg_term
+        # reg_term = np.sum(simple_distr._quad_weights *
+        #                   (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) *
+        #                    simple_distr._quad_moments_2nd_der.T), axis=1)
+        #
+        # return 2 * reg_term
+
+    def jacobian_term(self, simple_distr):
+        reg_term = np.zeros((simple_distr.approx_size, simple_distr.approx_size))
+        for i in range(len(simple_distr.x_quad_points)):
+            moments_2nd_der = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                                    simple_distr.x_quad_points[i]),
+                                                            simple_distr.y_quad_points, degree=2)
+
+            weights = simple_distr.x_quad_weights[i] * simple_distr.y_quad_weights
+            # print("mom ", mom)
+            reg_term += (moments_2nd_der.T * weights) @ moments_2nd_der
+
+
+        # reg = 2 * (simple_distr._quad_moments_2nd_der.T * simple_distr._quad_weights) @ \
+        #       simple_distr._quad_moments_2nd_der
+
 
         return 2 * reg_term
 
-    def jacobian_term(self, simple_distr):
-        reg = 2 * (simple_distr._quad_moments_2nd_der.T * simple_distr._quad_weights) @ \
-              simple_distr._quad_moments_2nd_der
-
-        return reg
 
 
 class RegularizationTV(Regularization):
@@ -1293,7 +1335,7 @@ def compute_exact_cov(moments_fn, density, tol=1e-10, reg_param=0, domain=None):
 #     print("overall_sum ", overall_sum)
 
 
-def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_size=None, domain=None, reg_param_beta=0):
+def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_size=None, regularization=None):
     """
     Compute approximation of covariance matrix using exact density.
     :param moments_fn: Moments function.
@@ -1303,6 +1345,8 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
     """
     #compute_exact_cov(moments_fn, density)
     print("COMPUTE SEMIEXACT COV")
+
+    print("density ", density)
 
     x_domain, y_domain = moments_fn.domain
     if mom_size is not None:
@@ -1399,13 +1443,23 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
     # print("jacobian matrix ")
     # print(pd.DataFrame(jacobian_m))
 
+    try:
+        density_two_args = False
+        density(pos)
+    except:
+        density_two_args = True
+
     jacobian_matrix = np.zeros((moments_fn.size, moments_fn.size))
     for i in range(len(x_quad_points)):
-        pos = np.empty(x_quad_points.shape + (2,))
-        pos[:, 0] = np.full(len(y_quad_points), x_quad_points[i])
-        pos[:, 1] = y_quad_points
+        if density_two_args:
+            q_density = density((np.full(len(y_quad_points), x_quad_points[i]), y_quad_points)) *\
+                        (x_quad_weights[i] * y_quad_weights)
+        else:
+            pos = np.empty(x_quad_points.shape + (2,))
+            pos[:, 0] = np.full(len(y_quad_points), x_quad_points[i])
+            pos[:, 1] = y_quad_points
+            q_density = density(pos) * (x_quad_weights[i] * y_quad_weights)
 
-        q_density = density(pos) * (x_quad_weights[i] * y_quad_weights)
         mom = moments_fn.eval_all((np.full(len(y_quad_points), x_quad_points[i]), y_quad_points))
         jacobian_matrix += (mom.T * q_density) @ mom
 
@@ -1472,7 +1526,21 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
     #quad_moments_2nd_der = moments_fn.eval_all_der((x_quad_points, y_quad_points), degree=2)
     #reg_term = (quad_moments_2nd_der.T * x_quad_weights * y_quad_weights) @ quad_moments_2nd_der
     #reg_matrix = 2 * reg_param * reg_term
+    #reg_matrix = np.zeros(jacobian_matrix.shape)
+
     reg_matrix = np.zeros(jacobian_matrix.shape)
+    if regularization is not None:
+
+        for i in range(len(x_quad_points)):
+            moments_2nd_der = moments_fn.eval_all_der((np.full(len(y_quad_points), x_quad_points[i]), y_quad_points),
+                                                      degree=2)
+            weights = x_quad_weights[i] * y_quad_weights
+            # print("mom ", mom)
+            reg_matrix += (moments_2nd_der.T * weights) @ moments_2nd_der
+
+    reg_matrix = 2 * reg_param * reg_matrix
+
+
     # print("reg matrix ")
     # print(pd.DataFrame(reg_matrix))
     #jacobian_matrix = jacobian_m_2

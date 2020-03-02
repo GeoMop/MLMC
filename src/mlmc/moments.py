@@ -337,9 +337,9 @@ class BivariateMoments:
         y_mom = self.moment_y._eval_all_der(y, self.moment_y.size, degree=degree)
 
         res = np.einsum('ni,nj->nij', x_mom, y_mom)
-        print("res shape ", res.shape)
+        #print("res shape ", res.shape)
         res = res.reshape(-1, res.shape[1] * res.shape[2])
-        print("res reshaped shape ", res.shape)
+        #print("res reshaped shape ", res.shape)
 
         return res
 

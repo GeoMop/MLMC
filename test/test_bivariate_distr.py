@@ -98,10 +98,26 @@ class CutDistribution:
         # x_domain = (p_01, p_90)
         # print("x_domain ", x_domain)
         #
+        # quantile_x_domain = (np.quantile(X, .01), np.quantile(X, .99))
+        #
+        # print("quantile x_domain ", quantile_x_domain)
+        #
+        # quantile_x_domain = (np.quantile(X, .001), np.quantile(X, .999))
+        #
+        # print("quantile x_domain ", quantile_x_domain)
+        #
         # p_90 = np.percentile(Y, 99)
         # p_01 = np.percentile(Y, 1)
         # y_domain = (p_01, p_90)
         # print("y_domain ", y_domain)
+        #
+        # quantile_y_domain = (np.quantile(Y, .01), np.quantile(Y, .99))
+        #
+        # print("quantile y_domain ", quantile_y_domain)
+        #
+        # quantile_y_domain = (np.quantile(Y, .001), np.quantile(Y, .999))
+        #
+        # print("quantile y_domain ", quantile_y_domain)
         #
         # exit()
 
@@ -248,70 +264,60 @@ class DistributionDomainCase:
 
         self.moments_fn = BivariateMoments(moments_x, moments_y)
 
-        if self.use_covariance:
-            size = self.moments_fn.size
-            base_moments = self.moments_fn
+        size = self.moments_fn.size
+        base_moments = self.moments_fn
 
-            print("self pdf ", self.pdf)
+        print("self pdf ", self.pdf)
 
+        exact_cov, reg_matrix = mlmc.bivariate_simple_distr.compute_semiexact_cov_2(base_moments, self.pdf,
+                                                                                 reg_param=reg_param)
 
-            # @TODO: remove regularization
-            exact_cov, reg_matrix = mlmc.bivariate_simple_distr.compute_semiexact_cov_2(base_moments, self.pdf,
-                                                                                     reg_param=reg_param)
+        # exact_cov, reg_matrix = mlmc.bivariate_simple_distr.compute_exact_cov(base_moments, self.pdf,
+        #                                                                             reg_param=reg_param)
 
-            # exact_cov, reg_matrix = mlmc.bivariate_simple_distr.compute_exact_cov(base_moments, self.pdf,
-            #                                                                             reg_param=reg_param)
+        print("exact cov ")
+        print(pd.DataFrame(exact_cov))
+        print("reg matrix ", reg_matrix)
 
-            print("exact cov ")
-            print(pd.DataFrame(exact_cov))
-            print("reg matrix ", reg_matrix)
+        self.moments_without_noise = exact_cov[:, 0]
 
-            self.moments_without_noise = exact_cov[:, 0]
+        # Add regularization
+        exact_cov += reg_matrix
 
-            # Add regularization
-            exact_cov += reg_matrix
+        np.random.seed(1234)
+        noise = np.random.randn(size**2).reshape((size, size))
+        noise += noise.T
+        noise *= 0.5 * noise_level
+        noise[0, 0] = 0
+        cov = exact_cov + noise
+        moments = cov[:, 0]
 
-            np.random.seed(1234)
-            noise = np.random.randn(size**2).reshape((size, size))
-            noise += noise.T
-            noise *= 0.5 * noise_level
-            noise[0, 0] = 0
-            cov = exact_cov + noise
-            moments = cov[:, 0]
+        print("cov matrix with noise")
+        print(pd.DataFrame(cov))
 
-            print("cov matrix with noise")
-            print(pd.DataFrame(cov))
+        self.moments_fn, info, cov_centered = mlmc.bivariate_simple_distr.construct_orthogonal_moments(base_moments,
+                                                                                        cov,
+                                                                                        noise_level,
+                                                                                        reg_param=reg_param,
+                                                                                        orth_method=orth_method)
+        self._cov_with_noise = cov
+        self._cov_centered = cov_centered
+        original_evals, evals, threshold, L = info
+        self.L = L
 
+        print("threshold: ", threshold, " from N: ", size)
+        if self.eigenvalues_plot:
+            threshold = evals[threshold]
+            noise_label = "{:5.2e}".format(noise_level)
+            self.eigenvalues_plot.add_values(evals, threshold=threshold, label=noise_label)
 
-            self.moments_fn, info, cov_centered = mlmc.bivariate_simple_distr.construct_orthogonal_moments(base_moments,
-                                                                                                        cov,
-                                                                                                        noise_level,
-                                                                                                        reg_param=reg_param,
-                                                                                                        orth_method=orth_method)
-            self._cov_with_noise = cov
-            self._cov_centered = cov_centered
-            original_evals, evals, threshold, L = info
-            self.L = L
+            # noise_label = "original evals, {:5.2e}".format(noise_level)
+            # self.eigenvalues_plot.add_values(original_evals, threshold=threshold, label=noise_label)
 
-            print("threshold: ", threshold, " from N: ", size)
-            if self.eigenvalues_plot:
-                threshold = evals[threshold]
-                noise_label = "{:5.2e}".format(noise_level)
-                self.eigenvalues_plot.add_values(evals, threshold=threshold, label=noise_label)
+        self.tol_density_approx = 0.01
 
-                # noise_label = "original evals, {:5.2e}".format(noise_level)
-                # self.eigenvalues_plot.add_values(original_evals, threshold=threshold, label=noise_label)
-
-            self.tol_density_approx = 0.01
-
-            self.exact_moments = mlmc.bivariate_simple_distr.compute_semiexact_moments(self.moments_fn,
-                                                                                      self.pdf, tol=tol_exact_moments)
-
-        else:
-            self.exact_moments = mlmc.simple_distribution.compute_semiexact_moments(self.moments_fn,
-                                                                                    self.pdf, tol=tol_exact_moments)
-            self.exact_moments += noise_level * np.random.randn(self.moments_fn.size)
-            self.tol_density_approx = 1e-8
+        self.exact_moments = mlmc.bivariate_simple_distr.compute_semiexact_moments(self.moments_fn,
+                                                                                  self.pdf, tol=tol_exact_moments)
 
         return info, moments
 
@@ -463,7 +469,7 @@ class DistributionDomainCase:
         :return:
         """
         min_noise = 1e-6
-        max_noise = 1e-6
+        max_noise = 1e-2
         results = []
 
         distr_plot = plot.BivariateDistribution(exact_distr=self.cut_distr, title=self.title+"_inexact")
@@ -480,12 +486,15 @@ class DistributionDomainCase:
         moments_num = [5]#, 10, 20, 30]
 
         self.use_covariance = True
+        orth_method = 2
 
         for noise in noise_levels:
+            print("noise ", noise)
             for m in moments_num:
 
                 self.moments_data = (mom_class, m, m, log_flag)
-                info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise, orth_method=2)
+                info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
+                                                              orth_method=orth_method)
 
                 original_evals, evals, threshold, L = info
                 new_moments = np.matmul(moments_with_noise, L.T)
@@ -554,19 +563,35 @@ class DistributionDomainCase:
         kl_2_total = []
         l2 = []
 
-        moments = []
-        all_exact_moments = []
+        self.use_covariance = True
 
         for noise in noise_levels:
+            print("noise ", noise)
             kl_2 = []
             kl = []
+
+            orth_method = 1
 
             regularization = mlmc.bivariate_simple_distr.Regularization1()
 
             #reg_parameters = [10, 1e-5] # 10 is suitable for Splines
             #reg_parameters = [5e-6] # is suitable for Legendre
 
-            reg_parameters = [5e-6]
+            reg_parameters = [7e-5]
+            #reg_parameters = [2.1842105263157896e-05]#, 1.6631578947368423e-05, 3.7473684210526315e-05, 3.226315789473684e-05,1.1421052631578948e-05]
+
+            reg_parameters = [0, 9.081632653061225e-06, 1.5142857142857144e-05]#, 7.061224489795918e-06, 1.3122448979591838e-05,
+             #1.716326530612245e-05]
+
+            reg_parameters = [8.255102040816327e-05, 0.001, 0.00046991836734693883]
+
+            #reg_parameters = [0, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6, 1e-7]
+
+            #reg_parameters = [8.255102040816327e-07, 1e-05, 4.699183673469388e-06, 1.6410204081632653e-06, 2.456530612244898e-06]
+
+            #reg_parameters = [5e-6]
+            reg_parameters = [1e-8, 1e-9, 1e-10]
+            #reg_parameters = [0]
 
             dir = self.title + "noise: ".format(noise)
             if not os.path.exists(dir):
@@ -583,11 +608,11 @@ class DistributionDomainCase:
             for reg_param in reg_parameters:
                 print("reg parameter ", reg_param)
                 info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
-                                                              reg_param=reg_param)
-                n_moments = len(self.exact_moments)
+                                                              reg_param=reg_param, orth_method=orth_method)
 
                 original_evals, evals, threshold, L = info
                 new_moments = np.matmul(moments_with_noise, L.T)
+                n_moments = len(new_moments)
 
                 moments_data = np.empty((n_moments, 2))
                 moments_data[:, 0] = new_moments
@@ -599,11 +624,10 @@ class DistributionDomainCase:
                 result, distr_obj = self.make_approx(mlmc.bivariate_simple_distr.SimpleDistribution, noise, moments_data,
                                                      tol=1e-8, reg_param=reg_param, regularization=regularization)
 
-                m = mlmc.bivariate_simple_distr.compute_exact_moments(self.moments_fn, distr_obj.density)
-                e_m = mlmc.bivariate_simple_distr.compute_exact_moments(self.moments_fn, self.pdf)
-                moments.append(m)
-                all_exact_moments.append(e_m)
-
+                # m = mlmc.bivariate_simple_distr.compute_exact_moments(self.moments_fn, distr_obj.density)
+                # e_m = mlmc.bivariate_simple_distr.compute_exact_moments(self.moments_fn, self.pdf)
+                # moments.append(m)
+                # all_exact_moments.append(e_m)
 
                 print("DISTR OBJ reg param {}, MULTIPLIERS {}".format(reg_param, distr_obj.multipliers))
 
@@ -616,16 +640,16 @@ class DistributionDomainCase:
 
                 final_jac = distr_obj.final_jac
 
-                print("ORIGINAL COV CENTERED")
-                print(pd.DataFrame(self._cov_centered))
-
-                M = np.eye(len(self._cov_with_noise[0]))
-                M[:, 0] = -self._cov_with_noise[:, 0]
-
-                print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
-                print(pd.DataFrame(
-                    np.linalg.inv(M) @ (
-                                np.linalg.inv(L) @ final_jac @ np.linalg.inv(L.T)) @ np.linalg.inv(M.T)))
+                # print("ORIGINAL COV CENTERED")
+                # print(pd.DataFrame(self._cov_centered))
+                #
+                # M = np.eye(len(self._cov_with_noise[0]))
+                # M[:, 0] = -self._cov_with_noise[:, 0]
+                #
+                # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
+                # print(pd.DataFrame(
+                #     np.linalg.inv(M) @ (
+                #                 np.linalg.inv(L) @ final_jac @ np.linalg.inv(L.T)) @ np.linalg.inv(M.T)))
 
 
                 tv.append(result.tv)
@@ -633,21 +657,191 @@ class DistributionDomainCase:
                 kl.append(result.kl)
                 kl_2.append(result.kl_2)
 
-                distr_obj._update_quadrature(distr_obj.multipliers)
-                q_density = distr_obj._density_in_quads(distr_obj.multipliers)
-                q_gradient = distr_obj._quad_moments.T * q_density
-                integral = np.dot(q_gradient, distr_obj._quad_weights) / distr_obj._moment_errs
+                # distr_obj._update_quadrature(distr_obj.multipliers)
+                # q_density = distr_obj._density_in_quads(distr_obj.multipliers)
+                # q_gradient = distr_obj._quad_moments.T * q_density
+                # integral = np.dot(q_gradient, distr_obj._quad_weights) / distr_obj._moment_errs
+                #
+                # int_density.append(abs(sum(integral)-1))
 
-                int_density.append(abs(sum(integral)-1))
+                distr_plot._title = self.title+" noise: {}, reg param: {} KL div: {}".format(noise, reg_param, result.kl)
+
+                distr_plot.show(None)  # file="determine_param {}".format(self.title))#file=os.path.join(dir, self.pdfname("_pdf_iexact")))
+                distr_plot.reset()
 
             kl_total.append(np.mean(kl))
             kl_2_total.append(np.mean(kl_2))
 
 
-        distr_plot.show(file="determine_param {}".format(self.title))#file=os.path.join(dir, self.pdfname("_pdf_iexact")))
-        distr_plot.reset()
 
         return results
+
+    def find_regularization_param(self):
+        np.random.seed(1234)
+        noise_level = 1e-2
+        reg_params = np.linspace(1e-9, 1e-6, num=50)
+
+        orth_method = 1
+
+        min_results = []
+        print("reg params ", reg_params)
+
+        moment_class, min_n_moments, max_n_moments, self.use_covariance = self.moments_data
+        log = self.log_flag
+        if min_n_moments == max_n_moments:
+            self.moment_sizes = np.array(
+                [max_n_moments])  # [36, 38, 40, 42, 44, 46, 48, 50, 52, 54])+1#[max_n_moments])#10, 18, 32, 64])
+        else:
+            self.moment_sizes = np.round(
+                np.exp(np.linspace(np.log(min_n_moments), np.log(max_n_moments), 8))).astype(int)
+
+        #self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
+
+        moments_x = Legendre(max_n_moments, self.domain[0], log=log, safe_eval=False)
+        moments_y = Legendre(max_n_moments, self.domain[1], log=log, safe_eval=False)
+
+        self.moments_fn = BivariateMoments(moments_x, moments_y)
+
+        _, _, n_moments, _ = self.moments_data
+
+        size = 50
+        noises = []
+
+        noise = np.random.randn(self.moments_fn.size ** 2).reshape((self.moments_fn.size, self.moments_fn.size))
+        noise += noise.T
+        noise *= 0.5 * noise_level
+        noise[0, 0] = 0
+        fine_noise = noise
+
+        for i in range(size):
+            noise = np.random.randn(self.moments_fn.size ** 2).reshape((self.moments_fn.size, self.moments_fn.size))
+            noise += noise.T
+            noise *= 0.5 * noise_level * 1.2
+            noise[0, 0] = 0
+            noises.append(noise)
+
+        for reg_param in reg_params:
+            exact_cov, reg_matrix = mlmc.bivariate_simple_distr.compute_semiexact_cov_2(self.moments_fn, self.pdf,
+                                                                                        reg_param=reg_param)
+
+            self.exact_moments = exact_cov[:, 0]
+            # Add noise and regularization
+            cov = exact_cov + fine_noise[:len(exact_cov), :len(exact_cov)]
+            cov += reg_matrix
+
+            moments_with_noise = cov[:, 0]
+            self.moments_fn, info, cov_centered = mlmc.bivariate_simple_distr.construct_orthogonal_moments(self.moments_fn,
+                                                                                                        cov,
+                                                                                                        noise_level,
+                                                                                                       reg_param=reg_param,
+                                                                                                       orth_method=orth_method)
+            original_evals, evals, threshold, L = info
+            fine_moments = np.matmul(moments_with_noise, L.T)
+
+            moments_data = np.empty((len(fine_moments), 2))
+            moments_data[:, 0] = fine_moments  # self.exact_moments
+            moments_data[:, 1] = 1  # noise ** 2
+            moments_data[0, 1] = 1.0
+
+            regularization = mlmc.bivariate_simple_distr.Regularization1()
+
+            _, distr_obj = self.make_approx(mlmc.bivariate_simple_distr.SimpleDistribution, noise, moments_data,
+                                            tol=1e-8, reg_param=reg_param, regularization=regularization)
+
+            estimated_density_covariance, reg_matrix = mlmc.bivariate_simple_distr.compute_semiexact_cov_2(self.moments_fn,
+                                                                                                distr_obj.density)
+
+            # M = np.eye(len(cov[0]))
+            # M[:, 0] = -cov[:, 0]
+            #
+            # print("cov centered")
+            # print(pd.DataFrame(cov_centered))
+            #
+            # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
+            # print(pd.DataFrame(
+            #     M @ (np.linalg.inv(L) @ distr_obj.final_jac @ np.linalg.inv(L.T)) @ M.T))
+            #
+            # print("cov")
+            # print(pd.DataFrame(cov))
+            #
+            # print("L-1 @ H @ L.T-1")
+            # print(pd.DataFrame(
+            #     (np.linalg.inv(L) @ distr_obj.final_jac @ np.linalg.inv(L.T))))
+
+            # print(pd.DataFrame(
+            #     M @ (np.linalg.inv(L) @ estimated_density_covariance @ np.linalg.inv(L.T)) @ M.T))
+
+
+            moments_from_density = np.linalg.inv(L) @ distr_obj.final_jac @ np.linalg.inv(L.T)[:, 0]
+
+            print("moments from density ", moments_from_density)
+            print("moments_with_noise ", moments_with_noise)
+
+            estimated_density_exact_moments = estimated_density_covariance[:, 0]
+
+            result = []
+            for i in range(size):
+                cov = exact_cov + noises[i][:len(exact_cov), :len(exact_cov)]
+                coarse_moments = cov[:, 0]
+                coarse_moments[0] = 1
+                coarse_moments = np.matmul(coarse_moments, L.T)
+
+                # _, distr_obj = self.make_approx(mlmc.simple_distribution.SimpleDistribution, noise, moments_data,
+                #                                      tol=1e-7, reg_param=reg_param)
+                #
+                # estimate_density_exact_moments = mlmc.simple_distribution.compute_semiexact_moments(self.moments_fn,
+                #                                                                                     distr_obj.density)
+
+                res = (moments_from_density - coarse_moments)**2
+
+                print("res to result ", res)
+                result.append(res)
+
+            # distr_plot.add_distribution(distr_obj,
+            #                             label="noise: {}, threshold: {}, reg param: {}".format(noise_level, threshold,
+            #                                                                                    reg_param),
+            #                             size=len(coarse_moments), reg_param=reg_param)
+
+            min_results.append(np.sum(result))
+
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        # ax.plot(noise_levels, tv, label="total variation")
+
+        print("reg params ", reg_params)
+        print("min results ", min_results)
+
+        zipped = zip(reg_params, min_results)
+
+        for reg_param, min_result in zip(reg_params, min_results):
+            print("reg_param: {}, min_result: {}".format(reg_param, min_result))
+
+        sorted_zip = sorted(zipped, key=lambda x: x[1])
+
+        best_params = []
+        #best_params.append(0)
+        for s_tuple in sorted_zip:
+            print(s_tuple)
+            if len(best_params) < 5:
+                best_params.append(s_tuple[0])
+
+        ax.plot(reg_params, min_results, 'o', c='r')
+        # ax.set_xlabel("noise level")
+        ax.set_xlabel("regularization param (alpha)")
+        ax.set_ylabel("min")
+        # ax.plot(noise_levels, l2, label="l2 norm")
+        # ax.plot(reg_parameters, int_density, label="abs(density-1)")
+        #ax.set_yscale('log')
+        #ax.set_xscale('log')
+        ax.legend()
+
+        plt.show()
+        print("best params ", best_params)
+
+        #self.determine_regularization_param(best_params)
+
+        return best_params
+
 
 
 distribution_list = [
@@ -692,9 +886,10 @@ def test_pdf_approx_exact_moments(moments, distribution):
         np.random.seed(1234)
 
         case = DistributionDomainCase(moments, distribution, quantile)
-        tests = [case.exact_conv]
+        #tests = [case.exact_conv]
         #tests = [case.inexact_conv]
         #tests = [case.determine_regularization_param]
+        tests = [case.find_regularization_param]
         #tests = [case.mlmc_conv]
         #tests = [case.exact_conv]
 
@@ -819,8 +1014,8 @@ def run_distr():
         #(bd.Gamma(name='gamma'), False) # pass
         #(stats.norm(loc=1, scale=2), False),
         #(stats.norm(loc=0, scale=1), False),
-        #(bd.BivariateNorm(name='Bivariate_norm'), False),
-        (bd.BivariateTwoGaussians(name='Bivariate_TwoGaussians'), False)
+        (bd.BivariateNorm(name='Bivariate_norm'), False),
+        #(bd.BivariateTwoGaussians(name='Bivariate_TwoGaussians'), False)
         #(stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
         #(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
         # (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
@@ -839,7 +1034,7 @@ def run_distr():
         # (moments.Monomial, 3, 10),
         # (moments.Fourier, 5, 61),
         # (moments.Legendre, 7,61, False),
-        (moments.Legendre, 15, 15, True),
+        (moments.Legendre, 5, 5, True),
         #(moments.Spline, 5, 5, True),
     ]
 
