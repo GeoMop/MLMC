@@ -134,6 +134,10 @@ class PbsProcess:
         Calculate scheduled samples
         :return:
         """
+        self._success_file = os.path.join(self._jobs_dir, PbsProcess.SUCCESSFUL_RESULTS.format(self._job_id))
+        self._failed_file = os.path.join(self._jobs_dir, PbsProcess.FAILED_RESULTS.format(self._job_id))
+        self._times_file = os.path.join(self._jobs_dir, PbsProcess.TIME.format(self._job_id))
+
         # List of Tuple[level id, sample id, random seed]
         level_id_sample_id_seed = self._get_level_id_sample_id_seed()
 
@@ -191,11 +195,12 @@ class PbsProcess:
                 failed = {}
                 current_samples = []
 
+
         self._save_to_file(level_id, success, failed, times, current_samples)
 
-        self._write_end_mark(success_file)
-        self._write_end_mark(failed_file)
-        self._write_end_mark(times_file)
+        self._write_end_mark(self._success_file)
+        self._write_end_mark(self._failed_file)
+        self._write_end_mark(self._times_file)
 
     def _save_to_file(self, level_id, success, failed, times, current_samples):
         """
@@ -207,17 +212,13 @@ class PbsProcess:
         :param current_samples: list
         :return: None
         """
-        success_file = os.path.join(self._jobs_dir, PbsProcess.SUCCESSFUL_RESULTS.format(self._job_id))
-        failed_file = os.path.join(self._jobs_dir, PbsProcess.FAILED_RESULTS.format(self._job_id))
-        times_file = os.path.join(self._jobs_dir, PbsProcess.TIME.format(self._job_id))
-
         # Write results to files
         if success:
-            self._append_file(success, success_file, level_id)
+            self._append_file(success, self._success_file, level_id)
         if failed:
-            self._append_file(failed, failed_file, level_id)
+            self._append_file(failed, self._failed_file, level_id)
         if times:
-            self._append_file(times, times_file, level_id, True)
+            self._append_file(times, self._times_file, level_id, True)
 
         self._current_samples_to_permanent(current_samples)
 
@@ -256,7 +257,6 @@ class PbsProcess:
                 if time:
                     file_data[level_id] = data[level_id]
                 else:
-                    print("file data ", file_data)
                     if level_id not in file_data:
                         file_data[level_id] = []
 
@@ -329,8 +329,10 @@ class PbsProcess:
 
         # Deal with not finished (failed) samples in finished job
         level_id_sample_id_seed = PbsProcess.get_scheduled_sample_ids(job_id, jobs_dir)
+        
         for level_id, sample_id, _ in level_id_sample_id_seed:
-            if sample_id not in failed.get(level_id, []) and sample_id not in successful.get(level_id, []):
+            successfull_ids = [success[0] for success in successful.get(level_id, [])]
+            if sample_id not in failed.get(level_id, []) and sample_id not in successfull_ids:
                 failed.setdefault(level_id, []).append((sample_id, "job failed"))
 
         return successful, failed, time

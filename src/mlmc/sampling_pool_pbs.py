@@ -42,6 +42,8 @@ class SamplingPoolPBS(SamplingPool):
         # List of scheduled samples
         self._pbs_ids = []
         # List of pbs job ids which should run
+        self._unfinished_sample_ids = []
+        # List of sample id which are not collected - collection attempts are done in the get_finished()
 
         self._output_dir = None
         self._jobs_dir = None
@@ -55,8 +57,8 @@ class SamplingPoolPBS(SamplingPool):
         """
         self._output_dir = os.path.join(self._work_dir, SamplingPoolPBS.OUTPUT_DIR)
 
-        if os.path.isdir(self._output_dir):
-            shutil.rmtree(self._output_dir)
+        # if os.path.isdir(self._output_dir):
+        #     shutil.rmtree(self._output_dir)
 
         os.makedirs(self._output_dir, mode=0o775, exist_ok=True)
 
@@ -281,7 +283,7 @@ class SamplingPoolPBS(SamplingPool):
                 # Split results to levels
                 for level_id, results in successful.items():
                     successful_results.setdefault(level_id, []).extend(results)
-                for level_id, results in failed_results.items():
+                for level_id, results in failed.items():
                     failed_results.setdefault(level_id, []).extend(results)
                 for level_id, results in times.items():
                     times[level_id] = results
@@ -289,14 +291,63 @@ class SamplingPoolPBS(SamplingPool):
                 # Delete pbsID file - it means job is finished
                 SamplingPoolPBS.delete_pbs_id_file(file)
 
-        # @TODO: get sample ids for failed pbs jobs and add these samples to failed ones with particular error message
+        if self._unfinished_sample_ids:
+            successful_results, failed_results, times = self._collect_unfinished(successful_results,
+                                                                                 failed_results, times)
 
         return successful_results, failed_results, n_running, times
+    
+    def _collect_unfinished(self, successful_results, failed_results, times):
+        """
+        Collect samples which had finished after main process crashed, append them to new collected samples
+        :param successful_results: dict
+        :param failed_results: dict
+        :param times: dict
+        :return: all input dictionaries
+        """
+        already_collect = []
+
+        for sample_id in self._unfinished_sample_ids:
+            if sample_id in already_collect:
+                continue
+
+            sample_dir = os.path.join(self._output_dir, sample_id)
+            file_name = os.path.join(sample_dir, PbsProcess.PERMANENT_SAMPLE.format("*"))
+            file = glob.glob(file_name)[0]
+            job_id = re.findall(r'._(\d+)', file)[0]
+
+            successful, failed, time = PbsProcess.read_results(job_id, self._jobs_dir)
+
+            # Split results to levels
+            for level_id, results in successful.items():
+                for res in results:
+                    if res[0] in self._unfinished_sample_ids:
+                        already_collect.append(res[0])
+                        successful_results.setdefault(level_id, []).append(res)
+            for level_id, results in failed_results.items():
+                for res in results:
+                    if res[0] in self._unfinished_sample_ids:
+                        already_collect.append(res[0])
+                        failed_results.setdefault(level_id, []).append(res)
+            # for level_id, results in times.items():
+            #     for res in results:
+            #         if res[0] in self._unfinished_sample_ids:
+            #             failed_results.setdefault(level_id, []).append(res)
+            #     times[level_id] = results
+
+            # Delete pbsID file - it means job is finished
+            # SamplingPoolPBS.delete_pbs_id_file(file)
+
+        self._unfinished_sample_ids = []
+
+        return successful_results, failed_results, times
 
     def have_permanent_samples(self, sample_ids):
         """
         
         """
+        self._unfinished_sample_ids = sample_ids
+        
 
     @staticmethod
     def delete_pbs_id_file(file_path):
