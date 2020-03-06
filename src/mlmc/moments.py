@@ -312,13 +312,14 @@ class Legendre(Moments):
 class Spline(Moments):
 
     def __init__(self, size, domain, log=False, safe_eval=True):
+        print("domain ", domain)
         self.ref_domain = domain
         self.poly_degree = 3
         self.polynomial = None
 
         super().__init__(size, domain, log, safe_eval)
 
-        self._generate_knots()
+        self._generate_knots(size)
         self._generate_splines()
 
     def _generate_knots(self, size=2):
@@ -340,10 +341,24 @@ class Spline(Moments):
             knots[i] = (i - degree) * diff + knot_range[0]
         knots[-degree - 1:] = knot_range[1]
 
+        print("knots ", knots)
+        knots = [-30.90232306, -30.90232306, -30.90232306, -30.90232306,
+                -17.16795726, -10.30077435,  -3.43359145,   3.43359145,
+                 10.30077435,  17.16795726,  30.90232306,  30.90232306,
+                 30.90232306,  30.90232306]
+
         # knots = [-30.90232306, -30.90232306, -30.90232306, -30.90232306,
-        #         -17.16795726, -10.30077435,  -3.43359145,   3.43359145,
-        #          10.30077435,  17.16795726,  30.90232306,  30.90232306,
-        #          30.90232306,  30.90232306]
+        # -24.39657084, -21.14369473, -17.89081861, -14.6379425,
+        # -11.38506639, -8.13219028, -4.87931417, -1.62643806,
+        # 1.62643806, 4.87931417, 8.13219028, 11.38506639,
+        # 14.6379425, 17.89081861, 21.14369473, 24.39657084,
+        # 30.90232306, 30.90232306, 30.90232306, 30.90232306]
+
+        print("knots ", knots)
+
+        knots_1 = np.linspace(self.ref_domain[0], self.ref_domain[1], size)
+
+        print("linspace knots ", knots_1)
 
         self.knots = knots
 
@@ -351,9 +366,9 @@ class Spline(Moments):
         self.splines = []
         if len(self.knots) <= self.size:
             self._generate_knots(self.size)
-        for i in range(self.size):
-
+        for i in range(self.size-1):
             c = np.zeros(len(self.knots))
+            #if i > 0:
             c[i] = 1
             self.splines.append(BSpline(self.knots, c, self.poly_degree))
 
@@ -394,6 +409,11 @@ class Spline(Moments):
 
             values[index] = spline(x)
 
+
+        # import pandas as pd
+        # print("values.transpose(transpose_tuple)")
+        # print(pd.DataFrame(values.transpose(transpose_tuple)))
+
         return values.transpose(transpose_tuple)
 
     def _eval_all_der(self, x, size, degree=1):
@@ -406,17 +426,59 @@ class Spline(Moments):
         """
         x = self.transform(np.atleast_1d(x))
 
-        values = np.zeros((len(x), size))
-        values[:, 0] = 1
-        index = 0
+        if len(x.shape) == 1:
+            values = numpy.zeros((size, len(x)))
+            transpose_tuple = (1, 0)
+            values[0] = np.zeros(len(x))
+            index = 0
+            # values[1] = np.zeros(len(x))
+            # index = 1
+
+        elif len(x.shape) == 2:
+            values = numpy.zeros((size, x.shape[0], x.shape[1]))
+            transpose_tuple = (1, 2, 0)
+            values[0] = np.zeros((x.shape[0], x.shape[1]))
+            index = 0
+            # values[1] = np.zeros((x.shape[0], x.shape[1]))
+            # index = 1
+
+        x = np.array(x, copy=False, ndmin=1) + 0.0
 
         for spline in self.splines:
             index += 1
-            if size >= index:
+            if index >= size:
                 break
-            values[:, index] = spline.derivative(degree)(x)
 
-        return values
+            values[index] = (spline.derivative(degree))(x)
+
+
+        import pandas as pd
+        print("DERIVATION")
+        print(pd.DataFrame(values.transpose(transpose_tuple)))
+
+        return values.transpose(transpose_tuple)
+
+
+
+        # values = np.zeros((len(x), size))
+        # values[:, 0] = 0
+        # index = 0
+        #
+        # print("splines ", self.splines)
+        #
+        # for spline in self.splines:
+        #     #index += 1
+        #     if index >= size:
+        #         break
+        #     values[:, index] = spline.derivative(degree)(x)
+        #     print("spline.derivative(degree)(x) ", spline.derivative(degree)(x))
+        #
+        # import pandas as pd
+        # print("MOMENTS  derivation")
+        # print(pd.DataFrame(values))
+        # exit()
+        #
+        # return values
 
 
     # def _eval_all_der(self, value, size, degree=1):
