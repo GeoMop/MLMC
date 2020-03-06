@@ -97,7 +97,6 @@ class FiveFingers(st.rv_continuous):
         y = np.fromiter((FiveFingers.distributions[i].rvs() for i in mixture_idx), dtype=np.float64)
         return y
 
-
 class Cauchy(st.rv_continuous):
 
     domain = [-20, 20]
@@ -148,6 +147,33 @@ class Discontinuous(st.rv_continuous):
         # y is the mixture sample
         y = np.fromiter((Discontinuous.distributions[i].rvs() for i in mixture_idx), dtype=np.float64)
         return y
+
+
+class MultivariateNorm(st.rv_continuous):
+    distr = st.multivariate_normal([0, 0], [[1, 0], [0, 1]])
+
+    domain = [np.array([0, 1]), np.array([0, 1])]
+
+    def pdf(self, values):
+        print("PDF input values ", values)
+        print("MultivariateNorm.distr.pdf(values) ", MultivariateNorm.distr.pdf(values))
+        return MultivariateNorm.distr.pdf(values)
+
+    def cdf(self, x):
+        print("MultivariateNorm.distr.cdf(x) ", MultivariateNorm.distr.cdf([[0, 1], [0,1]]))
+        return MultivariateNorm.distr.cdf(x)
+
+    # def _cdf(self, x):
+    #     def summation():
+    #         result = 0
+    #         for weight, distr in zip(Discontinuous.weights, Discontinuous.distributions):
+    #             result += weight * distr.cdf(x)
+    #         return result
+    #     return summation()
+
+    def rvs(self, size):
+        return MultivariateNorm.distr.rvs(size)
+
 
 
 def test_two_gaussians():
@@ -291,9 +317,13 @@ def test_discountinuous():
     plt.show()
 
 
+
+
+
 if __name__ == "__main__":
     # test_cauchy()
     # test_gamma()
     test_five_fingers()
     #test_two_gaussians()
     #test_discountinuous()
+
