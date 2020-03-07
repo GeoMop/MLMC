@@ -9,15 +9,21 @@ import hdf5 as hdf
 # Starts from scratch
 class SampleStorageHDF(SampleStorage):
 
-    def __init__(self, file_path):
+    def __init__(self, file_path, force=False, keep_collected=False):
         """
         HDF5 storage, provide method to interact with storage
         :param file_path: absolute path to hdf file (which not exists at the moment)
+        :param force: remove existing hdf5
         """
         # If file exists load not create new file
         load_from_file = False
         if os.path.exists(file_path):
-            load_from_file = True
+            if keep_collected:
+                load_from_file = True
+            elif force:
+                os.remove(file_path)
+            else:
+                raise FileExistsError("HDF file {} already exists, use --force to delete it".format(file_path))
 
         # HDF5 interface
         self._hdf_object = hdf.HDF5(file_path=file_path, load_from_file=load_from_file)
@@ -163,6 +169,23 @@ class SampleStorageHDF(SampleStorage):
             unfinished.extend(level.get_unfinished_ids())
 
         return unfinished
+
+    def failed_samples(self):
+        """
+        Dictionary of failed samples
+        :return: dict
+        """
+        failed_samples = {}
+
+        for level in self._level_groups:
+            print("level.get_failed_ids() ", level.get_failed_ids())
+            failed_samples[str(level.level_id)] = list(level.get_failed_ids())
+
+        return failed_samples
+
+    def clear_failed(self):
+        for level in self._level_groups:
+            level.clear_failed_dataset()
 
     def save_n_ops(self, n_ops):
         """

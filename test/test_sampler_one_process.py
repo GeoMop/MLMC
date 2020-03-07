@@ -22,10 +22,10 @@ def one_process_sampler_test():
     np.random.seed(3)
     n_moments = 5
 
-    failed_fraction = 0.1
+    failed_fraction = 0.5
     distr = stats.norm(loc=1, scale=2)
 
-    step_range = [0.01, 0.001, 0.0001]
+    step_range = [0.1, 0.001, 0.0001]
 
     # Create simulation instance
     simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
@@ -42,8 +42,8 @@ def one_process_sampler_test():
     moments_fn = Legendre(n_moments, true_domain)
     #moments_fn = Monomial(n_moments, true_domain)
 
-    sampler.set_initial_n_samples()
-    sampler.set_initial_n_samples([10000])
+    sampler.set_initial_n_samples([10, 10, 3])
+    #sampler.set_initial_n_samples([10000])
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 

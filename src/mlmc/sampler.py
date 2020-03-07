@@ -21,10 +21,8 @@ class Sampler:
 
         self._step_range = step_range
 
-        # Number of created samples
-        self._n_scheduled_samples = np.zeros(len(step_range))
-        # Number of target samples
         self._n_target_samples = np.zeros(len(step_range))
+        # Number of target samples
         self._level_sim_objects = []
         self._create_level_sim_objects(len(step_range), sim_factory)
 
@@ -32,6 +30,12 @@ class Sampler:
                                         result_format=sim_factory.result_format())
 
         self._n_scheduled_samples = [len(level_scheduled) for level_scheduled in sample_storage.load_scheduled_samples()]
+        # Number of created samples
+
+        print("init n scheduled samples ", self._n_scheduled_samples)
+
+        if not self._n_scheduled_samples:
+            self._n_scheduled_samples = np.zeros(len(step_range))
 
         # Are there any unfinished samples which have already finished?
         self._check_failed_samples()
@@ -101,6 +105,8 @@ class Sampler:
 
         self._n_target_samples = n_samples
 
+        print("self._n_target_samples ", self._n_target_samples)
+
     def _get_sample_tag(self, level_id):
         """
         Create sample tag
@@ -119,6 +125,9 @@ class Sampler:
         :return: None
         """
         self.ask_sampling_pool_for_samples()
+
+        print("plan samples ", self._n_target_samples)
+        print("scheduled samples ", self._n_scheduled_samples)
         # @TODO: avoid negative number of planned samples
         plan_samples = self._n_target_samples - self._n_scheduled_samples
 
@@ -164,6 +173,8 @@ class Sampler:
         while n_running > 0:
             successful_samples, failed_samples, n_running, n_ops = self._sampling_pool.get_finished()
 
+            print("failed samples ", failed_samples)
+
             # Store finished samples
             self._store_samples(successful_samples, failed_samples, n_ops)
 
@@ -187,6 +198,7 @@ class Sampler:
     def process_adding_samples(self, n_estimated, sleep, add_coef=0.1):
         """
         Process adding samples
+        Note: n_estimated are wrong if n_ops is similar through all levels
         :param n_estimated: Number of estimated samples on each level, list
         :param sleep: Sample waiting time
         :param add_coef: default value 0.1
@@ -256,3 +268,25 @@ class Sampler:
         :return: list
         """
         return self._n_target_samples
+
+    def resurrect_failed(self):
+        """
+        Resurrect failed samples
+        :return: None
+        """
+        failed_samples = self.sample_storage.failed_samples()
+        print("failed samples ", failed_samples)
+
+        for level_id, sample_ids in failed_samples.items():
+            samples = []
+            level_id = int(level_id)
+            print("level_id ", level_id)
+            for sample_id in sample_ids:
+                print("sample id ", sample_id)
+
+                level_sim = self._level_sim_objects[level_id]
+                # Schedule current sample
+                self._sampling_pool.schedule_sample(sample_id, level_sim)
+                samples.append(sample_id)
+
+        self.sample_storage.clear_failed()
