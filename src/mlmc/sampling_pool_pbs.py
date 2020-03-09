@@ -16,12 +16,13 @@ class SamplingPoolPBS(SamplingPool):
     JOBS_DIR = "jobs"
     LEVEL_SIM_CONFIG = "level_{}_simulation_config"  # Serialized level simulation
     JOB = "{}_job.sh"  # Pbs process file
+    JOBS_COUNT = "jobs_count.txt" # Contains current number of jobs which is also job unique identifier
 
-    def __init__(self, work_dir, job_weight=200000, job_count=0):
+    def __init__(self, work_dir, job_weight=200000, force=False):
         """
         :param work_dir: Path to working directory
         :param job_weight: Maximum sum of task sizes summation in single one job, if this value is exceeded then the job is executed
-        :param job_count: Number of created jobs, it holds the current jobID, useful for regenerating of failed samples (jobs)
+        :param force: bool, if True delete output dir
         """
         self._work_dir = work_dir
         # Working directory - other subdirectories are created in this one
@@ -29,8 +30,6 @@ class SamplingPoolPBS(SamplingPool):
         # Weight of the single PBS script (putting more small jobs into single PBS job).
         self._current_job_weight = 0
         # Current collected weight.
-        self._job_count = job_count
-        # Current number of jobs - sort of jobID
         self._n_samples_in_job = 0
         # Number of samples in job
         self.pbs_script = None
@@ -45,10 +44,15 @@ class SamplingPoolPBS(SamplingPool):
         self._unfinished_sample_ids = []
         # List of sample id which are not collected - collection attempts are done in the get_finished()
 
+        self.force = force
+
         self._output_dir = None
         self._jobs_dir = None
         self._create_output_dir()
         self._create_job_dir()
+
+        self._job_count = self._get_job_count()
+        # Current number of jobs - sort of jobID
 
     def _create_output_dir(self):
         """
@@ -57,8 +61,8 @@ class SamplingPoolPBS(SamplingPool):
         """
         self._output_dir = os.path.join(self._work_dir, SamplingPoolPBS.OUTPUT_DIR)
 
-        # if os.path.isdir(self._output_dir):
-        #     shutil.rmtree(self._output_dir)
+        if self.force and os.path.isdir(self._output_dir):
+            shutil.rmtree(self._output_dir)
 
         os.makedirs(self._output_dir, mode=0o775, exist_ok=True)
 
@@ -69,6 +73,18 @@ class SamplingPoolPBS(SamplingPool):
         """
         self._jobs_dir = os.path.join(self._output_dir, SamplingPoolPBS.JOBS_DIR)
         os.makedirs(self._jobs_dir, mode=0o775, exist_ok=True)
+
+    def _get_job_count(self):
+        """
+        Get number of created jobs.
+        :return:
+        """
+        if os.path.exists(os.path.join(self._jobs_dir, SamplingPoolPBS.JOBS_COUNT)):
+            with open(os.path.join(self._jobs_dir, SamplingPoolPBS.JOBS_COUNT), "r") as reader:
+                count = reader.readline()
+                return int(count) + 1
+        else:
+            return 0
 
     def _save_structure(self):
         """
@@ -166,7 +182,10 @@ class SamplingPoolPBS(SamplingPool):
             # Write pbs script
             job_file = os.path.join(self._jobs_dir, SamplingPoolPBS.JOB.format(job_id))
             script_content = "\n".join(self.pbs_script)
+
             self.write_script(script_content, job_file)
+            self.write_script(str(self._job_count), SamplingPoolPBS.JOBS_COUNT)
+            # Write current job count
             self._job_count += 1
 
             #subprocess.call(job_file)
@@ -344,11 +363,10 @@ class SamplingPoolPBS(SamplingPool):
 
     def have_permanent_samples(self, sample_ids):
         """
-        
+        List of unfinished sample ids, the corresponding samples are collecting in next get_finished() call .
         """
         self._unfinished_sample_ids = sample_ids
         
-
     @staticmethod
     def delete_pbs_id_file(file_path):
         """
