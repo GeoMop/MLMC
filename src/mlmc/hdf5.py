@@ -158,7 +158,7 @@ class HDF5:
         # Format data
         result_array = np.empty((len(result_format),), dtype=result_format_dtype)
         for res, quantity_spec in zip(result_array, result_format):
-            for attribute in quantity_spec.used_attributes:
+            for attribute in list(quantity_spec.__dict__.keys()):
                 if isinstance(getattr(quantity_spec, attribute), (tuple, list)):
                     res[attribute][:] = getattr(quantity_spec, attribute)
                 else:
