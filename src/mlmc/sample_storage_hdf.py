@@ -9,19 +9,17 @@ import hdf5 as hdf
 # Starts from scratch
 class SampleStorageHDF(SampleStorage):
 
-    def __init__(self, file_path, force=False, keep_collected=False):
+    def __init__(self, file_path, append=False):
         """
         HDF5 storage, provide method to interact with storage
         :param file_path: absolute path to hdf file (which not exists at the moment)
-        :param force: remove existing hdf5
+        :param append: append to existing hdf5
         """
         # If file exists load not create new file
         load_from_file = False
         if os.path.exists(file_path):
-            if keep_collected:
+            if append:
                 load_from_file = True
-            elif force:
-                os.remove(file_path)
             else:
                 raise FileExistsError("HDF file {} already exists, use --force to delete it".format(file_path))
 
