@@ -158,7 +158,7 @@ class HDF5:
         # Format data
         result_array = np.empty((len(result_format),), dtype=result_format_dtype)
         for res, quantity_spec in zip(result_array, result_format):
-            for attribute in quantity_spec.used_attributes:
+            for attribute in list(quantity_spec.__dict__.keys()):
                 if isinstance(getattr(quantity_spec, attribute), (tuple, list)):
                     res[attribute][:] = getattr(quantity_spec, attribute)
                 else:
@@ -209,8 +209,6 @@ class LevelGroup:
         self.level_group_path = hdf_group_path
         # Structure of sample format
         self._sample_dtype = None
-        # Attribute necessary for mlmc run
-        self._n_ops_estimate = None
 
         # Set group attribute 'level_id'
         with h5py.File(self.file_name, 'a') as hdf_file:
@@ -296,7 +294,8 @@ class LevelGroup:
         :return: None
         """
         # Append samples to existing scheduled dataset
-        self._append_dataset(self.scheduled_dset, scheduled_samples)
+        if len(scheduled_samples) > 0:
+            self._append_dataset(self.scheduled_dset, scheduled_samples)
 
     def append_successful(self, samples: np.array):
         """
@@ -342,25 +341,16 @@ class LevelGroup:
     def scheduled(self):
         """
         Read level dataset with scheduled samples
-        :return: generator, each item is in form (Sample(), Sample())
+        :return:
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
-            # Create fine and coarse samples
-            for sample_id, (fine, coarse) in enumerate(scheduled_dset[:]):
-                yield (Sample(sample_id=sample_id,
-                              directory=fine[0].decode('UTF-8'),
-                              job_id=fine[1].decode('UTF-8'),
-                              prepare_time=fine[2], queued_time=fine[3]),
-                       Sample(sample_id=sample_id,
-                              directory=coarse[0].decode('UTF-8'),
-                              job_id=coarse[1].decode('UTF-8'),
-                              prepare_time=coarse[2], queued_time=coarse[3]))
+            return scheduled_dset[()]
 
     def collected(self):
         """
         Read all level datasets with collected data, create fine and coarse samples as Sample() instances
-        :return: generator; one item is tuple (Sample(), Sample())
+        :return: all dataset values, TODO: generator in future
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
@@ -374,9 +364,9 @@ class LevelGroup:
         :return: NumPy array
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
-            failed_ids = hdf_file[self.level_group_path][self.failed_dset][()]
-            return np.concatenate((hdf_file[self.level_group_path][self.collected_ids_dset][()], np.array(failed_ids)),
-                                  axis=0)
+            failed_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.failed_dset][()]]
+            successful_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.collected_ids_dset][()]]
+            return np.concatenate((np.array(successful_ids), np.array(failed_ids)), axis=0)
 
     def get_failed_ids(self):
         """
@@ -394,17 +384,17 @@ class LevelGroup:
         :return: float
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
-            if self._n_ops_estimate is None and 'n_ops_estimate' in hdf_file[self.level_group_path].attrs:
-                self._n_ops_estimate = hdf_file[self.level_group_path].attrs['n_ops_estimate']
-
-        return self._n_ops_estimate
+            if 'n_ops_estimate' in hdf_file[self.level_group_path].attrs:
+                return hdf_file[self.level_group_path].attrs['n_ops_estimate']
 
     @n_ops_estimate.setter
     def n_ops_estimate(self, n_ops_estimate):
         """
         Set property n_ops_estimate
-        :param n_ops_estimate: number of operations
+        :param n_ops_estimate: number of operations (time) per samples
         :return: None
         """
         with h5py.File(self.file_name, 'a') as hdf_file:
-            self._n_ops_estimate = hdf_file[self.level_group_path].attrs['n_ops_estimate'] = float(n_ops_estimate)
+            if 'n_ops_estimate' not in hdf_file[self.level_group_path].attrs:
+                hdf_file[self.level_group_path].attrs['n_ops_estimate'] = 0
+            hdf_file[self.level_group_path].attrs['n_ops_estimate'] += n_ops_estimate

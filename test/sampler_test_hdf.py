@@ -11,6 +11,8 @@ from sampler import Sampler
 from sample_storage_hdf import SampleStorageHDF
 from sampling_pool import OneProcessPool
 from mlmc.moments import Legendre
+from quantity_estimate import QuantityEstimate
+import new_estimator
 
 
 def sampler_hdf_test():
@@ -47,22 +49,38 @@ def sampler_hdf_test():
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    # @TODO: check if target var adding works after merge multiproc
-    #sampler.target_var_adding_samples(1e-4, moments_fn, sleep=0)
-    print("collected samples ", sampler._n_created_samples)
+    q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
+    #
+    target_var = 1e-4
+    sleep = 0
+    add_coef = 0.1
 
-    means, vars = sampler.estimate_moments(moments_fn)
+    # @TODO: test
+    # New estimation according to already finished samples
+    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+    n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                       n_levels=sampler.n_levels)
+
+    # Loop until number of estimated samples is greater than the number of scheduled samples
+    while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
+        # New estimation according to already finished samples
+        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+        n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                           n_levels=sampler.n_levels)
+
+    print("collected samples ", sampler._n_created_samples)
+    means, vars = q_estimator.estimate_moments(moments_fn)
 
     print("means ", means)
     print("vars ", vars)
     assert means[0] == 1
     assert np.isclose(means[1], 0, atol=1e-2)
     assert vars[0] == 0
-    sampler.schedule_samples()
-    sampler.ask_sampling_pool_for_samples()
-
-    storage = sampler.sample_storage
-    results = storage.sample_pairs()
+    # sampler.schedule_samples()
+    # sampler.ask_sampling_pool_for_samples()
+    #
+    # storage = sampler.sample_storage
+    # results = storage.sample_pairs()
 
 
 if __name__ == "__main__":
