@@ -178,12 +178,12 @@ class PbsProcess:
             if not err_msg:
                 success.setdefault(level_id, []).append((sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
-                times[level_id][1] += 1
                 #self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
             else:
                 failed.setdefault(level_id, []).append((sample_id, err_msg))
                 #self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
             current_samples.append(sample_id)
+            times[level_id][1] += 1
 
             if chunk_to_file == 0:
                 chunk_to_file = 2
@@ -310,7 +310,7 @@ class PbsProcess:
         """
         successful = {}
         failed = {}
-        time = [0, 0]
+        time = {}
 
         # Save successful results
         if os.path.exists(os.path.join(jobs_dir, PbsProcess.SUCCESSFUL_RESULTS.format(job_id))):
@@ -332,8 +332,16 @@ class PbsProcess:
         
         for level_id, sample_id, _ in level_id_sample_id_seed:
             successfull_ids = [success[0] for success in successful.get(level_id, [])]
-            if sample_id not in failed.get(level_id, []) and sample_id not in successfull_ids:
+            failed_ids = [f[0] for f in failed.get(level_id, [])]
+            if sample_id not in failed_ids and sample_id not in successfull_ids:
                 failed.setdefault(level_id, []).append((sample_id, "job failed"))
+
+        if "end" in successful:
+            del successful["end"]
+        if "end" in failed:
+            del failed["end"]
+        if "end" in time:
+            del time["end"]
 
         return successful, failed, time
 
@@ -384,7 +392,6 @@ class PbsProcess:
         with open(os.path.join(jobs_dir, PbsProcess.SCHEDULED.format(job_id))) as file:
             lines = yaml.load(file, yaml.Loader)
             return len(lines)
-
 
 
 if __name__ == "__main__":

@@ -32,8 +32,6 @@ class Sampler:
         self._n_scheduled_samples = [len(level_scheduled) for level_scheduled in sample_storage.load_scheduled_samples()]
         # Number of created samples
 
-        print("init n scheduled samples ", self._n_scheduled_samples)
-
         if not self._n_scheduled_samples:
             self._n_scheduled_samples = np.zeros(len(step_range))
 
@@ -105,8 +103,6 @@ class Sampler:
 
         self._n_target_samples = n_samples
 
-        print("self._n_target_samples ", self._n_target_samples)
-
     def _get_sample_tag(self, level_id):
         """
         Create sample tag
@@ -172,8 +168,6 @@ class Sampler:
         t0 = time.clock()
         while n_running > 0:
             successful_samples, failed_samples, n_running, n_ops = self._sampling_pool.get_finished()
-
-            print("failed samples ", failed_samples)
 
             # Store finished samples
             self._store_samples(successful_samples, failed_samples, n_ops)
@@ -275,15 +269,11 @@ class Sampler:
         :return: None
         """
         failed_samples = self.sample_storage.failed_samples()
-        print("failed samples ", failed_samples)
 
         for level_id, sample_ids in failed_samples.items():
             samples = []
             level_id = int(level_id)
-            print("level_id ", level_id)
             for sample_id in sample_ids:
-                print("sample id ", sample_id)
-
                 level_sim = self._level_sim_objects[level_id]
                 # Schedule current sample
                 self._sampling_pool.schedule_sample(sample_id, level_sim)

@@ -304,7 +304,7 @@ class SamplingPoolPBS(SamplingPool):
                     successful_results.setdefault(level_id, []).extend(results)
                 for level_id, results in failed.items():
                     failed_results.setdefault(level_id, []).extend(results)
-                for level_id, results in times.items():
+                for level_id, results in time.items():
                     times[level_id] = results
 
                 # Delete pbsID file - it means job is finished
@@ -324,10 +324,10 @@ class SamplingPoolPBS(SamplingPool):
         :param times: dict
         :return: all input dictionaries
         """
-        already_collect = []
+        already_collected = []
 
         for sample_id in self._unfinished_sample_ids:
-            if sample_id in already_collect:
+            if sample_id in already_collected:
                 continue
 
             sample_dir = os.path.join(self._output_dir, sample_id)
@@ -341,18 +341,19 @@ class SamplingPoolPBS(SamplingPool):
             for level_id, results in successful.items():
                 for res in results:
                     if res[0] in self._unfinished_sample_ids:
-                        already_collect.append(res[0])
+                        already_collected.append(res[0])
                         successful_results.setdefault(level_id, []).append(res)
             for level_id, results in failed_results.items():
                 for res in results:
                     if res[0] in self._unfinished_sample_ids:
-                        already_collect.append(res[0])
+                        already_collected.append(res[0])
                         failed_results.setdefault(level_id, []).append(res)
-            # for level_id, results in times.items():
-            #     for res in results:
-            #         if res[0] in self._unfinished_sample_ids:
-            #             failed_results.setdefault(level_id, []).append(res)
-            #     times[level_id] = results
+
+            for level_id, results in times.items():
+                for res in results:
+                    if res[0] in self._unfinished_sample_ids:
+                        times.setdefault(level_id, []).append(res)
+                times[level_id] = results
 
             # Delete pbsID file - it means job is finished
             # SamplingPoolPBS.delete_pbs_id_file(file)
