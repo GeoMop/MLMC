@@ -8,7 +8,7 @@ from typing import List
 from abc import ABC, abstractmethod
 from multiprocessing import Pool as ProcPool
 from multiprocessing import pool
-from level_simulation import LevelSimulation
+from mlmc.level_simulation import LevelSimulation
 
 
 class SamplingPool(ABC):

@@ -1,6 +1,5 @@
 import numpy as np
 import h5py
-from sample import Sample
 
 
 class HDF5:

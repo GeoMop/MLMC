@@ -1,8 +1,7 @@
-import numpy as np
 import attr
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union, Any
-from level_simulation import LevelSimulation
+from typing import List, Tuple, Union
+from mlmc.level_simulation import LevelSimulation
 
 
 @attr.s(auto_attribs=True)

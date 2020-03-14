@@ -1,20 +1,17 @@
 import os
-import sys
 import numpy as np
 import shutil
-import yaml
 from scipy import stats
 
-src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
-from synth_simulation_workspace import SynthSimulationWorkspace
-from sampler import Sampler
-from sample_storage import Memory
-from sample_storage_hdf import SampleStorageHDF
-from sampling_pool import ProcessPool, ThreadPool, OneProcessPool
+from synth_simulation import SynthSimulationWorkspace
+from mlmc.sampler import Sampler
+from mlmc.sample_storage import Memory
+from mlmc.sample_storage_hdf import SampleStorageHDF
+from mlmc.sampling_pool import ProcessPool, ThreadPool, OneProcessPool
 from mlmc.moments import Legendre
-from quantity_estimate import QuantityEstimate
-import new_estimator
+from mlmc.quantity_estimate import QuantityEstimate
+import mlmc.new_estimator as new_estimator
+
 
 def oneprocess_test():
     np.random.seed(3)
