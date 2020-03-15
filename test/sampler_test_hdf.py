@@ -1,19 +1,15 @@
 import os
-import sys
 import shutil
 import numpy as np
 from scipy import stats
 
-src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
-from synth_simulation import SynthSimulation
-from synth_simulation_workspace import SynthSimulationWorkspace
-from sampler import Sampler
-from sample_storage_hdf import SampleStorageHDF
-from sampling_pool import OneProcessPool, ProcessPool
+from mlmc.synth_simulation import SynthSimulation, SynthSimulationWorkspace
+from mlmc.sampler import Sampler
+from mlmc.sample_storage_hdf import SampleStorageHDF
+from mlmc.sampling_pool import OneProcessPool, ProcessPool
 from mlmc.moments import Legendre
-from quantity_estimate import QuantityEstimate
-import new_estimator
+from mlmc.quantity_estimate import QuantityEstimate
+import mlmc.new_estimator as new_estimator
 
 
 def sampler_hdf_test():
@@ -22,9 +18,9 @@ def sampler_hdf_test():
     failed_fraction = 0.1
 
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
-    if os.path.exists(work_dir):
-        shutil.rmtree(work_dir)
-    os.makedirs(work_dir)
+    # if os.path.exists(work_dir):
+    #     shutil.rmtree(work_dir)
+    # os.makedirs(work_dir)
 
     distr = stats.norm()
     step_range = [0.1, 0.001]

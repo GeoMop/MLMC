@@ -8,12 +8,6 @@ import json
 from typing import List
 
 
-src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(src_path, '..', '..', 'src'))
-sys.path.append(os.path.join(src_path, '..', '..', 'test'))
-sys.path.append(os.path.join(src_path))
-
-
 class PbsProcess:
 
     SCHEDULED = "{}_scheduled.yaml"
@@ -223,6 +217,11 @@ class PbsProcess:
         self._current_samples_to_permanent(current_samples)
 
     def _write_end_mark(self, path):
+        """
+        Write end mark to the file
+        :param path: str, file path
+        :return: None
+        """
         if os.path.exists(path):
             with open(path, "r") as reader:
                 data = yaml.load(reader, yaml.Loader)
@@ -231,8 +230,6 @@ class PbsProcess:
             with open(path, "w") as f:
                 yaml.dump(data, f)
 
-            # with open(path, "r") as reader:
-            #     data = yaml.load(reader, yaml.Loader)
 
     def _current_samples_to_permanent(self, current_samples):
         for sample_id in current_samples:
@@ -261,7 +258,6 @@ class PbsProcess:
                         file_data[level_id] = []
 
                     file_data[level_id].extend(data[level_id])
-
                 data = file_data
 
         with open(path, "w") as f:

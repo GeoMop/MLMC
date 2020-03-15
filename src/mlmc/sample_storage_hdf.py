@@ -1,9 +1,9 @@
 import os
 import numpy as np
 from typing import List
-from sample_storage import SampleStorage
-from simulation import QuantitySpec
-import hdf5 as hdf
+from mlmc.sample_storage import SampleStorage
+from mlmc.new_simulation import QuantitySpec
+import mlmc.hdf5 as hdf
 
 
 # Starts from scratch

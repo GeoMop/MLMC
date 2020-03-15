@@ -5,14 +5,11 @@ import h5py
 import numpy as np
 import pytest
 
-src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, src_path + '/../src/')
-import mlmc.hdf
-from mlmc.sample import Sample
+import mlmc.hdf5
 
 
 """
-test src/mlmc/hdf.py methods
+test src/mlmc/hdf5.py methods
 """
 
 
@@ -21,24 +18,30 @@ def test_hdf5():
     if os.path.exists(work_dir):
         shutil.rmtree(work_dir)
     os.makedirs(work_dir)
-    hdf_obj = mlmc.hdf.HDF5(work_dir, 'test')
+    file_path = os.path.join(work_dir, "mlmc_test.hdf5")
+    hdf_obj = mlmc.hdf5.HDF5(file_path, load_from_file=False)
 
-    init_header(hdf_obj)
+    obligatory_attributes = ['version', 'step_range']
+    init_header(hdf_obj, obligatory_attributes)
 
     levels = ['1', '2', '3', '7', '8', '9']
     add_level_group(hdf_obj, levels)
 
-    load_from_file(hdf_obj)
+    load_from_file(hdf_obj, obligatory_attributes)
 
     clear_groups(hdf_obj)
 
 
-def init_header(hdf_obj):
+def init_header(hdf_obj, obligatory_attributes):
+    """
+    Initialize hdf file
+    :param hdf_obj: mlmc.HDF5 instance
+    :param obligatory_attributes: each mlmc.HDF5 hdf file has these attributes
+    :return:
+    """
     step_range = (0.99, 0.00001)
-    n_levels = 20
-    obligatory_attributes = ['version', 'step_range', 'n_levels']
 
-    hdf_obj.init_header(step_range, n_levels)
+    hdf_obj.init_header(step_range)
 
     # Check if all obligatory attributes are actually in HDF5 file
     with h5py.File(hdf_obj.file_name, "r") as hdf_file:
@@ -73,41 +76,22 @@ def clear_groups(hdf_obj):
         assert 'Levels' not in hdf_file
 
 
-def load_from_file(hdf_obj):
+def load_from_file(hdf_obj, obligatory_attributes):
     """
     Test loading data from existing file
-    :param hdf_obj:
+    :param hdf_obj: mlmc.HDF5 instance
+    :param obligatory_attributes: each mlmc.HDF5 hdf file has these attributes
     :return: None
     """
-    keys = hdf_obj.__dict__.keys()
-
-    del_keys = ['step_range', 'n_levels']
-    # Remove class attributes, keep just file name
-    for key in del_keys:
-        del hdf_obj.__dict__[key]
-
     hdf_obj.load_from_file()
-    assert all(key in hdf_obj.__dict__ for key in keys)
+    assert all(attr in hdf_obj.__dict__ for attr in obligatory_attributes)
 
 
-SCHEDULED_SAMPLES = {0:(Sample(sample_id=0, job_id='1', prepare_time=0.01),
-                              Sample(sample_id=0, job_id='1', prepare_time=0.011)
-                              ),
-                     1: (Sample(sample_id=1, job_id='1', prepare_time=0.009),
-                          Sample(sample_id=1, job_id='1', prepare_time=0.012)
-                          ),
-                     2:  (Sample(sample_id=2, job_id='5', prepare_time=0.008),
-                          Sample(sample_id=2, job_id='5', prepare_time=0.013)
-                          )
-                     }
+SCHEDULED_SAMPLES = ['L00_S0000000', 'L00_S0000001', 'L00_S0000002', 'L00_S0000003', 'L00_S0000004']
 
 
-COLLECTED_SAMPLES = [(Sample(sample_id=0, job_id='1', time=0.1, result=0.25),
-                      Sample(sample_id=0, job_id='1', time=0.11, result=0.5)),
-                     (Sample(sample_id=1, job_id='1', time=0.09, result=-0.25),
-                      Sample(sample_id=1, job_id='1', time=0.12, result=0.1)),
-                     (Sample(sample_id=2, job_id='5', time=0.08, result=1),
-                      Sample(sample_id=2, job_id='5', time=0.13, result=-0.1))]
+COLLECTED_SAMPLES = np.array([['L00S0000000', (np.array([10, 20]), np.array([5, 6]))],
+                     ['L00S0000001', (np.array([1, 2]), np.array([50, 60]))]])
 
 
 def test_level_group():
@@ -127,7 +111,7 @@ def test_level_group():
         hdf_file.create_group(level_group_path)
 
     # Create LevelGroup instance
-    hdf_level_group = mlmc.hdf.LevelGroup(file_name, level_group_path, level_id, job_dir)
+    hdf_level_group = mlmc.hdf5.LevelGroup(file_name, level_group_path, level_id, job_dir)
 
     with h5py.File(file_name, "r") as hdf_file:
         assert hdf_file[level_group_path].attrs['level_id'] == level_id == hdf_level_group.level_id
@@ -141,8 +125,6 @@ def test_level_group():
     scheduled(hdf_level_group)
 
     collected(hdf_level_group)
-
-    job_samples(hdf_level_group)
 
 
 def make_dataset(hdf_level_group, dset_name="test"):
@@ -165,8 +147,9 @@ def make_group_datasets(hdf_level_group):
     :return: None
     """
     # Created datasets
-    datasets = [attr_prop['name'] for _, attr_prop in mlmc.hdf.LevelGroup.COLLECTED_ATTRS.items()]
-    datasets.extend(['scheduled', 'failed_ids'])
+    datasets = [attr_prop['name'] for _, attr_prop in mlmc.hdf5.LevelGroup.COLLECTED_ATTRS.items()]
+    datasets.extend([hdf_level_group.scheduled_dset, hdf_level_group.failed_dset])
+    hdf_level_group._make_groups_datasets()
 
     with h5py.File(hdf_level_group.file_name, "r") as hdf_file:
         assert all(dset in hdf_file[hdf_level_group.level_group_path] for dset in datasets)
@@ -198,19 +181,12 @@ def scheduled(hdf_level_group):
     :param hdf_level_group: mlmc.hdf.LevelGroup instance
     :return: None
     """
-
     hdf_level_group.append_scheduled(SCHEDULED_SAMPLES)
-
     with h5py.File(hdf_level_group.file_name, "r") as hdf_file:
-        assert '1' in hdf_file[hdf_level_group.level_group_path]['Jobs']
-        assert '5' in hdf_file[hdf_level_group.level_group_path]['Jobs']
         assert len(SCHEDULED_SAMPLES) == len(hdf_file[hdf_level_group.level_group_path]['scheduled'][()])
 
-    saved_scheduled = hdf_level_group.scheduled()
-
-    for fine_sample, coarse_sample in saved_scheduled:
-        assert fine_sample == SCHEDULED_SAMPLES[fine_sample.sample_id][0]
-        assert coarse_sample == SCHEDULED_SAMPLES[coarse_sample.sample_id][1]
+    saved_scheduled = [sample[0].decode() for sample in hdf_level_group.scheduled()]
+    assert all(orig_scheduled_id == saved_schedule_id for orig_scheduled_id, saved_schedule_id in zip(SCHEDULED_SAMPLES, saved_scheduled))
 
 
 def collected(hdf_level_group):
@@ -219,28 +195,17 @@ def collected(hdf_level_group):
     :param hdf_level_group: mlmc.hdf.LevelGroup instance
     :return: None
     """
-    hdf_level_group.append_collected(COLLECTED_SAMPLES)
+    hdf_level_group.append_successful(COLLECTED_SAMPLES)
 
-    saved_collected = hdf_level_group.collected()
-    for index, (fine_collected, coarse_collected) in enumerate(saved_collected):
-        assert fine_collected == COLLECTED_SAMPLES[index][0]
-        assert coarse_collected == COLLECTED_SAMPLES[index][1]
+    results = hdf_level_group.collected()
+    for col, res in zip(COLLECTED_SAMPLES, results):
+        assert (res == np.array(col[1])).all()
 
     with h5py.File(hdf_level_group.file_name, "r") as hdf_file:
-        for _, dset_params in mlmc.hdf.LevelGroup.COLLECTED_ATTRS.items():
+        for _, dset_params in mlmc.hdf5.LevelGroup.COLLECTED_ATTRS.items():
             assert len(COLLECTED_SAMPLES) == len(hdf_file[hdf_level_group.level_group_path][dset_params['name']][()])
 
 
-def job_samples(hdf_level_group):
-    """
-    Test saved job ids
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
-    :return: None
-    """
-    sample_ids = hdf_level_group.job_samples(['1', '5'])
-    assert all(s_id == c_id for s_id, c_id in zip(sample_ids, range(len(COLLECTED_SAMPLES))))
-
-
 if __name__ == '__main__':
-    #test_hdf5()
+    test_hdf5()
     test_level_group()

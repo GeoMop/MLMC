@@ -1,9 +1,9 @@
 import time
 import numpy as np
 from typing import List
-from sample_storage import SampleStorage
-from sampling_pool import SamplingPool
-from simulation import Simulation
+from mlmc.sample_storage import SampleStorage
+from mlmc.sampling_pool import SamplingPool
+from mlmc.new_simulation import Simulation
 
 
 class Sampler:

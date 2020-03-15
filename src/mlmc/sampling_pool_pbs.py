@@ -5,9 +5,9 @@ import re
 import pickle
 import json
 import glob
-from level_simulation import LevelSimulation
-from sampling_pool import SamplingPool
-from pbs_process import PbsProcess
+from mlmc.level_simulation import LevelSimulation
+from mlmc.sampling_pool import SamplingPool
+from mlmc.pbs_process import PbsProcess
 
 
 class SamplingPoolPBS(SamplingPool):
@@ -126,6 +126,10 @@ class SamplingPoolPBS(SamplingPool):
                                      '#PBS -e {pbs_output_dir}/{job_name}.ER',
                                      '']
 
+        self._pbs_header_template.extend(('cd {work_dir}',
+                                          'source env/bin/activate',
+                                          'pip3 install /storage/liberec3-tul/home/martin_spetlik/MLMC_new_design',))
+
         self._pbs_header_template.extend(kwargs['modules'])
         self._pbs_header_template.extend(('{python} {pbs_process_file_dir}/pbs_process.py {output_dir} {job_name} >'
                                           '{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
@@ -213,6 +217,7 @@ class SamplingPoolPBS(SamplingPool):
         self._pbs_config['job_name'] = "{:04d}".format(self._job_count)
         self._pbs_config['pbs_output_dir'] = self._jobs_dir
         self._pbs_config['output_dir'] = self._output_dir
+        self._pbs_config['work_dir'] = self._work_dir
 
         self.pbs_script = [line.format(**self._pbs_config) for line in self._pbs_header_template]
 
