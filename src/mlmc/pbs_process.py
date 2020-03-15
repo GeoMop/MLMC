@@ -8,12 +8,6 @@ import json
 from typing import List
 
 
-src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(src_path, '..', '..', 'src'))
-sys.path.append(os.path.join(src_path, '..', '..', 'test'))
-sys.path.append(os.path.join(src_path))
-
-
 class PbsProcess:
 
     SCHEDULED = "{}_scheduled.yaml"
