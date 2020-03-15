@@ -4,17 +4,14 @@ import shutil
 import numpy as np
 from scipy import stats
 
-src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
-from synth_simulation_workspace import SynthSimulationWorkspace
-
-from moments import Legendre
-from sampler import Sampler
-from sample_storage import Memory
-from sample_storage_hdf import SampleStorageHDF
-from sampling_pool_pbs import SamplingPoolPBS
-from quantity_estimate import QuantityEstimate
-import new_estimator
+from mlmc.moments import Legendre
+from mlmc.sampler import Sampler
+from mlmc.sample_storage import Memory
+from mlmc.sample_storage_hdf import SampleStorageHDF
+from mlmc.sampling_pool_pbs import SamplingPoolPBS
+from mlmc.quantity_estimate import QuantityEstimate
+import mlmc.new_estimator as new_estimator
+from mlmc.synth_simulation import SynthSimulationWorkspace
 
 
 def sampler_test_pbs():
@@ -22,14 +19,14 @@ def sampler_test_pbs():
     n_moments = 5
 
     distr = stats.norm(loc=1, scale=2)
-    step_range = [0.01, 0.001]
+    step_range = [0.01]
 
     # Set work dir
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
-    if os.path.exists(work_dir):
-        shutil.rmtree(work_dir)
-    os.makedirs(work_dir)
+    # if os.path.exists(work_dir):
+    #     shutil.rmtree(work_dir)
+    # os.makedirs(work_dir)
     shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
 
     simulation_config = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
@@ -47,16 +44,7 @@ def sampler_test_pbs():
         home_dir='/storage/liberec3-tul/home/martin_spetlik/',
         pbs_process_file_dir='/auto/liberec3-tul/home/martin_spetlik/MLMC_new_design/src/mlmc',
         python='python3',
-        modules=['module use /storage/praha1/home/jan-hybs/modules',
-                 'module -fs purge',
-                 'module load metabase',
-                 'module load cmake-3.6.1',
-                 'module load gcc-6.4.0',
-                 'module load boost-1.60-gcc',
-                 'module load mpich-3.0.2-gcc',
-                 'module rm python-2.7.6-gcc',
-                 'module load python-3.6.2-gcc',
-                 'module load python36-modules-gcc',
+        modules=['module load python36-modules-gcc',
                  'module list']
     )
 
@@ -69,7 +57,7 @@ def sampler_test_pbs():
     true_domain = distr.ppf([0.0001, 0.9999])
     moments_fn = Legendre(n_moments, true_domain)
 
-    sampler.set_initial_n_samples([10, 4])
+    sampler.set_initial_n_samples([5])
     # sampler.set_initial_n_samples([1000])
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()

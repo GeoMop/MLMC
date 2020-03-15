@@ -3,8 +3,7 @@ import shutil
 import numpy as np
 from scipy import stats
 
-from synth_simulation import SynthSimulation
-from synth_simulation_workspace import SynthSimulationWorkspace
+from mlmc.synth_simulation import SynthSimulation, SynthSimulationWorkspace
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool, ProcessPool
@@ -19,9 +18,9 @@ def sampler_hdf_test():
     failed_fraction = 0.1
 
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
-    if os.path.exists(work_dir):
-        shutil.rmtree(work_dir)
-    os.makedirs(work_dir)
+    # if os.path.exists(work_dir):
+    #     shutil.rmtree(work_dir)
+    # os.makedirs(work_dir)
 
     distr = stats.norm()
     step_range = [0.1, 0.001]
