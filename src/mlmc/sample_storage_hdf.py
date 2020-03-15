@@ -1,9 +1,9 @@
 import os
 import numpy as np
 from typing import List
-from sample_storage import SampleStorage
-from new_simulation import QuantitySpec
-import hdf5 as hdf
+from mlmc.sample_storage import SampleStorage
+from mlmc.new_simulation import QuantitySpec
+import mlmc.hdf5 as hdf
 
 
 # Starts from scratch
@@ -108,11 +108,13 @@ class SampleStorageHDF(SampleStorage):
 
     def _save_succesful(self, successful_samples):
         for level, samples in successful_samples.items():
-            self._level_groups[level].append_successful(np.array(samples))
+            if len(samples) > 0:
+                self._level_groups[level].append_successful(np.array(samples))
 
     def _save_failed(self, failed_samples):
         for level, samples in failed_samples.items():
-            self._level_groups[level].append_failed(samples)
+            if len(samples) > 0:
+                self._level_groups[level].append_failed(samples)
 
     def save_scheduled_samples(self, level_id, samples: List[str]):
         """
@@ -131,6 +133,9 @@ class SampleStorageHDF(SampleStorage):
         levels_results = list(np.empty(len(self._level_groups)))
         for level in self._level_groups:
             results = level.collected()
+            if results is None:
+                continue
+                
             levels_results[int(level.level_id)] = results.transpose((2, 0, 1))
 
         return levels_results
@@ -147,8 +152,16 @@ class SampleStorageHDF(SampleStorage):
         return n_finished
 
     def save_n_ops(self, n_ops):
+        """
+        Save number of operations (time) of samples
+        :param n_ops: Dict[level_id, List[overall time, number of successful samples]]
+        :return: None
+        """
         for level_id, (time, n_samples) in n_ops.items():
-            self._level_groups[level_id].n_ops_estimate = time/n_samples
+            if n_samples == 0:
+                self._level_groups[level_id].n_ops_estimate = 0
+            else:
+                self._level_groups[level_id].n_ops_estimate = time/n_samples
 
     def get_n_ops(self):
         """

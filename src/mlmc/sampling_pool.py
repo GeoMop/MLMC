@@ -8,7 +8,7 @@ from typing import List
 from abc import ABC, abstractmethod
 from multiprocessing import Pool as ProcPool
 from multiprocessing import pool
-from level_simulation import LevelSimulation
+from mlmc.level_simulation import LevelSimulation
 
 
 class SamplingPool(ABC):
@@ -113,25 +113,27 @@ class SamplingPool(ABC):
 
         return failed_dir
 
-    def _move_failed_dir(self, sample_id):
+    def _move_failed_dir(self, sample_id, sample_workspace):
         """
         Move failed sample dir to failed directory
         :param sample_id: str
+        :param sample_workspace: bool, simulation needs workspace
         :return: None
         """
-        if self._work_dir is not None:
+        if sample_workspace and self._work_dir is not None:
             failed_dir = self._create_failed()
             self._change_to_sample_directory(sample_id)
             shutil.copytree(os.getcwd(), os.path.join(failed_dir, sample_id))
             shutil.rmtree(os.getcwd(), ignore_errors=True)
 
-    def _remove_sample_dir(self, sample_id):
+    def _remove_sample_dir(self, sample_id, sample_workspace):
         """
         Remove sample directory
         :param sample_id: str
+        :param sample_workspace: bool, simulation needs workspace
         :return: None
         """
-        if self._work_dir is not None:
+        if sample_workspace and self._work_dir is not None:
             self._change_to_sample_directory(sample_id)
             shutil.rmtree(os.getcwd(), ignore_errors=True)
 
@@ -157,14 +159,14 @@ class OneProcessPool(SamplingPool):
         sample_id, result, err_msg, running_time = SamplingPool.calculate_sample(sample_id, level_sim)
 
         # Save running time for n_ops
-        self._save_running_time(level_sim.level_id , running_time)
+        self._save_running_time(level_sim.level_id, running_time)
 
         if not err_msg:
             self._queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
-            self._remove_sample_dir(sample_id)
+            self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
         else:
             self._failed_queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, err_msg))
-            self._move_failed_dir(sample_id)
+            self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
 
     def _save_running_time(self, level_id, running_time):
         """
@@ -235,7 +237,7 @@ class ProcessPool(OneProcessPool):
             self._queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
         else:
             self._failed_queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, err_msg))
-            self._move_failed_dir(sample_id)
+            self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
 
 
 class ThreadPool(ProcessPool):

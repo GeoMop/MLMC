@@ -1,17 +1,13 @@
-import os
-import sys
 import numpy as np
 from scipy import stats
 
-src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
 from synth_simulation import SynthSimulation
-from sampler import Sampler
-from sample_storage import Memory
-from sampling_pool import OneProcessPool
-from mlmc.moments import Legendre, Monomial
-from quantity_estimate import QuantityEstimate
-import new_estimator
+from mlmc.sampler import Sampler
+from mlmc.sample_storage import Memory
+from mlmc.sampling_pool import OneProcessPool
+from mlmc.moments import Legendre
+from mlmc.quantity_estimate import QuantityEstimate
+import mlmc.new_estimator as new_estimator
 
 
 def one_process_sampler_test():
@@ -55,17 +51,17 @@ def one_process_sampler_test():
 
     # @TODO: test
     # New estimation according to already finished samples
-    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
     n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                        n_levels=sampler.n_levels)
     # Loop until number of estimated samples is greater than the number of scheduled samples
     while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
         # New estimation according to already finished samples
-        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
+        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
         n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                            n_levels=sampler.n_levels)
 
-    print("collected samples ", sampler._n_created_samples)
+    print("collected samples ", sampler._n_scheduled_samples)
     means, vars = q_estimator.estimate_moments(moments_fn)
 
     print("means ", means)
