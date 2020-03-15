@@ -9,8 +9,9 @@ import glob
 from datetime import datetime as dt
 import shutil
 import copy
-import mlmc.simulation as simulation
-import mlmc.sample as sample
+from new_simulation import Simulation
+from level_simulation import LevelSimulation
+from new_simulation import QuantitySpec
 
 
 def substitute_placeholders(file_in, file_out, params):
@@ -85,6 +86,8 @@ class FlowSim(simulation.Simulation):
         to 'self' (Sim_c_l+1) as a coarse simulation. Usually Sim_f_l and Sim_c_l+1 are same simulations, but
         these need to be different for advanced generation of samples (zero-mean control and antithetic).
         """
+
+        self.need_workspace = True
         if level_id is not None:
             self.sim_id = level_id
         else:
@@ -148,6 +151,67 @@ class FlowSim(simulation.Simulation):
 
         super(simulation.Simulation, self).__init__()
 
+    def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]) -> LevelSimulation:
+        """
+
+        :param fine_level_params:
+        :param coarse_level_params:
+        :return:
+        """
+        config = dict()
+        config["fine"] = {}
+        config["coarse"] = {}
+        config["fine"]["step"] = fine_level_params[0]
+        config["coarse"]["step"] = coarse_level_params[0]
+        config["distr"] = self.config["distr"]
+
+        return LevelSimulation(config_dict=config, task_size=self.n_ops_estimate(fine_level_params[0]))
+
+    @staticmethod
+    def calculate(config, seed):
+        """
+        Calculate fine and coarse sample and also extract their results
+        :param config: dictionary containing simulation configuration
+        :return:
+        """
+        
+
+
+
+        # @TODO: pass path to sample directory
+        FlowSim._extract_result()
+
+
+
+        # if np.isnan(fine_result) or np.isnan(coarse_result):
+        #     raise Exception("result is nan")
+
+        # quantity_format = FlowSimSimulation.result_format()
+        #
+        # results = []
+        # for result in [fine_result, coarse_result]:
+        #     quantities = []
+        #     for quantity in quantity_format:
+        #         locations = np.array([result + i for i in range(len(quantity.locations))])
+        #         times = np.array([locations for _ in range(len(quantity.times))])
+        #         quantities.append(times)
+        #
+        #     results.append(np.array(quantities))
+        #
+        # return results[0].flatten(), results[1].flatten()
+
+    @staticmethod
+    def result_format() -> List[QuantitySpec]:
+        """
+        Result format
+        :return:
+        """
+        spec1 = QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=['10', '20'])
+        spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40'])
+        # spec1 = QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=[(1, 2, 3), (4, 5, 6)])
+        # spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=[(7, 8, 9), (10, 11, 12)])
+        return [spec1, spec2]
+    
     def n_ops_estimate(self):
         """
         Number of operations

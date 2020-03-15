@@ -1,6 +1,5 @@
 import numpy as np
 import h5py
-from sample import Sample
 
 
 class HDF5:
@@ -227,7 +226,7 @@ class LevelGroup:
         :return: None
         """
         # Create dataset for scheduled samples
-        self._make_dataset(name='scheduled', shape=(0,), maxshape=(None,), dtype=LevelGroup.SCHEDULED_DTYPE,
+        self._make_dataset(name=self.scheduled_dset, shape=(0,), maxshape=(None,), dtype=LevelGroup.SCHEDULED_DTYPE,
                            chunks=True)
 
         # Create datasets for collected samples by COLLECTED_ATTRS
@@ -353,6 +352,8 @@ class LevelGroup:
         :return: all dataset values, TODO: generator in future
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
+            if 'collected_values' not in hdf_file[self.level_group_path]:
+                return None
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
             values = dataset[()]
 
