@@ -2,7 +2,7 @@ import os
 import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.new_simulation import QuantitySpec
+from mlmc.simulation import QuantitySpec
 import mlmc.hdf5 as hdf
 
 

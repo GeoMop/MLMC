@@ -3,7 +3,7 @@ import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
 from mlmc.sampling_pool import SamplingPool
-from mlmc.new_simulation import Simulation
+from mlmc.simulation import Simulation
 
 
 class Sampler:

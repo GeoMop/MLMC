@@ -42,7 +42,6 @@ import mlmc.distribution
 import mlmc.simple_distribution
 from mlmc import moments
 import mlmc.plot
-from test.fixtures.mlmc_test_run import TestMLMC
 
 
 class CutDistribution:
@@ -383,7 +382,7 @@ distribution_list = [
         # (stats.weibull_min(c=1.5), True),  # Infinite derivative at zero
     ]
 
-#@pytest.mark.skip
+@pytest.mark.skip
 @pytest.mark.parametrize("moments", [
     # moments_class, min and max number of moments, use_covariance flag
     #(moments.Monomial, 3, 10),

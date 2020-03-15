@@ -1,17 +1,14 @@
-import os
-import sys
+
 import numpy as np
 from scipy import stats
 
-src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
-from synth_simulation import SynthSimulation
-from sampler import Sampler
-from sample_storage import Memory
-from sampling_pool import ProcessPool, ThreadPool, OneProcessPool
+from mlmc.synth_simulation import SynthSimulation
+from mlmc.sampler import Sampler
+from mlmc.sample_storage import Memory
+from mlmc.sampling_pool import ProcessPool, ThreadPool, OneProcessPool
 from mlmc.moments import Legendre
-from quantity_estimate import QuantityEstimate
-import new_estimator
+from mlmc.quantity_estimate import QuantityEstimate
+import mlmc.new_estimator
 
 
 def multiproces_sampler_test():
