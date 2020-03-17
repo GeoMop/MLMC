@@ -1,8 +1,8 @@
 import os
-import sys
 import shutil
 import numpy as np
 from scipy import stats
+import pytest
 
 from mlmc.moments import Legendre
 from mlmc.sampler import Sampler
@@ -13,8 +13,8 @@ from mlmc.quantity_estimate import QuantityEstimate
 import mlmc.new_estimator as new_estimator
 from mlmc.synth_simulation import SynthSimulationWorkspace
 
-
-def sampler_test_pbs():
+@pytest.mark.pbs
+def test_sampler_pbs():
     np.random.seed(3)
     n_moments = 5
 
@@ -90,6 +90,5 @@ def sampler_test_pbs():
     # assert vars[0] == 0
     
 
-
 if __name__ == "__main__":
-    sampler_test_pbs()
+    test_sampler_pbs()

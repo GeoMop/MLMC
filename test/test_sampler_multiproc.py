@@ -1,4 +1,3 @@
-
 import numpy as np
 from scipy import stats
 
@@ -8,7 +7,7 @@ from mlmc.sample_storage import Memory
 from mlmc.sampling_pool import ProcessPool, ThreadPool, OneProcessPool
 from mlmc.moments import Legendre
 from mlmc.quantity_estimate import QuantityEstimate
-import mlmc.new_estimator
+import mlmc.new_estimator as new_estimator
 
 
 def multiproces_sampler_test():
@@ -45,22 +44,22 @@ def multiproces_sampler_test():
     sleep = 0
     add_coef = 0.1
 
-    # @TODO: test
-    # New estimation according to already finished samples
-    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
-    n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-                                                                       n_levels=sampler.n_levels)
+    # # @TODO: test
+    # # New estimation according to already finished samples
+    # variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+    # n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+    #                                                                    n_levels=sampler.n_levels)
+    #
+    # # Loop until number of estimated samples is greater than the number of scheduled samples
+    # while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
+    #     # New estimation according to already finished samples
+    #     variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+    #     n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+    #                                                                        n_levels=sampler.n_levels)
+    #
+    #     print("n estimated ", n_estimated)
 
-    # Loop until number of estimated samples is greater than the number of scheduled samples
-    while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
-        # New estimation according to already finished samples
-        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
-        n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-                                                                           n_levels=sampler.n_levels)
-
-        print("n estimated ", n_estimated)
-
-    print("collected samples ", sampler._n_created_samples)
+    print("collected samples ", sampler._n_scheduled_samples)
     means, vars = q_estimator.estimate_moments(moments_fn)
 
     print("means ", means)
@@ -137,6 +136,7 @@ def threads_sampler_test():
     storage = sampler.sample_storage
     results = storage.sample_pairs()
 
+
 if __name__ == "__main__":
     multiproces_sampler_test()
-    threads_sampler_test()
+    #threads_sampler_test()

@@ -50,17 +50,22 @@ class SamplingPool(ABC):
         return seed
 
     @staticmethod
-    def calculate_sample(sample_id, level_sim):
+    def calculate_sample(sample_id, level_sim, work_dir=None):
         """
         Method for calculating results
         :param sample_id: str
         :param level_sim: LevelSimulation
+        :param work_dir: working directory
         :return:
         """
         seed = SamplingPool.compute_seed(sample_id)
         res = (None, None)
         err_msg = ""
         running_time = 0
+
+        if level_sim.need_sample_workspace:
+            SamplingPool._handle_sim_files(work_dir, sample_id, level_sim)
+
         try:
             start = time.time()
             res = level_sim.calculate(level_sim.config_dict, seed)
@@ -70,18 +75,21 @@ class SamplingPool(ABC):
 
         return sample_id, res, err_msg, running_time
 
-    def _change_to_sample_directory(self, path: str):
+    @staticmethod
+    def _change_to_sample_directory(work_dir, path: str):
         """
         Create sample directory and change working directory
         :param path: str
         :return: None
         """
-        sample_dir = os.path.join(self._work_dir, path)
+
+        sample_dir = os.path.join(work_dir, path)
         if not os.path.isdir(sample_dir):
             os.makedirs(sample_dir, mode=0o775, exist_ok=True)
         os.chdir(sample_dir)
 
-    def _copy_sim_files(self, files: List[str]):
+    @staticmethod
+    def _copy_sim_files(files: List[str]):
         """
         Copy simulation common files to current simulation sample directory
         :param files: List of files
@@ -90,17 +98,16 @@ class SamplingPool(ABC):
         for file in files:
             shutil.copy(file, os.getcwd())
 
-    def _handle_sim_files(self, sample_id, level_sim):
+    @staticmethod
+    def _handle_sim_files(work_dir, sample_id, level_sim):
         """
         Change working directory to sample dir and copy common files
         :param sample_id: str
         :param level_sim: LevelSimulation
         :return: None
         """
-        if self._work_dir is None:
-            raise FileNotFoundError("Work dir is not set")
-        self._change_to_sample_directory(sample_id)
-        self._copy_sim_files(level_sim.common_files)
+        SamplingPool._change_to_sample_directory(work_dir, sample_id)
+        SamplingPool._copy_sim_files(level_sim.common_files)
 
     def _create_failed(self):
         """
@@ -122,7 +129,7 @@ class SamplingPool(ABC):
         """
         if sample_workspace and self._work_dir is not None:
             failed_dir = self._create_failed()
-            self._change_to_sample_directory(sample_id)
+            SamplingPool._change_to_sample_directory(self._work_dir, sample_id)
             shutil.copytree(os.getcwd(), os.path.join(failed_dir, sample_id))
             shutil.rmtree(os.getcwd(), ignore_errors=True)
 
@@ -134,7 +141,7 @@ class SamplingPool(ABC):
         :return: None
         """
         if sample_workspace and self._work_dir is not None:
-            self._change_to_sample_directory(sample_id)
+            SamplingPool._change_to_sample_directory(self._work_dir, sample_id)
             shutil.rmtree(os.getcwd(), ignore_errors=True)
 
 
@@ -153,10 +160,10 @@ class OneProcessPool(SamplingPool):
     def schedule_sample(self, sample_id, level_sim):
         self._n_running += 1
 
-        if level_sim.need_sample_workspace:
-            self._handle_sim_files(sample_id, level_sim)
+        if self._work_dir is None and level_sim.need_sample_workspace:
+            self._work_dir = os.getcwd()
 
-        sample_id, result, err_msg, running_time = SamplingPool.calculate_sample(sample_id, level_sim)
+        sample_id, result, err_msg, running_time = SamplingPool.calculate_sample(sample_id, level_sim, self._work_dir)
 
         # Save running time for n_ops
         self._save_running_time(level_sim.level_id, running_time)
@@ -223,10 +230,10 @@ class ProcessPool(OneProcessPool):
     def schedule_sample(self, sample_id, level_sim):
         self._n_running += 1
 
-        if level_sim.need_sample_workspace:
-            self._handle_sim_files(sample_id, level_sim)
+        if self._work_dir is None and level_sim.need_sample_workspace:
+            self._work_dir = os.getcwd()
 
-        res = self._pool.apply_async(SamplingPool.calculate_sample, args=(sample_id, level_sim,))
+        res = self._pool.apply_async(SamplingPool.calculate_sample, args=(sample_id, level_sim, self._work_dir))
 
         sample_id, result, err_msg, running_time = res.get()
 
@@ -252,3 +259,21 @@ class ThreadPool(ProcessPool):
         self._queues = {}
         self._n_running = 0
         self.times = {}
+
+
+# class change_cwd:
+#     """
+#     Context manager that change CWD, to given relative or absolute path.
+#     """
+#     def __init__(self, path: str):
+#         self.path = path
+#         self.orig_cwd = ""
+#
+#     def __enter__(self):
+#         if self.path:
+#             self.orig_cwd = os.getcwd()
+#             os.chdir(self.path)
+#
+#     def __exit__(self, exc_type, exc_value, traceback):
+#         if self.orig_cwd:
+#             os.chdir(self.orig_cwd)
