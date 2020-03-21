@@ -162,16 +162,15 @@ class SimpleDistribution:
         # result.solver_res = result.jac
         # # Fix normalization
         #
-        # moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
-        # m0 = sc.integrate.dblquad(self.density_2, self.domain[0], self.domain[1], self.domain[0], self.domain[1],
-        #                           epsabs=self._quad_tolerance)[0]
-        # print("moment[0]: {} m0: {}".format(moment_0, m0))
-        #
-        # self.multipliers[0] += np.log(moment_0)
-        #
-        # #m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1])[0]
-        # #moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
-        # #print("moment[0]: {} m0: {}".format(moment_0, m0))
+        moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
+        m0 = sc.integrate.nquad(self.density_2, [self.domain[0], self.domain[1]])[0]
+        print("moment[0]: {} m0: {}".format(moment_0, m0))
+
+        self.multipliers[0] += np.log(moment_0)
+
+        #m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1])[0]
+        moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
+        print("moment[0]: {} m0: {}".format(moment_0, m0))
 
         if result.success or jac_norm < tol:
             result.success = True
@@ -364,8 +363,8 @@ class SimpleDistribution:
         #print("self moments fn ", self.moments_fn)
         return self.moments_fn.eval_all((x, y), self.approx_size)
 
-    def eval_moments_der(self, x, y, degree=1):
-        return self.moments_fn.eval_all_der((x, y), self.approx_size, degree)
+    def eval_moments_der(self, x, y, x_degree=None, y_degree=None):
+        return self.moments_fn.eval_all_der((x, y), self.approx_size, x_degree, y_degree)
 
     # def _calc_exact_moments(self):
     #     integral = np.zeros(self.moments_fn.size)
@@ -458,7 +457,7 @@ class SimpleDistribution:
         self.y_quad_weights = y_weights.flatten()
 
         self._quad_moments = self.eval_moments(self.x_quad_points, self.y_quad_points)
-        self._quad_moments_2nd_der = self.eval_moments_der(self.x_quad_points, self.y_quad_points, degree=2)
+        #self._quad_moments_2nd_der = self.eval_moments_der(self.x_quad_points, self.y_quad_points, degree=2)
 
         # print("self._quad_moments ", self._quad_moments)
         # print("self._quad_moments.shape ", self._quad_moments.shape)
@@ -616,6 +615,7 @@ class SimpleDistribution:
         if self.regularization is not None:
             print("func regularization ", self.reg_param * self.regularization.functional_term(self))
             fun += self.reg_param * self.regularization.functional_term(self)
+
         self.functional_value = fun
 
         print("functional value ", fun)
@@ -784,6 +784,8 @@ class Regularization1(Regularization):
                                                                     simple_distr.x_quad_points[i]),
                                                             simple_distr.y_quad_points, degree=2)
 
+
+
             weights = simple_distr.x_quad_weights[i] * simple_distr.y_quad_weights
 
             reg_term += np.sum(weights * np.dot(moments_2nd_der, simple_distr.multipliers) ** 2)
@@ -802,7 +804,6 @@ class Regularization1(Regularization):
                                                             simple_distr.y_quad_points, degree=2)
 
             weights = simple_distr.x_quad_weights[i] * simple_distr.y_quad_weights
-
 
             reg_term += np.sum(weights * (np.dot(moments_2nd_der, simple_distr.multipliers) * moments_2nd_der.T), axis=1)
 
@@ -828,26 +829,222 @@ class Regularization1(Regularization):
         # reg = 2 * (simple_distr._quad_moments_2nd_der.T * simple_distr._quad_weights) @ \
         #       simple_distr._quad_moments_2nd_der
 
+        return 2 * reg_term
 
+
+class Regularization2(Regularization):
+
+    def functional_term(self, simple_distr):
+        final_reg_term = 0
+        for i in range(len(simple_distr.x_quad_points)):
+
+            m_2nd_x_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                                     simple_distr.x_quad_points[i]),
+                                                             simple_distr.y_quad_points, x_degree=2, y_degree=None)
+
+            m_1st_x_1st_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                              simple_distr.x_quad_points[i]),
+                                                      simple_distr.y_quad_points, x_degree=1, y_degree=1)
+
+            m_x_2nd_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                              simple_distr.x_quad_points[i]),
+                                                      simple_distr.y_quad_points, x_degree=None, y_degree=2)
+
+            weights = simple_distr.x_quad_weights[i] * simple_distr.y_quad_weights
+
+            reg_term = m_2nd_x_y**2 + 2*m_1st_x_1st_y**2 + m_x_2nd_y**2
+
+            #print("reg term ", reg_term)
+
+            final_reg_term += np.sum(weights * np.dot(reg_term, simple_distr.multipliers))
+
+            #print("final reg term ", final_reg_term)
+
+
+
+            # reg_term += np.sum(weights * np.dot(moments_2nd_der, simple_distr.multipliers) ** 2)
+
+        return final_reg_term
+        #
+        #
+        # return np.sum(simple_distr._quad_weights * (np.dot(simple_distr._quad_moments_2nd_der,
+        #                                                    simple_distr.multipliers) ** 2))
+
+    def gradient_term(self, simple_distr):
+        final_reg_term = np.zeros(simple_distr.approx_size)
+        for i in range(len(simple_distr.x_quad_points)):
+            m_2nd_x_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                              simple_distr.x_quad_points[i]),
+                                                      simple_distr.y_quad_points, x_degree=2, y_degree=None)
+
+            m_1st_x_1st_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                                  simple_distr.x_quad_points[i]),
+                                                          simple_distr.y_quad_points, x_degree=1, y_degree=1)
+
+            m_x_2nd_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                              simple_distr.x_quad_points[i]),
+                                                      simple_distr.y_quad_points, x_degree=None, y_degree=2)
+
+            weights = simple_distr.x_quad_weights[i] * simple_distr.y_quad_weights
+
+            reg_term = m_2nd_x_y ** 2 + 2 * m_1st_x_1st_y ** 2 + m_x_2nd_y ** 2
+
+            moments_2nd_der = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                                    simple_distr.x_quad_points[i]),
+                                                            simple_distr.y_quad_points, x_degree=2, y_degree=2)
+
+            weights = simple_distr.x_quad_weights[i] * simple_distr.y_quad_weights
+
+            # print("shape ", (np.dot(moments_2nd_der, simple_distr.multipliers) * moments_2nd_der.T).shape)
+            #
+            #
+            # print("gradient reg term ", reg_term)
+            #
+            # print("np.dot(reg_term, reg_term.T) ", np.dot(reg_term, reg_term.T))
+            #
+            # print("weights.shape ", weights.shape)
+            # print("reg term shape ", reg_term.shape)
+            #
+            # print("simple_distr._quad_weight.shape ", simple_distr.y_quad_weights.shape)
+            #
+            # print("weights * reg_term ", weights * reg_term.T)
+            #
+            # print("np.sum(weights * reg_term.T, axis=1) ", np.sum(weights * reg_term.T, axis=1))
+
+
+            final_reg_term += np.sum(weights * reg_term.T, axis=1)
+
+            # print("gradient final reg term ", final_reg_term)
+            # print("gradient final reg term.shape ", final_reg_term.shape)
+
+
+        return final_reg_term
+        # reg_term = np.sum(simple_distr._quad_weights *
+        #                   (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) *
+        #                    simple_distr._quad_moments_2nd_der.T), axis=1)
+        #
+        # return 2 * reg_term
+
+    def jacobian_term(self, simple_distr):
+        reg_term = np.zeros((simple_distr.approx_size, simple_distr.approx_size))
+        # for i in range(len(simple_distr.x_quad_points)):
+        #     moments_2nd_der = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+        #                                                             simple_distr.x_quad_points[i]),
+        #                                                     simple_distr.y_quad_points, degree=2)
+        #
+        #     weights = simple_distr.x_quad_weights[i] * simple_distr.y_quad_weights
+        #     # print("mom ", mom)
+        #     reg_term += (moments_2nd_der.T * weights) @ moments_2nd_der
+        #
+        #
+        # # reg = 2 * (simple_distr._quad_moments_2nd_der.T * simple_distr._quad_weights) @ \
+        # #       simple_distr._quad_moments_2nd_der
+
+        return reg_term
+
+
+class Regularization3(Regularization):
+
+    def functional_term(self, simple_distr):
+        final_reg_term = 0
+        for i in range(len(simple_distr.x_quad_points)):
+
+            m_2nd_x_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                                     simple_distr.x_quad_points[i]),
+                                                             simple_distr.y_quad_points, x_degree=2, y_degree=None)
+
+            m_1st_x_1st_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                              simple_distr.x_quad_points[i]),
+                                                      simple_distr.y_quad_points, x_degree=1, y_degree=1)
+
+            m_x_2nd_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                              simple_distr.x_quad_points[i]),
+                                                      simple_distr.y_quad_points, x_degree=None, y_degree=2)
+
+            weights = simple_distr.x_quad_weights[i] * simple_distr.y_quad_weights
+
+            reg_term = m_2nd_x_y**2 + 2*m_1st_x_1st_y**2 + m_x_2nd_y**2
+
+            print("reg term ", reg_term)
+
+            final_reg_term += np.sum(weights * np.sqrt(np.dot(reg_term, simple_distr.multipliers)))
+
+            print("final reg term ", final_reg_term)
+
+
+
+            # reg_term += np.sum(weights * np.dot(moments_2nd_der, simple_distr.multipliers) ** 2)
+
+        return final_reg_term
+
+    def gradient_term(self, simple_distr):
+        final_reg_term = np.zeros(simple_distr.approx_size)
+        for i in range(len(simple_distr.x_quad_points)):
+            m_2nd_x_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                              simple_distr.x_quad_points[i]),
+                                                      simple_distr.y_quad_points, x_degree=2, y_degree=None)
+
+            m_1st_x_1st_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                                  simple_distr.x_quad_points[i]),
+                                                          simple_distr.y_quad_points, x_degree=1, y_degree=1)
+
+            m_x_2nd_y = simple_distr.eval_moments_der(np.full(len(simple_distr.y_quad_points),
+                                                              simple_distr.x_quad_points[i]),
+                                                      simple_distr.y_quad_points, x_degree=None, y_degree=2)
+
+            reg_term = m_2nd_x_y ** 2 + 2 * m_1st_x_1st_y ** 2 + m_x_2nd_y ** 2
+
+
+
+            weights = simple_distr.x_quad_weights[i] * simple_distr.y_quad_weights
+
+            # print("shape ", (np.dot(moments_2nd_der, simple_distr.multipliers) * moments_2nd_der.T).shape)
+            #
+            #
+            # print("gradient reg term ", reg_term)
+            #
+            # print("np.dot(reg_term, reg_term.T) ", np.dot(reg_term, reg_term.T))
+            #
+            # print("weights.shape ", weights.shape)
+            # print("reg term shape ", reg_term.shape)
+            #
+            # print("simple_distr._quad_weight.shape ", simple_distr.y_quad_weights.shape)
+            #
+            # print("weights * reg_term ", weights * reg_term.T)
+            #
+            # print("np.sum(weights * reg_term.T, axis=1) ", np.sum(weights * reg_term.T, axis=1))
+
+
+            final_reg_term += np.sum(weights * reg_term.T, axis=1)
+
+            # print("gradient final reg term ", final_reg_term)
+            # print("gradient final reg term.shape ", final_reg_term.shape)
+
+        return final_reg_term
+
+
+    def jacobian_term(self, simple_distr):
+        reg_term = np.zeros((simple_distr.approx_size, simple_distr.approx_size))
         return 2 * reg_term
 
 
 
-class RegularizationTV(Regularization):
 
-    def functional_term(self, simple_distr):
-        return total_variation_int(simple_distr.density, simple_distr.domain[0], simple_distr.domain[1])
-
-    def gradient_term(self, simple_distr):
-        return total_variation_int(simple_distr.density_derivation, simple_distr.domain[0], simple_distr.domain[1])
-
-        #return egrad(self.functional_term(simple_distr))
-
-    def jacobian_term(self, simple_distr):
-
-        return total_variation_int(simple_distr.density_second_derivation,  simple_distr.domain[0], simple_distr.domain[1])
-
-        #return hessian(self.functional_term(simple_distr))
+# class RegularizationTV(Regularization):
+#
+#     def functional_term(self, simple_distr):
+#         return total_variation_int(simple_distr.density, simple_distr.domain[0], simple_distr.domain[1])
+#
+#     def gradient_term(self, simple_distr):
+#         return total_variation_int(simple_distr.density_derivation, simple_distr.domain[0], simple_distr.domain[1])
+#
+#         #return egrad(self.functional_term(simple_distr))
+#
+#     def jacobian_term(self, simple_distr):
+#
+#         return total_variation_int(simple_distr.density_second_derivation,  simple_distr.domain[0], simple_distr.domain[1])
+#
+#         #return hessian(self.functional_term(simple_distr))
 
 
 def compute_exact_moments(moments_fn, density, tol=1e-10):
@@ -1529,16 +1726,16 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
     #reg_matrix = np.zeros(jacobian_matrix.shape)
 
     reg_matrix = np.zeros(jacobian_matrix.shape)
-    if regularization is not None:
-
-        for i in range(len(x_quad_points)):
-            moments_2nd_der = moments_fn.eval_all_der((np.full(len(y_quad_points), x_quad_points[i]), y_quad_points),
-                                                      degree=2)
-            weights = x_quad_weights[i] * y_quad_weights
-            # print("mom ", mom)
-            reg_matrix += (moments_2nd_der.T * weights) @ moments_2nd_der
-
-    reg_matrix = 2 * reg_param * reg_matrix
+    # if regularization is not None:
+    #
+    #     for i in range(len(x_quad_points)):
+    #         moments_2nd_der = moments_fn.eval_all_der((np.full(len(y_quad_points), x_quad_points[i]), y_quad_points),
+    #                                                   degree=2)
+    #         weights = x_quad_weights[i] * y_quad_weights
+    #         # print("mom ", mom)
+    #         reg_matrix += (moments_2nd_der.T * weights) @ moments_2nd_der
+    #
+    # reg_matrix = 2 * reg_param * reg_matrix
 
 
     # print("reg matrix ")
@@ -2302,7 +2499,7 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     if L_mn[0, 0] < 0:
         L_mn = -L_mn
 
-    ortogonal_moments = mlmc.moments.TransformedMoments(moments, L_mn)
+    ortogonal_moments = mlmc.moments.TransformedBivariateMoments(moments, L_mn)
 
     #mlmc.tool.plot.moments3D(ortogonal_moments, size=ortogonal_moments.size, title=str(reg_param), file=None)
 

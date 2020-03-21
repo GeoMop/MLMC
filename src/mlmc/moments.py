@@ -288,8 +288,8 @@ class BivariateMoments:
         #
         # return np.array(results)
 
-    def _eval_all_der(self, value, size, degree):
-        return self.eval_all_der(value, size, degree=degree)
+    def _eval_all_der(self, value, size, x_degree, y_degree):
+        return self.eval_all_der(value, size, x_degree=x_degree, y_degree=y_degree)
 
     def eval_value_der(self, value, size, degree):
         x, y = value
@@ -315,14 +315,14 @@ class BivariateMoments:
         #
         # return np.array(results)
 
-    def eval_all_der(self, value, size=None, degree=1):
+    def eval_all_der(self, value, size=None, x_degree=None, y_degree=None):
         # print("EVAL_ALL DERIVATIVE value ", value)
         # print("value type ", type(value))
         if size is None:
             size = self.size
 
         if not isinstance(value[0], (list, tuple, np.ndarray)):
-            return self.eval_value_der(value, size=size, degree=degree)
+            return self.eval_value_der(value, size=size, x_degree=x_degree, y_degree=y_degree)
 
         value = np.array(value)
         # print("value ", value)
@@ -333,8 +333,15 @@ class BivariateMoments:
         # print("x", x)
         # print("y", y)
 
-        x_mom = self.moment_x._eval_all_der(x, self.moment_x.size, degree=degree)
-        y_mom = self.moment_y._eval_all_der(y, self.moment_y.size, degree=degree)
+        if x_degree is None:
+            x_mom = self.moment_x._eval_all(x, self.moment_x.size)
+        else:
+            x_mom = self.moment_x._eval_all_der(x, self.moment_x.size, degree=x_degree)
+
+        if y_degree is None:
+            y_mom = self.moment_y._eval_all(y, self.moment_y.size)
+        else:
+            y_mom = self.moment_y._eval_all_der(y, self.moment_y.size, degree=y_degree)
 
         res = np.einsum('ni,nj->nij', x_mom, y_mom)
         #print("res shape ", res.shape)
@@ -568,6 +575,8 @@ class Spline(Moments):
             c[i] = 1
             self.splines.append(BSpline(self.knots, c, self.poly_degree))
 
+        print("self splines ", self.splines)
+
     def _eval_value(self, x, size):
         values = np.zeros(size)
         index = 0
@@ -699,6 +708,60 @@ class TransformedMoments(Moments):
             value = value._value
 
         orig_moments = self._origin._eval_all_der(value, self._origin.size, degree=degree)
+        x1 = numpy.matmul(orig_moments, self._transform.T)
+
+        return x1[:, :size]
+
+
+class TransformedBivariateMoments(Moments):
+    def __init__(self, other_moments, matrix):
+        """
+        Set a new moment functions as linear combination of the previous.
+        new_moments = matrix . old_moments
+
+        We assume that new_moments[0] is still == 1. That means
+        first row of the matrix must be (1, 0 , ...).
+        :param other_moments: Original moments.
+        :param matrix: Linear combinations of the original moments.
+        """
+        n, m = matrix.shape
+        assert m == other_moments.size
+
+        self.size = n
+        self.domain = other_moments.domain
+
+        self._origin = other_moments
+        self._transform = matrix
+        #self._inv = inv
+        #assert np.isclose(matrix[0, 0], 1) and np.allclose(matrix[0, 1:], 0)
+        # TODO: find last nonzero for every row to compute which origianl moments needs to be evaluated for differrent sizes.
+
+    def __eq__(self, other):
+        return type(self) is type(other) \
+                and self.size == other.size \
+                and self._origin == other._origin \
+                and np.all(self._transform == other._transform)
+
+    def _eval_all(self, value, size):
+        orig_moments = self._origin._eval_all(value, self._origin.size)
+        # print("orig_moments ", orig_moments)
+        # print("self._transform.T ", self._transform.T)
+        x1 = np.matmul(orig_moments, self._transform.T)
+
+        #print("size ", size)
+
+        return x1[:, :size]
+
+    def eval_all_der(self, value, size, x_degree=None, y_degree=None):
+        return self._eval_all_der(value, size, x_degree, y_degree)
+
+    def _eval_all_der(self, value, size, x_degree=None, y_degree=None):
+        import numpy
+
+        if type(value).__name__ == 'ArrayBox':
+            value = value._value
+
+        orig_moments = self._origin._eval_all_der(value, self._origin.size, x_degree=x_degree, y_degree=y_degree)
         x1 = numpy.matmul(orig_moments, self._transform.T)
 
         return x1[:, :size]

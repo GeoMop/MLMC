@@ -121,9 +121,13 @@ class SplineApproximation:
             assert np.isclose(result, expected_result, atol=1e-5)
 
     def smooth(self, interpolation_point, data):
+        print("data before shift ", data)
+        print("self._level_smoothing_factor ", self._level_smoothing_factor)
+        self._level_smoothing_factor = 5#7 for norm 1e-4 target var
         data = (data - interpolation_point) / self._level_smoothing_factor
         if self.polynomial is None:
             self._create_smooth_polynomial()
+
 
         return self._polynomial_smoothing(data)
 
@@ -136,10 +140,23 @@ class SplineApproximation:
         result = np.zeros(len(data))
         result[(data < -1)] = 1
         indices = (-1 <= data) & (data <= 1)
+
+        print("data ", data)
+
         data = data[indices]
+
+        print("final data ", data)
+
+        data = np.sort(data)
 
         if len(data) > 0:
             result[indices] = self.polynomial(data)
+
+        import matplotlib.pyplot as plt
+        x = np.linspace(-1, 1, 1000)
+        plt.plot(x, self.polynomial(x))
+        plt.show()
+
         return result
 
     def indicator(self, interpolation_point, data):
@@ -352,6 +369,40 @@ class SplineApproximation:
 
 class BSplineApproximation(SplineApproximation):
 
+    def _setup(self):
+        """
+        Set interpolation points, smoothing factor and polynomial (for smoothing technique), indicator method
+        Also run indicator method for all MLMC levels and calculate expected value of particular indicator function
+        :return: None
+        """
+        from test.test_spline_function import TestMinSpline
+        self.determine_interpolation_points(self.n_interpolation_points)
+
+        self.smoothing_factor = np.zeros(self.mlmc.n_levels)
+        tms = TestMinSpline()
+        tms.get_g_function()
+
+        self.polynomial = tms.polynomial
+
+        print("TMS polynomial")
+
+        print("self polynomial ", self.polynomial)
+
+        self.indicator_method_name = "indicator"
+        self.indicator_method_name = "smooth"
+
+        # if self.indicator_method_name == "smooth":
+        #     self.smoothing_factor = np.zeros(self.mlmc.n_levels)
+        #     self._create_smooth_polynomial()
+
+        print("self.indicator_method_name ", self.indicator_method_name)
+
+
+        #self._create_smooth_polynomial()
+
+        self.ind_method = getattr(self, self.indicator_method_name)
+        self.indicator_mean()
+
     def cdf(self, points):
         """
         Cumulative distribution function at points X
@@ -359,6 +410,7 @@ class BSplineApproximation(SplineApproximation):
         :return: distribution
         """
         self._setup()
+
         spl = splrep(self.interpolation_points, self.all_levels_indicator)
         return splev(points, spl)
 
