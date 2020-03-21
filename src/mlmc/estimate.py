@@ -473,7 +473,6 @@ class Estimate:
                 integral[i][j] = integral[j][i] = integ
         return integral
 
-
     def construct_density(self, tol=1.95, reg_param=1e-7*5, orth_moments_tol=1e-2, exact_pdf=None):
         """
         Construct approximation of the density using given moment functions.
@@ -489,7 +488,10 @@ class Estimate:
 
         cov += 2 * reg_param * reg_term
 
-        moments_obj, info, cov_centered = simple_distribution.construct_orthogonal_moments(self.moments, cov, tol=orth_moments_tol)
+        moments_obj, info, cov_centered = simple_distribution.construct_orthogonal_moments(self.moments, cov,
+                                                                                           tol=orth_moments_tol,
+                                                                                           orth_method=2
+                                                                                        )
         print("n levels: ", self.n_levels, "size: ", moments_obj.size)
 
         est_moments, est_vars = self.estimate_moments(moments_obj)
@@ -526,7 +528,7 @@ class Estimate:
         # moments_data[:, 0] = exact_moments
         moments_data[:, 1] = 1.0
 
-        regularization = mlmc.simple_distribution.Regularization1()
+        regularization = mlmc.simple_distribution.Regularization2ndDerivation()
         distr_obj = simple_distribution.SimpleDistribution(moments_obj, moments_data, domain=moments_obj.domain,
                                                            reg_param=reg_param, regularization=regularization)
         distr_obj.estimate_density_minimize(tol)  # 0.95 two side quantile

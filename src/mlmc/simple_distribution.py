@@ -14,8 +14,8 @@ import pandas as pd
 import numdifftools as nd
 
 EXACT_QUAD_LIMIT = 1000
-GAUSS_DEGREE = 151
-HUBERT_MU = 0.001
+GAUSS_DEGREE = 100
+HUBER_MU = 0.001
 
 
 class SimpleDistribution:
@@ -23,7 +23,7 @@ class SimpleDistribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=20, regularization=None):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=30, regularization=None):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -35,6 +35,8 @@ class SimpleDistribution:
         self.moments_basis = moments_obj
 
         self.regularization = regularization
+
+        self.reg_par = 1e-3
 
         # Moment evaluation function with bounded number of moments and their domain.
         self.moments_fn = None
@@ -66,9 +68,9 @@ class SimpleDistribution:
         # Degree of Gauss quad to use on every subinterval determined by adaptive quad.
         self._gauss_degree = GAUSS_DEGREE
         # Panalty coef for endpoint derivatives
-        self._penalty_coef = 0
+        self._penalty_coef = 0#1
 
-        self._reg_term_jacobian = None
+        #self._reg_term_jacobian = None
 
         self.reg_param = reg_param
         self.max_iter = max_iter
@@ -111,14 +113,22 @@ class SimpleDistribution:
         #method = 'trust-ncg'
 
         print("init multipliers ", self.multipliers)
+        # result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
+        #                               jac=self._calculate_gradient,
+        #                               hess=self._calculate_jacobian_matrix,
+        #                               options={'tol': tol, 'xtol': tol,
+        #                                        'gtol': tol, 'disp': True, 'maxiter':max_it}
+        #                               #options={'disp': True, 'maxiter': max_it}
+        #                                 )
         result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
                                       jac=self._calculate_gradient,
                                       hess=self._calculate_jacobian_matrix,
                                       options={'tol': tol, 'xtol': tol,
-                                               'gtol': tol, 'disp': True, 'maxiter':max_it}
-                                      #options={'disp': True, 'maxiter': max_it}
-
+                                               'gtol': tol, 'disp': True, 'maxiter': max_it}
+                                      # options={'disp': True, 'maxiter': max_it}
                                       )
+
+
         self.multipliers = result.x
         jac_norm = np.linalg.norm(result.jac)
         print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
@@ -407,6 +417,7 @@ class SimpleDistribution:
         #print("quad points ", self._quad_points)
         self._quad_moments = self.eval_moments(self._quad_points)
         self._quad_moments_2nd_der = self.eval_moments_der(self._quad_points, degree=2)
+        self._quad_moments_3rd_der = self.eval_moments_der(self._quad_points, degree=3)
 
         power = -np.dot(self._quad_moments, multipliers/self._moment_errs)
         power = np.minimum(np.maximum(power, -200), 200)
@@ -532,6 +543,7 @@ class SimpleDistribution:
         :param multipliers: current multipliers
         :return: float
         """
+        print("CALCULATE FUNCTIONAL")
         self.multipliers = multipliers
         self._update_quadrature(multipliers, True)
         q_density = self._density_in_quads(multipliers)
@@ -539,14 +551,21 @@ class SimpleDistribution:
         sum = np.sum(self.moment_means * multipliers / self._moment_errs)
         fun = sum + integral
 
-        # end_diff = np.dot(self._end_point_diff, multipliers)
-        # penalty = np.sum(np.maximum(end_diff, 0) ** 2)
-        # fun = fun + np.abs(fun) * self._penalty_coef * penalty
+        if self._penalty_coef != 0:
+            end_diff = np.dot(self._end_point_diff, multipliers)
+            penalty = np.sum(np.maximum(end_diff, 0) ** 2)
+            fun = fun + np.abs(fun) * self._penalty_coef * penalty
 
         #reg_term = np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
         if self.regularization is not None:
+            print("regularization functional ", self.reg_param * self.regularization.functional_term(self))
             fun += self.reg_param * self.regularization.functional_term(self)
+        # reg_term = np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
+        # fun += self.reg_param * reg_term
         self.functional_value = fun
+        print("functional value ", fun)
+        print("self multipliers ", self.multipliers)
+
         return fun
 
     # def derivative(self, f, a, method='central', h=0.01):
@@ -585,16 +604,23 @@ class SimpleDistribution:
         Gradient of th functional
         :return: array, shape (n_moments,)
         """
+        print("CALCULATE GRADIENT")
         self._update_quadrature(multipliers)
         q_density = self._density_in_quads(multipliers)
         q_gradient = self._quad_moments.T * q_density
         integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
 
-        #end_diff = np.dot(self._end_point_diff, multipliers)
-        #penalty = 2 * np.dot(np.maximum(end_diff, 0), self._end_point_diff)
-        #fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
-        gradient = self.moment_means / self._moment_errs - integral# + np.abs(fun) * self._penalty_coef * penalty
+        if self._penalty_coef != 0:
+            end_diff = np.dot(self._end_point_diff, multipliers)
+            penalty = 2 * np.dot(np.maximum(end_diff, 0), self._end_point_diff)
+            fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
 
+            gradient = self.moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
+        else:
+
+            gradient = self.moment_means / self._moment_errs - integral# + np.abs(fun) * self._penalty_coef * penalty
+
+        #print("gradient ", gradient)
         #########################
         # Numerical derivation
 
@@ -636,14 +662,17 @@ class SimpleDistribution:
 
         #reg_term = np.sum(self._quad_weights *
         #                  (np.dot(self._quad_moments_2nd_der, self.multipliers) * self._quad_moments_2nd_der.T), axis=1)
+
         if self.regularization is not None:
+            #print("self.regularization gradient term ", self.regularization.gradient_term(self))
             gradient += self.reg_param * self.regularization.gradient_term(self)
+        # quad_moments_2nd_der = self._quad_moments_2nd_der
         self.gradients.append(gradient)
 
         return gradient
 
-    def _calculate_reg_term_jacobian(self):
-        self._reg_term_jacobian = (self._quad_moments_2nd_der.T * self._quad_weights) @ self._quad_moments_2nd_der
+    # def _calculate_reg_term_jacobian(self):
+    #     self._reg_term_jacobian = (self._quad_moments_2nd_der.T * self._quad_weights) @ self._quad_moments_2nd_der
 
     def _calc_jac(self):
         q_density = self.density(self._quad_points)
@@ -651,12 +680,18 @@ class SimpleDistribution:
 
         jacobian_matrix = (self._quad_moments.T * q_density_w) @ self._quad_moments
         # if self.reg_param != 0:
-        if self._reg_term_jacobian is None:
-            self._calculate_reg_term_jacobian()
+        # if self._reg_term_jacobian is None:
+        #     self._calculate_reg_term_jacobian()
 
-        #reg_term = self._reg_term_jacobian
-        if self.regularization is not None:
-            jacobian_matrix += self.reg_param * self.regularization.jacobian_term(self)
+        if self.reg_param != 0:
+            if self.regularization is not None:
+                # print("jacobian ")
+                # print(pd.DataFrame(jacobian_matrix))
+                #
+                # print("regularization jacobian term")
+                # print(self.regularization.jacobian_term(self))
+
+                jacobian_matrix += self.reg_param * self.regularization.jacobian_term(self)
 
         return jacobian_matrix
 
@@ -664,10 +699,22 @@ class SimpleDistribution:
         """
         :return: jacobian matrix, symmetric, (n_moments, n_moments)
         """
+        print("CALCULATE JACOBIAN")
         # jacobian_matrix_hess = hessian(self._calculate_functional)(multipliers)
         # print(pd.DataFrame(jacobian_matrix_hess))
-
         jacobian_matrix = self._calc_jac()
+
+        if self._penalty_coef != 0:
+            end_diff = np.dot(self._end_point_diff, multipliers)
+            fun = np.sum(self.moment_means * multipliers / self._moment_errs) + jacobian_matrix[0, 0] * self._moment_errs[0] ** 2
+            for side in [0, 1]:
+                if end_diff[side] > 0:
+                    penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
+                    jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
+
+        # print("jacobian")
+        # print(pd.DataFrame(jacobian_matrix))
+
         return jacobian_matrix
 
 
@@ -691,42 +738,146 @@ class Regularization(ABC):
         Regularization to jacobian matrix
         """
 
+    @abstractmethod
+    def jacobian_precondition(self):
+        """
+        Jacobian matrix preconditioning
+        :return:
+        """
 
-class Regularization1(Regularization):
+
+class Regularization2ndDerivation(Regularization):
 
     def functional_term(self, simple_distr):
-        return np.sum(simple_distr._quad_weights *
-                      (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) ** 2))
+        return np.sum(simple_distr._quad_weights * (np.dot(simple_distr._quad_moments_2nd_der,
+                                                           simple_distr.multipliers) ** 2))
 
     def gradient_term(self, simple_distr):
         reg_term = np.sum(simple_distr._quad_weights *
-                          (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers)
-                           * simple_distr._quad_moments_2nd_der.T), axis=1)
+                          (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) *
+                           simple_distr._quad_moments_2nd_der.T), axis=1)
+
         return 2 * reg_term
 
     def jacobian_term(self, simple_distr):
-        return 2 * (simple_distr._quad_moments_2nd_der.T * simple_distr._quad_weights) @\
+        reg = 2 * (simple_distr._quad_moments_2nd_der.T * simple_distr._quad_weights) @\
                simple_distr._quad_moments_2nd_der
+
+        return reg
+
+    def jacobian_precondition(self, moments_fn, quad_points, quad_weights):
+        """
+        Jacobian matrix preconditioning
+        :return:
+        """
+        quad_moments_2nd_der = moments_fn.eval_all_der(quad_points, degree=2)
+
+        reg_term = (quad_moments_2nd_der.T * quad_weights) @ quad_moments_2nd_der
+
+        return 2 * reg_term
+
+
+class Regularization3rdDerivation(Regularization):
+
+    def functional_term(self, simple_distr):
+        return np.sum(simple_distr._quad_weights * (np.dot(simple_distr._quad_moments_3rd_der,
+                                                           simple_distr.multipliers) ** 2))
+
+    def gradient_term(self, simple_distr):
+        reg_term = np.sum(simple_distr._quad_weights *
+                          (np.dot(simple_distr._quad_moments_3rd_der, simple_distr.multipliers) *
+                           simple_distr._quad_moments_3rd_der.T), axis=1)
+
+        return 2 * reg_term
+
+    def jacobian_term(self, simple_distr):
+        reg = 2 * (simple_distr._quad_moments_3rd_der.T * simple_distr._quad_weights) @\
+               simple_distr._quad_moments_3rd_der
+
+        return reg
+
+    def jacobian_precondition(self, moments_fn, quad_points, quad_weights):
+        """
+        Jacobian matrix preconditioning
+        :return:
+        """
+        quad_moments_3rd_der = moments_fn.eval_all_der(quad_points, degree=3)
+
+        reg_term = (quad_moments_3rd_der.T * quad_weights) @ quad_moments_3rd_der
+        #print("reg term ", reg_term)
+
+        return 2 * reg_term
+
+
+class RegularizationInexact(Regularization):
+
+    def functional_term(self, simple_distr):
+        return np.sum((simple_distr.multipliers - simple_distr.multipliers[0])**2)
+
+    def gradient_term(self, simple_distr):
+        reg_term = 2*(simple_distr.multipliers - simple_distr.multipliers[0])
+
+        return reg_term
+
+    def jacobian_term(self, simple_distr):
+        reg = 2
+        return reg
+
+    def jacobian_precondition(self, moments_fn, quad_points, quad_weights):
+        """
+        Jacobian matrix preconditioning
+        :return:
+        """
+        reg_term = 2
+        return reg_term
+
+
+class RegularizationInexact2(Regularization):
+
+    def functional_term(self, simple_distr):
+        #print("np.sum(simple_distr.multipliers) ", np.sum(simple_distr.multipliers))
+        return np.sum(simple_distr.multipliers**2)
+
+    def gradient_term(self, simple_distr):
+        reg_term = 2*simple_distr.multipliers
+
+        return reg_term
+
+    def jacobian_term(self, simple_distr):
+        reg = 2
+        return reg
+
+    def jacobian_precondition(self, moments_fn, quad_points, quad_weights):
+        """
+        Jacobian matrix preconditioning
+        :return:
+        """
+        reg_term = 2
+        return reg_term
+
 
 
 class RegularizationTV(Regularization):
 
     def functional_term(self, simple_distr):
-        return total_variation_int(simple_distr.density, simple_distr.domain[0], simple_distr.domain[1])
+        return self._reg_term(simple_distr.density, simple_distr.domain)
+        #return total_variation_int(simple_distr.density, simple_distr.domain[0], simple_distr.domain[1])
+
+    def _reg_term(self, density, domain):
+        return total_variation_int(density, domain[0], domain[1])
 
     def gradient_term(self, simple_distr):
-        return total_variation_int(simple_distr.density_derivation, simple_distr.domain[0], simple_distr.domain[1])
+        #return total_variation_int(simple_distr.density_derivation, simple_distr.domain[0], simple_distr.domain[1])
 
-        #return egrad(self.functional_term(simple_distr))
+        print("egrad(self.functional_term(simple_distr)) ", egrad(self.functional_term)(simple_distr))
+        return egrad(self._reg_term)(simple_distr.density, simple_distr.domain)
 
     def jacobian_term(self, simple_distr):
 
-        return total_variation_int(simple_distr.density_second_derivation,  simple_distr.domain[0], simple_distr.domain[1])
+        #return total_variation_int(simple_distr.density_second_derivation,  simple_distr.domain[0], simple_distr.domain[1])
 
-        #return hessian(self.functional_term(simple_distr))
-
-
-
+        #print("hessian(self.functional_term(simple_distr)) ", hessian(self.functional_term)(simple_distr))
+        return hessian(self._reg_term)(simple_distr.density, simple_distr.domain)
 
 
 def compute_exact_moments(moments_fn, density, tol=1e-10):
@@ -950,7 +1101,7 @@ def compute_exact_cov(moments_fn, density, tol=1e-10, reg_param=0, domain=None):
 
             def fn(x):
                 moments = moments_fn.eval_all(x)[0, :]
-                print("moments ", moments)
+                #print("moments ", moments)
 
                 density_value = density(x)
                 if type(density_value).__name__ == 'ArrayBox':
@@ -967,7 +1118,7 @@ def compute_exact_cov(moments_fn, density, tol=1e-10, reg_param=0, domain=None):
     return integral, int_reg
 
 
-def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_size=None, domain=None, reg_param_beta=0):
+def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_size=None, regularization=None):
     """
     Compute approximation of covariance matrix using exact density.
     :param moments_fn: Moments function.
@@ -1012,8 +1163,16 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
 
     jacobian_matrix = (quad_moments.T * q_density_w) @ quad_moments
 
-    reg_term = (quad_moments_2nd_der.T * quad_weights) @ quad_moments_2nd_der
-    reg_matrix = 2 * reg_param * reg_term
+    reg_matrix = np.zeros(jacobian_matrix.shape)
+    print("regularization ", regularization)
+
+    if regularization is not None:
+        reg_term = regularization.jacobian_precondition(moments_fn, quad_points, quad_weights)
+        #reg_term = (quad_moments_2nd_der.T * quad_weights) @ quad_moments_2nd_der
+        reg_matrix += reg_param * reg_term
+
+        print("reg matrix ")
+        print(pd.DataFrame(reg_matrix))
 
     return jacobian_matrix, reg_matrix
 
@@ -1109,7 +1268,7 @@ def L2_distance(prior_density, posterior_density, a, b):
 
 def total_variation_int(func, a, b):
     def integrand(x):
-        return hubert_l1_norm(func, x)
+        return huber_l1_norm(func, x)
 
     return integrate.quad(integrand, a, b)[0]
 
@@ -1158,21 +1317,21 @@ def l1_norm(func, x):
     #return numpy.absolute(nd.Derivative(func, n=1)(x))
 
 
-def hubert_l1_norm(func, x):
+def huber_l1_norm(func, x):
     r = func(x)
 
-    mu = HUBERT_MU
+    mu = HUBER_MU
     y = mu * (numpy.sqrt(1+(r**2/mu**2)) - 1)
 
     return y
 
 
-def hubert_norm(func, x):
+def huber_norm(func, x):
     result = []
 
     for value in x:
         r = func(value)
-        mu = HUBERT_MU
+        mu = HUBER_MU
 
         y = mu * (numpy.sqrt(1+(r**2/mu**2)) - 1)
 
@@ -1467,8 +1626,58 @@ def lsq_reconstruct(cov, eval, evec, treshold):
 
 
 def _cut_eigenvalues(cov_center, tol):
+    import matplotlib.pyplot as plt
     eval, evec = np.linalg.eigh(cov_center)
+
+    original_eval = eval
+    print("original eval ", eval)
     print("cut eigenvalues tol ", tol)
+
+    eig_pairs = [(np.abs(eval[i]), evec[:, i]) for i in range(len(eval))]
+
+    # Sort the (eigenvalue, eigenvector) tuples from high to low
+    eig_pairs.sort(key=lambda x: x[0], reverse=True)
+
+    # for pair in eig_pairs:
+    #     print("pair ", pair)
+    #
+    # for pair in eig_pairs[:10]:
+    #     print("pair[] ", pair)
+    #
+    # exit()
+
+    # Visually confirm that the list is correctly sorted by decreasing eigenvalues
+    print('Eigenvalues in descending order:')
+    for i in eig_pairs:
+        print(i[0])
+
+    print("sorted(eval, reverse=True) ", sorted(eval, reverse=True))
+
+    tot = sum(eval)
+    var_exp = [(i / tot) * 100 for i in sorted(eval, reverse=True)]
+    print("var_exp ", var_exp)
+    cum_var_exp = np.cumsum(var_exp)
+    print("cum_var_exp ", cum_var_exp)
+
+
+
+
+    # threshold = np.argmin(cum_var_exp > 99.99)
+    # print("new threshold ", threshold)
+
+    # with plt.style.context('seaborn-whitegrid'):
+    #     plt.figure(figsize=(6, 4))
+    #
+    #     plt.bar(range(len(eval)), var_exp, alpha=0.5, align='center',
+    #             label='individual explained variance')
+    #     plt.step(range(len(eval)), cum_var_exp, where='mid',
+    #              label='cumulative explained variance')
+    #     plt.ylabel('Explained variance ratio')
+    #     plt.xlabel('Principal components')
+    #     plt.legend(loc='best')
+    #     plt.tight_layout()
+    #
+    #     plt.show()
 
     if tol is None:
         # treshold by statistical test of same slopes of linear models
@@ -1478,10 +1687,46 @@ def _cut_eigenvalues(cov_center, tol):
         # threshold given by eigenvalue magnitude
         threshold = np.argmax(eval > tol)
 
+    # print("[eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-5]]",
+    #       [eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-5]])
+
+    #threshold = 30
+    # print("threshold ", threshold)
+    # print("eval ", eval)
+
+
+    #print("eig pairs ", eig_pairs[:])
+
+    threshold_above = len(original_eval) - np.argmax(eval > 1)
+
+
+    #print("threshold above ", threshold_above)
+
+    threshold = np.argmax(cum_var_exp > 110)
+    if threshold == 0:
+        threshold = len(cum_var_exp)
+
+    print("max eval index: {}, threshold: {}".format(len(eval) - 1, threshold))
+
+    # matrix_w = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-30]]))
+    #
+    # print("matrix_w.shape ", matrix_w.shape)
+    # print("matrix_w ")
+    # print(pd.DataFrame(matrix_w))
+
+    matrix_w = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
+
+    threshold -= 1
+
+    # print("matrix_w.shape final ", matrix_w.shape)
+    # print("matrix_w final ")
+    # print(pd.DataFrame(matrix_w))
+
     # add the |smallest eigenvalue - tol(^2??)| + eigenvalues[:-1]
 
     #threshold = 0
-    print("threshold ", threshold)
+    # print("threshold ", threshold)
+    # print("eval ", eval)
 
     #treshold, _ = self.detect_treshold(eval, log=True, window=8)
 
@@ -1499,11 +1744,19 @@ def _cut_eigenvalues(cov_center, tol):
     eval = np.flip(new_eval, axis=0)
     evec = np.flip(new_evec, axis=1)
 
-    return eval, evec, threshold
+    from numpy import testing
+
+    for ev in evec:
+        print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+        testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+    print('Everything ok!')
+
+    return eval, evec, threshold, original_eval, matrix_w
 
 
 def _cut_eigenvalues_to_constant(cov_center, tol):
     eval, evec = np.linalg.eigh(cov_center)
+    original_eval = eval
     print("cut eigenvalues tol ", tol)
 
     # threshold given by eigenvalue magnitude
@@ -1526,15 +1779,18 @@ def _cut_eigenvalues_to_constant(cov_center, tol):
     print("threshold ", threshold)
 
     # cut eigen values under treshold
-    eval[:threshold] = tol
+    eval[:threshold] = tol#eval[threshold]
     #new_evec = evec[:, threshold:]
 
-    eval = np.flip(eval, axis=0)
-    print("eval ", eval)
-    evec = np.flip(evec, axis=1)
-    print("evec ", evec)
+    print("eval ")
+    print(pd.DataFrame(eval))
 
-    return eval, evec, threshold
+    eval = np.flip(eval, axis=0)
+    #print("eval ", eval)
+    evec = np.flip(evec, axis=1)
+    #print("evec ", evec)
+
+    return eval, evec, threshold, original_eval
 
 
 def _add_to_eigenvalues(cov_center, tol, moments):
@@ -1568,6 +1824,8 @@ def _add_to_eigenvalues(cov_center, tol, moments):
 
     #diag_value = 10
 
+    print("diag value ", diag_value)
+
     diagonal[1:] += diag_value
     diag = np.diag(diagonal)
     eval += diagonal
@@ -1575,7 +1833,7 @@ def _add_to_eigenvalues(cov_center, tol, moments):
     return eval, evec, original_eval
 
 
-def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_method=1):
+def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_method=1, exact_cov=None):
     """
     For given moments find the basis orthogonal with respect to the covariance matrix, estimated from samples.
     :param moments: moments object
@@ -1585,7 +1843,7 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
     #     print("cov ")
     #     print(pd.DataFrame(cov))
-    #
+
     # print("cov matrix rank ", numpy.linalg.matrix_rank(cov))
 
     # centered covariance
@@ -1593,32 +1851,38 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     M[:, 0] = -cov[:, 0]
     cov_center = M @ cov @ M.T
 
-    #cov_center = cov
-
-    #print("centered cov ", cov_center)
+    # print("centered cov ")
+    # print(pd.DataFrame(cov_center))
 
     # Add const to eigenvalues
     if orth_method == 1:
         eval_flipped, evec_flipped, original_eval = _add_to_eigenvalues(cov_center, tol=tol, moments=moments)
+        # print("eval flipped ")
+        # print(pd.DataFrame(eval_flipped))
+        # print("evec flipped ")
+        # print(pd.DataFrame(evec_flipped))
 
     # Cut eigenvalues below threshold
     elif orth_method == 2:
-        eval_flipped, evec_flipped, threshold = _cut_eigenvalues(cov_center, tol=tol)
-        print("eval flipped ", eval_flipped)
-        print("evec flipped ", evec_flipped)
-        print("threshold ", threshold)
-        original_eval = eval_flipped
+        eval_flipped, evec_flipped, threshold, original_eval, matrix_w = _cut_eigenvalues(cov_center, tol=tol)
+        # print("eval flipped ")
+        # print(pd.DataFrame(eval_flipped))
+        # print("evec flipped ")
+        # print(pd.DataFrame(evec_flipped))
+        # print("threshold ", threshold)
+        #original_eval = eval_flipped
 
     # Add const to eigenvalues below threshold
     elif orth_method == 3:
-        eval_flipped, evec_flipped, threshold = _cut_eigenvalues_to_constant(cov_center, tol=tol)
-        print("eval flipped ", eval_flipped)
-        print("evec flipped ", evec_flipped)
-        print("threshold ", threshold)
-        original_eval = eval_flipped
+        eval_flipped, evec_flipped, threshold, original_eval = _cut_eigenvalues_to_constant(cov_center, tol=tol)
+        # print("eval flipped ")
+        # print(pd.DataFrame(eval_flipped))
+        # print("evec flipped ")
+        # print(pd.DataFrame(evec_flipped))
+        # print("threshold ", threshold)
+        #original_eval = eval_flipped
     else:
         raise Exception("No eigenvalues method")
-
 
     #original_eval, _ = np.linalg.eigh(cov_center)
 
@@ -1628,7 +1892,12 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     #rot_moments = mlmc.moments.TransformedMoments(moments, L)
     #std_evals = eigenvalue_error(rot_moments)
 
-    icov_sqrt_t = M.T @ evec_flipped * (1 / np.sqrt(eval_flipped))[None, :]
+    #icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
+
+    #icov_sqrt_t = M.T @ matrix_w
+
+    icov_sqrt_t = matrix_w
+
     R_nm, Q_mm = sc.linalg.rq(icov_sqrt_t, mode='full')
 
     # check
@@ -1636,9 +1905,45 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     if L_mn[0, 0] < 0:
         L_mn = -L_mn
 
+    # if exact_cov is not None:
+    #     print("H")
+    #     print(pd.DataFrame(exact_cov))
+    #
+    #     cov_eval, cov_evec = np.linalg.eigh(cov)
+    #     exact_cov_eval, exact_cov_evec = np.linalg.eigh(exact_cov)
+    #
+    #     cov_evec = np.flip(cov_evec, axis=1)
+    #     exact_cov_evec = np.flip(exact_cov_evec, axis=1)
+    #
+    #     #print("cov evec ", cov_evec)
+    #     #
+    #     #print("exact_cov_evec ", exact_cov_evec)
+    #
+    #     #print("np.dot(cov_evec, exact_cov_evec) ", np.dot(cov_evec[-1], exact_cov_evec[-1]))
+    #     print("einsum('ij,ij->i', cov_evec, exact_cov_evec) ", np.einsum('ij,ij->i', cov_evec, exact_cov_evec))
+    #     #print("np.dot(cov_evec, exact_cov_evec) ", np.sum(np.dot(cov_evec, exact_cov_evec), axis=0))
+    #     #exit()
+    #
+    #     print("Hn")
+    #     print(pd.DataFrame(cov))
+    #
+    #     print("inv(L) @ inv(L.T)")
+    #     print(pd.DataFrame(numpy.linalg.pinv(L_mn) @ numpy.linalg.pinv(L_mn.T)))
+    #
+    #     # print("inv(L) @ cov @ inv(L.T)")
+    #     # print(pd.DataFrame(numpy.linalg.pinv(L_mn) @ cov @ numpy.linalg.pinv(L_mn.T)))
+    #
+    #     # print("M @ inv(L) @ cov @ inv(L.T) @ M")
+    #     # print(pd.DataFrame(np.linalg.inv(M) @ numpy.linalg.pinv(L_mn) @ cov @ numpy.linalg.pinv(L_mn.T) @ np.linalg.inv(M)))
+    #
+    #     print("Cov centered")
+    #     print(pd.DataFrame(cov_center))
+
+
     ortogonal_moments = mlmc.moments.TransformedMoments(moments, L_mn)
 
     #mlmc.tool.plot.moments(ortogonal_moments, size=ortogonal_moments.size, title=str(reg_param), file=None)
+    #exit()
 
     #ortogonal_moments = mlmc.moments.TransformedMoments(moments, cov_sqrt_t.T)
 

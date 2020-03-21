@@ -454,6 +454,8 @@ class Distribution:
         Y = self._exact_distr.pdf(X)#[self.distr_object.density_mask])
         # if self._log_density:
         #     Y = np.log(Y)
+        self.ax_pdf.set_ylim([np.min(Y) - (np.max(Y) - np.min(Y)) * 0.1, np.max(Y) + (np.max(Y) - np.min(Y)) * 0.1])
+
         self.ax_pdf.plot(X, Y, c='black', label="exact", linestyle=":")
 
         if self.ax_log_density is not None:
@@ -650,7 +652,7 @@ def moments(moments_fn, size=None, title="", file=""):
     X = np.linspace(moments_fn.domain[0], moments_fn.domain[1], n_pt)
     Y = moments_fn._eval_all(X, size=size)
     central_band = Y[int(n_pt*0.1):int(n_pt*0.9), :]
-    ax.set_ylim((np.min(central_band), np.max(central_band)))
+    #ax.set_ylim((np.min(central_band), np.max(central_band)))
     for m, y in enumerate(Y.T):
         color = cmap(m)
         ax.plot(X, y, color=color, linewidth=0.5)

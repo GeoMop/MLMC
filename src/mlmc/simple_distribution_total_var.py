@@ -603,12 +603,12 @@ class SimpleDistribution:
         Gradient of th functional
         :return: array, shape (n_moments,)
         """
-        gradient = egrad(self._calculate_functional)(multipliers)
+        # gradient = egrad(self._calculate_functional)(multipliers)
+        #
+        # print("egrad gradient ", gradient)
 
-        print("egrad gradient ", gradient)
-
-        num_der = self.derivative(self._calculate_functional, multipliers)
-        print("num der ", num_der)
+        # num_der = self.derivative(self._calculate_functional, multipliers)
+        # print("num der ", num_der)
 
         q_density = self._density_in_quads(multipliers)
         q_gradient = self._quad_moments.T * q_density
@@ -619,7 +619,7 @@ class SimpleDistribution:
         #fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
         gradient = self.moment_means / self._moment_errs - integral# + np.abs(fun) * self._penalty_coef * penalty
 
-        print("gradient ", gradient)
+        #print("gradient ", gradient)
 
         # np.sum(simple_distr._quad_weights *
         #        (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) *
@@ -627,11 +627,11 @@ class SimpleDistribution:
 
         x = np.dot(self._quad_moments_2nd_der, self.multipliers)
 
-        print("x ", x)
+        #print("x ", x)
 
         pseudo_huber_tv_der = x*((x**2 + HUBER_MU**2)**(-0.5)) #(1/HUBER_MU) * (x * (1 + x**2/HUBER_MU**2)** (-0.5))
 
-        print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
+        #print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
 
         reg_term = np.sum(self._quad_weights * pseudo_huber_tv_der * self._quad_moments_2nd_der.T, axis=1)
 
@@ -745,11 +745,11 @@ class SimpleDistribution:
 
         if self.reg_param > 0:
             x = np.dot(self._quad_moments_2nd_der, self.multipliers)
-            print("x ", x)
+            #print("x ", x)
             #pseudo_huber_tv_der = (1 / HUBER_MU) * ((1 + x ** 2 / HUBER_MU ** 2) ** (-1.5))
             pseudo_huber_tv_der = (HUBER_MU ** 2) * (x**2 + HUBER_MU**2)**(-1.5)
 
-            print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
+            #print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
 
             #der_mat = np.diag(pseudo_huber_tv_der)
 
@@ -758,14 +758,14 @@ class SimpleDistribution:
             # print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
             #reg_term = np.sum(self._quad_weights * (pseudo_huber_tv_der * self._quad_moments_2nd_der.T), axis=1)
 
-            print("(pseudo_huber_tv_der * self._quad_moments_2nd_der) ", (self._quad_moments_2nd_der.T * pseudo_huber_tv_der))
+            #print("(pseudo_huber_tv_der * self._quad_moments_2nd_der) ", (self._quad_moments_2nd_der.T * pseudo_huber_tv_der))
             reg = ((self._quad_moments_2nd_der.T * pseudo_huber_tv_der) * self._quad_weights) @ self._quad_moments_2nd_der
 
-            print("reg ")
-            print(pd.DataFrame(reg))
-
-            print("cal jac ")
-            print(pd.DataFrame(jacobian_matrix))
+            # print("reg ")
+            # print(pd.DataFrame(reg))
+            #
+            # print("cal jac ")
+            # print(pd.DataFrame(jacobian_matrix))
 
             jacobian_matrix += self.reg_param * reg
 
@@ -1157,7 +1157,7 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
         #                 1.19851087e-02,  1.24691177e-02]
 
         multipliers = np.zeros(len(jacobian_matrix))
-        #multipliers[0] = 1
+        multipliers[0] = 1
 
         # multipliers = [3.74339877, -0.00793456,  3.19566561,  0.54460796,  2.6367997 ,-0.71500094,
         #  -1.13994174, -0.20176865,  0.01182186 , 0.66893689, -0.36853327,  1.20576434,
@@ -1173,11 +1173,11 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
         #                  -1.01815022e-01]
 
         x = np.dot(quad_moments_2nd_der, multipliers)
-        print("x ", x)
+        #print("x ", x)
         # pseudo_huber_tv_der = (1 / HUBER_MU) * ((1 + x ** 2 / HUBER_MU ** 2) ** (-1.5))
         pseudo_huber_tv_der = (HUBER_MU ** 2) * (x ** 2 + HUBER_MU ** 2) ** (-1.5)
 
-        print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
+        #print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
 
         reg = ((quad_moments_2nd_der.T * pseudo_huber_tv_der) * quad_weights) @ quad_moments_2nd_der
 
@@ -1196,18 +1196,18 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
         #
         # reg = (pseudo_huber_tv_der * quad_moments_2nd_der.T * quad_weights) @ quad_moments_2nd_der
 
-        print("reg ")
-        print(pd.DataFrame(reg))
-
-        print("cal jac ")
-        print(pd.DataFrame(jacobian_matrix))
+        # print("reg ")
+        # print(pd.DataFrame(reg))
+        #
+        # print("cal jac ")
+        # print(pd.DataFrame(jacobian_matrix))
 
         reg_matrix = reg_param * reg
 
         #reg_matrix = reg_param * reg_term
 
-        print("reg matrix ")
-        print(pd.DataFrame(reg_matrix))
+        # print("reg matrix ")
+        # print(pd.DataFrame(reg_matrix))
 
     # if reg_param > 0:
     #     #reg_term = (quad_moments_2nd_der.T * quad_weights) @ quad_moments_2nd_der
