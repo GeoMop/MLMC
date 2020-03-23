@@ -24,7 +24,7 @@ def read(*names, **kwargs):
 
 
 long_description='%s\n%s' % (
-    re.compile('^.. start-badges.*^.. end-badges', re.M | re.S).sub('', read('README.rst')),
+    re.compile('^.. start-badges.*^.. end-badges', re.M | re.S).sub('', read('README.md')),
     re.sub(':[a-z]+:`~?(.*?)`', r'``\1``', read('CHANGES.rst'))
 )
 
