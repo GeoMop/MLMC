@@ -1,16 +1,16 @@
 ====
 MLMC
 ====
-|circleci| |version| |supported-versions|
+|github-workflow| |version| |supported-versions|
 
 
 ..  |docs| image:: https://readthedocs.org/projects/mlmc/badge/?style=flat
     :target: https://readthedocs.org/projects/python-mlmc
     :alt: Documentation Status
 
-..  |circleci| image:: https://circleci.com/gh/GeoMop/MLMC/tree/master.svg?style=svg
-    :alt: CircleCI Build Status
-    :target: https://circleci.com/gh/GeoMop/MLMC/tree/master
+..  |github-workflow| image:: https://github.com/GeoMop/MLMC/workflows/.github/workflows/pythonpackage.yml/badge.svg
+    :alt: Github workflow Status
+    :target: https://github.com/GeoMop/MLMC/workflows/.github/workflows/pythonpackage.yml
 
 ..  |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/ionelmc/python-nameless?branch=master&svg=true
     :alt: AppVeyor Build Status
