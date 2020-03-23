@@ -1,9 +1,9 @@
 MLMC
 ====
 
-![](https://github.com/GeoMop/MLMC/workflows/.github/workflows/pythonpackage.yml/badge.svg)
-[![PyPI version shields.io](https://img.shields.io/pypi/v/ansicolortags.svg)](https://pypi.org/project/mlmc/)
-[![PyPI pyversions](https://img.shields.io/pypi/pyversions/ansicolortags.svg)](https://pypi.org/project/mlmc/)
+![Build](https://github.com/GeoMop/MLMC/workflows/package/badge.svg)
+[![PyPI version shields.io](https://img.shields.io/pypi/v/mlmc.svg)](https://pypi.org/project/mlmc/)
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/mlmc.svg)](https://pypi.org/project/mlmc/)
 
 Multi-level Monte Carlo method with approximation of distribution function and quantiles.
 It is meant as part of GeoMop project in particular Analysis component.
