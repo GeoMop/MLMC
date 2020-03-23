@@ -8,7 +8,7 @@ from mlmc.simulation import QuantitySpec
 class SampleStorage(metaclass=ABCMeta):
 
     @abstractmethod
-    def save_samples(self, correct_samples, failed_samples):
+    def save_samples(self, successful_samples, failed_samples):
         """
         Write results to storage
         """

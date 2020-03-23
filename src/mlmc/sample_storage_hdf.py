@@ -69,7 +69,7 @@ class SampleStorageHDF(SampleStorage):
         Get scheduled samples for each level
         :return: List[List]
         """
-        scheduled = list(np.empty(len(self._level_groups)))
+        scheduled = {}
         for level in self._level_groups:
             scheduled[int(level.level_id)] = [sample[0].decode() for sample in level.scheduled()]
         return scheduled
