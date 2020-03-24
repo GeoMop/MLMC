@@ -225,15 +225,14 @@ class Sampler:
             self.ask_sampling_pool_for_samples()
             n_finished = self.n_finished_samples
 
-    def set_level_target_n_samples(self, n_samples, fraction=1.0):
+    def set_level_target_n_samples(self, n_samples):
         """
         Set level number of target samples
         :param n_samples: list, each level target samples
-        :param fraction: Use just fraction of total samples
         :return: None
         """
         for level, n in enumerate(n_samples):
-            self._n_target_samples[level] += int(n * fraction)
+            self._n_target_samples[level] = max(self._n_target_samples[level], n)
 
     def l_scheduled_samples(self):
         """
