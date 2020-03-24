@@ -218,7 +218,7 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, fourier=Fals
     print("Sigma fit: {} {} {}".format(s1, log_sigma, np.exp(log_sigma)))
     assert np.exp(log_sigma) < 0.1     # should be about 0.7
 
-#@pytest.mark.skip
+@pytest.mark.skip
 @pytest.mark.parametrize('seed', [2, 5, 6])
 def test_field_mean_std_convergence(seed):
     np.random.seed(seed)
@@ -341,7 +341,7 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
     print("Mean fit: {} {} {}".format(m1, log_mean, np.exp(log_mean)))
     assert np.exp(log_mean) < 0.08
 
-
+@pytest.mark.skip
 @pytest.mark.parametrize('seed', [10, 8])
 def test_cov_func_convergence(seed):
     # TODO:

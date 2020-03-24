@@ -5,12 +5,9 @@ import numpy as np
 import pytest
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, src_path + '/../src/')
-import mlmc.mlmc
 import mlmc.estimate
-import test.test_level
-from test.fixtures.mlmc_test_run import TestMLMC
 
-
+@pytest.mark.skip
 @pytest.mark.parametrize("n_levels, n_samples, failed_fraction", [
     (1, [100], 0.2),
     (2, [200, 100], 0.5),
@@ -78,8 +75,7 @@ def estimate_covariance(estimator):
     assert np.allclose(cov, cov.T, atol=1e-6)
 
 
-
-
+@pytest.mark.skip
 def test_target_var_adding_samples():
     """
     Test if adding samples converge to expected values

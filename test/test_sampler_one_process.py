@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import stats
 
-from synth_simulation import SynthSimulation
+from mlmc.synth_simulation import SynthSimulation
 from mlmc.sampler import Sampler
 from mlmc.sample_storage import Memory
 from mlmc.sampling_pool import OneProcessPool

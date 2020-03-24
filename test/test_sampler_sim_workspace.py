@@ -3,7 +3,7 @@ import numpy as np
 import shutil
 from scipy import stats
 
-from synth_simulation import SynthSimulationWorkspace
+from mlmc.synth_simulation import SynthSimulationWorkspace
 from mlmc.sampler import Sampler
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
