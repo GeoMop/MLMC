@@ -127,6 +127,7 @@ class SamplingPoolPBS(SamplingPool):
                                      '']
 
         self._pbs_header_template.extend(('cd {work_dir}',
+                                          'module load python36-modules-gcc',
                                           'source env/bin/activate',
                                           'pip3 install /storage/liberec3-tul/home/martin_spetlik/MLMC_new_design',))
 

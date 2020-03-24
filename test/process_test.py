@@ -4,16 +4,13 @@ import shutil
 import numpy as np
 from scipy import stats
 
-src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(src_path, '..', 'src/mlmc'))
-from synth_simulation import SynthSimulation
-from synth_simulation_workspace import SynthSimulationWorkspace
-from sampler import Sampler
-from sample_storage_hdf import SampleStorageHDF
-from sampling_pool import OneProcessPool, ProcessPool
-from sampling_pool_pbs import SamplingPoolPBS
-from moments import Legendre
-from quantity_estimate import QuantityEstimate
+from mlmc.synth_simulation import SynthSimulation, SynthSimulationWorkspace
+from mlmc.sampler import Sampler
+from mlmc.sample_storage_hdf import SampleStorageHDF
+from mlmc.sampling_pool import OneProcessPool, ProcessPool
+from mlmc.sampling_pool_pbs import SamplingPoolPBS
+from mlmc.moments import Legendre
+from mlmc.quantity_estimate import QuantityEstimate
 
 
 class ProcessPBS:
@@ -77,7 +74,9 @@ class ProcessPBS:
         simulation_factory = SynthSimulationWorkspace(simulation_config)
 
         if self.force:
-            os.remove(os.path.join(self.work_dir, "mlmc_{}.hdf5".format(len(step_range))))
+            file_path = os.path.join(self.work_dir, "mlmc_{}.hdf5".format(len(step_range)))
+            if os.path.exists(file_path):
+                os.remove(os.path.join(self.work_dir, "mlmc_{}.hdf5".format(len(step_range))))
 
         sample_storage = SampleStorageHDF(file_path=os.path.join(self.work_dir, "mlmc_{}.hdf5".format(len(step_range))),
                                           append=self.append)
@@ -93,14 +92,6 @@ class ProcessPBS:
             pbs_process_file_dir='/auto/liberec3-tul/home/martin_spetlik/MLMC_new_design/src/mlmc',
             python='python3',
             modules=['module use /storage/praha1/home/jan-hybs/modules',
-                     'module -fs purge',
-                     'module load metabase',
-                     'module load cmake-3.6.1',
-                     'module load gcc-6.4.0',
-                     'module load boost-1.60-gcc',
-                     'module load mpich-3.0.2-gcc',
-                     'module rm python-2.7.6-gcc',
-                     'module load python-3.6.2-gcc',
                      'module load python36-modules-gcc',
                      'module list']
         )
@@ -277,4 +268,4 @@ class Process:
 
 
 if __name__ == "__main__":
-    process = Process()
+    process = ProcessPBS()
