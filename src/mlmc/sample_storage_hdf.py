@@ -2,8 +2,8 @@ import os
 import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.simulation import QuantitySpec
-import mlmc.hdf5 as hdf
+from mlmc.sim.simulation import QuantitySpec
+import mlmc.tool.hdf5 as hdf
 
 
 # Starts from scratch

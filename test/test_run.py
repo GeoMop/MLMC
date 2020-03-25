@@ -3,14 +3,14 @@ import shutil
 import numpy as np
 from scipy import stats
 import pytest
-from mlmc.synth_simulation import SynthSimulation, SynthSimulationWorkspace
+from mlmc.sim.synth_simulation import SynthSimulation, SynthSimulationWorkspace
 from mlmc.sampler import Sampler
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
 from mlmc.moments import Legendre
 from mlmc.quantity_estimate import QuantityEstimate
-import mlmc.new_estimator
+import mlmc.estimator
 
 
 # Set work dir

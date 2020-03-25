@@ -2,7 +2,7 @@ import numpy as np
 from abc import ABCMeta
 from abc import abstractmethod
 from typing import List, Dict
-from mlmc.simulation import QuantitySpec
+from mlmc.sim.simulation import QuantitySpec
 
 
 class SampleStorage(metaclass=ABCMeta):
@@ -197,8 +197,8 @@ class Memory(SampleStorage):
         for level, (time, n_samples)in n_ops.items():
             if level not in self._n_ops or n_samples == 0:
                 self._n_ops[level] = 0
-  
-            self._n_ops[level] += time/n_samples
+            else:
+                self._n_ops[level] += time/n_samples
 
     def get_n_ops(self):
         """

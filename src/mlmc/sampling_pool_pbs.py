@@ -7,7 +7,7 @@ import json
 import glob
 from mlmc.level_simulation import LevelSimulation
 from mlmc.sampling_pool import SamplingPool
-from mlmc.pbs_process import PbsProcess
+from mlmc.tool.pbs_process import PbsProcess
 
 
 class SamplingPoolPBS(SamplingPool):

@@ -1,11 +1,8 @@
 import os
-import sys
 import shutil
 import h5py
 import numpy as np
-import pytest
-
-import mlmc.hdf5
+import mlmc.tool.hdf5
 
 
 """
@@ -19,7 +16,7 @@ def test_hdf5():
         shutil.rmtree(work_dir)
     os.makedirs(work_dir)
     file_path = os.path.join(work_dir, "mlmc_test.hdf5")
-    hdf_obj = mlmc.hdf5.HDF5(file_path, load_from_file=False)
+    hdf_obj = mlmc.tool.hdf5.HDF5(file_path, load_from_file=False)
 
     obligatory_attributes = ['version', 'step_range']
     init_header(hdf_obj, obligatory_attributes)
@@ -111,7 +108,7 @@ def test_level_group():
         hdf_file.create_group(level_group_path)
 
     # Create LevelGroup instance
-    hdf_level_group = mlmc.hdf5.LevelGroup(file_name, level_group_path, level_id, job_dir)
+    hdf_level_group = mlmc.tool.hdf5.LevelGroup(file_name, level_group_path, level_id, job_dir)
 
     with h5py.File(file_name, "r") as hdf_file:
         assert hdf_file[level_group_path].attrs['level_id'] == level_id == hdf_level_group.level_id
@@ -147,7 +144,7 @@ def make_group_datasets(hdf_level_group):
     :return: None
     """
     # Created datasets
-    datasets = [attr_prop['name'] for _, attr_prop in mlmc.hdf5.LevelGroup.COLLECTED_ATTRS.items()]
+    datasets = [attr_prop['name'] for _, attr_prop in mlmc.tool.hdf5.LevelGroup.COLLECTED_ATTRS.items()]
     datasets.extend([hdf_level_group.scheduled_dset, hdf_level_group.failed_dset])
     hdf_level_group._make_groups_datasets()
 
@@ -202,7 +199,7 @@ def collected(hdf_level_group):
         assert (res == np.array(col[1])).all()
 
     with h5py.File(hdf_level_group.file_name, "r") as hdf_file:
-        for _, dset_params in mlmc.hdf5.LevelGroup.COLLECTED_ATTRS.items():
+        for _, dset_params in mlmc.tool.hdf5.LevelGroup.COLLECTED_ATTRS.items():
             assert len(COLLECTED_SAMPLES) == len(hdf_file[hdf_level_group.level_group_path][dset_params['name']][()])
 
 

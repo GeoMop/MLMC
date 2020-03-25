@@ -5,7 +5,7 @@ import random
 import pytest
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc.simulation import QuantitySpec
+from mlmc.sim.simulation import QuantitySpec
 
 
 @pytest.mark.parametrize("storage", ['memory', 'hdf'])

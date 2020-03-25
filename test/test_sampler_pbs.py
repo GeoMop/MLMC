@@ -6,12 +6,10 @@ import pytest
 
 from mlmc.moments import Legendre
 from mlmc.sampler import Sampler
-from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.quantity_estimate import QuantityEstimate
-import mlmc.new_estimator as new_estimator
-from mlmc.synth_simulation import SynthSimulationWorkspace
+from mlmc.sim.synth_simulation import SynthSimulationWorkspace
 
 @pytest.mark.pbs
 def test_sampler_pbs():

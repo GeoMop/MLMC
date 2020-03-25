@@ -1,11 +1,7 @@
-import os
-import sys
 from scipy import stats
 import numpy as np
 import pytest
-src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, src_path + '/../src/')
-import mlmc.estimate
+#import mlmc.estimate
 
 @pytest.mark.skip
 @pytest.mark.parametrize("n_levels, n_samples, failed_fraction", [
