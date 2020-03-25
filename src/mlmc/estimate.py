@@ -473,7 +473,7 @@ class Estimate:
                 integral[i][j] = integral[j][i] = integ
         return integral
 
-    def construct_density(self, tol=1.95, reg_param=1e-7*5, orth_moments_tol=1e-2, exact_pdf=None):
+    def construct_density(self, tol=1.95, reg_param=1e-7*5, orth_moments_tol=1e-2, exact_pdf=None, orth_method=4):
         """
         Construct approximation of the density using given moment functions.
         Args:
@@ -484,13 +484,16 @@ class Estimate:
         """
         import pandas as pd
         cov = self.estimate_covariance(self.moments, self.mlmc.levels)
-        reg_term = self.regularization(tol)
+        reg_term = np.zeros(cov.shape)
+        if reg_param != 0:
+            reg_term = self.regularization(tol)
+            print("reg term ", reg_term)
 
         cov += 2 * reg_param * reg_term
 
         moments_obj, info, cov_centered = simple_distribution.construct_orthogonal_moments(self.moments, cov,
                                                                                            tol=orth_moments_tol,
-                                                                                           orth_method=2
+                                                                                           orth_method=orth_method
                                                                                         )
         print("n levels: ", self.n_levels, "size: ", moments_obj.size)
 

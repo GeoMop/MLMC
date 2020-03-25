@@ -204,8 +204,9 @@ class Distribution:
         domain = (np.min(samples), np.max(samples))
         self.adjust_domain(domain)
         N = len(samples)
-        bins = self._grid(0.5 * np.sqrt(N))
-        self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
+        print("N samples ", N)
+        # bins = self._grid(0.5 * np.sqrt(N))
+        # self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
 
         # Ecdf
         X = np.sort(samples)
@@ -471,6 +472,7 @@ class Distribution:
         """
         if domain is None:
             domain = self._domain
+        print("domain ", domain)
         if self._log_x:
             X = np.geomspace(domain[0], domain[1], size)
         else:
@@ -1275,6 +1277,164 @@ class Aux:
         #ax.legend(loc=2)
         fig.savefig('level_vars_regression.pdf')
         plt.show()
+
+
+class KL_divergence:
+    """
+    Plot of KL divergence
+    """
+    def __init__(self, log_y=True, log_x=False, iter_plot=False, title="", xlabel="number of moments", ylabel="KL divergence", label="", truncation_err_label=""):
+        self._ylim = None
+        self.log_y = log_y
+        self.i_plot = 0
+        self.title = title
+        self.colormap = plt.cm.tab20
+
+        if iter_plot:
+            self.fig_kl, axes = plt.subplots(1, 2, figsize=(22, 10))
+            self.fig_iter = None
+            self.ax_kl = axes[0]
+            self.ax_iter = axes[1]
+        else:
+            self.fig_kl, self.ax_kl = plt.subplots(1, 1, figsize=(12, 10))
+            self.fig_iter, self.ax_iter = plt.subplots(1, 1, figsize=(12, 10))
+
+        self.ax_kl.set_title("Kullback-Leibler divergence")
+        self.ax_iter.set_title("Optimization iterations")
+
+        # Display integers on x axes
+        self.ax_kl.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        self.ax_kl.set_xlabel(xlabel)
+        self.ax_kl.set_ylabel(ylabel)
+        self.ax_iter.set_xlabel(xlabel)
+        self.ax_iter.set_ylabel("number of iterations")
+
+        self._x = []
+        self._y = []
+        self._mom_err_x = []
+        self._mom_err_y = []
+        self._iter_x = []
+        self._failed_iter_x = []
+        self._iterations = []
+        self._failed_iterations = []
+        self._truncation_err = None
+        self._label = label
+        self._truncation_err_label = truncation_err_label
+
+        if self.log_y:
+            self.ax_kl.set_yscale('log')
+        if log_x:
+            self.ax_kl.set_xscale('log')
+            self.ax_iter.set_xscale('log')
+
+    @property
+    def truncation_err(self):
+        """
+        KL divergence between exact density and density produced by certain number of exact moments (is it the first part of overall KL divergence)
+        It is used just for inexact moments KL div as a "threshold" value
+        :return:
+        """
+        return self._truncation_err
+
+    @truncation_err.setter
+    def truncation_err(self, trunc_err):
+        self._truncation_err = trunc_err
+
+    def add_value(self, values):
+        """
+        Add one KL div value
+        :param values: tuple
+        :return:
+        """
+        self._x.append(values[0])
+        self._y.append(values[1])
+
+    def add_iteration(self, x, n_iter, failed=False):
+        """
+        Add number of iterations
+        :param x:
+        :param n_iter: number of iterations
+        :param failed: bool
+        :return: None
+        """
+        if failed:
+            self._failed_iter_x.append(x)
+            self._failed_iterations.append(n_iter)
+        else:
+            self._iter_x.append(x)
+            self._iterations.append(n_iter)
+
+    def add_moments_l2_norm(self, values):
+        self._mom_err_x.append(values[0])
+        self._mom_err_y.append(values[1])
+
+    def add_values(self, values):
+        """
+        Allow add more values
+        :param values: array (n,); kl divergences
+        :return:
+        """
+        self._x = values[0]
+        self._y = values[1]
+
+        if len(values) == 3:
+            self._iterations = values[2]
+
+    def _plot_values(self):
+        if self.log_y:
+            # plot only positive values
+            i_last_positive = len(self._y) - np.argmax(np.flip(self._y) > 0)
+            self._y = self._y[:i_last_positive + 1]
+            a, b = np.min(self._y), np.max(self._y)
+            #self.adjust_ylim((a / ((b / a) ** 0.05), b * (b / a) ** 0.05))
+        else:
+            a, b = np.min(self._y), np.max(self._y)
+            #self.adjust_ylim((a - 0.05 * (b - a), b + 0.05 * (b - a)))
+
+        color = self.colormap(self.i_plot)  # 'C{}'.format(self.i_plot)
+
+        if self._mom_err_y:
+            self.ax_kl.plot(self._mom_err_x, self._mom_err_y, ls='solid', color="red", marker="v", label=r'$|\mu - \hat{\mu}|^2$')
+            self.ax_kl.plot(self._x, self._y, ls='solid', color=color, marker='o', label="KL div")
+        else:
+            self.ax_kl.plot(self._x, self._y, ls='solid', color=color, marker='o')
+
+        if self._iterations:
+            self.ax_iter.scatter(self._iter_x, self._iterations, color=color, marker="p", label="successful")
+
+        if self._failed_iterations:
+            self.ax_iter.scatter(self._failed_iter_x, self._failed_iterations, color="red", marker="p", label="failed")
+
+        self.i_plot += 1
+
+        if self._truncation_err is not None:
+            color = self.colormap(self.i_plot)
+            self.ax_kl.axhline(y=self._truncation_err, color=color, label=self._truncation_err_label)
+        self.i_plot += 1
+
+    def show(self, file=""):
+        """
+        Show the plot or save to file.
+        :param file: filename base, None for show.
+        :return:
+        """
+        self._plot_values()
+        self.ax_kl.legend()
+        self.ax_iter.legend()
+
+        self.fig_kl.show()
+        file = self.title
+        if file[-3:] != "pdf":
+            file = file + ".pdf"
+
+        self.fig_kl.savefig(file)
+
+        if self.fig_iter is not None:
+            file = self.title + "_iterations.pdf"
+            self.fig_iter.show()
+            self.fig_kl.savefig(file)
+
 
 
 ###########################################

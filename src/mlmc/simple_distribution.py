@@ -8,6 +8,7 @@ from autograd import hessian
 import mlmc.tool.plot
 from abc import ABC, abstractmethod
 
+from numpy import testing
 from scipy.special import  softmax
 import pandas as pd
 
@@ -1624,19 +1625,53 @@ def lsq_reconstruct(cov, eval, evec, treshold):
 
     return Q
 
+def print_cumul(eval):
+    import matplotlib.pyplot as plt
+    tot = sum(eval)
+    var_exp = [(i / tot) * 100 for i in sorted(eval, reverse=True)]
+    print("var_exp ", var_exp)
+    cum_var_exp = np.cumsum(var_exp)
+    print("cum_var_exp ", cum_var_exp)
+
+    # threshold = np.argmin(cum_var_exp > 99.99)
+    # print("new threshold ", threshold)
+
+    #with plt.style.context('seaborn-whitegrid'):
+    # plt.figure(figsize=(6, 4))
+    #
+    # plt.bar(range(len(eval)), var_exp, alpha=0.5, align='center',
+    #         label='individual explained variance')
+    # plt.step(range(len(eval)), cum_var_exp, where='mid',
+    #          label='cumulative explained variance')
+    # plt.ylabel('Explained variance ratio')
+    # plt.xlabel('Principal components')
+    # plt.legend(loc='best')
+    # plt.tight_layout()
+    #
+    # plt.show()
+
+    return cum_var_exp, var_exp
+
 
 def _cut_eigenvalues(cov_center, tol):
-    import matplotlib.pyplot as plt
+
     eval, evec = np.linalg.eigh(cov_center)
+
+    print("original evec ")
+    print(pd.DataFrame(evec))
+
+    #eval = np.abs(eval)
+
+    print_cumul(eval)
 
     original_eval = eval
     print("original eval ", eval)
-    print("cut eigenvalues tol ", tol)
+    # print("cut eigenvalues tol ", tol)
 
-    eig_pairs = [(np.abs(eval[i]), evec[:, i]) for i in range(len(eval))]
-
-    # Sort the (eigenvalue, eigenvector) tuples from high to low
-    eig_pairs.sort(key=lambda x: x[0], reverse=True)
+    # eig_pairs = [(np.abs(eval[i]), evec[:, i]) for i in range(len(eval))]
+    #
+    # # Sort the (eigenvalue, eigenvector) tuples from high to low
+    # eig_pairs.sort(key=lambda x: x[0], reverse=True)
 
     # for pair in eig_pairs:
     #     print("pair ", pair)
@@ -1647,37 +1682,15 @@ def _cut_eigenvalues(cov_center, tol):
     # exit()
 
     # Visually confirm that the list is correctly sorted by decreasing eigenvalues
-    print('Eigenvalues in descending order:')
-    for i in eig_pairs:
-        print(i[0])
-
-    print("sorted(eval, reverse=True) ", sorted(eval, reverse=True))
-
-    tot = sum(eval)
-    var_exp = [(i / tot) * 100 for i in sorted(eval, reverse=True)]
-    print("var_exp ", var_exp)
-    cum_var_exp = np.cumsum(var_exp)
-    print("cum_var_exp ", cum_var_exp)
-
-
-
-
-    # threshold = np.argmin(cum_var_exp > 99.99)
-    # print("new threshold ", threshold)
-
-    # with plt.style.context('seaborn-whitegrid'):
-    #     plt.figure(figsize=(6, 4))
+    # print('Eigenvalues in descending order:')
+    # for i in eig_pairs:
+    #     print(i[0])
     #
-    #     plt.bar(range(len(eval)), var_exp, alpha=0.5, align='center',
-    #             label='individual explained variance')
-    #     plt.step(range(len(eval)), cum_var_exp, where='mid',
-    #              label='cumulative explained variance')
-    #     plt.ylabel('Explained variance ratio')
-    #     plt.xlabel('Principal components')
-    #     plt.legend(loc='best')
-    #     plt.tight_layout()
-    #
-    #     plt.show()
+    # print("sorted(eval, reverse=True) ", sorted(eval, reverse=True))
+
+    # print("EVAL SORTED ", sorted(eval, reverse=True))
+    # print("EVAL EIG PAIR ", np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
+    # cum_var_exp = print_cumul(np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
 
     if tol is None:
         # treshold by statistical test of same slopes of linear models
@@ -1694,19 +1707,17 @@ def _cut_eigenvalues(cov_center, tol):
     # print("threshold ", threshold)
     # print("eval ", eval)
 
-
     #print("eig pairs ", eig_pairs[:])
 
-    threshold_above = len(original_eval) - np.argmax(eval > 1)
-
+    #threshold_above = len(original_eval) - np.argmax(eval > 1)
 
     #print("threshold above ", threshold_above)
 
-    threshold = np.argmax(cum_var_exp > 110)
-    if threshold == 0:
-        threshold = len(cum_var_exp)
-
-    print("max eval index: {}, threshold: {}".format(len(eval) - 1, threshold))
+    # threshold = np.argmax(cum_var_exp > 110)
+    # if threshold == 0:
+    #     threshold = len(cum_var_exp)
+    #
+    # print("max eval index: {}, threshold: {}".format(len(eval) - 1, threshold))
 
     # matrix_w = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-30]]))
     #
@@ -1714,9 +1725,11 @@ def _cut_eigenvalues(cov_center, tol):
     # print("matrix_w ")
     # print(pd.DataFrame(matrix_w))
 
-    matrix_w = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
-
-    threshold -= 1
+    # matrix_w = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
+    #
+    # new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
+    #
+    # threshold -= 1
 
     # print("matrix_w.shape final ", matrix_w.shape)
     # print("matrix_w final ")
@@ -1744,14 +1757,185 @@ def _cut_eigenvalues(cov_center, tol):
     eval = np.flip(new_eval, axis=0)
     evec = np.flip(new_evec, axis=1)
 
-    from numpy import testing
+    print_cumul(eval)
+
+    for ev in evec:
+        print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+        #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+    print('Everything ok!')
+
+    return eval, evec, threshold, original_eval
+
+
+def _pca(cov_center, tol):
+    from numpy import ma
+    eval, evec = np.linalg.eigh(cov_center)
+
+    original_eval = eval
+    print("original eval ", original_eval)
+
+    print("original evec ")
+    print(pd.DataFrame(evec))
+
+    cum_var_exp, var_exp = print_cumul(sorted(eval, reverse=True))
+    print("CUM VAR EXP ", cum_var_exp)
+
+    eval = np.flip(eval, axis=0)
+    evec = np.flip(evec, axis=1)
+
+    eig_pairs = [(np.abs(eval[i]), evec[:, i]) for i in range(len(eval))]
+
+    # threshold = np.argmax(cum_var_exp > 110)
+    # if threshold == 0:
+    #     threshold = len(eval)
+    # #threshold = len(eval)
+
+    cumul_hundred = np.argmax(cum_var_exp == 100)
+    print("cumul hundred ", cumul_hundred)
+
+    cum_var_exp = np.round(cum_var_exp, 2)
+    print("np.round(cum_var_exp, 2) ", cum_var_exp)
+
+    threshold = np.argmax(cum_var_exp)
+
+    # print("np.floor(cum_var_exp) ",cum_var_exp)
+    # print("np.floor(cum_var_exp).argmax(axis=0) ", cum_var_exp.argmax(axis=0))
+
+
+    mx = np.max(cum_var_exp)
+    #threshold = np.max([i for i, j in enumerate(cum_var_exp) if j == mx])
+
+    if all(cum_var_exp[threshold:] == mx):
+        threshold = len(cum_var_exp) - 1
+        print("np.array(np.abs(var_exp)) ", np.array(np.abs(var_exp)))
+        threshold = np.argmax(np.array(np.abs(var_exp)) < 1e-5)
+
+    if threshold == 0:
+        threshold = len(eval) -1
+
+    #exit()
+
+    threshold += 1
+
+    #threshold -= 7
+
+    #threshold = 9#len(new_eig_pairs)
+    print("THreshold ", threshold)
+
+    for pair in eig_pairs:
+        print("evec ", pair[1])
+
+    new_evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
+    new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
+
+    threshold = len(new_eval)-1
+
+    print_cumul(new_eval)
+
+    # cut eigen values under treshold
+    # new_eval = eval[threshold:]
+    # new_evec = evec[:, threshold:]
+
+    eval = np.flip(new_eval, axis=0)
+    evec = np.flip(new_evec, axis=1)
+
+    eval = new_eval
+    evec = new_evec
+
+
+
+    print("evec ", evec)
+
+    # for i in range(len(original_eval)):
+    #     threshold = len(original_eval) - i
+    #     print("THRESHOLD ", threshold)
+    #
+    #     evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
+    #
+    #     for ev in evec:
+    #         print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+    #         testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+    #     print('Everything ok!')
+    #
+    # exit()
+
+    # print("evec ", evec)
+    #
+    #
+    for ev in evec:
+        print("ev")
+        print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+        #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+    print('Everything ok!')
+
+    return eval, evec, threshold, original_eval, None#, new_evec
+
+
+def _pca_add_one(cov_center, tol, moments):
+    eval, evec = np.linalg.eigh(cov_center)
+
+    cum_var_exp = print_cumul(sorted(eval, reverse=True))
+
+    original_eval = eval
+    diag_value = tol - np.min([np.min(eval), 0])  # np.abs((np.min(eval) - tol))
+    diagonal = np.zeros(moments.size)
+    print("diag value ", diag_value)
+
+    diagonal[1:] += diag_value
+    diag = np.diag(diagonal)
+    eval += diagonal
+
+    #cum_var_exp = print_cumul(sorted(eval, reverse=True))
+
+    eig_pairs = [(eval[i], evec[:, i]) for i in range(len(eval))]
+
+    # Sort the (eigenvalue, eigenvector) tuples from high to low
+    eig_pairs.sort(key=lambda x: x[0], reverse=True)
+
+    # print("EVAL SORTED ", sorted(eval, reverse=True))
+    # print("EVAL EIG PAIR ", np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
+    # cum_var_exp = print_cumul(np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
+
+    threshold = np.argmax(cum_var_exp > 100)
+    if threshold == 0:
+        threshold = len(cum_var_exp)
+
+    print("max eval index: {}, threshold: {}".format(len(eval) - 1, threshold))
+
+    new_evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
+
+    new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
+
+    threshold -= 1
+
+    print_cumul(new_eval)
+
+    # self.lsq_reconstruct(cov_center, fixed_eval, evec, treshold)
+
+    # cut eigen values under treshold
+    # new_eval = eval[threshold:]
+    # new_evec = evec[:, threshold:]
+
+    print("new eval", new_eval)
+    print("new evec", new_evec)
+
+
+    eval = np.flip(new_eval, axis=0)
+    evec = np.flip(new_evec, axis=1)
+
+    eval = new_eval
+    evec = new_evec
+
+    # print("eval flipped ", eval)
+    # print("evec flipped ", evec)
+    # exit()
 
     for ev in evec:
         print("np.linalg.norm(ev) ", np.linalg.norm(ev))
         testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
     print('Everything ok!')
 
-    return eval, evec, threshold, original_eval, matrix_w
+    return eval, evec, threshold, original_eval, None#, matrix_w
 
 
 def _cut_eigenvalues_to_constant(cov_center, tol):
@@ -1802,6 +1986,14 @@ def _add_to_eigenvalues(cov_center, tol, moments):
 
     original_eval = eval
 
+    for ev in evec:
+        print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+        testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+    print('Everything ok!')
+
+    print_cumul(eval)
+
+
     # # Permutation
     # index = (np.abs(eval - 1)).argmin()
     # first_item = eval[0]
@@ -1830,6 +2022,14 @@ def _add_to_eigenvalues(cov_center, tol, moments):
     diag = np.diag(diagonal)
     eval += diagonal
 
+    for ev in evec:
+        print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+        testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+    print('Everything ok!')
+
+    # print_cumul(eval)
+    # exit()
+
     return eval, evec, original_eval
 
 
@@ -1851,6 +2051,8 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     M[:, 0] = -cov[:, 0]
     cov_center = M @ cov @ M.T
 
+    projection_matrix = None
+
     # print("centered cov ")
     # print(pd.DataFrame(cov_center))
 
@@ -1864,7 +2066,7 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
 
     # Cut eigenvalues below threshold
     elif orth_method == 2:
-        eval_flipped, evec_flipped, threshold, original_eval, matrix_w = _cut_eigenvalues(cov_center, tol=tol)
+        eval_flipped, evec_flipped, threshold, original_eval = _cut_eigenvalues(cov_center, tol=tol)
         # print("eval flipped ")
         # print(pd.DataFrame(eval_flipped))
         # print("evec flipped ")
@@ -1881,6 +2083,12 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
         # print(pd.DataFrame(evec_flipped))
         # print("threshold ", threshold)
         #original_eval = eval_flipped
+    elif orth_method == 4:
+        eval_flipped, evec_flipped, threshold, original_eval, projection_matrix = _pca(cov_center, tol=tol)
+    elif orth_method == 5:
+        eval_flipped, evec_flipped, threshold, original_eval, projection_matrix = \
+            _pca_add_one(cov_center, tol=tol, moments=moments)
+
     else:
         raise Exception("No eigenvalues method")
 
@@ -1892,11 +2100,20 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     #rot_moments = mlmc.moments.TransformedMoments(moments, L)
     #std_evals = eigenvalue_error(rot_moments)
 
-    #icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
+    if projection_matrix is not None:
+        icov_sqrt_t = projection_matrix
+    else:
+        print("evec flipped ", evec_flipped)
+        print("eval flipped ", eval_flipped)
 
-    #icov_sqrt_t = M.T @ matrix_w
+        icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
 
-    icov_sqrt_t = matrix_w
+        # try:
+        #     eval, evec = np.linalg.eigh(icov_sqrt_t)
+        #     cum_var_exp = print_cumul(sorted(eval, reverse=True))
+        #     print("ICOV CUM ", cum_var_exp)
+        # except:
+        #     pass
 
     R_nm, Q_mm = sc.linalg.rq(icov_sqrt_t, mode='full')
 

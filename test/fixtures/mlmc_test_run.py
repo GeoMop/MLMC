@@ -9,7 +9,7 @@ from test.fixtures.synth_simulation import SimulationTest
 
 class MLMCTest:
     def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None, quantile=None,
-                 moments_class=moments.Legendre, mlmc_file=None):
+                 moments_class=moments.Legendre, mlmc_file=None, domain=None):
         """
         Create TestMLMC object instance
         :param n_levels: number of levels
@@ -44,23 +44,27 @@ class MLMCTest:
         self.mc, self.sims = self.make_simulation_mc(step_range, sim_method)
         self.estimator = mlmc.estimate.Estimate(self.mc)
 
-        # reference variance
-        # if 'domain' in distr.__dict__:
-        #     true_domain = distr.domain
-        if quantile is not None:
-            if quantile == 0:
-                X = distr.rvs(size=1000)
-                true_domain = (np.min(X), np.max(X))
+        if domain is not None:
+            true_domain = domain
+        else:
 
-                if hasattr(distr, "domain"):
-                    true_domain = distr.domain
-                else:
+            # reference variance
+            # if 'domain' in distr.__dict__:
+            #     true_domain = distr.domain
+            if quantile is not None:
+                if quantile == 0:
                     X = distr.rvs(size=1000)
                     true_domain = (np.min(X), np.max(X))
+
+                    if hasattr(distr, "domain"):
+                        true_domain = distr.domain
+                    else:
+                        X = distr.rvs(size=1000)
+                        true_domain = (np.min(X), np.max(X))
+                else:
+                    true_domain = distr.ppf([quantile, 1 - quantile])
             else:
-                true_domain = distr.ppf([quantile, 1 - quantile])
-        else:
-            true_domain = distr.ppf([0.0001, 0.9999])
+                true_domain = distr.ppf([0.0001, 0.9999])
 
         self.true_domain = true_domain
         self.moments_fn = moments_class(n_moments, true_domain, is_log)
