@@ -74,6 +74,221 @@ def make_monotone(X, Y):
     return sX, sY
 
 
+class SimpleDistribution:
+    """
+    mlmc.plot.Distribution
+
+    Class for plotting distribution approximation: PDF and CDF (optional)
+    Provides methods to: add more plots, add exact PDF, add ECDF/histogram from single level MC
+    """
+    def __init__(self, exact_distr=None, title="", quantity_name="X", legend_title="",
+                 log_density=False, cdf_plot=True, log_x=False, error_plot='l2'):
+        """
+        Plot configuration
+        :param exact_distr:  Optional exact domain (for adding to plot and computing error)
+        :param title: Figure title.
+        :param quantity_name: Quantity for X axis label.
+        :param log_density: Plot logarithm of density value.
+        :param cdf_plot: Plot CDF as well (default)
+        :param log_x: Use logarithmic scale for X axis.
+        :param error_plot: None, 'diff', 'kl. Plot error of pdf using either difference or
+        integrand of KL divergence: exact_pdf * log(exact_pdf / approx_pdf).
+        Simple difference is used for CDF for both options.
+        """
+        self._exact_distr = exact_distr
+        self._log_density = log_density
+        self._log_x = log_x
+        self._error_plot = error_plot
+        self._domain = None
+        self._title = title
+        self._legend_title = legend_title
+        self.plot_matrix = []
+        self.i_plot = 0
+
+        self.colormap = plt.cm.tab20
+
+        if cdf_plot:
+            self.fig, axes = plt.subplots(1, 2, figsize=(22, 10))
+            self.fig_cdf = None
+            self.ax_pdf = axes[0]
+            self.ax_cdf = axes[1]
+        else:
+            self.fig, self.ax_pdf = plt.subplots(1, 1, figsize=(12, 10))
+            self.fig_cdf, self.ax_cdf = plt.subplots(1, 1, figsize=(12, 10))
+
+        self.fig.suptitle(title)
+        x_axis_label = quantity_name
+
+        # PDF axes
+        #self.ax_pdf.set_title("PDF approximations")
+        self.ax_pdf.set_ylabel("probability density")
+        self.ax_pdf.set_xlabel(x_axis_label)
+        if self._log_x:
+            self.ax_pdf.set_xscale('log')
+            x_axis_label = "log " + x_axis_label
+        if self._log_density:
+            self.ax_pdf.set_yscale('log')
+
+        # CDF axes
+        self.ax_cdf.set_title("CDF approximations")
+        self.ax_cdf.set_ylabel("probability")
+        self.ax_cdf.set_xlabel(x_axis_label)
+        if self._log_x:
+            self.ax_cdf.set_xscale('log')
+
+        if error_plot:
+            self.ax_pdf_err = self.ax_pdf.twinx()
+            self.ax_pdf.set_zorder(10)
+            self.ax_pdf.patch.set_visible(False)
+
+            pdf_err_title = "error - dashed"
+            if error_plot == 'kl':
+                pdf_err_title = "KL-error - dashed"
+            self.ax_pdf_err.set_ylabel(pdf_err_title)
+            self.ax_cdf_err = self.ax_cdf.twinx()
+            self.ax_cdf.set_zorder(10)
+            self.ax_cdf.patch.set_visible(False)
+
+            self.ax_cdf_err.set_ylabel("error - dashed")
+            self.ax_pdf_err.set_yscale('log')
+            self.ax_cdf_err.set_yscale('log')
+
+    def add_raw_samples(self, samples):
+        """
+        Add histogram and ecdf for raw samples.
+        :param samples:
+        """
+        # Histogram
+        domain = (np.min(samples), np.max(samples))
+        self.adjust_domain(domain)
+        N = len(samples)
+        bins = self._grid(0.5 * np.sqrt(N))
+        self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
+
+        # Ecdf
+        X = np.sort(samples)
+        Y = (np.arange(len(X)) + 0.5) / float(len(X))
+        X, Y = make_monotone(X, Y)
+
+        self.ax_cdf.plot(X, Y, 'red')
+
+        # PDF approx as derivative of Bspline CDF approx
+        size_8 = int(N / 8)
+        w = np.ones_like(X)
+        w[:size_8] = 1 / (Y[:size_8])
+        w[N - size_8:] = 1 / (1 - Y[N - size_8:])
+        spl = interpolate.UnivariateSpline(X, Y, w, k=3, s=1)
+        sX = np.linspace(domain[0], domain[1], 1000)
+        self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4)
+
+    def add_distribution(self, X, Y_pdf, Y_cdf, domain, label=None):
+        """
+        Add plot for distribution 'distr_object' with given label.
+        :param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain
+        :param label: string label for legend
+        :return:
+        """
+        # if label is None:
+        #     label = "size {}".format(distr_object.moments_fn.size)
+        #domain = distr_object.domain
+        self.adjust_domain(domain)
+        d_size = domain[1] - domain[0]
+        slack = 0  # 0.05
+        extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
+        #X = self._grid(1000, domain=domain)
+        color = self.colormap(self.i_plot)
+
+        plots = []
+        #Y_pdf = distr_object.density(X)
+        self.ax_pdf.plot(X, Y_pdf, label=label, color=color)
+        self._plot_borders(self.ax_pdf, color, domain)
+
+        #Y_cdf = distr_object.cdf(X)
+        self.ax_cdf.plot(X, Y_cdf, color=color)
+        self._plot_borders(self.ax_cdf, color, domain)
+
+        if self._error_plot and self._exact_distr is not None:
+            if self._error_plot == 'kl':
+                exact_pdf = self._exact_distr.pdf(X)
+                eY_pdf = exact_pdf * np.log(exact_pdf / Y_pdf) - exact_pdf + Y_pdf
+                #eY_pdf = exact_pdf / Y_pdf #* np.log(exact_pdf / Y_pdf) / Y_pdf
+            else:
+                eY_pdf = Y_pdf - self._exact_distr.pdf(X)
+            self.ax_pdf_err.plot(X, eY_pdf, linestyle="--", color=color, linewidth=0.5)
+            eY_cdf = Y_cdf - self._exact_distr.cdf(X)
+            self.ax_cdf_err.plot(X, eY_cdf, linestyle="--", color=color, linewidth=0.5)
+
+        self.i_plot += 1
+
+    def show(self, file=""):
+        """
+        Set colors according to the number of added plots.
+        Set domain from all plots.
+        Plot exact distribution.
+        show, possibly save to file.
+        :param file: None, or filename, default name is same as plot title.
+        """
+        #self._add_exact_distr()
+        self.ax_pdf.legend(title=self._legend_title, loc=1)
+
+        #_show_and_save(self.fig_kl, file, self._title)
+
+        self.fig.show()
+        file = self._title
+        if file[-3:] != "pdf":
+            file = file + ".pdf"
+        self.fig.savefig(file)
+
+    def reset(self):
+        plt.close()
+        self._domain = None
+
+    def _plot_borders(self, ax, color, domain=None):
+        """
+        Add vertical lines to the plot for endpoints of the 'domain'.
+        :return: Pair of line objects.
+        """
+        if domain is None:
+            domain = self._domain
+        l1 = ax.axvline(x=domain[0], ymin=0, ymax=0.1, color=color)
+        l2 = ax.axvline(x=domain[1], ymin=0, ymax=0.1, color=color)
+        return [l1, l2]
+
+    def adjust_domain(self, domain):
+        """
+        Enlarge common domain by given bounds.
+        :param value: [lower_bound, upper_bound]
+        """
+        if self._domain is None:
+            self._domain = domain
+        else:
+            self._domain = [min(self._domain[0], domain[0]), max(self._domain[1], domain[1])]
+
+    def _add_exact_distr(self, X, Y_pdf, Y_cdf):
+        """
+        Plot exact PDF and CDF.
+        :return:
+        """
+
+        self.ax_pdf.set_ylim([np.min(Y_pdf) - (np.max(Y_pdf) - np.min(Y_pdf))*0.1, np.max(Y_pdf) + (np.max(Y_pdf) - np.min(Y_pdf))*0.1])
+        self.ax_cdf.set_ylim([np.min(Y_cdf) - (np.max(Y_cdf) - np.min(Y_cdf)) * 0.1, np.max(Y_cdf) + (np.max(Y_cdf) - np.min(Y_cdf)) * 0.1])
+
+        self.ax_pdf.plot(X, Y_pdf, c='black', label="exact")
+        self.ax_cdf.plot(X, Y_cdf, c='black')
+
+    def _grid(self, size, domain=None):
+        """
+        X values grid for given domain. Optionally use the log scale.
+        """
+        if domain is None:
+            domain = self._domain
+        if self._log_x:
+            X = np.geomspace(domain[0], domain[1], size)
+        else:
+            X = np.linspace(domain[0], domain[1], size)
+        return X
+
+
 class Distribution:
     """
     mlmc.plot.Distribution
@@ -232,7 +447,6 @@ class Distribution:
         :param label: string label for legend
         :return:
         """
-
         self._reg_param = reg_param
 
         if label is None:
@@ -317,82 +531,7 @@ class Distribution:
             self.ax_cdf.plot(X, Y_cdf, color=color, label=label)
             self._plot_borders(self.ax_cdf, color, domain)
 
-        # if self._error_plot and self._exact_distr is not None:
-        #     if self._error_plot == 'kl':
-        #         exact_pdf = self._exact_distr.pdf(X)
-        #         eY_pdf = exact_pdf * np.log(exact_pdf / Y_pdf) - exact_pdf + Y_pdf
-        #         #eY_pdf = exact_pdf / Y_pdf #* np.log(exact_pdf / Y_pdf) / Y_pdf
-        #     else:
-        #         eY_pdf = Y_pdf - self._exact_distr.pdf(X)
-        #     self.ax_pdf_err.plot(X, eY_pdf, linestyle="--", color=color, linewidth=0.5)
-        #     eY_cdf = Y_cdf - self._exact_distr.cdf(X)
-        #     self.ax_cdf_err.plot(X, eY_cdf, linestyle="--", color=color, linewidth=0.5)
-
         self.i_plot += 1
-
-        # if label is None:
-        #     label = "size {}".format(distr_object.moments_fn.size)
-        # domain = distr_object.domain
-        # self.adjust_domain(domain)
-        # d_size = domain[1] - domain[0]
-        # slack = 0  # 0.05
-        # extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
-        # X = self._grid(1000, domain=domain)
-        # color = 'C{}'.format(self.i_plot)
-        #
-        # print("self._exact_distr domain ", self._exact_distr.domain)
-        # print("domain ", domain)
-        #
-        # #@TODO: remove asap
-        # #distr_object.cdf_pdf(X)
-        #
-        # self.distr_object = distr_object
-        #
-        # plots = []
-        # Y_pdf = distr_object.density(X)
-        # print("Y_pdf len ", len(Y_pdf))
-        # print("X lenght ", len(X))
-        # #print("len distr_object.density_mask ", len(distr_object.density_mask))
-        # # if distr_object.density_mask is not None:
-        # #     self.ax_pdf.plot(X[distr_object.density_mask], Y_pdf, label=label, color=color)
-        # # else:
-        # self.ax_pdf.plot(X, Y_pdf, label=label, color=color)
-        # self._plot_borders(self.ax_pdf, color, domain)
-        #
-        # Y_cdf = distr_object.cdf(X)
-        # print("Y cdf ", Y_cdf)
-        # # if distr_object.mask is not None:
-        # #     X_1 = X[distr_object.mask]
-        # # if distr_object.distr_mask is not None:
-        # #     self.ax_cdf.plot(X[distr_object.distr_mask], Y_cdf)
-        # # else:
-        # self.ax_cdf.plot(X, Y_cdf)
-        # self._plot_borders(self.ax_cdf, color, domain)
-        #
-        # if self._error_plot and self._exact_distr is not None:
-        #     if self._error_plot == 'kl':
-        #         # if distr_object.density_mask is not None:
-        #         #     exact_pdf = self._exact_distr.pdf(X[distr_object.density_mask])
-        #         # else:
-        #         exact_pdf = self._exact_distr.pdf(X)
-        #         eY_pdf = exact_pdf * np.log(exact_pdf / Y_pdf) - exact_pdf + Y_pdf
-        #         #eY_pdf = exact_pdf / Y_pdf #* np.log(exact_pdf / Y_pdf) / Y_pdf
-        #     else:
-        #         # if distr_object.density_mask is not None:
-        #         #     eY_pdf = Y_pdf - self._exact_distr.pdf(X[distr_object.density_mask])
-        #         # else:
-        #         eY_pdf = Y_pdf - self._exact_distr.pdf(X)
-        #     #self.ax_pdf_err.plot(X, eY_pdf, linestyle="--", color=color, linewidth=0.5)
-        #     # if X_1 is not None:
-        #     #     X = X_1
-        #
-        #     # if distr_object.distr_mask is not None:
-        #     #     X = X[distr_object.distr_mask]
-        #
-        #     eY_cdf = Y_cdf - self._exact_distr.cdf(X)
-        #     #self.ax_cdf_err.plot(X, eY_cdf, linestyle="--", color=color, linewidth=0.5)
-        #
-        # self.i_plot += 1
 
     def show(self, file=""):
         """
@@ -456,6 +595,8 @@ class Distribution:
         # if self._log_density:
         #     Y = np.log(Y)
         self.ax_pdf.set_ylim([np.min(Y) - (np.max(Y) - np.min(Y)) * 0.1, np.max(Y) + (np.max(Y) - np.min(Y)) * 0.1])
+
+
 
         self.ax_pdf.plot(X, Y, c='black', label="exact", linestyle=":")
 
@@ -558,81 +699,82 @@ class Eigenvalues:
         else:
             self._ylim = [min(self._ylim[0], ylim[0]), max(self._ylim[1], ylim[1])]
 
-
-class KL_divergence:
-    """
-    Plot of eigenvalues (of the covariance matrix), several sets of eigenvalues can be added
-    together with error bars and cut-tresholds.
-    Colors are chosen automatically. Slight X shift is used to avoid point overlapping.
-    For log Y scale only positive values are plotted.
-    """
-    def __init__(self, log_y=True, title="Kullback-Leibler divergence"):
-        self._ylim = None
-        self.log_y = log_y
-        self.fig = plt.figure(figsize=(15, 10))
-        self.ax = self.fig.add_subplot(1, 1, 1)
-        self.fig.suptitle(title)
-        self.i_plot = 0
-        self.title = title
-        self.colormap = plt.cm.tab20
-
-        # index of eignevalues dataset
-        if self.log_y:
-            self.ax.set_yscale('log')
-
-    def add_values(self, values, errors=None, threshold=None, label=""):
-        """
-        Add set of eigenvalues into the plot.
-        :param values: array (n,); eigen values in increasing or decreasing ordred, automatically flipped to decreasing.
-        :param errors: array (n,); corresponding std errors
-        :param threshold: horizontal line marking noise level or cut-off eigen value
-        :return:
-        """
-        assert not errors or len(values) == len(errors)
-        if values[0] < values[-1]:
-            values = np.flip(values)
-            if errors is not None:
-                errors = np.flip(errors)
-            threshold = len(values) - 1 - threshold
-
-        if self.log_y:
-            # plot only positive values
-            i_last_positive = len(values) - np.argmax(np.flip(values) > 0)
-            values = values[:i_last_positive + 1]
-            a, b = np.min(values), np.max(values)
-            self.adjust_ylim( (a / ((b/a)**0.05), b * (b/a)**0.05) )
-        else:
-            a, b = np.min(values), np.max(values)
-            self.adjust_ylim( (a - 0.05 * (b - a), b + 0.05 * (b - a)) )
-
-        color = self.colormap(self.i_plot)#'C{}'.format(self.i_plot)
-        X = np.arange(len(values)) + self.i_plot * 0.1
-        if errors is None:
-            self.ax.scatter(X, values, label=label, color=color)
-        else:
-            self.ax.errorbar(X, values, yerr=errors, fmt='o', color=color, ecolor=color, capthick=2, label=label)
-        if threshold is not None:
-            self.ax.axhline(y=threshold, color=color)
-        self.i_plot += 1
-
-    def show(self, file=""):
-        """
-        Show the plot or save to file.
-        :param file: filename base, None for show.
-        :return:
-        """
-        self.ax.legend(title="Noise level")
-        _show_and_save(self.fig, file, self.title)
-
-    def adjust_ylim(self, ylim):
-        """
-        Enlarge common domain by given bounds.
-        :param value: [lower_bound, upper_bound]
-        """
-        if self._ylim is None:
-            self._ylim = ylim
-        else:
-            self._ylim = [min(self._ylim[0], ylim[0]), max(self._ylim[1], ylim[1])]
+#
+# class KL_divergence:
+#     """
+#     Plot of eigenvalues (of the covariance matrix), several sets of eigenvalues can be added
+#     together with error bars and cut-tresholds.
+#     Colors are chosen automatically. Slight X shift is used to avoid point overlapping.
+#     For log Y scale only positive values are plotted.
+#     """
+#     def __init__(self, log_y=True, title="Kullback-Leibler divergence"):
+#         self._ylim = None
+#         self.log_y = log_y
+#         self.fig = plt.figure(figsize=(15, 10))
+#         self.ax = self.fig.add_subplot(1, 1, 1)
+#         self.fig.suptitle(title)
+#         self.i_plot = 0
+#         self.title = title
+#         self.colormap = plt.cm.tab20
+#
+#         # index of eignevalues dataset
+#         if self.log_y:
+#             self.ax.set_yscale('log')
+#
+#     def add_values(self, values, errors=None, threshold=None, label=""):
+#         """
+#         Add set of eigenvalues into the plot.
+#         :param values: array (n,); eigen values in increasing or decreasing ordred, automatically flipped to decreasing.
+#         :param errors: array (n,); corresponding std errors
+#         :param threshold: horizontal line marking noise level or cut-off eigen value
+#         :return:
+#         """
+#         assert not errors or len(values) == len(errors)
+#         if values[0] < values[-1]:
+#             values = np.flip(values)
+#             if errors is not None:
+#                 errors = np.flip(errors)
+#             threshold = len(values) - 1 - threshold
+#
+#         if self.log_y:
+#             # plot only positive values
+#             i_last_positive = len(values) - np.argmax(np.flip(values) > 0)
+#             values = values[:i_last_positive + 1]
+#             a, b = np.min(values), np.max(values)
+#             self.adjust_ylim( (a / ((b/a)**0.05), b * (b/a)**0.05) )
+#         else:
+#             a, b = np.min(values), np.max(values)
+#             self.adjust_ylim( (a - 0.05 * (b - a), b + 0.05 * (b - a)) )
+#
+#         color = self.colormap(self.i_plot)#'C{}'.format(self.i_plot)
+#         X = np.arange(len(values))# + self.i_plot * 0.1
+#         print("X ", X)
+#         if errors is None:
+#             self.ax.scatter(X, values, label=label, color=color)
+#         else:
+#             self.ax.errorbar(X, values, yerr=errors, fmt='o', color=color, ecolor=color, capthick=2, label=label)
+#         if threshold is not None:
+#             self.ax.axhline(y=threshold, color=color)
+#         self.i_plot += 1
+#
+#     def show(self, file=""):
+#         """
+#         Show the plot or save to file.
+#         :param file: filename base, None for show.
+#         :return:
+#         """
+#         self.ax.legend(title="Noise level")
+#         _show_and_save(self.fig, file, self.title)
+#
+#     def adjust_ylim(self, ylim):
+#         """
+#         Enlarge common domain by given bounds.
+#         :param value: [lower_bound, upper_bound]
+#         """
+#         if self._ylim is None:
+#             self._ylim = ylim
+#         else:
+#             self._ylim = [min(self._ylim[0], ylim[0]), max(self._ylim[1], ylim[1])]
 
 
 def moments(moments_fn, size=None, title="", file=""):
