@@ -1631,7 +1631,7 @@ def print_cumul(eval):
     var_exp = [(i / tot) * 100 for i in sorted(eval, reverse=True)]
     print("var_exp ", var_exp)
     cum_var_exp = np.cumsum(var_exp)
-    print("cum_var_exp ", cum_var_exp)
+    #print("cum_var_exp ", cum_var_exp)
 
     # threshold = np.argmin(cum_var_exp > 99.99)
     # print("new threshold ", threshold)
@@ -1654,6 +1654,8 @@ def print_cumul(eval):
 
 
 def _cut_eigenvalues(cov_center, tol):
+    print("CUT eigenvalues")
+
 
     eval, evec = np.linalg.eigh(cov_center)
 
@@ -1662,7 +1664,7 @@ def _cut_eigenvalues(cov_center, tol):
 
     #eval = np.abs(eval)
 
-    print_cumul(eval)
+    #print_cumul(eval)
 
     original_eval = eval
     print("original eval ", eval)
@@ -1759,10 +1761,10 @@ def _cut_eigenvalues(cov_center, tol):
 
     print_cumul(eval)
 
-    for ev in evec:
-        print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-        #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-    print('Everything ok!')
+    # for ev in evec:
+    #     print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+    #     #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+    # print('Everything ok!')
 
     return eval, evec, threshold, original_eval
 
@@ -1773,9 +1775,9 @@ def _pca(cov_center, tol):
 
     original_eval = eval
     print("original eval ", original_eval)
-
-    print("original evec ")
-    print(pd.DataFrame(evec))
+    #
+    # print("original evec ")
+    # print(pd.DataFrame(evec))
 
     cum_var_exp, var_exp = print_cumul(sorted(eval, reverse=True))
     print("CUM VAR EXP ", cum_var_exp)
@@ -1791,39 +1793,123 @@ def _pca(cov_center, tol):
     # #threshold = len(eval)
 
     cumul_hundred = np.argmax(cum_var_exp == 100)
-    print("cumul hundred ", cumul_hundred)
+    #print("cumul hundred ", cumul_hundred)
 
-    cum_var_exp = np.round(cum_var_exp, 2)
-    print("np.round(cum_var_exp, 2) ", cum_var_exp)
+    # cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
+    # cum_var_exp, var_exp = print_cumul(eval[:cut_threshold])
+    # print("new cum var exp ", cum_var_exp)
 
-    threshold = np.argmax(cum_var_exp)
+    ######!!!!!! previous
+    threshold = 0
+    for idx in range(len(cum_var_exp)):
+        if cum_var_exp[idx] > (100 + tol * 10):
+            #print("cum var exp threshold ", idx)
+            threshold = idx
+            print("cum var exp threshold FOR ", threshold)
+            break
+
+    if threshold == 0:
+        threshold = len(eval) - 1
+
+    if all(cum_var_exp[threshold:] <= (100 + tol * 10)):
+        print("ALL <= (100 + tol * 10))")
+        threshold = len(eval) - 1
+    else:
+        cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
+        print("CUT threshold ", cut_threshold)
+        if cut_threshold < threshold:  # and not threshold_set:
+            threshold = cut_threshold
+
+    print("computed threshold ", threshold)
+
+    threshold_set = False
+    # if threshold == len(eval)-1:
+    #     threshold_set = True
+
+    if threshold == 0:
+        threshold = len(eval) - 1
+        threshold_set = True
+
+    cum_var_exp = np.floor(cum_var_exp)#, 2)
+    #print("np.round(cum_var_exp, 2) ", cum_var_exp)
+
+    # threshold = 0
+    # maximum = 0
+    # for idx in range(len(cum_var_exp)):
+    #     if cum_var_exp[idx] > maximum:
+    #         print("cum var exp threshold ", idx)
+    #         threshold = idx
+    #         maximum = cum_var_exp[idx]
+    #         break
+    #
+    # print("maximum ", maximum)
+    # print("maximum threshold ", maximum)
+
+    #threshold = np.argmax(cum_var_exp)
 
     # print("np.floor(cum_var_exp) ",cum_var_exp)
     # print("np.floor(cum_var_exp).argmax(axis=0) ", cum_var_exp.argmax(axis=0))
 
+    ##########!!!!! previous version
+    #mx = np.max(cum_var_exp)
+    ############!!!!!!!!!!
 
-    mx = np.max(cum_var_exp)
+
+    # mx_index = np.argmax(cum_var_exp < (100.1))
+    # if mx_index == 0:
+    #     mx_index = len(eval) - 1
+    # print("mx index ", mx_index)
+    # mx = cum_var_exp[mx_index]
+    # print("mx ", mx)
+
     #threshold = np.max([i for i, j in enumerate(cum_var_exp) if j == mx])
 
-    if all(cum_var_exp[threshold:] == mx):
-        threshold = len(cum_var_exp) - 1
-        print("np.array(np.abs(var_exp)) ", np.array(np.abs(var_exp)))
-        threshold = np.argmax(np.array(np.abs(var_exp)) < 1e-5)
 
-    if threshold == 0:
-        threshold = len(eval) -1
+    # print("all(cum_var_exp[threshold:] == mx) ", all(cum_var_exp[threshold:] == mx))
+    #
+    # cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
+    # # cut_threshold = np.argmax(np.array(var_exp) < tol)
+    #
+    # print("cut threshold ", cut_threshold)
 
-    #exit()
+    ### !!!! previous
+    # if all(cum_var_exp[threshold:] == mx):
+    #     threshold = len(cum_var_exp) - 1
+    #     #print("np.array(np.abs(var_exp)) ", np.array(np.abs(var_exp)))
+    #     threshold = np.argmax(np.array(np.abs(var_exp)) < 1e-5)
+    # else:
+    #     ##### !!!!!
+    #
+    #     threshold = mx_index
+
+    # if threshold == 0:
+    #     threshold = len(eval) - 1
+    #
+    # print("threshold ", threshold)
+
+    # print("threshold if threshold < cut_threshold else cut_threshold ", threshold if threshold < cut_threshold else cut_threshold)
+    # if cut_threshold < threshold:# and not threshold_set:
+    #     threshold = cut_threshold
+    #
+    # #threshold = threshold if threshold < cut_threshold else cut_threshold
+    # print("threshold after if ", threshold)
+
+    #threshold = cut_threshold
+
+    # if threshold == 0:
+    #     threshold = len(eval) - 1
+    #
+    # #exit()
 
     threshold += 1
 
-    #threshold -= 7
+    #threshold = 35
 
     #threshold = 9#len(new_eig_pairs)
     print("THreshold ", threshold)
 
-    for pair in eig_pairs:
-        print("evec ", pair[1])
+    # for pair in eig_pairs:
+    #     print("evec ", pair[1])
 
     new_evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
     new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
@@ -1844,7 +1930,7 @@ def _pca(cov_center, tol):
 
 
 
-    print("evec ", evec)
+    #print("evec ", evec)
 
     # for i in range(len(original_eval)):
     #     threshold = len(original_eval) - i
@@ -1862,13 +1948,13 @@ def _pca(cov_center, tol):
     # print("evec ", evec)
     #
     #
-    for ev in evec:
-        print("ev")
-        print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-        #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-    print('Everything ok!')
+    # for ev in evec:
+    #     print("ev")
+    #     print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+    #     #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+    # print('Everything ok!')
 
-    return eval, evec, threshold, original_eval, None#, new_evec
+    return eval, evec, threshold, original_eval,None# new_evec
 
 
 def _pca_add_one(cov_center, tol, moments):
