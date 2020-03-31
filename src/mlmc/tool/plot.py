@@ -1,6 +1,29 @@
 import numpy as np
 import scipy.stats as st
 from scipy import interpolate
+import matplotlib as mpl
+# font = {'family': 'normal',
+#         'weight': 'bold',
+#         'size': 22}
+#
+# matplotlib.rc('font', **font)
+
+mpl.use("pgf")
+pgf_with_pdflatex = {
+    "pgf.texsystem": "pdflatex",
+    "pgf.preamble": [
+        r"\usepackage[utf8]{inputenc}",
+        r"\usepackage[T1]{fontenc}",
+        ##r"\usepackage{cmbright}",
+    ],
+}
+mpl.rcParams.update(pgf_with_pdflatex)
+# mpl.rcParams['xtick.labelsize']=12
+# mpl.rcParams['ytick.labelsize']=12
+
+#matplotlib.rcParams.update({'font.size': 22})
+
+
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, FixedLocator
 
@@ -1420,12 +1443,51 @@ class Aux:
         fig.savefig('level_vars_regression.pdf')
         plt.show()
 
+label_fontsize = 12
+class KL_div_mom_err():
+
+    def __init__(self, title=""):
+
+        self.kl_divs = []
+        self.mom_errs = []
+        self.densities = []
+        self.data = []
+        self.title = title
+        self.colormap = plt.cm.tab20
+        self.i_plot = 0
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(12, 10))
+
+        self.markers = ["o", "v", "s", "p", "X", "D"]
+
+        self.ax.set_xscale('log')
+        self.ax.set_yscale('log')
+
+        self.ax.set_xlabel(r'$|\mu - \hat{\mu}|^2$', size=label_fontsize)
+        self.ax.set_ylabel(r'$D(\rho_35 \Vert \hat{\rho}_35)$', size=label_fontsize)
+
+    def add_values(self, kl_div, mom_err, density):
+        self.data.append((kl_div, mom_err, density))
+
+    def plot_values(self):
+        for kl_div, mom_err, density in self.data:
+            print("kl div ", kl_div)
+            print("mom erro ", mom_err)
+            self.ax.plot(mom_err, kl_div, color=self.colormap(self.i_plot), marker=self.markers[self.i_plot], label=density)
+            self.i_plot += 1
+
+    def show(self):
+        self.plot_values()
+        self.ax.legend()
+        file = self.title + "_kl_mom_diff.pdf"
+        self.fig.show()
+        self.fig.savefig(file)
+
 
 class KL_divergence:
     """
     Plot of KL divergence
     """
-    def __init__(self, log_y=True, log_x=False, iter_plot=False, title="", xlabel="number of moments", ylabel="KL divergence", label="", truncation_err_label=""):
+    def __init__(self, log_y=True, log_x=False, iter_plot=False, kl_mom_err=True, title="", xlabel="number of moments", ylabel="KL divergence", label="", truncation_err_label=""):
         self._ylim = None
         self.log_y = log_y
         self.i_plot = 0
@@ -1441,6 +1503,10 @@ class KL_divergence:
             self.fig_kl, self.ax_kl = plt.subplots(1, 1, figsize=(12, 10))
             self.fig_iter, self.ax_iter = plt.subplots(1, 1, figsize=(12, 10))
 
+        if kl_mom_err:
+            self.fig_mom_err, self.ax_mom_err = plt.subplots(1, 1, figsize=(12, 10))
+
+
         self.ax_kl.set_title("Kullback-Leibler divergence")
         self.ax_iter.set_title("Optimization iterations")
 
@@ -1452,6 +1518,7 @@ class KL_divergence:
         self.ax_iter.set_xlabel(xlabel)
         self.ax_iter.set_ylabel("number of iterations")
 
+        self._plot_kl_mom_err = kl_mom_err
         self._x = []
         self._y = []
         self._mom_err_x = []
@@ -1466,9 +1533,13 @@ class KL_divergence:
 
         if self.log_y:
             self.ax_kl.set_yscale('log')
+
+
+            #self.ax_mom_err.set_yscale('log')
         if log_x:
             self.ax_kl.set_xscale('log')
             self.ax_iter.set_xscale('log')
+            #self.ax_mom_err.set_xscale('log')
 
     @property
     def truncation_err(self):
@@ -1523,6 +1594,7 @@ class KL_divergence:
         if len(values) == 3:
             self._iterations = values[2]
 
+
     def _plot_values(self):
         if self.log_y:
             # plot only positive values
@@ -1548,6 +1620,10 @@ class KL_divergence:
         if self._failed_iterations:
             self.ax_iter.scatter(self._failed_iter_x, self._failed_iterations, color="red", marker="p", label="failed")
 
+        if self._plot_kl_mom_err:
+            self.ax_mom_err.plot(self._mom_err_y, self._y, ls='solid', color="red", marker="v",
+                            label=r'$|\mu - \hat{\mu}|^2$')
+
         self.i_plot += 1
 
         if self._truncation_err is not None:
@@ -1565,6 +1641,7 @@ class KL_divergence:
         self.ax_kl.legend()
         self.ax_iter.legend()
 
+
         self.fig_kl.show()
         file = self.title
         if file[-3:] != "pdf":
@@ -1576,6 +1653,12 @@ class KL_divergence:
             file = self.title + "_iterations.pdf"
             self.fig_iter.show()
             self.fig_kl.savefig(file)
+
+        if self._plot_kl_mom_err:
+            file = self.title + "_kl_mom_diff.pdf"
+            self.ax_mom_err.legend()
+            self.fig_mom_err.show()
+            self.fig_mom_err.savefig(file)
 
 
 
