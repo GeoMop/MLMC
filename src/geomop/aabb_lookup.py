@@ -61,9 +61,11 @@ class AABB_Lookup:
             return []
         inf_dists = np.max(np.maximum(self.boxes[:, 0:2] - point, point - self.boxes[:, 2:4]), axis=1)
         if np.amin(inf_dists) > 0.0:
+            # closest box not containing the point
             i_closest = np.argmin(inf_dists)
             c_boxes = boxes[i_closest:i_closest+1, :]
         else:
+            # point is inside all boxes
             c_boxes = boxes[np.where(inf_dists<=0.0)]
         assert c_boxes.shape[0] != 0
         # Max distance of closest boxes

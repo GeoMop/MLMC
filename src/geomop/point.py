@@ -6,6 +6,7 @@ import numpy as np
 class Point(idmap.IdObject):
 
     def __init__(self, point, poly):
+        super().__init__()
         self.xy = np.array(point, dtype=float)
         self.poly = poly
         # Containing polygon for free-nodes. None for others.
@@ -47,6 +48,7 @@ class Point(idmap.IdObject):
     def insert_vector(self, vector):
         """
         Insert a vector between segments connected to the point.
+        Vector oriented out of the self point.
 
         :param vector: (X, Y) ... any indexable pair.
         :return: ( (prev_seg, prev_side), (next_seg, next_side), wire )
@@ -111,3 +113,13 @@ class Point(idmap.IdObject):
         polygon.free_points.add(self)
         self.segment = (None, None)
 
+
+    def move(self, move_vec):
+        """
+        Move point by the 'move_vec' update connected segments.
+        :param move_vec:
+        :return:
+        """
+        self.xy += move_vec
+        for seg, side in self.segments():
+            seg.update_vector()

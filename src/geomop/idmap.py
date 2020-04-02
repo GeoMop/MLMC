@@ -6,11 +6,16 @@ TODO: Make auxiliary class for producing IDs and allow
 several IdMaps to source from common ID source
 """
 class IdObject:
+
+    def __init__(self):
+        self.attr = None
+
     def __hash__(self):
         return self.id
 
     def __eq__(self, other):
         return self.id == other.id
+
 
 class IdSource:
     pass
@@ -20,6 +25,7 @@ class IdMap(dict):
     def __init__(self, id_source=IdSource()):
         self._next_id = -1
         super().__init__()
+
 
     def get_new_id(self):
         self._next_id += 1

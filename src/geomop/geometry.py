@@ -1115,6 +1115,12 @@ class LayerGeometry(gs.LayerGeometry):
 
         # Propagate mesh_step from the free_shapes to vertices via DFS
         # use global mesh step if the local mesh_step is zero.
+
+        # # Distribute from lower shape dimensions.
+        # def get_dim(shape_info):
+        #     return self.regions[shape_info.i_reg].dim
+        # self.free_shapes.sort(key=get_dim)
+
         for i_free, shp_info in enumerate(self.free_shapes):
             self.set_free_si_mesh_step(shp_info, self.regions[shp_info.i_reg].mesh_step)
             shape_dict[shp_info.shape].visited = i_free
@@ -1134,7 +1140,7 @@ class LayerGeometry(gs.LayerGeometry):
                 if isinstance(shp, bw.Vertex):
                     shape_dict[shp].mesh_step = min(shape_dict[shp].mesh_step, shp_info.mesh_step)
 
-        self.min_step *= 0.2
+        #self.min_step *= 0.2
         self.vtx_char_length = []
         for (dim, gmsh_shp_id), si in self.gmsh_shape_dist.items():
             if dim == 0:
@@ -1228,7 +1234,7 @@ class LayerGeometry(gs.LayerGeometry):
         if not os.path.exists(gmsh_path):
             gmsh_path = "gmsh"
         #call([gmsh_path, "-3", "-rand 1e-10", self.geo_file])
-        call([gmsh_path, "-3",  self.geo_file])
+        call([gmsh_path, "-2", "-format", "msh2", self.geo_file])
 
     def deform_mesh(self):
         """
@@ -1391,12 +1397,14 @@ def make_geometry(**kwargs):
     raw_geometry = kwargs.get("geometry", None)
     layers_file = kwargs.get("layers_file")
     mesh_step = kwargs.get("mesh_step", 0.0)
+    mesh_file = kwargs.get("mesh_file", None)
 
     if raw_geometry is None:
         raw_geometry = layers_io.read_geometry(layers_file)
     filename_base = os.path.splitext(layers_file)[0]
     lg = construct_derived_geometry(raw_geometry)
     lg.filename_base = filename_base
+
 
     lg.init()   # initialize the tree with ids and references where necessary
 

@@ -74,11 +74,12 @@ class Decomposition:
         self.polygons.append(self.outer_polygon)
         outer_wire.polygon = self.outer_polygon
 
+
         self.last_polygon_change = (PolygonChange.add, self.outer_polygon, self.outer_polygon)
         # Last polygon operation.
         # TODO: make full undo/redo history.
         #
-        #self.tolerance = 0.01
+        self.tolerance = 0.01
 
     def __repr__(self):
         stream = ""
@@ -99,7 +100,7 @@ class Decomposition:
         for p in self.polygons.values():
             # print(p)
             # print(p.free_points)
-            assert p.outer_wire.id in self.wires
+            assert p.outer_wire.id in self.wires, p
             assert p.outer_wire.polygon == p
             for pt in p.free_points:
                 # print(pt)
@@ -113,7 +114,7 @@ class Decomposition:
                 assert child.id in self.wires
                 child.parent == w
             assert w.polygon.id in self.polygons
-            assert w == w.polygon.outer_wire or w in w.polygon.outer_wire.childs
+            assert w == w.polygon.outer_wire or w in w.polygon.outer_wire.childs, w
             if w.is_root():
                 assert w == self.outer_polygon.outer_wire
             else:
@@ -183,7 +184,7 @@ class Decomposition:
         :return: new segment
         """
         assert a_pt != b_pt
-        assert la.norm(a_pt.xy - b_pt.xy) >1e-10
+        assert la.norm(a_pt.xy - b_pt.xy) > 1e-10
         self.last_polygon_change = (PolygonChange.none, None, None)
         segment = self.pt_to_seg.get((a_pt.id, b_pt.id), None)
         if segment is not None:
@@ -268,6 +269,7 @@ class Decomposition:
         self.pt_to_seg[(seg.vtxs[0].id, mid_pt.id)] = seg
 
         new_seg = self._make_segment((mid_pt, seg.vtxs[in_vtx]))
+        new_seg.attr = seg.attr
         seg.vtxs[in_vtx] = mid_pt
         seg._vector = seg.vtxs[in_vtx].xy - seg.vtxs[out_vtx].xy
         new_seg.connect_vtx(out_vtx, seg_tip_insert)
@@ -370,7 +372,13 @@ class Decomposition:
         free_pt = points[1 - root_idx]
         polygon = free_pt.poly
         r_prev, r_next, wire = r_insert
-        assert wire.polygon == free_pt.poly, "point poly: {} insert: {}".format(free_pt.poly, r_insert)
+
+        #assert wire.polygon == free_pt.poly, "point poly: {} insert: {}".format(free_pt.poly, r_insert)
+        # if wire.polygon != free_pt.poly:
+        #     import geomop.plot_polygons as pp
+        #     pp.plot_polygon_decomposition(self, [free_pt, r_prev[0].vtxs[r_prev[1]]])
+        #     print("False")
+
 
         seg = self._make_segment(points)
         seg.connect_vtx(root_idx, r_insert)
@@ -403,6 +411,8 @@ class Decomposition:
         b_prev, b_next, b_wire = b_insert
         assert a_wire != b_wire
         assert a_wire.polygon == b_wire.polygon
+
+
         polygon = a_wire.polygon
         self.last_polygon_change = (PolygonChange.shape, [polygon], None)
 
@@ -466,43 +476,60 @@ class Decomposition:
         for seg, side in a_wire.segments(start=b_next_seg, end=(segment, b_vtx_prev_side)):
             assert seg.wire[side] == a_wire
             seg.wire[side] = b_wire
+        a_wire.segment = segment.next[b_vtx_prev_side]
+        b_wire.segment = b_next_seg
 
         segment.disconnect_wires()
         segment.disconnect_vtx(out_vtx)
         segment.disconnect_vtx(in_vtx)
 
         # setup new b_wire
-        b_wire.segment = b_next_seg
         b_wire.polygon = a_wire.polygon
+        orig_parent = a_wire.parent
         if polygon.outer_wire == a_wire:
             # one wire inside other
             outer_wire, inner_wire = b_wire, a_wire
             if a_wire.contains_wire(b_wire):
                 outer_wire, inner_wire = a_wire, b_wire
+
             polygon.outer_wire = outer_wire
-            outer_wire.set_parent(a_wire.parent)  # outer keep parent of original wire
+            outer_wire.set_parent(orig_parent)  # outer keep parent of original wire
             inner_wire.set_parent(outer_wire)
-            self._update_wire_parents(a_wire.parent, a_wire.parent, inner_wire)
+            # childs of the orig wire are in outer wire
+            for ch in list(a_wire.childs):
+                ch.set_parent(outer_wire)
+            # possible wires in the new inner_wire bubble
+            for seg, side in inner_wire.segments():
+                side_wire = seg.wire[1-side]
+                assert side_wire == inner_wire or inner_wire.contains_wire(side_wire)
+                side_wire.set_parent(inner_wire)
+
+            #self._update_wire_parents(orig_parent, outer_wire, inner_wire)
 
         else:
             # both wires are holes
-            b_wire.set_parent(a_wire.parent)
-            self._update_wire_parents(a_wire, a_wire, b_wire)
+            a_wire.set_parent(orig_parent)
+            b_wire.set_parent(orig_parent)
+            for wire in list(a_wire.childs):
+                if a_wire.contains_wire(wire):
+                    wire.set_parent(a_wire)
+                else:
+                    wire.set_parent(b_wire)
 
         # remove segment
         self.last_polygon_change = (PolygonChange.shape, [polygon], None)
         self._destroy_segment(segment)
 
-    def _update_wire_parents(self, orig_wire, outer_wire, inner_wire):
-        # Auxiliary method of _split_wires.
-        # update all wires having orig wire as parent
-        # TODO: use wire childs
-        for wire in self.wires.values():
-            if wire.parent == orig_wire:
-                if inner_wire.contains_wire(wire):
-                    wire.set_parent(inner_wire)
-                else:
-                    wire.set_parent(outer_wire)
+    # def _update_wire_parents(self, orig_wire, outer_wire, inner_wire):
+    #     # Auxiliary method of _split_wires.
+    #     # update all wires having orig wire as parent
+    #     # TODO: use wire childs
+    #     for wire in self.wires.values():
+    #         if wire.parent == orig_wire:
+    #             if inner_wire.contains_wire(wire):
+    #                 wire.set_parent(inner_wire)
+    #             else:
+    #                 wire.set_parent(outer_wire)
 
 
 
@@ -534,6 +561,7 @@ class Decomposition:
         # update polygons
         orig_poly = right_poly = orig_wire.polygon
         new_poly = Polygon(left_wire)
+        new_poly.attr = orig_poly.attr
         self.polygons.append(new_poly)
         left_wire.polygon = new_poly
 
@@ -606,7 +634,9 @@ class Decomposition:
 
         # Join holes and free points
         for child in list(rm_wire.childs):
-            child.set_parent(keep_wire)
+            assert child.polygon == new_polygon
+            child.set_parent(orig_polygon.outer_wire)
+            child.polygon = orig_polygon
 
         for pt in list(new_polygon.free_points):
             pt.set_polygon(orig_polygon)

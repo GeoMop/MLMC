@@ -151,6 +151,10 @@ class FlowSim(simulation.Simulation):
 
         super(simulation.Simulation, self).__init__()
 
+    @property
+    def is_fine_sim(self):
+        return self.coarse_sim_set
+
     def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]) -> LevelSimulation:
         """
 

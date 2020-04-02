@@ -281,7 +281,8 @@ class Estimate:
         n_moments = raw_vars.shape[1]
         for m in range(1, n_moments):
             reg_vars[:, m] = self._moment_variance_regression(raw_vars[:, m], sim_steps)
-        assert np.allclose(reg_vars[:, 0], 0.0)
+
+        assert np.allclose(reg_vars[:, 0, 0], 0.0)
         return reg_vars
 
     def estimate_diff_vars(self, moments_fn=None):
@@ -383,6 +384,7 @@ class Estimate:
             l_vars, ns = level.estimate_diff_var(moments_fn)
             vars.append(l_vars)
             n_samples.append(ns)
+
         means = np.sum(np.array(means), axis=0)
         n_samples = np.array(n_samples, dtype=int)
 
@@ -444,6 +446,10 @@ class Estimate:
         moments_obj, info = simple_distribution.construct_ortogonal_moments(self.moments, cov, tol=0.0001)
         print("n levels: ", self.n_levels, "size: ", moments_obj.size)
         est_moments, est_vars = self.estimate_moments(moments_obj)
+
+        est_moments = np.squeeze(est_moments)
+        est_vars = np.squeeze(est_vars)
+
         #est_moments = np.zeros(moments_obj.size)
         #est_moments[0] = 1.0
         est_vars = np.ones(moments_obj.size)
@@ -731,8 +737,6 @@ class CompareLevels:
         for mc_est in self.mlmc:
             mc_est.construct_density(tol, reg_param)
 
-
-
     def plot_densities(self, i_sample_mlmc=0):
         """
         Plot constructed densities (see construct densities)
@@ -744,9 +748,8 @@ class CompareLevels:
         distr_plot = plot.Distribution(title="Approx. density", quantity_name=self.quantity_name, legend_title="Number of levels",
                  log_density=False, cdf_plot=True, log_x=True, error_plot='kl')
 
-
         if i_sample_mlmc is not None:
-            mc0_samples = self.mlmc[i_sample_mlmc].levels[0].sample_values[:, 0]
+            mc0_samples = np.concatenate(self.mlmc[i_sample_mlmc].levels[0].sample_values[:, 0])
             distr_plot.add_raw_samples(mc0_samples)
 
         for mc in self.mlmc:
@@ -758,7 +761,7 @@ class CompareLevels:
         distr_plot.show('compare_distributions.pdf')
 
     def plot_variances(self):
-        var_plot = plot.VarianceBreakdown(10)
+        var_plot = plot.VarianceBreakdown(5)
         for mc in self.mlmc:
             #sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
             sample_vec = mc.estimate_n_samples_for_target_variance(0.0001)
@@ -774,7 +777,7 @@ class CompareLevels:
         var_plot.show()
 
     def plot_level_variances(self):
-        var_plot = plot.Variance(10)
+        var_plot = plot.Variance(5)
         for mc in self.mlmc:
             steps, vars = mc.estimate_level_vars()
             var_plot.add_level_variances(steps, vars)
