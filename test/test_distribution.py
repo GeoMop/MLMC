@@ -254,6 +254,10 @@ class DistributionDomainCase:
             print("reg matrix")
             print(pd.DataFrame(reg_matrix))
 
+            # eval, evec = np.linalg.eigh(reg_matrix)
+            # print("reg mat eval ", eval)
+            # print("reg mat evec ", evec)
+
             # Add regularization
             exact_cov += reg_matrix
 
@@ -824,12 +828,14 @@ class DistributionDomainCase:
         #reg_params = np.geomspace(1e-12, 1e-6, num=60) # two gaussians 3rd der
         # reg_params = np.geomspace(1e-12, 1e-9, num=60) # cauchy 3rd der
         # reg_params = np.geomspace(1e-12, 1e-9, num=60)  # cauchy 3rd der
-        # reg_params = np.geomspace(1e-9, 1e-4, num=60) # five fingers 2nd derivative
+        reg_params = np.geomspace(1e-9, 1e-4, num=60) # five fingers 2nd derivative
         #reg_params = np.geomspace(1e-12, 4e-9, num=50) # lognorm 2nd derivative
         #reg_params = np.geomspace(1e-10*2, 1e-9, num=10)
         #reg_params = np.geomspace(2e-10, 1e-9, num=30)
         #reg_params = np.geomspace(1e-9, 1e-5, num=6)
         #reg_params = [0]
+
+        reg_params = np.geomspace(1e-11, 1e-6, num=60)
 
         #reg_params = [1e-12, 5e-12, 1e-11, 5e-11, 1e-10, 5e-10, 1e-9, 5e-9,
         #              1e-8, 5e-8, 1e-7, 5e-7]
@@ -1593,8 +1599,15 @@ class DistributionDomainCase:
         tol_exact_moments = 1e-6
         tol_density = 1e-5
         results = []
+        orth_method = 2
         distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_exact", cdf_plot=False,
                                        log_x=self.log_flag, error_plot=False)
+
+        dir_name = "KL_div_exact_numpy_{}".format(orth_method)
+        if not os.path.exists(dir_name):
+            os.mkdir(dir_name)
+
+        work_dir = os.path.join(dir_name, self.name)
 
         #########################################
         # Set moments objects
@@ -1604,15 +1617,23 @@ class DistributionDomainCase:
             self.moment_sizes = np.array(
                 [max_n_moments])
         else:
-            self.moment_sizes = np.round(np.exp(np.linspace(np.log(min_n_moments), np.log(max_n_moments), 10))).astype(int)
+            self.moment_sizes = np.round(np.exp(np.linspace(np.log(min_n_moments), np.log(max_n_moments), 30))).astype(int)
         self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
+
+        if os.path.exists(work_dir):
+            raise FileExistsError
+        else:
+            os.mkdir(work_dir)
+            np.save(os.path.join(work_dir, "moment_sizes"), self.moment_sizes)
+
 
         ##########################################
         # Orthogonalize moments
 
         base_moments = self.moments_fn
         exact_cov = mlmc.simple_distribution.compute_semiexact_cov(base_moments, self.pdf)
-        self.moments_fn, info, _ = mlmc.simple_distribution.construct_orthogonal_moments(base_moments, exact_cov, noise_level)
+        self.moments_fn, info, _ = mlmc.simple_distribution.construct_orthogonal_moments(base_moments, exact_cov,
+                                                                                         noise_level, orth_method=orth_method)
         orig_eval, evals, threshold, L = info
         #eye_approx = L @ exact_cov @ L.T
         # test that the decomposition is done well
@@ -1626,7 +1647,7 @@ class DistributionDomainCase:
             self.eigenvalues_plot.add_values(evals, threshold=threshold, label=noise_label)
         self.exact_moments = mlmc.simple_distribution.compute_semiexact_moments(self.moments_fn, self.pdf, tol=tol_exact_moments)
 
-        kl_plot = plot.KL_divergence(log_y=True, iter_plot=True, title="Kullback-Leibler divergence, {}, threshold: {}".format(self.title, threshold),
+        kl_plot = plot.KL_divergence(log_y=True, iter_plot=True, kl_mom_err=False, title="Kullback-Leibler divergence, {}, threshold: {}".format(self.title, threshold),
                                      xlabel="number of moments", ylabel="KL divergence")
 
         ###############################################
@@ -1648,14 +1669,23 @@ class DistributionDomainCase:
             distr_plot.add_distribution(distr_obj, label="#{}, KL div: {}".format(n_moments, result.kl))
             results.append(result)
 
+            self._save_distr_data(distr_obj, distr_plot, work_dir, n_moments, result)
+
             kl_plot.add_value((n_moments, result.kl))
             kl_plot.add_iteration(x=n_moments, n_iter=result.nit, failed=not result.success)
+
+            self._save_kl_data_exact(work_dir, n_moments, result.kl, result.nit, not result.success, threshold)
 
         #self.check_convergence(results)
         kl_plot.show(None)
         distr_plot.show(None)#file=self.pdfname("_pdf_exact"))
         distr_plot.reset()
         return results
+
+    def _save_kl_data_exact(self, work_dir, n_moments, kl_div, nit, success, threshold):
+        np.save('{}/{}_{}.npy'.format(work_dir, n_moments, "add-value"), (n_moments, kl_div))
+        np.save('{}/{}_{}.npy'.format(work_dir, n_moments, "add-iteration"), (n_moments, nit, success))
+        np.save('{}/{}_{}.npy'.format(work_dir, n_moments, "threshold"), threshold)
 
     def _save_distr_data(self, distr_object, distr_plot, work_dir, noise_level, result):
         domain = distr_object.domain
@@ -1685,17 +1715,29 @@ class DistributionDomainCase:
 
         #noise_levels = noise_levels[:1]
 
-        noise_levels = [1e-1, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6]
+        #noise_levels = [1e-1, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6, 1e-8]
+
+        min_noise = 1e-12
+        max_noise = 1e-1
+        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 50))
+        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
+
+        #noise_levels = [1e-1, 1e-2, 1e-3, 1e-4,  1e-5, 1e-6, 1e-8]
+
+        #noise_levels = [1e-2]
+
+        #noise_levels = [1e-4,  1e-5, 1e-6, 1e-8, 1e-10, 1e-12]
 
         tol_exact_cov = 1e-10
         tol_density = 1e-5
         results = []
         n_moments = 35  # 25 is not enough for TwoGaussians
+        orth_method = 4
 
         distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_inexact", cdf_plot=False,
                                        log_x=self.log_flag, error_plot=False)
 
-        dir_name = "KL_div_inexact_numpy"
+        dir_name = "KL_div_inexact_numpy_{}_err_test".format(orth_method)
         if not os.path.exists(dir_name):
             os.mkdir(dir_name)
 
@@ -1742,11 +1784,12 @@ class DistributionDomainCase:
             noise += noise.T
             noise *= 0.5 * noise_level
             noise[0, 0] = 0
+            print("exact_cov ", exact_cov)
             cov = exact_cov + noise
 
             # Change base
             self.moments_fn, info, _ = mlmc.simple_distribution.construct_orthogonal_moments(base_moments, cov, noise_level,
-                                                                                          orth_method=2)
+                                                                                          orth_method=orth_method)
 
             # Tests
             original_evals, evals, threshold, L = info
@@ -1795,19 +1838,18 @@ class DistributionDomainCase:
 
             kl_plot.add_moments_l2_norm((noise_level, np.linalg.norm(diff_orig)**2))
 
-            self._save_kl_data(work_dir, noise_level, kl_div, result.nit, not result.success, np.linalg.norm(diff_orig)**2)
-
-
+            self._save_kl_data(work_dir, noise_level, kl_div, result.nit, not result.success, np.linalg.norm(diff_orig)**2, threshold)
 
         kl_plot.show(None)
         distr_plot.show(None)
         distr_plot.reset()
         return results
 
-    def _save_kl_data(self, work_dir, noise_level, kl_div, nit, success, mom_err):
+    def _save_kl_data(self, work_dir, noise_level, kl_div, nit, success, mom_err, threshold):
         np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "add-value"), (noise_level, kl_div))
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "add-iteration"),(noise_level, nit, success))
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "add-moments"),(noise_level, mom_err))
+        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "add-iteration"), (noise_level, nit, success))
+        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "add-moments"), (noise_level, mom_err))
+        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "threshold"), threshold)
 
     def plot_KL_div_inexact_reg(self):
         """
@@ -1913,7 +1955,9 @@ class DistributionDomainCase:
         min_noise = 1e-6
         max_noise = 1e-2
         results = []
-        orth_method = 4
+        orth_method = 1
+
+        noise = 1e-1
 
         _, _, n_moments, _ = self.moments_data
         distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="Preconditioning reg, {},  n_moments: {}, noise: {}".format(self.title, n_moments, max_noise),
@@ -1932,6 +1976,9 @@ class DistributionDomainCase:
         if noise is not None:
             noise_levels = [noise]
 
+        noise_levels = [5e-2, 1e-2, 5e-3]#, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6]
+
+        noise_levels = [1e-2]
         #noise_levels = [1e-3, 1e-2, 1e-1, 1e1, 1e2, 1e3]
         print("noise levels ", noise_levels)
         #exit()
@@ -1986,8 +2033,9 @@ class DistributionDomainCase:
             #reg_parameters = [0, 1e-8, 1e-7, 1e-6, 1e-5]
             reg_parameters = [0, 1e-7, 1e-6]
             #reg_parameters = [0, 1e-7, 1e-6, 1e-5]
-            reg_parameters = [5e-8]
-            reg_parameters = [1e-9, 1e-7]
+            reg_parameters = [0, 5e-7, 1e-6]
+            #reg_parameters = [0, 5e-8, 1e-6]#[1e-9, 1e-7]
+            #reg_parameters = [0]
 
             dir = self.title + "noise: ".format(noise)
             if not os.path.exists(dir):
@@ -2648,12 +2696,12 @@ def test_pdf_approx_exact_moments(moments, distribution):
         #tests = [case.mc_conv]
         #tests = [case.exact_conv]
         #tests = [case.inexact_conv]
+        #tests = [case.plot_KL_div_inexact]
+        #tests = [case.plot_KL_div_inexact_reg]
         tests = [case.plot_KL_div_inexact]
-        tests = [case.plot_KL_div_inexact_reg]
-        #tests = [case.plot_KL_div_exact]
-        tests = [case.determine_regularization_param]
+        #tests = [case.determine_regularization_param]
         #tests = [case.determine_regularization_param_tv]
-        tests = [case.find_regularization_param]
+        #tests = [case.find_regularization_param]
         #tests = [case.find_regularization_param_tv]
         #tests = [case.compare_orthogonalization]
         #tests = [case.compare_spline_max_ent]
@@ -2773,13 +2821,13 @@ def run_distr():
         # (stats.dgamma(1,1), False) # not good
         # (stats.beta(0.5, 0.5), False) # Looks great
         (bd.TwoGaussians(name='two_gaussians'), False),
-        #(bd.FiveFingers(name='five_fingers'), False), # Covariance matrix decomposition failed
-        #(bd.Cauchy(name='cauchy'), False),# pass, check exact
-        #(bd.Discontinuous(name='discontinuous'), False),
-        #(bd.Gamma(name='gamma'), False) # pass
-        #(stats.norm(loc=1, scale=2), False),
-        #(stats.norm(loc=0, scale=10), False),
-        #(stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
+        (bd.FiveFingers(name='five_fingers'), False), # Covariance matrix decomposition failed
+        (bd.Cauchy(name='cauchy'), False),# pass, check exact
+        (bd.Discontinuous(name='discontinuous'), False),
+        # # # # # #(bd.Gamma(name='gamma'), False) # pass
+        # # # # # #(stats.norm(loc=1, scale=2), False),
+        (stats.norm(loc=0, scale=10), False),
+        (stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
         #(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
         # (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
         #(stats.chi2(df=10), False),# Monomial: s1=nan, Fourier: s1= -1.6, Legendre: s1=nan
@@ -2797,7 +2845,7 @@ def run_distr():
         # (moments.Monomial, 3, 10),
         # (moments.Fourier, 5, 61),
         # (moments.Legendre, 7,61, False),
-        (moments.Legendre, 35, 35, True),
+        (moments.Legendre, 2, 100, True),
         #(moments.Spline, 10, 10, True),
     ]
 
@@ -3237,16 +3285,16 @@ if __name__ == "__main__":
 
     # import time as t
     # zacatek = t.time()
-    #run_distr()
+    run_distr()
     # print("celkový čas ", t.time() - zacatek)
 
-    import cProfile
-    import pstats
-    pr = cProfile.Profile()
-    pr.enable()
+    # import cProfile
+    # import pstats
+    # pr = cProfile.Profile()
+    # pr.enable()
 
-    my_result = run_distr()
-
-    pr.disable()
-    ps = pstats.Stats(pr).sort_stats('cumtime')
-    ps.print_stats()
+    # my_result = run_distr()
+    #
+    # pr.disable()
+    # ps = pstats.Stats(pr).sort_stats('cumtime')
+    # ps.print_stats()
