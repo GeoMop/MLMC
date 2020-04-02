@@ -5,10 +5,12 @@ import numpy as np
 class Polygon(idmap.IdObject):
 
     def __init__(self, outer_wire):
+        super().__init__()
         self.outer_wire = outer_wire
         # outer boundary wire
         self.free_points = set()
         # Dict ID->pt of free points inside the polygon.
+
 
     def __repr__(self):
         outer = self.outer_wire.id

@@ -10,14 +10,19 @@ out_vtx = right_side = 0
 class Segment(idmap.IdObject):
 
     def __init__(self, vtxs):
+        super().__init__()
         self.vtxs = list(vtxs)
         # tuple (out_vtx, in_vtx) of point objects; segment is oriented from out_vtx to in_vtx
         self.wire = [None, None]
         # (left_wire, right_wire) - wires on left and right side
         self.next = [None, None]
         # (left_next, right_next); next edge for left and right side;
-        self._vector = (self.vtxs[in_vtx].xy - self.vtxs[out_vtx].xy)
+        self.update_vector()
+        # precomputed direction vector of the segment
 
+
+    def update_vector(self):
+        self._vector = (self.vtxs[in_vtx].xy - self.vtxs[out_vtx].xy)
 
     def __repr__(self):
         next = [self._half_seg_repr(right_side), self._half_seg_repr(left_side)]
@@ -63,9 +68,9 @@ class Segment(idmap.IdObject):
         #    pass
         return self._vector.copy()
 
-    def vector_(self):
-        # Direction vector of the segment.
-        return (self.vtxs[in_vtx].xy - self.vtxs[out_vtx].xy)
+    # def vector_(self):
+    #     # Direction vector of the segment.
+    #     return (self.vtxs[in_vtx].xy - self.vtxs[out_vtx].xy)
 
     def parametric(self, t):
         # Parametric function of the segment for t in (0, 1)
@@ -210,6 +215,7 @@ class Segment(idmap.IdObject):
         """
 
         def min_max(aa):
+            # sort pair of values
             if aa[0] > aa[1]:
                 return (aa[1], aa[0])
             return aa

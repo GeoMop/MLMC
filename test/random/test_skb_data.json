@@ -1,0 +1,5 @@
+ [{"name": "NS", "trend": 292, "plunge": 1, "concentration": 17.8, "power": 2.5, "r_min": 0.038, "r_max": 564, "p_32": 0.073},
+            {"name": "NE", "trend": 326, "plunge": 2, "concentration": 14.3, "power": 2.7, "r_min": 0.038, "r_max": 564, "p_32": 0.319},
+            {"name": "NW", "trend": 60,  "plunge": 6, "concentration": 12.9, "power": 3.1, "r_min": 0.038, "r_max": 564, "p_32": 0.107},
+            {"name": "EW", "trend": 15,  "plunge": 2, "concentration": 14.0, "power": 3.1, "r_min": 0.038, "r_max": 564, "p_32": 0.088},
+            {"name": "HZ", "trend": 5,  "plunge": 86, "concentration": 15.2, "power": 2.38, "r_min": 0.038, "r_max": 564, "p_32": 0.543}]

@@ -21,7 +21,7 @@ class Process:
 
         self.step_range = (1, 0.01)
 
-        self.work_dir = args.work_dir
+        self.work_dir = os.path.abspath(args.work_dir)
         self.options = {'keep_collected': args.keep_collected,
                         'regen_failed': args.regen_failed}
 
@@ -74,11 +74,11 @@ class Process:
         assert os.path.isdir(self.work_dir)
         mlmc_list = []
 
-        for nl in [1, 2, 3, 4, 5, 7]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
+        for nl in [1]:#, 2, 3, 4, 5, 7]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
             mlmc = self.setup_config(nl, clean=False)
             mlmc_list.append(mlmc)
         self.all_collect(mlmc_list)
-        self.calculate_var(mlmc_list)
+        #self.calculate_var(mlmc_list)
         # show_results(mlmc_list)
 
     def process(self):
@@ -238,9 +238,9 @@ class Process:
         cl.collected_report()
         mlmc_level = 1
 
-        #self.analyze_pdf_approx(cl)
+        self.analyze_pdf_approx(cl)
         # analyze_regression_of_variance(cl, mlmc_level)
-        self.analyze_error_of_variance(cl, mlmc_level)
+        #self.analyze_error_of_variance(cl, mlmc_level)
         # analyze_error_of_regression_variance(cl, mlmc_level)
         # analyze_error_of_level_variances(cl, mlmc_level)
         # analyze_error_of_regression_level_variances(cl, mlmc_level)
@@ -288,7 +288,7 @@ class Process:
         """
         np.random.seed(20)
         cl.plot_variances()
-        cl.plot_level_variances()
+        #cl.plot_level_variances()
 
         # # Error of total variance estimator and contribution form individual levels.
         # sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
@@ -337,6 +337,7 @@ class Process:
         sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
         # n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
         # sample_vec = np.max(n_samples, axis=1).astype(int)
+        # print(sample_vec)
 
         mc.ref_estimates_bootstrap(300, sample_vector=sample_vec[:mc.n_levels])
         mc.mlmc.update_moments(cl.moments)

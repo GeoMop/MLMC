@@ -84,8 +84,11 @@ class Moments:
 
 
 class Monomial(Moments):
-    def __init__(self, size, domain=(0, 1), log=False, safe_eval=True):
-        self.ref_domain = (0, 1)
+    def __init__(self, size, domain=(0, 1), log=False, safe_eval=True, ref_domain=None):
+        if ref_domain is not None:
+            self.ref_domain = ref_domain
+        else:
+            self.ref_domain = (0, 1)
         super().__init__(size, domain, log=log, safe_eval=safe_eval)
 
     def _eval_all(self, value, size):
@@ -97,6 +100,7 @@ class Monomial(Moments):
     def eval(self, i, value):
         t = self.transform(np.atleast_1d(value))
         return t**i
+
 
 class Fourier(Moments):
     def __init__(self, size, domain=(0, 2*np.pi), log=False, safe_eval=True):

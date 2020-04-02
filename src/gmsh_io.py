@@ -62,12 +62,28 @@ class GmshIO:
         n_int_tags = int(columns[0])
         assert (n_int_tags == 3)
         columns = mshfile.readline().strip().split()
-        t_idx = float(columns[0])
+        t_idx = int(columns[0])
         columns = mshfile.readline().strip().split()
-        n_comp = float(columns[0])
+        n_comp = int(columns[0])
         columns = mshfile.readline().strip().split()
-        n_elem = float(columns[0])
+        n_elem = int(columns[0])
         return field, time, t_idx, n_comp, n_elem
+
+    def read_element_data_block(self, mshfile):
+        field, time, t_idx, n_comp, n_ele = self.read_element_data_head(mshfile)
+        field_time_dict = self.element_data.setdefault(field, {})
+        assert t_idx not in field_time_dict
+        elem_data = {}
+        field_time_dict[t_idx] = (time, elem_data)
+        for i in range(n_ele):
+            line = mshfile.readline()
+            if line.startswith('$'):
+                raise Exception("Insufficient number of entries in the $ElementData block: {} time={}".format(field, time))
+            columns = line.split()
+            iel = int(columns[0])
+            values = [float(v) for v in columns[1:]]
+            assert len(values) == n_comp
+            elem_data[iel] = values
 
 
     def read(self, mshfile=None):
@@ -99,26 +115,14 @@ class GmshIO:
                 elif line == '$PhysicalNames':
                     readmode = 5
                 elif line == '$ElementData':
-                    field, time, t_idx, n_comp, n_ele = self.read_element_data_head(mshfile)
-                    field_times = self.element_data.setdefault(field, {})
-                    assert t_idx not in field_times
-                    self.current_elem_data = {}
-                    self.current_n_components = n_comp
-                    field_times[t_idx] = (time, self.current_elem_data)
-                    readmode = 6
+                    self.read_element_data_block(mshfile)
                 else:
                     readmode = 0
             elif readmode:
                 columns = line.split()
-                if readmode == 6:
-                    ele_idx = int(columns[0])
-                    comp_values = [float(col) for col in columns[1:]]
-                    assert len(comp_values) == self.current_n_components
-                    self.current_elem_data[ele_idx] = comp_values
-
                 if readmode == 5:
                     if len(columns) == 3:
-                        self.physical[str(columns[2])] = (int(columns[1]), int(columns[0]))
+                        self.physical[str(columns[2]).strip('\"')] = (int(columns[1]), int(columns[0]))
 
                 if readmode == 4:
                     if len(columns) == 3:
@@ -140,15 +144,15 @@ class GmshIO:
                                 i, x, y, z = struct.unpack('=i3d', data)
                                 self.nodes[i] = [x, y, z]
                             mshfile.read(1)
-                    except ValueError:
-                        print('Node format error: ' + line, ERROR)
+                    except ValueError as e:
+                        print('Node format error: ' + line, e)
                         readmode = 0
-                elif ftype == 0 and readmode > 1 and len(columns) > 5:
+                elif ftype == 0 and (readmode == 2 or readmode == 3) and len(columns) > 5:
                     # Version 1.0 or 2.0 Elements
                     try:
                         columns = [int(col) for col in columns]
-                    except ValueError:
-                        print('Element format error: ' + line, ERROR)
+                    except ValueError as e:
+                        print('Element format error: ' + line, e)
                         readmode = 0
                     else:
                         (id, type) = columns[0:2]
@@ -302,42 +306,42 @@ class GmshIO:
                 self.write_element_data(fout, ele_ids, name, values)
 
 
-    def read_element_data(self):
-        """
-        Write given element data to the MSH file. Write only a single '$ElementData' section.
-        :param f: Output file stream.
-        :param ele_ids: Iterable giving element ids of N value rows given in 'values'
-        :param name: Field name.
-        :param values: np.array (N, L); N number of elements, L values per element (components)
-        :return:
-
-        TODO: Generalize to time dependent fields.
-        """
-
-        n_els = values.shape[0]
-        n_comp = np.atleast_1d(values[0]).shape[0]
-        np.reshape(values, (n_els, n_comp))
-        header_dict = dict(
-            field=str(name),
-            time=0,
-            time_idx=0,
-            n_components=n_comp,
-            n_els=n_els
-        )
-
-        header = "1\n" \
-                 "\"{field}\"\n" \
-                 "1\n" \
-                 "{time}\n" \
-                 "3\n" \
-                 "{time_idx}\n" \
-                 "{n_components}\n" \
-                 "{n_els}\n".format(**header_dict)
-
-        f.write('$ElementData\n')
-        f.write(header)
-        assert len(values.shape) == 2
-        for ele_id, value_row in zip(ele_ids, values):
-            value_line = " ".join([str(val) for val in value_row])
-            f.write("{:d} {}\n".format(int(ele_id), value_line))
-        f.write('$EndElementData\n')
+    # def read_element_data(self):
+    #     """
+    #     Write given element data to the MSH file. Write only a single '$ElementData' section.
+    #     :param f: Output file stream.
+    #     :param ele_ids: Iterable giving element ids of N value rows given in 'values'
+    #     :param name: Field name.
+    #     :param values: np.array (N, L); N number of elements, L values per element (components)
+    #     :return:
+    #
+    #     TODO: Generalize to time dependent fields.
+    #     """
+    #
+    #     n_els = values.shape[0]
+    #     n_comp = np.atleast_1d(values[0]).shape[0]
+    #     np.reshape(values, (n_els, n_comp))
+    #     header_dict = dict(
+    #         field=str(name),
+    #         time=0,
+    #         time_idx=0,
+    #         n_components=n_comp,
+    #         n_els=n_els
+    #     )
+    #
+    #     header = "1\n" \
+    #              "\"{field}\"\n" \
+    #              "1\n" \
+    #              "{time}\n" \
+    #              "3\n" \
+    #              "{time_idx}\n" \
+    #              "{n_components}\n" \
+    #              "{n_els}\n".format(**header_dict)
+    #
+    #     f.write('$ElementData\n')
+    #     f.write(header)
+    #     assert len(values.shape) == 2
+    #     for ele_id, value_row in zip(ele_ids, values):
+    #         value_line = " ".join([str(val) for val in value_row])
+    #         f.write("{:d} {}\n".format(int(ele_id), value_line))
+    #     f.write('$EndElementData\n')

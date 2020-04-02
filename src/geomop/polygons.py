@@ -6,6 +6,7 @@ import geomop.decomp as decomp
 
 from .decomp import PolygonChange
 
+
 # TODO: rename point - > node
 # TODO: careful unification of tolerance usage.
 # TODO: Performance tests:
@@ -46,14 +47,14 @@ class PolygonDecomposition:
 
     """
 
-    def __init__(self):
+    def __init__(self, tolerance=0.01):
         """
         Constructor.
         """
         self.points_lookup = aabb_lookup.AABB_Lookup()
         self.segments_lookup = aabb_lookup.AABB_Lookup()
         self.decomp = decomp.Decomposition()
-        self.tolerance = 0.01
+        self.tolerance = tolerance
 
 
     def __repr__(self):
@@ -93,11 +94,11 @@ class PolygonDecomposition:
         :param polygon_id: Hit in which polygon place the point.
         :return: Point instance
         """
-
         #print("add_free_point", point_id, xy, polygon_id)
         polygon = self.decomp.polygons[polygon_id]
         assert polygon.contains_point(xy), "Point {} not in polygon: {}.\n{}".format(xy, polygon, self)
-        return self._add_point(xy, polygon, id = point_id)
+        new_pt = self._add_point(xy, polygon, id = point_id)
+        return new_pt
 
 
     def remove_free_point(self, point_id):
@@ -118,7 +119,8 @@ class PolygonDecomposition:
         :param b_pt: End point.
         :return: new segment
         """
-        return self._add_segment(a_pt, b_pt)
+        new_seg = self._add_segment(a_pt, b_pt)
+        return new_seg
 
 
     def delete_segment(self, segment):
@@ -131,47 +133,104 @@ class PolygonDecomposition:
         return self._rm_segment(segment)
 
 
-    def check_displacment(self, points, displacement, margin):
+    # def check_displacment(self, points, displacement, margin):
+    #     """
+    #     LAYERS
+    #     param: points: List of Points to move.
+    #     param: displacement: Numpy array, 2D vector of displacement to add to the points.
+    #     param: margin: float between (0, 1), displacement margin as a fraction of maximal displacement
+    #     TODO: Check fails for internal wires and nonconvex poygons.
+    #     :return: Shortened displacement to not cross any segment.
+    #     """
+    #     # Collect fixed sides of segments connecting fixed and moving point.
+    #     segment_set = set()
+    #     changed_polygons = set()
+    #     for pt in points:
+    #         for seg, side in pt.segments():
+    #             changed_polygons.add(seg.wire[out_vtx].polygon)
+    #             changed_polygons.add(seg.wire[in_vtx].polygon)
+    #             opposite = (seg, 1-side)
+    #             if opposite in segment_set:
+    #                 segment_set.remove(opposite)
+    #             else:
+    #                 segment_set.add((seg, side))
+    #
+    #     # collect segments fomring envelope(s) of the moving points
+    #     envelope = set()
+    #     for seg, side in segment_set:
+    #         for e_seg_side in seg.wire[side].segments(start = seg.next[side]):
+    #             if e_seg_side in segment_set:
+    #                 break
+    #             e_seg, e_side = e_seg_side
+    #             envelope.add(e_seg)
+    #
+    #     new_displ = np.array(displacement)
+    #     for seg in envelope:
+    #         for pt in points:
+    #             (t0, t1) = self.seg_intersection(seg, pt.xy, pt.xy + new_displ)
+    #             # TODO: Treat case of vector and segment in line.
+    #             # TODO: Check bound checks in intersection.
+    #             if t0 is not None:
+    #                 new_displ *= (1.0 - margin) * t1
+    #     self.decomp.last_polygon_change = (decomp.PolygonChange.shape, changed_polygons, None)
+    #     return new_displ
+
+
+    def check_displacment(self, points, displacement):
         """
         LAYERS
         param: points: List of Points to move.
-        param: displacement: Numpy array, 2D vector of displacement to add to the points.
-        param: margin: float between (0, 1), displacement margin as a fraction of maximal displacement
+        param: displacement: Numpy array, 2D vector of displacement to add to the points,
+                identical for the whole displaced block.
         TODO: Check fails for internal wires and nonconvex poygons.
-        :return: Shortened displacement to not cross any segment.
+        :return: True for no, collision; False if any collision is detected.
         """
-        # Collect fixed sides of segments connecting fixed and moving point.
-        segment_set = set()
+
+
+        # Collect all sides of moving segments.
+        moving_segs = set()
         changed_polygons = set()
         for pt in points:
             for seg, side in pt.segments():
                 changed_polygons.add(seg.wire[out_vtx].polygon)
                 changed_polygons.add(seg.wire[in_vtx].polygon)
-                opposite = (seg, 1-side)
-                if opposite in segment_set:
-                    segment_set.remove(opposite)
-                else:
-                    segment_set.add((seg, side))
+                moving_segs.add( (seg, side) )
+        self.decomp.last_polygon_change = (decomp.PolygonChange.shape, changed_polygons, None)
 
-        # collect segments fomring envelope(s) of the moving points
-        envelope = set()
-        for seg, side in segment_set:
-            for e_seg_side in seg.wire[side].segments(start = seg.next[side]):
-                if e_seg_side in segment_set:
-                    break
-                e_seg, e_side = e_seg_side
-                envelope.add(e_seg)
+        # Todo: For the outer wire of the moving segments, add parent and its holes to the envelope.
+        # Outer wire is the maximal parent wire for the set of all wires connected to moving edges.
+        boundary_wires = [poly.outer_wire for poly in changed_polygons]
+        for wire in boundary_wires:
+            for child in wire.childs:
+                boundary_wires.append(child)
+        envelope=[]
+        for wire in boundary_wires:
+            for seg, side in wire.segments():
+                if (seg, side) not in moving_segs and (seg, 1 - side) not in moving_segs:
+                        envelope.append(seg)
 
-        new_displ = np.array(displacement)
-        for seg in envelope:
+        for e_seg in envelope:
+            # Check collision of points with envelope.
             for pt in points:
-                (t0, t1) = self.seg_intersection(seg, pt.xy, pt.xy + new_displ)
+                (t0, t1) = self.seg_intersection(e_seg, pt.xy, pt.xy + displacement)
                 # TODO: Treat case of vector and segment in line.
                 # TODO: Check bound checks in intersection.
                 if t0 is not None:
-                    new_displ *= (1.0 - margin) * t1
-        self.decomp.last_polygon_change = (decomp.PolygonChange.shape, changed_polygons, None)
-        return new_displ
+                    return False
+
+            # Check collision of segments with envelope.
+            for (seg, side) in moving_segs:
+                a = seg.vtxs[side].xy + displacement
+
+                if (seg, 1-side) in moving_segs:
+                    b = seg.vtxs[1 - side].xy + displacement
+                else:
+                    b = seg.vtxs[1 - side].xy
+                (t0, t1) = self.seg_intersection(e_seg, a, b)
+                if t0 is not None:
+                    return False
+
+        return True
 
     def move_points(self, points, displacement):
         """
@@ -182,7 +241,7 @@ class PolygonDecomposition:
         :return: None
         """
         for pt in points:
-            pt.xy += displacement
+            pt.move(displacement)
 
 
     def get_last_polygon_changes(self):
@@ -245,7 +304,13 @@ class PolygonDecomposition:
 
     ###################################################################
     # Macro operations that change state of the decomposition.
+
+
     def add_point(self, point):
+        obj = self._add_point_impl(point)
+        return obj
+
+    def _add_point_impl(self, point):
         """
         Try to add a new point, snap to lines and existing points.
         :param point: numpy array with XY coordinates
@@ -256,6 +321,7 @@ class PolygonDecomposition:
         This is partly done with get_last_polygon_changes but we need similar for segment in this method.
         This is necessary in intersections.
         """
+
         point = np.array(point, dtype=float)
         dim, obj, t = self._snap_point(point)
         if dim == 0:
@@ -263,11 +329,20 @@ class PolygonDecomposition:
             return obj
         elif dim == 1:
             seg = obj
+            seg_len = np.linalg.norm(seg.vector)
+            if t*seg_len < self.tolerance:
+                return seg.vtxs[out_vtx]
+            elif (1-t)*seg_len < self.tolerance:
+                return seg.vtxs[in_vtx]
             mid_pt, new_seg = self._point_on_segment(seg, t)
             return mid_pt
         else:
             poly = obj
             return self._add_point(point, poly)
+
+
+
+
 
     def pt_dist(self, pt, point):
         return la.norm(pt.xy - point)
@@ -289,39 +364,44 @@ class PolygonDecomposition:
         #candidates = self.points.keys()
         for pt_id in candidates:
             pt = self.points[pt_id]
-            if self.pt_dist(pt, point) <  self.tolerance:
+            if self.pt_dist(pt, point) < self.tolerance:
                 return (0, pt, None)
 
         # Snap to segments, keep the closest to get polygon.
-        closest_seg = (np.inf, None, None)
+
         candidates = self.segments_lookup.closest_candidates(point)
         #candidates = self.segments.keys()
+        close_segments = [(np.inf, None, 0)]
         for seg_id in candidates:
             seg = self.segments[seg_id]
-            t = self.seg_project_point(seg, point)
+            t = self.seg_project_point(seg.vector, seg.vtxs[out_vtx].xy, point)
             dist = la.norm(point - seg.parametric(t))
-            if dist < self.tolerance:
+            close_segments.append((dist, seg, t))
+        close_segments.sort(key=lambda x:x[0])
+        closest_seg = close_segments[0]
+        if closest_seg[0] < self.tolerance:
+            close_segments = [it for it in close_segments if it[0] < self.tolerance]
+            if len(close_segments) == 1:
+                dist, seg, t = closest_seg
                 return (1, seg, t)
-            elif dist < closest_seg[0]:
-                closest_seg = (dist, seg, t)
-        assert closest_seg[0] < np.inf or len(self.segments) == 0
+            else:
+                # compute parameter on closest segment, that is far enough from the other segment
+                da, seg_a, ta = close_segments[0]
+                db, seg_b, tb = close_segments[1]
+                xa, ua = seg_a.vtxs[out_vtx].xy, seg_a.vector
+                xb, ub = seg_b.vtxs[out_vtx].xy, seg_b.vector
+                nb = np.array([ub[1], -ub[0]])
+                nb /= np.linalg.norm(nb)
+                if nb @ (point - xb) < 0:
+                    nb = -nb
+                t = (self.tolerance - (xa - xb) @ nb) / (ua @ nb)
+                xt = xa + t * ua
+                assert np.linalg.norm(xt - seg_b.parametric(self.seg_project_point(ub, xb, xt))) > self.tolerance*0.99
+                return (1, seg_a, t)
 
-        # cs = closest_seg
-        #
-        # closest_seg = (np.inf, None, None)
-        # candidates = self.segments.keys()
-        # for seg_id in candidates:
-        #     seg = self.segments[seg_id]
-        #     t = self.seg_project_point(seg, point)
-        #     dist = la.norm(point - seg.parametric(t))
-        #     if dist < self.tolerance:
-        #         return (1, seg, t)
-        #     elif dist < closest_seg[0]:
-        #         closest_seg = (dist, seg, t)
-        #
-        # if cs != closest_seg:
-        #     self.segments_lookup.closest_candidates(point)
-        #     assert False
+
+
+        assert closest_seg[0] < np.inf or len(self.segments) == 0
 
         # Snap to polygon,
         # have to deal with nonconvex case
@@ -334,19 +414,22 @@ class PolygonDecomposition:
         elif t == 1.0:
             pt = seg.vtxs[in_vtx]
         else:
-            # convex case
             tangent = seg.vector
             normal = np.array([tangent[1], -tangent[0]])
             point_n = (point - seg.vtxs[out_vtx].xy).dot(normal)
             assert point_n != 0.0
             side = right_side if point_n > 0 else left_side
             poly = seg.wire[side].polygon
+            assert poly is not None
 
-        if poly is None:
-            # non-convex case
+        if poly is None: # t==0 or t==1
+            # only in case of non-convex polygon, point is in the cone
             prev, next, wire = pt.insert_vector(point - pt.xy)
             poly = wire.polygon
         if not poly.contains_point(point):
+            import geomop.plot_polygons as pp
+            border = [seg.vtxs[vidx] for seg, vidx in poly.outer_wire.segments()]
+            pp.plot_polygon_decomposition(self, border)
             assert False
         return (2, poly, None)
 
@@ -364,27 +447,95 @@ class PolygonDecomposition:
         b = np.array(b, dtype=float)
         a_point = self.add_point(a)
         b_point = self.add_point(b)
+
+
         if a_point == b_point:
             return a_point
-        return self.add_line_for_points(a_point, b_point)
+        result = self.add_line_for_points(a_point, b_point, omit={a_point, b_point})
+        return result
 
 
-    def add_line_for_points(self, a_pt, b_pt):
+    def add_line_for_points(self, a_pt, b_pt, omit={}):
         """
         Same as add_line, but for known end points.
         :param a_pt:
         :param b_pt:
+        :param omit: points to remove from candidate lists
+        :return:
+
+        1. snapping to the existing points is performed, recursive call for subdivided segment
+        2. if no snapping: intersection points are computed and new segmnet subdivided
+        TODO: intersectiong two segments with very small angle we may add two
+        points that are closer then tolerance. This may produce an error later on.
+        However healing this is nontrivial, since we have to merge two segments.
+        """
+        box = aabb_lookup.make_aabb([a_pt.xy, b_pt.xy], margin=self.tolerance)
+        candidates = self.segments_lookup.intersect_candidates(box)
+        candidate_pt = {pt for seg_id in candidates for pt in self.segments[seg_id].vtxs}
+        candidate_pt = candidate_pt.difference(omit)
+        # new line close to existing vertices, snap to them
+        for pt in candidate_pt:
+            t = self.seg_project_point(b_pt.xy - a_pt.xy, a_pt.xy, pt.xy)
+            diff = t * (b_pt.xy - a_pt.xy)
+            x = a_pt.xy + diff
+            dist = la.norm(pt.xy - x)
+            if dist < self.tolerance:
+                # if np.linalg.norm(pt.xy - a_pt.xy) < self.tolerance or np.linalg.norm(pt.xy - b_pt.xy) < self.tolerance:
+                #     import geomop.plot_polygons as pp
+                #     pp.plot_polygon_decomposition(self, [a_pt, b_pt, pt])
+                #     assert False
+                # subdivide segment, snap to existing mid point
+                omit_pt = omit | {pt}
+                return self.add_line_for_points(a_pt, pt, omit=omit_pt) + \
+                       self.add_line_for_points(pt, b_pt, omit=omit_pt)
+
+        # no snapping, subdivide by intersections
+        line_div = self._add_line_seg_intersections(a_pt, b_pt)
+        return [seg for seg, change, side in self._add_line_new_segments(a_pt, b_pt, line_div)]
+
+    def merge_points(self, a, b):
+        """
+        Move  two points to its average and remove the second one.
+        Remove duplicit segments. Exception if the move is not possible.
+        :param a:
+        :param b:
         :return:
         """
-        line_div = self._add_line_seg_intersections(a_pt, b_pt)
-        return [seg    for seg, change, side in self._add_line_new_segments(a_pt, b_pt, line_div)]
+        orig_b = b
+        if a.id > b.id:
+            a, b = b, a
+        #a_diff = (b.xy - a.xy)/2
+        b_diff = (a.xy - b.xy) #/2
+        #a_can_move = self.check_displacment([a],  a_diff)
+        b_can_move = self.check_displacment([b],  b_diff)
+        b_can_move = b_can_move and not b.segment[0].attr.boundary
+        if b_can_move:
+            #a.move(a_diff)
+            for seg, b_idx in list(b.segments()):
+                seg_vtxs = seg.vtxs
+                self._rm_segment(seg)
+                seg_vtxs[b_idx] = a
+                self._add_segment(*seg_vtxs)
+            self._rm_point(b)
+            return a
+        else:
+            # just skip the segment
+            return orig_b
+            #import geomop.plot_polygons as pp
+            #pp.plot_polygon_decomposition(self, [a, b])
+            #assert False, (a_can_move, b_can_move)
+
+
+
+
 
 
     def _point_on_segment(self, seg, t):
-        if t < self.tolerance:
+        seg_size = np.linalg.norm(seg.vector)
+        if t * seg_size < self.tolerance:
             mid_pt = seg.vtxs[out_vtx]
             new_seg = seg
-        elif t > 1.0 - self.tolerance:
+        elif t * seg_size > seg_size - self.tolerance:
             mid_pt = seg.vtxs[in_vtx]
             new_seg = seg
         else:
@@ -407,18 +558,13 @@ class PolygonDecomposition:
             - the Point object of the intersection point.
             - old and new subsegments of the segment split
             - new seg == old seg if point is snapped to the vertex
-        TODO: Points can collide even for different t,
-        rather return just mid points and new segments and use point ID as key in dict.
-        TODO: intersectiong two segments with very small angle we may add two
-        points that are closer then tolerance. This may produce an error later on.
-        However healing this is nontrivial, since we have to merge two segments.
         """
         line_division = {}
         box = aabb_lookup.make_aabb([a_pt.xy, b_pt.xy], margin=self.tolerance)
         candidates = self.segments_lookup.intersect_candidates(box)
-        #candidates = list(self.segments.keys()) # need copy since we change self.segments
         for seg_id in candidates:
             seg = self.segments[seg_id]
+            # proper intersection
             (t0, t1) = self.seg_intersection(seg, a_pt.xy, b_pt.xy)
             if t1 is not None:
                 mid_pt, new_seg = self._point_on_segment(seg, t0)
@@ -432,6 +578,10 @@ class PolygonDecomposition:
         start_pt = a_pt
         for t1, (mid_pt, seg0, seg1) in sorted(line_div.items()):
             if start_pt == mid_pt:
+                continue
+            if np.linalg.norm(start_pt.xy - mid_pt.xy) < self.tolerance:
+                # two close intersections, merge points
+                start_pt = self.merge_points(start_pt, mid_pt)
                 continue
             new_seg = self._add_segment(start_pt, mid_pt)
             yield (new_seg, self.decomp.last_polygon_change, new_seg.vtxs[out_vtx] == start_pt)
@@ -480,14 +630,14 @@ class PolygonDecomposition:
     # Segment calculations.
 
     @staticmethod
-    def seg_project_point(seg, pt):
+    def seg_project_point(seg_vec, seg_out_xy, pt):
         """
         Return parameter t of the projection to the segment.
         :param pt: numpy [X,Y]
         :return: t
         """
-        Dxy = seg.vector
-        AX = pt - seg.vtxs[out_vtx].xy
+        Dxy = seg_vec
+        AX = pt - seg_out_xy
         dxy2 = Dxy.dot(Dxy)
         assert dxy2 != 0.0
         t = AX.dot(Dxy)/dxy2
@@ -510,10 +660,20 @@ class PolygonDecomposition:
         except la.LinAlgError:
             return (None, None)
             # TODO: possibly treat case of overlapping segments
+
+        # end points can not be too close to the segment as they should be
+        # snapped
         eps = 1e-10
-        if 0 <= t0 <= 1  and 0 + eps <= t1 <= 1 - eps:
+        #if np.abs(t1) < eps or np.abs(1-t1) < eps:
+        #
+        #return (t0, t1)
+        # if (np.abs(t1) < eps or np.abs(1-t1) < eps) and (-eps < t0 < 1+eps):
+        #     # one of new points close to the segment, should not happend
+        #     assert False
+        if 0 + eps < t0 < 1-eps  and 0 + eps < t1 < 1 - eps:
             return (t0, t1)
         else:
+            # TODO: catch also case of existing close points
             return (None, None)
 
 
