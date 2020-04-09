@@ -15,7 +15,7 @@ import pandas as pd
 import numdifftools as nd
 
 EXACT_QUAD_LIMIT = 1000
-GAUSS_DEGREE = 100
+GAUSS_DEGREE = 150
 HUBER_MU = 0.001
 
 
@@ -24,7 +24,7 @@ class SimpleDistribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=30, regularization=None):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=70, regularization=None):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -1655,8 +1655,6 @@ def print_cumul(eval):
 
 def _cut_eigenvalues(cov_center, tol):
     print("CUT eigenvalues")
-
-
     eval, evec = np.linalg.eigh(cov_center)
 
     print("original evec ")
@@ -1811,11 +1809,13 @@ def _pca(cov_center, tol):
     if threshold == 0:
         threshold = len(eval) - 1
 
+    print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
     if all(cum_var_exp[threshold:] <= (100 + tol * 10)):
-        print("ALL <= (100 + tol * 10))")
         threshold = len(eval) - 1
+        print("ALL <= (100 + tol * 10)) threshold ", threshold)
     else:
-        cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
+        print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
+        cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))#1e-5)
         print("CUT threshold ", cut_threshold)
         if cut_threshold < threshold:  # and not threshold_set:
             threshold = cut_threshold
@@ -1904,6 +1904,8 @@ def _pca(cov_center, tol):
     threshold += 1
 
     #threshold = 35
+
+    print("tol ", tol)
 
     #threshold = 9#len(new_eig_pairs)
     print("THreshold ", threshold)
@@ -2189,8 +2191,8 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     if projection_matrix is not None:
         icov_sqrt_t = projection_matrix
     else:
-        print("evec flipped ", evec_flipped)
-        print("eval flipped ", eval_flipped)
+        # print("evec flipped ", evec_flipped)
+        # print("eval flipped ", eval_flipped)
 
         icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
 
