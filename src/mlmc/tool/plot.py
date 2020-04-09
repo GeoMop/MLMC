@@ -8,16 +8,19 @@ import matplotlib as mpl
 #
 # matplotlib.rc('font', **font)
 
-mpl.use("pgf")
-pgf_with_pdflatex = {
-    "pgf.texsystem": "pdflatex",
-    "pgf.preamble": [
-        r"\usepackage[utf8]{inputenc}",
-        r"\usepackage[T1]{fontenc}",
-        ##r"\usepackage{cmbright}",
-    ],
-}
-mpl.rcParams.update(pgf_with_pdflatex)
+# mpl.use("pgf")
+# pgf_with_pdflatex = {
+#     "pgf.texsystem": "pdflatex",
+#     "pgf.preamble": [
+#         r"\usepackage[utf8]{inputenc}",
+#         r"\usepackage[T1]{fontenc}",
+#         ##r"\usepackage{cmbright}",
+#     ],
+# }
+# mpl.rcParams.update(pgf_with_pdflatex)
+
+
+
 # mpl.rcParams['xtick.labelsize']=12
 # mpl.rcParams['ytick.labelsize']=12
 
@@ -26,6 +29,7 @@ mpl.rcParams.update(pgf_with_pdflatex)
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, FixedLocator
+
 
 def create_color_bar(range, label, ax=None):
     """
@@ -139,13 +143,13 @@ class SimpleDistribution:
             self.fig, self.ax_pdf = plt.subplots(1, 1, figsize=(12, 10))
             self.fig_cdf, self.ax_cdf = plt.subplots(1, 1, figsize=(12, 10))
 
-        self.fig.suptitle(title)
+        #self.fig.suptitle(title)
         x_axis_label = quantity_name
 
         # PDF axes
         #self.ax_pdf.set_title("PDF approximations")
-        self.ax_pdf.set_ylabel("probability density")
-        self.ax_pdf.set_xlabel(x_axis_label)
+        self.ax_pdf.set_ylabel(r'$\rho(x)$', size=label_fontsize)
+        self.ax_pdf.set_xlabel(x_axis_label, size=label_fontsize)
         if self._log_x:
             self.ax_pdf.set_xscale('log')
             x_axis_label = "log " + x_axis_label
@@ -252,7 +256,7 @@ class SimpleDistribution:
         :param file: None, or filename, default name is same as plot title.
         """
         #self._add_exact_distr()
-        self.ax_pdf.legend(title=self._legend_title, loc=1)
+        self.ax_pdf.legend(title=self._legend_title, loc=1, fontsize=label_fontsize)
 
         #_show_and_save(self.fig_kl, file, self._title)
 
@@ -296,7 +300,7 @@ class SimpleDistribution:
         self.ax_pdf.set_ylim([np.min(Y_pdf) - (np.max(Y_pdf) - np.min(Y_pdf))*0.1, np.max(Y_pdf) + (np.max(Y_pdf) - np.min(Y_pdf))*0.1])
         self.ax_cdf.set_ylim([np.min(Y_cdf) - (np.max(Y_cdf) - np.min(Y_cdf)) * 0.1, np.max(Y_cdf) + (np.max(Y_cdf) - np.min(Y_cdf)) * 0.1])
 
-        self.ax_pdf.plot(X, Y_pdf, c='black', label="exact")
+        self.ax_pdf.plot(X, Y_pdf, c='black', label="referenční hustota")
         self.ax_cdf.plot(X, Y_cdf, c='black')
 
     def _grid(self, size, domain=None):
@@ -393,7 +397,7 @@ class Distribution:
         #     self.fig, self.ax_pdf = plt.subplots(1, 1, figsize=(12, 10))
         #     self.fig_reg_term, self.ax_reg_term = plt.subplots(1, 1, figsize=(12, 10))
 
-        self.fig.suptitle(title, y=0.99)
+        #self.fig.suptitle(title, y=0.99)
         x_axis_label = quantity_name
 
         # PDF axes
@@ -1443,44 +1447,99 @@ class Aux:
         fig.savefig('level_vars_regression.pdf')
         plt.show()
 
+
 label_fontsize = 12
 class KL_div_mom_err():
 
-    def __init__(self, title=""):
+    def __init__(self, title, x_label, y_label, x_log=True):
 
         self.kl_divs = []
         self.mom_errs = []
         self.densities = []
         self.data = []
+        self.iter_data = []
         self.title = title
-        self.colormap = plt.cm.tab20
+        self.colormap = ["b", "g", "r", "c", "m", "y"]#plt.cm.tab20
         self.i_plot = 0
         self.fig, self.ax = plt.subplots(1, 1, figsize=(12, 10))
+        self.fig_iter, self.ax_iter = plt.subplots(1, 1, figsize=(12, 10))
 
         self.markers = ["o", "v", "s", "p", "X", "D"]
 
-        self.ax.set_xscale('log')
+        if x_log:
+            self.ax.set_xscale('log')
+
         self.ax.set_yscale('log')
 
-        self.ax.set_xlabel(r'$|\mu - \hat{\mu}|^2$', size=label_fontsize)
-        self.ax.set_ylabel(r'$D(\rho_35 \Vert \hat{\rho}_35)$', size=label_fontsize)
+        self.ax.set_xlabel(x_label, size=label_fontsize)
+        self.ax.set_ylabel(y_label, size=label_fontsize)
+
+        self.ax_iter.set_xscale('log')
+
+        self.ax_iter.set_xlabel(x_label, size=label_fontsize)
+        self.ax_iter.set_ylabel('počet iterací', size=label_fontsize)
+
+        self.constants = []
+        self.const_plot = False
+        self.inexact_constr = []
+
+    def add_ininity_norm(self, constants):
+        self.constants = constants
+
+    def add_inexact_constr(self, constants):
+        self.inexact_constr.append(constants)
 
     def add_values(self, kl_div, mom_err, density):
         self.data.append((kl_div, mom_err, density))
 
+    def add_iters(self, iter_x, iterations, failed_iter_x, failed_iterations):
+        self.iter_data.append((iter_x, iterations, failed_iter_x, failed_iterations))
+
     def plot_values(self):
-        for kl_div, mom_err, density in self.data:
+
+        for index, (kl_div, mom_err, density) in enumerate(self.data):
+            col = self.colormap[index]
+
             print("kl div ", kl_div)
             print("mom erro ", mom_err)
-            self.ax.plot(mom_err, kl_div, color=self.colormap(self.i_plot), marker=self.markers[self.i_plot], label=density)
-            self.i_plot += 1
+            self.ax.plot(mom_err, kl_div, color=col, marker=self.markers[index], label=density)
+
+            print("kl div ", kl_div)
+            print("mom erro ", mom_err)
+
+            print("self iter data ", self.iter_data)
+
+            iter_x, iterations, failed_iter_x, failed_iterations = self.iter_data[index]
+
+            print("len iter_x ", len(iter_x))
+            print("len mom err ", len(mom_err))
+
+            self.ax_iter.scatter(iter_x, iterations, color=col, marker=self.markers[index], label=density)
+
+            if len(failed_iterations) > 0:
+                self.ax_iter.scatter(failed_iter_x, failed_iterations, color="red", marker=self.markers[index])
+
+            if len(self.constants) > 0 and not self.const_plot:
+                print("self.constants[index] ", self.constants)
+
+                self.ax.plot(mom_err, self.constants, color="black", marker=self.markers[index], label="C_R")
+                self.const_plot =True
+
+            if len(self.inexact_constr) > 0:
+                print("self.constants[index] ", self.constants)
+                self.ax.plot(mom_err, self.inexact_constr[index], color="black", marker=self.markers[index], label="C_R")
 
     def show(self):
         self.plot_values()
         self.ax.legend()
-        file = self.title + "_kl_mom_diff.pdf"
+        self.ax_iter.legend()
+        file = self.title + ".pdf"
         self.fig.show()
         self.fig.savefig(file)
+
+        file = self.title + "_iter.pdf"
+        self.fig_iter.show()
+        self.fig_iter.savefig(file)
 
 
 class KL_divergence:
@@ -1608,9 +1667,15 @@ class KL_divergence:
 
         color = self.colormap(self.i_plot)  # 'C{}'.format(self.i_plot)
 
+        print("self x ", self._x)
+        print("self y ", self._y)
+
         if self._mom_err_y:
             self.ax_kl.plot(self._mom_err_x, self._mom_err_y, ls='solid', color="red", marker="v", label=r'$|\mu - \hat{\mu}|^2$')
-            self.ax_kl.plot(self._x, self._y, ls='solid', color=color, marker='o', label="KL div")
+
+            print("len self._x ", len(self._x))
+            print("len self._y ", len(self._y))
+            self.ax_kl.plot(self._x[:len(self._y)], self._y[:len(self._x)], ls='solid', color=color, marker='o', label="KL div")
         else:
             self.ax_kl.plot(self._x, self._y, ls='solid', color=color, marker='o')
 
