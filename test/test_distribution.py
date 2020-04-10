@@ -36,20 +36,19 @@ import matplotlib.ticker
 from scipy.interpolate import interp1d
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import mlmc.estimate
 import mlmc.distribution
 import mlmc.simple_distribution
-import mlmc.simple_distribution_total_var
+#import mlmc.simple_distribution_total_var
 from mlmc import moments
 import test.benchmark_distributions as bd
 import mlmc.tool.plot as plot
 from test.fixtures.mlmc_test_run import MLMCTest
 import mlmc.spline_approx as spline_approx
 from mlmc.moments import Legendre
-from textwrap import wrap
-
 import pandas as pd
 
 
@@ -1727,7 +1726,7 @@ class DistributionDomainCase:
 
         #noise_levels = [1e-4,  1e-5, 1e-6, 1e-8, 1e-10, 1e-12]
 
-        noise_levels = [1e-2, 1e-3, 1e-4]
+        noise_levels = [1e-2]#, 1e-3, 1e-4]
 
 
         tol_exact_cov = 1e-10
@@ -2704,9 +2703,9 @@ def test_pdf_approx_exact_moments(moments, distribution):
         #tests = [case.mc_conv]
         #tests = [case.exact_conv]
         #tests = [case.inexact_conv]
-        tests = [case.plot_KL_div_exact]
-        tests = [case.plot_KL_div_inexact_reg]
-        #tests = [case.plot_KL_div_inexact]
+        #tests = [case.plot_KL_div_exact]
+        #tests = [case.plot_KL_div_inexact_reg]
+        tests = [case.plot_KL_div_inexact]
         #tests = [case.determine_regularization_param]
         #tests = [case.determine_regularization_param_tv]
         #tests = [case.find_regularization_param]
@@ -2829,13 +2828,13 @@ def run_distr():
         # (stats.dgamma(1,1), False) # not good
         # (stats.beta(0.5, 0.5), False) # Looks great
         (bd.TwoGaussians(name='two_gaussians'), False),
-        (bd.FiveFingers(name='five_fingers'), False), # Covariance matrix decomposition failed
-        (bd.Cauchy(name='cauchy'), False),# pass, check exact
-        (bd.Discontinuous(name='discontinuous'), False),
-        # # # # # # # # # #(bd.Gamma(name='gamma'), False) # pass
-        # # # # # # # # # #(stats.norm(loc=1, scale=2), False),
-        (stats.norm(loc=0, scale=10), False),
-        (stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
+        # (bd.FiveFingers(name='five_fingers'), False), # Covariance matrix decomposition failed
+        # (bd.Cauchy(name='cauchy'), False),# pass, check exact
+        # (bd.Discontinuous(name='discontinuous'), False),
+        # # # # # # # # # # #(bd.Gamma(name='gamma'), False) # pass
+        # # # # # # # # # # #(stats.norm(loc=1, scale=2), False),
+        # (stats.norm(loc=0, scale=10), False),
+        # (stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
         #(stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
         # (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
         #(stats.chi2(df=10), False),# Monomial: s1=nan, Fourier: s1= -1.6, Legendre: s1=nan

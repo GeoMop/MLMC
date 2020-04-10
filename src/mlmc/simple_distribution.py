@@ -9,7 +9,6 @@ import mlmc.tool.plot
 from abc import ABC, abstractmethod
 
 from numpy import testing
-from scipy.special import  softmax
 import pandas as pd
 
 import numdifftools as nd
