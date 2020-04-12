@@ -100,7 +100,7 @@ def plot_KL_div_exact():
 
                 print("Y pdf ", Y_pdf[10])
 
-                distr_plot.add_distribution(X, Y_pdf, Y_cdf, domain, label="R={} KL div={:0.4g}".format(n_mom, kl_div))
+                distr_plot.add_distribution(X, Y_pdf, Y_cdf, domain, label="R={}, ".format(n_mom) +  r'$D(\rho \Vert \rho_{R})$' + ":{:0.4g}".format(kl_div))
 
 
 
@@ -117,8 +117,8 @@ def plot_KL_div_exact():
             except:
                 pass
 
-            #kl_plot.show(None)
-            #distr_plot.show(None)
+            # kl_plot.show(None)
+            # distr_plot.show(None)
     print("all konstants ", all_constants)
     print("len all konstants ", len(all_constants))
 
@@ -131,18 +131,21 @@ def plot_KL_div_inexact():
     """
     Plot KL divergence for different noise level of exact moments
     """
-    distr_names = {'_norm': "normální rozdělení",
-                   '_lognorm': "lognormální rozdělení",
-                   '_two_gaussians': "rozdělení two_gaussians",
-                   "_five_fingers": "rozdělení five_fingers",
-                   "_cauchy": "Cauchyho rozdělení",
-                   "_discontinuous": "nespojité rozdělení"
-                   }
+    distr_names = {'normální rozdělení': "norm",
+                   'lognormální rozdělení': "lognorm",
+                   'rozdělení two_gaussians': "two_gaussians",
+                   #"rozdělení five_fingers": "five_fingers",
+                   "Cauchy rozdělení": "cauchy",
+                   "nespojité rozdělení": "discontinuous"
+        }
 
     #dir_name = "/home/martin/Documents/MLMC/test/KL_div_inexact_numpy_4_final"
-    dir_name = "/home/martin/Documents/MLMC/test/KL_div_inexact_numpy_2_err_35_e16"
+    dir_name = "/home/martin/Documents/MLMC/test/KL_div_inexact_numpy_2_err"
     #dir_name = "/home/martin/Documents/MLMC/test/KL_div_inexact_numpy_4_err"
     #dir_name = "/home/martin/Documents/MLMC/test/KL_div_inexact_numpy_4_err_35_e16"
+    dir_name = "/home/martin/Documents/MLMC/test/KL_div_inexact_numpy_2_err_35_e10"
+
+    dir_name = "/home/martin/Documents/MLMC/test/KL_div_inexact_for_reg_1"
     if not os.path.exists(dir_name):
         raise FileNotFoundError
 
@@ -150,7 +153,7 @@ def plot_KL_div_inexact():
                                               y_label=r'$D(\rho_{35} \Vert \hat{\rho}_{35})$')
 
     max_values = []
-    for key, name in distr_names.items():
+    for distr_title, name in distr_names.items():
 
         work_dir = os.path.join(dir_name, name)
         if os.path.exists(work_dir):
@@ -173,12 +176,15 @@ def plot_KL_div_inexact():
                                          ylabel="KL divergence",
                                          truncation_err_label="trunc. err, m: {}".format(n_moments))
 
-            distr_plot = plot.SimpleDistribution(title="{}_inexact".format(name), cdf_plot=False, error_plot=False)
+            distr_plot = plot.SimpleDistribution(title="{}_inexact".format(name), cdf_plot=True, error_plot=False)
 
             print("noise levels ", noise_levels)
+
             for noise_level in noise_levels:
 
-                kl_plot.truncation_err = np.load(os.path.join(work_dir, "truncation_err.npy"))
+                kl_plot.truncation_err = trunc_err =np.load(os.path.join(work_dir, "truncation_err.npy"))
+
+                kl_div_mom_err_plot.add_truncation_error(trunc_err)
 
                 _, kl_div = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "add-value"))
                 _, nit, success = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "add-iteration"))
@@ -207,12 +213,13 @@ def plot_KL_div_inexact():
                 # print("len X ", X)
                 # print("len kl div ")
 
-                distr_plot.add_distribution(X, Y_pdf, Y_cdf, domain, label=r'$\sigma=$'  + "{:0.3g}, th:{}, KL div:{:0.4g}".format(noise_level, threshold, kl_div))
+                distr_plot.add_distribution(X, Y_pdf, Y_cdf, domain, label=r'$\sigma=$'  + "{:0.3g}, th:{}, ".format(noise_level, threshold)
+                                                                           + r'$D(\rho_{35} \Vert \hat{\rho}_{35})$' + ":{:0.4g}".format(kl_div))
 
 
             #kl_div_mom_err_plot.add_ininity_norm(max_values)
 
-            kl_div_mom_err_plot.add_values(kl_div=kl_plot._y, mom_err=kl_plot._mom_err_y, density=name)
+            kl_div_mom_err_plot.add_values(kl_div=kl_plot._y, mom_err=kl_plot._mom_err_y, density=distr_title)
             kl_div_mom_err_plot.add_iters(kl_plot._iter_x, kl_plot._iterations, kl_plot._failed_iter_x,
                                           kl_plot._failed_iterations)
 
@@ -222,23 +229,25 @@ def plot_KL_div_inexact():
 
             print("max values ", max_values)
 
-            kl_plot.show(None)
+            #kl_plot.show(None)
             distr_plot.show(None)
     kl_div_mom_err_plot.show()
 
 
 def plot_kl_div_mom_err():
     orth_method = 2
-    distr_names = {'_norm': "normální rozdělení",
-                   '_lognorm': "lognormální rozdělení",
-                   '_two_gaussians': "rozdělení two_gaussians",
-                   "_five_fingers": "rozdělení five_fingers",
-                   "_cauchy": "Cauchyho rozdělení",
-                   "_discontinuous": "nespojité rozdělení"
+    distr_names = {'normální rozdělení': "norm",
+                   'lognormální rozdělení': "lognorm",
+                   'rozdělení two_gaussians': "two_gaussians",
+                   "rozdělení five_fingers": "five_fingers",
+                   "Cauchy rozdělení": "cauchy",
+                   "nespojité rozdělení": "discontinuous"
                    }
 
     dir_name = "/home/martin/Documents/MLMC/test/KL_div_inexact_numpy_{}_err".format(orth_method)
     #dir_name = "/home/martin/Documents/MLMC/test/KL_div_inexact_numpy_4_err_35_e16"
+
+    dir_name = "/home/martin/Documents/MLMC/test/KL_div_inexact_numpy_2_err_35_e10"
     if not os.path.exists(dir_name):
         raise FileNotFoundError
 
@@ -246,7 +255,7 @@ def plot_kl_div_mom_err():
                                               y_label=r'$D(\rho_{35} \Vert \hat{\rho}_{35})$')
 
 
-    for key, name in distr_names.items():
+    for distr_title, name in distr_names.items():
 
         work_dir = os.path.join(dir_name, name)
         if os.path.exists(work_dir):
@@ -257,14 +266,19 @@ def plot_kl_div_mom_err():
                                          log_y=True,
                                          log_x=True,
                                          kl_mom_err=False,
-                                         title=name + "_n_mom_{}".format(n_moments), xlabel="noise std",
+                                         title=name + "_KL_div_{}".format(n_moments), xlabel="noise std",
                                          ylabel="KL divergence",
                                          truncation_err_label="trunc. err, m: {}".format(n_moments))
 
             max_values = []
             print("noise levels ", noise_levels)
+            kl_plot.truncation_err = trunc_err = np.load(os.path.join(work_dir, "truncation_err.npy"))
+
+            kl_div_mom_err_plot.add_truncation_error(trunc_err)
+
+
             for noise_level in noise_levels:
-                kl_plot.truncation_err = np.load(os.path.join(work_dir, "truncation_err.npy"))
+
 
                 _, kl_div = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "add-value"))
                 _, nit, success = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "add-iteration"))
@@ -279,27 +293,140 @@ def plot_kl_div_mom_err():
                 kl_plot.add_iteration(x=noise_level, n_iter=nit, failed=success)
                 kl_plot.add_moments_l2_norm((noise_level, diff_linalg_norm))
 
-            kl_div_mom_err_plot.add_values(kl_div=kl_plot._y, mom_err=kl_plot._mom_err_y, density=name)
+            kl_div_mom_err_plot.add_values(kl_div=kl_plot._y, mom_err=kl_plot._mom_err_y, density=distr_title)
             kl_div_mom_err_plot.add_iters(kl_plot._iter_x, kl_plot._iterations, kl_plot._failed_iter_x,
                                           kl_plot._failed_iterations)
 
-            kl_div_mom_err_plot.add_inexact_constr(max_values)
+            #kl_div_mom_err_plot.add_inexact_constr(max_values)
 
 
 
     #print("max values ", max_values)
-
-
-
     kl_div_mom_err_plot.show()
+
+
+def plot_KL_div_reg_inexact_noises():
+    """
+    Plot KL divergence for different noise level of exact moments
+    """
+    distr_names = {#'normální rozdělení': "norm",
+        'lognormální rozdělení': "lognorm",
+        # 'rozdělení two_gaussians': "two_gaussians",
+        # "rozdělení five_fingers": "five_fingers",
+        # "Cauchy rozdělení": "cauchy",
+        # "nespojité rozdělení": "discontinuous"
+    }
+    orth_method = 4
+
+    dir_name = "/home/martin/Documents/MLMC/test/reg_KL_div_inexact_35_{}".format(orth_method)
+    dir_name_inexact = "/home/martin/Documents/MLMC/test/KL_div_inexact_for_reg_{}".format(orth_method)
+
+    dir_name = "/home/martin/Documents/orth_methods/reg_KL_div_inexact_35_{}".format(orth_method)
+    #dir_name_inexact = "/home/martin/Documents/MLMC/test/KL_div_inexact_for_reg_2"
+    #dir_name = "/home/martin/Documents/orth_methods/KL_div_inexact_for_reg_1"
+
+    if not os.path.exists(dir_name):
+        raise FileNotFoundError
+
+    for key, name in distr_names.items():
+
+        work_dir = os.path.join(dir_name, name)
+        work_dir_inexact = os.path.join(dir_name_inexact, name)
+
+        if os.path.exists(work_dir):
+            noise_levels = np.load(os.path.join(work_dir, "noise_levels.npy"))
+            n_moments = np.load(os.path.join(work_dir, "n_moments.npy"))
+
+            kl_plot = plot.KL_divergence(iter_plot=True, log_y=True, log_x=True,
+                                         title=name + "_n_mom_{}".format(n_moments), xlabel="noise std",
+                                         ylabel="KL divergence",
+                                         truncation_err_label="trunc. err, m: {}".format(n_moments))
+
+            #noise_levels = [noise_levels[0]]
+            print("noise levels ", noise_levels)
+
+            distr_plot = plot.SimpleDistribution(title="{}_inexact_reg_{}".format(name, orth_method), cdf_plot=False, error_plot=False)
+            reg_params_plot = plot.RegParametersPlot(title="{}_reg_params_orth_{}".format(name, orth_method), reg_info=True)
+
+            for noise_level in noise_levels:
+
+                kl_plot.truncation_err = np.load(os.path.join(work_dir, "truncation_err.npy"))
+
+                _, kl_div = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "add-value"))
+                _, nit, success = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "add-iteration"))
+                _, diff_linalg_norm = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "add-moments"))
+
+                kl_plot.add_value((noise_level, kl_div))
+                kl_plot.add_iteration(x=noise_level, n_iter=nit, failed=success)
+                kl_plot.add_moments_l2_norm((noise_level, diff_linalg_norm))
+
+                domain = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "domain"))
+                X = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "X"))
+
+                Y_pdf = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "Y_pdf"))
+                Y_cdf = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "Y_cdf"))
+                threshold = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "threshold"))
+
+                Y_pdf_inexact = np.load('{}/{}_{}.npy'.format(work_dir_inexact, noise_level, "Y_pdf"))
+                Y_cdf_inexact = np.load('{}/{}_{}.npy'.format(work_dir_inexact, noise_level, "Y_cdf"))
+                _, kl_div_inexact = np.load('{}/{}_{}.npy'.format(work_dir_inexact, noise_level, "add-value"))
+                threshold_inexact = np.load('{}/{}_{}.npy'.format(work_dir_inexact, noise_level, "threshold"))
+
+                print("Y pdf ", Y_pdf[10])
+
+                distr_plot.add_original_distribution(X, Y_pdf_inexact, Y_cdf_inexact, domain,
+                                                     label=r'$\sigma=$' + "{:0.3g}, th:{}, ".format(noise_level,
+                                                                                                     threshold_inexact)
+                                                           + r'$D(\rho \Vert \hat{\rho}_{35})$' +
+                                                           ":{:0.4g}".format(kl_div_inexact))
+
+                distr_plot.add_distribution(X, Y_pdf, Y_cdf, domain, label=r'$\sigma=$' + "{:0.3g}, th:{}, ".format(
+                                                                          noise_level,threshold)
+                                                                           + r'$D(\rho \Vert \hat{\rho}_{35})$' +
+                                                                           ":{:0.4g}".format(kl_div))
+
+
+                reg_params = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "reg-params"))
+                min_results = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "min-results"))
+                info = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "info"))
+
+                print("info ", info)
+
+                reg_params_plot.add_values(reg_params, min_results, label=r'$\sigma=$' + "{:0.3g}".format(noise_level))
+                reg_params_plot.add_info(info=info)
+
+            Y_exact_pdf = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "Y_pdf_exact"))
+            Y_exact_cdf = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "Y_cdf_exact"))
+
+            distr_plot._add_exact_distr(X, Y_exact_pdf, Y_exact_cdf)
+
+
+            distr_plot.show(None)
+
+            reg_params_plot.show()
+
+
+
+    #plot_reg_params(reg_params, min_results)
+
+                #kl_plot.show(None)
 
 
 def plot_KL_div_reg_inexact():
     """
     Plot KL divergence for different noise level of exact moments
     """
+    distr_names = {  'normální rozdělení': "norm",
+        'lognormální rozdělení': "lognorm",
+        'rozdělení two_gaussians': "two_gaussians",
+        "rozdělení five_fingers": "five_fingers",
+        "Cauchy rozdělení": "cauchy",
+        "nespojité rozdělení": "discontinuous"
+    }
 
-    dir_name = "KL_div_inexact_reg_numpy"
+    orth_method = 4
+
+    dir_name = "/home/martin/Documents/MLMC/test/reg_KL_div_inexact_35_{}".format(orth_method)
     if not os.path.exists(dir_name):
         raise FileNotFoundError
 
@@ -316,6 +443,9 @@ def plot_KL_div_reg_inexact():
                                          truncation_err_label="trunc. err, m: {}".format(n_moments))
 
             distr_plot = plot.SimpleDistribution(title="{}_inexact".format(name), cdf_plot=True, error_plot=False)
+
+
+            noise_levels = [noise_levels[0]]
 
             for noise_level in noise_levels:
 
@@ -369,6 +499,8 @@ def plot_reg_params(reg_params, min_results):
         if len(best_params) < 10:
             best_params.append(s_tuple[0])
 
+    import matplotlib
+    import matplotlib.pyplot as plt
     fig, ax = plt.subplots()
     ax.plot(reg_params, min_results)
     ax.plot(min_best[0], min_best[1], 'x', color='red')
@@ -426,8 +558,9 @@ def plot_legendre():
 if __name__ == "__main__":
     #plot_legendre()
 
-    plot_KL_div_exact()
+    #plot_KL_div_exact()
     #plot_KL_div_inexact()
     #plot_kl_div_mom_err()
     #plot_KL_div_reg_inexact()
+    plot_KL_div_reg_inexact_noises()
     #plot_find_reg_param()
