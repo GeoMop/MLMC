@@ -3,7 +3,10 @@ import scipy.stats as st
 from scipy import interpolate
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, FixedLocator
+from matplotlib import cm
 from mpl_toolkits import mplot3d
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.ticker import FormatStrFormatter
 
 def create_color_bar(range, label, ax=None):
     """
@@ -58,6 +61,9 @@ def _show_and_save(fig, file, title):
     """
     Internal function to show the figure and/or save it into a file.
     """
+    print("fig ", fig)
+    print("file ", file)
+    print("title ", title)
     if file is None:
         fig.show()
     else:
@@ -496,6 +502,8 @@ class BivariateDistribution:
         self.plot_matrix = []
         self.i_plot = 0
 
+        label_fontsize = 12
+
         self._reg_param = 0
         self.colormap = plt.cm.tab20
 
@@ -513,11 +521,20 @@ class BivariateDistribution:
 
         self.ax_3d_exact.set_xlabel('x')
         self.ax_3d_exact.set_ylabel('y')
-        self.ax_3d_exact.set_zlabel('z')
+        self.ax_3d_exact.set_zlabel(r'$\rho(x, y)$')
 
         self.ax_3d.set_xlabel('x')
         self.ax_3d.set_ylabel('y')
-        self.ax_3d.set_zlabel('z')
+        self.ax_3d.set_zlabel(r'$\rho(x, y)$')
+
+        self.fig_all = plt.figure(figsize=(22, 10))
+
+        self.ax_all = self.fig_all.gca(projection='3d')
+        self.ax_all.zaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+
+        self.ax_all.set_xlabel('x', size=label_fontsize)
+        self.ax_all.set_ylabel('y', size=label_fontsize)
+        self.ax_all.set_zlabel(r'$\rho(x, y)$', size=label_fontsize)
 
         #self.ax_3d.view_init(60, 35)
         #self.ax_3d_exact.view_init(60, 35)
@@ -543,6 +560,39 @@ class BivariateDistribution:
         self.ax_3d.plot_wireframe(X, Y, Z)
         #self.ax_3d.contour3D(X, Y, Z, 50, cmap='binary')
 
+        # norm = plt.Normalize(Z.min(), Z.max())
+        # colors = cm.viridis(norm(Z))
+        # rcount, ccount, _ = colors.shape
+        #
+        # self.ax_all.plot_surface(X, Y, Z, rstride=3, cstride=3, linewidth=1, antialiased=True,
+        #                cmap=cm.viridis )
+
+        self.ax_all.plot_surface(X, Y, Z, antialiased=True, cmap=cm.viridis)
+        #
+        # surf = self.ax_all.plot_surface(X, Y, Z, rcount=rcount, ccount=ccount,
+        #                        facecolors=colors, shade=False)
+        #
+        # surf.set_facecolor((0, 0, 0, 0))
+
+        #self.ax_all.plot_wireframe(X, Y, Z)
+
+        #self.ax_all.contourf(X, Y, Z, zdir='z', offset=-0.1, cmap=cm.viridis)
+        self.ax_all.contourf(X, Y, Z, 20, zdir='z', offset=-np.max(Z)*1.4, cmap=cm.viridis)
+
+
+        print("np.max(Z) ", np.max(Z))
+        print("np.max(Z) + np.max(Z)*0.1 ", np.max(Z) + np.max(Z)*0.1)
+
+        print("np.linspace(0, np.max(Z) + np.max(Z)*0.1, 5) ", np.linspace(0, np.max(Z) + np.max(Z)*0.1, 5))
+        # Adjust the limits, ticks and view angle
+        #self.ax_all.set_zlim(-0.1, np.max(Z) + np.max(Z)*0.1)
+        self.ax_all.set_zlim(-np.max(Z)*1.4, np.max(Z) + np.max(Z) * 0.1)
+        self.ax_all.set_zticks(np.linspace(0, np.max(Z) + np.max(Z)*0.1, 5))
+        self.ax_all.view_init(27, -21)
+
+
+        #self.ax_all.view_init(60, 35)
+
         self.i_plot += 1
 
     def show(self, file=""):
@@ -559,9 +609,17 @@ class BivariateDistribution:
         self.ax_3d_exact.legend()
         self.ax_3d.legend()
 
+        self.ax_all.legend()
+
         self.fig.suptitle(self._title, y=0.99)
+        #self.fig_all.suptitle(self._title, y=0.99)
 
         _show_and_save(self.fig, file, self._title)
+
+        file = self._title + ".pdf"
+        self.fig_all.show()
+        self.fig_all.savefig(file)
+
 
     def reset(self):
         plt.close()
@@ -1019,7 +1077,6 @@ class Spline_plot:
     def add_density_exact_values(self, x, y):
         self.exact_density_x = x
         self.exact_density_y = y
-
 
     def show(self, file=""):
         """
