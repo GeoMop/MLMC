@@ -26,7 +26,7 @@ import matplotlib as mpl
 
 #matplotlib.rcParams.update({'font.size': 22})
 
-
+from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, FixedLocator
 
@@ -132,7 +132,7 @@ class SimpleDistribution:
         self.plot_matrix = []
         self.i_plot = 0
 
-        self.colormap = plt.cm.tab20
+        self.colormap = plt.cm.tab10
 
         if cdf_plot:
             self.fig, axes = plt.subplots(1, 2, figsize=(22, 10))
@@ -208,6 +208,35 @@ class SimpleDistribution:
         sX = np.linspace(domain[0], domain[1], 1000)
         self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4)
 
+    def add_original_distribution(self, X, Y_pdf, Y_cdf, domain, label=None):
+        color = self.colormap(self.i_plot)
+
+        self.adjust_domain(domain)
+        d_size = domain[1] - domain[0]
+        slack = 0  # 0.05
+        extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
+        # X = self._grid(1000, domain=domain)
+
+        plots = []
+        # Y_pdf = distr_object.density(X)
+        self.ax_pdf.plot(X, Y_pdf, label=label, color=color, linestyle=":")
+        self._plot_borders(self.ax_pdf, color, domain)
+
+        # Y_cdf = distr_object.cdf(X)
+        self.ax_cdf.plot(X, Y_cdf, color=color, linestyle=":")
+        self._plot_borders(self.ax_cdf, color, domain)
+
+        if self._error_plot and self._exact_distr is not None:
+            if self._error_plot == 'kl':
+                exact_pdf = self._exact_distr.pdf(X)
+                eY_pdf = exact_pdf * np.log(exact_pdf / Y_pdf) - exact_pdf + Y_pdf
+                # eY_pdf = exact_pdf / Y_pdf #* np.log(exact_pdf / Y_pdf) / Y_pdf
+            else:
+                eY_pdf = Y_pdf - self._exact_distr.pdf(X)
+            self.ax_pdf_err.plot(X, eY_pdf, linestyle="--", color=color, linewidth=0.5)
+            eY_cdf = Y_cdf - self._exact_distr.cdf(X)
+            self.ax_cdf_err.plot(X, eY_cdf, linestyle="--", color=color, linewidth=0.5)
+
     def add_distribution(self, X, Y_pdf, Y_cdf, domain, label=None):
         """
         Add plot for distribution 'distr_object' with given label.
@@ -224,6 +253,7 @@ class SimpleDistribution:
         extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
         #X = self._grid(1000, domain=domain)
         color = self.colormap(self.i_plot)
+
 
         plots = []
         #Y_pdf = distr_object.density(X)
@@ -1448,6 +1478,146 @@ class Aux:
         plt.show()
 
 
+class RegParametersPlot():
+    def __init__(self, title, x_label=r"$\log(\alpha)$", y_label="MSE", x_log=True, reg_info=True, reg_kl=True):
+
+        self.data = []
+        self.title = title
+        self.colormap = ["b", "g", "r", "c", "m", "y"]#plt.cm.tab20
+        self.i_plot = 0
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(12, 10))
+
+        self.markers = ["o", "v", "s", "p", "X", "D"]
+
+        if x_log:
+            self.ax.set_xscale('log')
+
+
+        self.ax.set_yscale('log')
+
+        self.ax.set_xlabel(x_label, size=label_fontsize)
+        self.ax.set_ylabel(y_label, size=label_fontsize)
+
+        #self.ax.set_xscale('log')
+        self.ax.legend(loc='best')
+
+        self.reg_info = reg_info
+        self.reg_kl = reg_kl
+
+        if reg_info:
+            self.info = []
+            self.fig_info, self.ax_info = plt.subplots(1, 1, figsize=(12, 10))
+
+        if reg_kl:
+            self.fig_kl, self.ax_kl = plt.subplots(1, 1, figsize=(12, 10))
+            self.ax_kl.set_xscale('log')
+            self.ax_kl.set_yscale('log')
+
+    def add_values(self, reg_params, mse, label=""):
+        self.data.append((reg_params, mse, label))
+
+    def add_info(self, info):
+        self.info.append(info)
+
+    def plot_values(self):
+
+        for index, (reg_params, mse, label) in enumerate(self.data):
+            col = self.colormap[index]
+
+            zipped = zip(reg_params, mse)
+
+            for reg_param, min_result in zip(reg_params, mse):
+                print("reg_param: {}, min_result: {}".format(reg_param, min_result))
+
+            sorted_zip = sorted(zipped, key=lambda x: x[1])
+
+            best_params = []
+            # best_params.append(0)
+            min_best = None
+            for s_tuple in sorted_zip:
+                if min_best is None:
+                    min_best = s_tuple
+
+                print("sorted reg_param: {}, min_result: {}".format(s_tuple[0], s_tuple[1]))
+
+            import matplotlib
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots()
+            self.ax.plot(reg_params, mse, ":", color=col, label=label)
+            self.ax.plot(min_best[0], min_best[1], 'x', color='red', label="minimální hodnota")
+
+            logfmt = matplotlib.ticker.LogFormatterExponent(base=10.0, labelOnlyBase=True)
+            self.ax.xaxis.set_major_formatter(logfmt)
+
+            if self.reg_kl:
+                kl_div = self.info[index][:, 0]
+                zipped = zip(reg_params, mse, kl_div)
+
+                sorted_zip = sorted(zipped, key=lambda x: x[1])
+
+                min_best = None
+                for s_tuple in sorted_zip:
+                    if min_best is None:
+                        min_best = s_tuple
+
+                self.ax_kl.plot(reg_params, mse, ":", color=col, label="MSE")
+
+                self.ax_kl.plot(min_best[0], min_best[1], 'x', color='red', label="MSE min - kl :{:0.4g}".format(min_best[2]))
+
+
+                zipped = zip(reg_params, kl_div)
+                sorted_zip = sorted(zipped, key=lambda x: x[1])
+
+                min_kl_div = None
+                for s_tuple in sorted_zip:
+                    if min_kl_div is None:
+                        min_kl_div = s_tuple
+
+                self.ax_kl.plot(reg_params, kl_div,  "--", color=col, label="kl div")
+                self.ax_kl.plot(min_kl_div[0], min_kl_div[1], "x", color='red', label="KL div min :{:0.4g}".format(min_kl_div[1]))
+
+
+        # if self.reg_info is not None:
+        #     for index, info in enumerate(self.info):
+        #         print("info ", info)
+        #
+        #         kl_div = info[:, 0]
+        #         nit = info[:, 1]
+        #         success = info[:, 2]
+        #         threshold = info[:, 3]
+        #
+        #         print("kl div ", kl_div)
+        #         print("nit ", nit)
+        #         print("success ", success)
+        #         print("threshold ", threshold)
+        #
+        #
+        #
+        #         exit()
+
+
+    def show(self):
+        self.plot_values()
+        legend = self.ax.legend()
+
+        if self.reg_kl:
+            self.ax_kl.legend()
+            self.fig_kl.show()
+
+        # leg = self.ax_iter.legend()
+        # self.add_patch(leg)
+        # print("self title ", self.title)
+
+        file = self.title + ".pdf"
+        self.fig.show()
+        self.fig.savefig(file)
+
+        # file = self.title + "_iter.pdf"
+        # self.fig_iter.show()
+        # self.fig_iter.savefig(file)
+
+
+
 label_fontsize = 12
 class KL_div_mom_err():
 
@@ -1476,12 +1646,16 @@ class KL_div_mom_err():
 
         self.ax_iter.set_xscale('log')
 
-        self.ax_iter.set_xlabel(x_label, size=label_fontsize)
+        self.ax_iter.set_xlabel(r'$\sigma$', size=label_fontsize)
         self.ax_iter.set_ylabel('počet iterací', size=label_fontsize)
 
         self.constants = []
         self.const_plot = False
         self.inexact_constr = []
+        self.truncation_errors = []
+
+    def add_truncation_error(self, trunc_err):
+        self.truncation_errors.append(trunc_err)
 
     def add_ininity_norm(self, constants):
         self.constants = constants
@@ -1504,6 +1678,11 @@ class KL_div_mom_err():
             print("mom erro ", mom_err)
             self.ax.plot(mom_err, kl_div, color=col, marker=self.markers[index], label=density)
 
+            print("self truncation errors ", self.truncation_errors)
+
+            if len(self.truncation_errors) > 0:
+                self.ax.axhline(y=self.truncation_errors[index], color=col)
+
             print("kl div ", kl_div)
             print("mom erro ", mom_err)
 
@@ -1511,13 +1690,20 @@ class KL_div_mom_err():
 
             iter_x, iterations, failed_iter_x, failed_iterations = self.iter_data[index]
 
-            print("len iter_x ", len(iter_x))
-            print("len mom err ", len(mom_err))
+            # print("len iter_x ", len(iter_x))
+            # print("len mom err ", len(mom_err))
+            #
+            # print("mom err ", mom_err)
+            # print("iter x ", iter_x)
+            # print("failed_iter_x ", failed_iter_x)
+            #print("iter x ", np.array(iter_x)**2)
+            #print("failed_iter_x ", np.array(failed_iter_x)**2)
 
-            self.ax_iter.scatter(iter_x, iterations, color=col, marker=self.markers[index], label=density)
+            self.ax_iter.scatter(np.array(iter_x), iterations, color=col, marker=self.markers[index], label=density)
 
+            print("failed iter x ", failed_iter_x)
             if len(failed_iterations) > 0:
-                self.ax_iter.scatter(failed_iter_x, failed_iterations, color="red", marker=self.markers[index])
+                self.ax_iter.scatter(np.array(failed_iter_x), failed_iterations, color="black", marker=self.markers[index])
 
             if len(self.constants) > 0 and not self.const_plot:
                 print("self.constants[index] ", self.constants)
@@ -1531,8 +1717,15 @@ class KL_div_mom_err():
 
     def show(self):
         self.plot_values()
-        self.ax.legend()
-        self.ax_iter.legend()
+        legend = self.ax.legend()
+        if len(self.truncation_errors) > 0:
+            self.add_patch_trun_err(legend)
+
+
+        leg = self.ax_iter.legend()
+        self.add_patch(leg)
+        print("self title ", self.title)
+
         file = self.title + ".pdf"
         self.fig.show()
         self.fig.savefig(file)
@@ -1540,6 +1733,35 @@ class KL_div_mom_err():
         file = self.title + "_iter.pdf"
         self.fig_iter.show()
         self.fig_iter.savefig(file)
+
+    def add_patch_trun_err(self, legend):
+        from matplotlib.patches import Patch
+        ax = legend.axes
+        from matplotlib.lines import Line2D
+
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(Line2D([0, 1], [0, 1], color="black"))
+        labels.append(r'$D(\rho \Vert \rho_{35})$')
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
+
+
+
+    def add_patch(self, legend):
+        from matplotlib.patches import Patch
+        ax = legend.axes
+
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(Patch(facecolor='black'))
+        labels.append("selhání řešiče")
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
 
 
 class KL_divergence:

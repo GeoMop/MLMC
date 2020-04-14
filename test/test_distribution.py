@@ -37,20 +37,19 @@ import matplotlib.ticker
 from scipy.interpolate import interp1d
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import mlmc.estimate
 import mlmc.distribution
 import mlmc.simple_distribution
-import mlmc.simple_distribution_total_var
+#import mlmc.simple_distribution_total_var
 from mlmc import moments
 import test.benchmark_distributions as bd
 import mlmc.tool.plot as plot
 from test.fixtures.mlmc_test_run import MLMCTest
 import mlmc.spline_approx as spline_approx
 from mlmc.moments import Legendre
-from textwrap import wrap
-
 import pandas as pd
 
 
@@ -1832,7 +1831,7 @@ class DistributionDomainCase:
 
         #noise_levels = [1e-4,  1e-5, 1e-6, 1e-8, 1e-10, 1e-12]
 
-        noise_levels = [1e-2, 1e-3, 1e-4]
+        noise_levels = [1e-2]#, 1e-3, 1e-4]
 
 
         tol_exact_cov = 1e-10
