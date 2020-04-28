@@ -208,10 +208,10 @@ class SplineApproximation:
             # if self.smoothing_factor[level._level_idx] == 0 and self.ind_method.__name__ == "smooth":
             #     self.compute_smoothing_factor(fine_values, level._level_idx)
 
-            self._level_smoothing_factor = self.accuracy**(1/(self.poly_degree + 1))
+            self._level_smoothing_factor = self.accuracy**(1/(self.poly_degree + 1)) #/ 5
             #self._level_smoothing_factor = self.smoothing_factor[level._level_idx]
 
-            print("_level_smoothing_factor ", self._level_smoothing_factor)
+            #print("_level_smoothing_factor ", self._level_smoothing_factor)
 
             for n, s in enumerate(self.interpolation_points):
                 if level._level_idx == 0:
@@ -269,9 +269,6 @@ class SplineApproximation:
 
         self._setup()
 
-        print("self interpolation points ", np.array(self.interpolation_points).shape)
-        print("points ", points.shape)
-
         lagrange_poly = []
         # Lagrange polynomials at interpolation points
         for n, s in enumerate(self.interpolation_points):
@@ -310,13 +307,19 @@ class SplineApproximation:
 
         self._setup()
 
+        ax = 1
+        if type(points) in [int, float]:
+            ax = 0
+
         lagrange_poly = []
         # Derivative of lagrange polynomials at interpolation points
         for n, s in enumerate(self.interpolation_points):
             lagrange_poly.append(self.lagrange_basis_polynomial_derivative(points, n))
 
-        density = np.sum(self.all_levels_indicator * np.array(lagrange_poly).T, axis=1)
+        density = np.sum(self.all_levels_indicator * np.array(lagrange_poly).T, axis=ax)
 
+        if ax == 0:
+            return density
         mask = (density >= 0) & (density <= 1.2)
         self.mask = mask
         return density[mask]

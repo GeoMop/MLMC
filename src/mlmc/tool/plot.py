@@ -497,6 +497,100 @@ class Distribution:
         # if self._reg_param == 0:
         #     self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4, label="derivative of Bspline CDF")
 
+
+    def add_spline_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0):
+        """
+        Add plot for distribution 'distr_object' with given label.
+        :param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain
+        :param label: string label for legend
+        :return:
+        """
+        self._reg_param = reg_param
+
+        if label is None:
+            label = "size {}".format(distr_object.moments_fn.size)
+        domain = distr_object.domain
+        self.adjust_domain(domain)
+        d_size = domain[1] - domain[0]
+        slack = 0  # 0.05
+        extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
+        X = self._grid(1000, domain=domain)
+        color = self.colormap(self.i_plot)#'C{}'.format(self.i_plot)
+
+        line_styles = ['-', ':', '-.', '--']
+        plots = []
+
+        Y_pdf = distr_object.density(X)
+        self.ax_pdf.plot(X[distr_object.mask], Y_pdf, label=label, color=color)
+        #self._plot_borders(self.ax_pdf, color, domain)
+
+        # if self.i_plot >= len(line_styles):
+        #     raise Exception("Number of line styles is insufficient")
+
+        if self.ax_log_density is not None:
+            if self.i_plot == 0:
+                pass
+                #self.cmap_1 = create_color_bar(size, 'i-th moment', self.ax_log_density)
+                #self.cmap_2 = create_color_bar(size, 'i-th moment', self.ax_mult_mom_der)
+                #self.cmap_3 = create_color_bar(size, 'i-th moment', self.ax_mult_mom_der_2)
+
+            #Y = distr_object.mult_mom(X)
+
+            # if mom_indices is not None:
+            #     indices = mom_indices
+            # else:
+            #     indices = range(len(Y))
+            #
+            # print(indices)
+
+            Y = distr_object.density_log(X)
+            self.ax_log_density.plot(X[distr_object.mask], Y, color=color)
+            self._plot_borders(self.ax_log_density, color, domain)
+
+            # if self.ax_mult_mom_der is not None:
+            #     Y = distr_object.mult_mom_der(X, degree=1)
+            #     self.ax_mult_mom_der.plot(X, Y, color=color)
+            #     self._plot_borders(self.ax_mult_mom_der, color, domain)
+            #
+            # if self.ax_mult_mom_der_2 is not None:
+            #     Y = distr_object.mult_mom_der(X, degree=2)
+            #     self.ax_mult_mom_der_2.plot(X, Y, color=color)
+            #     self._plot_borders(self.ax_mult_mom_der_2, color, domain)
+
+        #self.ax_pdf.plot(X, distr_object.plot_regularization(X), label="regularization")
+
+        # if self.reg_plot is True and distr_object.reg_param != 0:
+        #     X, Y_cdf = reg = distr_object.regularization(X)
+        #     #pdf = distr_object.density(X)
+        #
+        #     #print("Y_cdf ", Y_cdf)
+        #     if self.ax_cdf is not None:
+        #         self.ax_cdf.scatter(X, Y_cdf, color=color, label="reg term")
+        #
+        #     beta_reg = []
+        #     #for x in X:
+        #     #X, beta_reg = distr_object.beta_regularization(X)
+        #
+        #     # Y_cdf = beta_reg
+        #     # print("X", X)
+        #     # print("beta reg ", beta_reg)
+        #     # self.ax_cdf.plot(X, beta_reg, color=color, label="beta reg", linestyle="-")
+        #
+        #     # self.i_plot += 1
+        #     # color = 'C{}'.format(self.i_plot)
+        #     # print("reg + beta color ", color)
+        #     # self.ax_cdf.plot(X, reg + beta_reg, color=color, label="reg + beta reg")
+        #
+        #     #self.ax_cdf.plot(X, distr_object.multipliers_dot_phi(X), label="\lambda * \phi", color=color)
+        # else:
+        Y_cdf = distr_object.cdf(X)
+
+        if self.ax_cdf is not None:
+            self.ax_cdf.plot(X[distr_object.distr_mask], Y_cdf, color=color, label=label)
+            self._plot_borders(self.ax_cdf, color, domain)
+
+        self.i_plot += 1
+
     def add_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0):
         """
         Add plot for distribution 'distr_object' with given label.

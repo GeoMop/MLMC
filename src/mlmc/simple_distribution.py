@@ -23,7 +23,7 @@ class SimpleDistribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=70, regularization=None):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=30, regularization=None):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -77,6 +77,7 @@ class SimpleDistribution:
 
         self.gradients = []
         self.reg_domain = domain
+        self.cond_number = 0
 
     @property
     def multipliers(self):
@@ -106,13 +107,13 @@ class SimpleDistribution:
         if multipliers is not None:
             self.multipliers = multipliers
 
-        print("sefl multipliers ", self.multipliers)
+        #print("sefl multipliers ", self.multipliers)
         method = 'trust-exact'
         #method = 'L-BFGS-B'
         #method ='Newton-CG'
         #method = 'trust-ncg'
 
-        print("init multipliers ", self.multipliers)
+        #print("init multipliers ", self.multipliers)
         # result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
         #                               jac=self._calculate_gradient,
         #                               hess=self._calculate_jacobian_matrix,
@@ -158,7 +159,8 @@ class SimpleDistribution:
 
         result.eigvals = np.linalg.eigvalsh(jac)
         kappa = np.max(result.eigvals) / np.min(result.eigvals)
-        print("condition number ", kappa)
+        self.cond_number = kappa
+        #print("condition number ", kappa)
         #result.residual = jac[0] * self._moment_errs
         #result.residual[0] *= self._moment_errs[0]
         result.solver_res = result.jac
@@ -168,6 +170,8 @@ class SimpleDistribution:
         print("moment[0]: {} m0: {}".format(moment_0, m0))
 
         self.multipliers[0] += np.log(moment_0)
+
+        #print("final multipliers ", self.multipliers)
 
         #m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1])[0]
         #moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
@@ -1243,7 +1247,9 @@ def KL_divergence(prior_density, posterior_density, a, b):
         # prior
         p = prior_density(x)
         # posterior
+        #print("p ", p)
         q = max(posterior_density(x), 1e-300)
+        #print("q ", q)
         # modified integrand to provide positive value even in the case of imperfect normalization
         return p * np.log(p / q) - p + q
 
@@ -1654,6 +1660,7 @@ def print_cumul(eval):
 
 def _cut_eigenvalues(cov_center, tol):
     print("CUT eigenvalues")
+
     eval, evec = np.linalg.eigh(cov_center)
 
     print("original evec ")
@@ -2310,8 +2317,6 @@ def _pca_(cov_center, tol):
 
     threshold += 1
 
-    #threshold = 35
-
     print("tol ", tol)
 
     #threshold = 9#len(new_eig_pairs)
@@ -2336,8 +2341,6 @@ def _pca_(cov_center, tol):
 
     eval = new_eval
     evec = new_evec
-
-
 
     #print("evec ", evec)
 
@@ -2408,18 +2411,18 @@ def _pca(cov_center, tol):
     if threshold == 0:
         threshold = len(eval) - 1
 
-    print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
+    #print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
     if all(cum_var_exp[threshold:] <= (100 + tol * 10)):
         threshold = len(eval) - 1
         print("ALL <= (100 + tol * 10)) threshold ", threshold)
     else:
         print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
-        cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))#1e-5)
+        cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-10, tol]))#1e-5)
         print("CUT threshold ", cut_threshold)
         if cut_threshold < threshold:  # and not threshold_set:
             threshold = cut_threshold
-
-    print("computed threshold ", threshold)
+    # threshold = cut_threshold
+    # print("computed threshold ", threshold)
 
     threshold_set = False
     # if threshold == len(eval)-1:
@@ -2727,9 +2730,9 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     :return: orthogonal moments object of the same size.
     """
     threshold = 0
-    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    #     print("cov ")
-    #     print(pd.DataFrame(cov))
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print("cov ")
+        print(pd.DataFrame(cov))
 
     # print("cov matrix rank ", numpy.linalg.matrix_rank(cov))
 
