@@ -23,7 +23,7 @@ class SimpleDistribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=70, regularization=None):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=30, regularization=None):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -77,6 +77,7 @@ class SimpleDistribution:
 
         self.gradients = []
         self.reg_domain = domain
+        self.cond_number = 0
 
     @property
     def multipliers(self):
@@ -106,13 +107,13 @@ class SimpleDistribution:
         if multipliers is not None:
             self.multipliers = multipliers
 
-        print("sefl multipliers ", self.multipliers)
+        #print("sefl multipliers ", self.multipliers)
         method = 'trust-exact'
         #method = 'L-BFGS-B'
         #method ='Newton-CG'
         #method = 'trust-ncg'
 
-        print("init multipliers ", self.multipliers)
+        #print("init multipliers ", self.multipliers)
         # result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
         #                               jac=self._calculate_gradient,
         #                               hess=self._calculate_jacobian_matrix,
@@ -158,7 +159,8 @@ class SimpleDistribution:
 
         result.eigvals = np.linalg.eigvalsh(jac)
         kappa = np.max(result.eigvals) / np.min(result.eigvals)
-        print("condition number ", kappa)
+        self.cond_number = kappa
+        #print("condition number ", kappa)
         #result.residual = jac[0] * self._moment_errs
         #result.residual[0] *= self._moment_errs[0]
         result.solver_res = result.jac
@@ -168,6 +170,8 @@ class SimpleDistribution:
         print("moment[0]: {} m0: {}".format(moment_0, m0))
 
         self.multipliers[0] += np.log(moment_0)
+
+        #print("final multipliers ", self.multipliers)
 
         #m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1])[0]
         #moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
@@ -1243,7 +1247,9 @@ def KL_divergence(prior_density, posterior_density, a, b):
         # prior
         p = prior_density(x)
         # posterior
+        #print("p ", p)
         q = max(posterior_density(x), 1e-300)
+        #print("q ", q)
         # modified integrand to provide positive value even in the case of imperfect normalization
         return p * np.log(p / q) - p + q
 
@@ -1654,6 +1660,7 @@ def print_cumul(eval):
 
 def _cut_eigenvalues(cov_center, tol):
     print("CUT eigenvalues")
+
     eval, evec = np.linalg.eigh(cov_center)
 
     print("original evec ")
@@ -1766,6 +1773,602 @@ def _cut_eigenvalues(cov_center, tol):
     return eval, evec, threshold, original_eval
 
 
+def _svd_cut(cov_center, tol):
+    print("CUT eigenvalues")
+    u, s, vh = np.linalg.svd(cov_center)
+
+    print("u")
+    print(pd.DataFrame(u))
+
+    print("s")
+    print(pd.DataFrame(s))
+
+    print("vh")
+    print(pd.DataFrame(vh))
+    exit()
+
+    # print("EVAL SORTED ", sorted(eval, reverse=True))
+    # print("EVAL EIG PAIR ", np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
+    # cum_var_exp = print_cumul(np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
+
+    if tol is None:
+        # treshold by statistical test of same slopes of linear models
+        threshold, fixed_eval = detect_treshold_slope_change(eval, log=True)
+        threshold = np.argmax(eval - fixed_eval[0] > 0)
+    else:
+        # threshold given by eigenvalue magnitude
+        threshold = np.argmax(eval > tol)
+
+    # print("[eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-5]]",
+    #       [eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-5]])
+
+    #threshold = 30
+    # print("threshold ", threshold)
+    # print("eval ", eval)
+
+    #print("eig pairs ", eig_pairs[:])
+
+    #threshold_above = len(original_eval) - np.argmax(eval > 1)
+
+    #print("threshold above ", threshold_above)
+
+    # threshold = np.argmax(cum_var_exp > 110)
+    # if threshold == 0:
+    #     threshold = len(cum_var_exp)
+    #
+    # print("max eval index: {}, threshold: {}".format(len(eval) - 1, threshold))
+
+    # matrix_w = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-30]]))
+    #
+    # print("matrix_w.shape ", matrix_w.shape)
+    # print("matrix_w ")
+    # print(pd.DataFrame(matrix_w))
+
+    # matrix_w = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
+    #
+    # new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
+    #
+    # threshold -= 1
+
+    # print("matrix_w.shape final ", matrix_w.shape)
+    # print("matrix_w final ")
+    # print(pd.DataFrame(matrix_w))
+
+    # add the |smallest eigenvalue - tol(^2??)| + eigenvalues[:-1]
+
+    #threshold = 0
+    # print("threshold ", threshold)
+    # print("eval ", eval)
+
+    #treshold, _ = self.detect_treshold(eval, log=True, window=8)
+
+    # tresold by MSE of eigenvalues
+    #treshold = self.detect_treshold_mse(eval, std_evals)
+
+    # treshold
+
+    #self.lsq_reconstruct(cov_center, fixed_eval, evec, treshold)
+
+    # cut eigen values under treshold
+    new_eval = eval[threshold:]
+    new_evec = evec[:, threshold:]
+
+    eval = np.flip(new_eval, axis=0)
+    evec = np.flip(new_evec, axis=1)
+
+    print_cumul(eval)
+
+    # for ev in evec:
+    #     print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+    #     #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+    # print('Everything ok!')
+
+    return eval, evec, threshold, original_eval
+
+def my_ceil(a, precision=0):
+    return np.round(a + 0.5 * 10**(-precision), precision)
+
+def my_floor(a, precision=0):
+    return np.round(a - 0.5 * 10**(-precision), precision)
+
+
+# def _pca(cov_center, tol):
+#     from numpy import ma
+#     eval, evec = np.linalg.eigh(cov_center)
+#
+#     original_eval = eval
+#     print("original eval ", original_eval)
+#     #
+#     # print("original evec ")
+#     # print(pd.DataFrame(evec))
+#
+#     cum_var_exp, var_exp = print_cumul(sorted(eval, reverse=True))
+#     print("CUM VAR EXP ", cum_var_exp)
+#
+#     eval = np.flip(eval, axis=0)
+#     evec = np.flip(evec, axis=1)
+#
+#     eig_pairs = [(np.abs(eval[i]), evec[:, i]) for i in range(len(eval))]
+#
+#     # threshold = np.argmax(cum_var_exp > 110)
+#     # if threshold == 0:
+#     #     threshold = len(eval)
+#     # #threshold = len(eval)
+#
+#     cumul_hundred = np.argmax(cum_var_exp == 100)
+#     #print("cumul hundred ", cumul_hundred)
+#
+#     # cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
+#     # cum_var_exp, var_exp = print_cumul(eval[:cut_threshold])
+#     # print("new cum var exp ", cum_var_exp)
+#
+#     ######!!!!!! previous
+#
+#     print("np.max(np.floor(cum_var_exp))", )
+#
+#     threshold = 0
+#
+#     import decimal
+#     d = decimal.Decimal(str(tol))
+#     dec = d.as_tuple().exponent
+#
+#     # print("exp 10 ", 10**(-2))
+#     #
+#     # print("exp 10 ", 10 ** (-dec*(-1)))
+#     #
+#     # exit()
+#
+#     raw_floor_max = np.max(np.floor(cum_var_exp))
+#     #decimal_floor_max = np.max(my_floor(cum_var_exp, dec * (-1)))
+#     decimal_floor_max = np.max(np.round(cum_var_exp, dec * (-1)))
+#
+#     if raw_floor_max > 100:
+#         threshold = np.argmax(np.floor(cum_var_exp))
+#     elif raw_floor_max == 100:
+#         if decimal_floor_max > 100:
+#             threshold = np.argmax(my_floor(cum_var_exp, dec * (-1)))
+#             threshold = np.argmax(np.round(cum_var_exp, dec * (-1)))
+#
+#         elif decimal_floor_max == 100:
+#             for idx in range(len(cum_var_exp)):
+#                 if cum_var_exp[idx] > (100 + tol * 10):
+#                     # print("cum var exp threshold ", idx)
+#                     threshold = idx
+#                     print("cum var exp threshold FOR ", threshold)
+#                     break
+#
+#             if threshold <= 0:
+#                 threshold = len(eval) - 1
+#
+#             print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
+#             if all(cum_var_exp[threshold:] <= (100 + (tol * 10))):
+#                 threshold = len(eval) - 1
+#                 print("ALL <= (100 + tol * 10)) threshold ", threshold)
+#             else:
+#                 print("tol ", tol)
+#                 print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
+#                 cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))  # 1e-5)
+#                 cut_threshold -= 1
+#                 print("CUT threshold ", cut_threshold)
+#                 if cut_threshold < threshold:  # and not threshold_set:
+#                     threshold = cut_threshold
+#
+#                 threshold = cut_threshold
+#
+#     #
+#     #
+#     #
+#     #
+#     # if np.max(np.floor(cum_var_exp)) == 100:
+#     #     threshold = np.argmax(my_floor(cum_var_exp, dec * (-1)))
+#     #     print("MY floor threshold ", threshold)
+#     #
+#     #     for idx in range(len(cum_var_exp)):
+#     #         if cum_var_exp[idx] > (100 + tol * 10):
+#     #             #print("cum var exp threshold ", idx)
+#     #             threshold = idx
+#     #             print("cum var exp threshold FOR ", threshold)
+#     #             break
+#     #
+#     #     if threshold <= 0:
+#     #         threshold = len(eval) - 1
+#     #
+#     #     print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
+#     #     if all(cum_var_exp[threshold:] <= (100 + (tol * 10))):
+#     #         threshold = len(eval) - 1
+#     #         print("ALL <= (100 + tol * 10)) threshold ", threshold)
+#     #     else:
+#     #         print("tol ", tol)
+#     #         print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
+#     #         cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))#1e-5)
+#     #         cut_threshold -= 1
+#     #         print("CUT threshold ", cut_threshold)
+#     #         if cut_threshold < threshold:  # and not threshold_set:
+#     #             threshold = cut_threshold
+#     #
+#     #         threshold = cut_threshold
+#     #
+#     # else:
+#     #     threshold = np.argmax(np.floor(cum_var_exp))
+#     #     print("floor threshold ", threshold)
+#     #
+#     # max_cum = np.max(my_floor(cum_var_exp, dec*(-1)))
+#     # if max_cum > 100:
+#     #     threshold = np.argmax(my_floor(cum_var_exp, dec*(-1)))#np.floor(cum_var_exp))
+#     #     print("floor threshold ", threshold)
+#     # else:
+#     #     for idx in range(len(cum_var_exp)):
+#     #         if cum_var_exp[idx] > (100 + tol * 10):
+#     #             #print("cum var exp threshold ", idx)
+#     #             threshold = idx
+#     #             print("cum var exp threshold FOR ", threshold)
+#     #             break
+#     #
+#     #     if threshold <= 0:
+#     #         threshold = len(eval) - 1
+#     #
+#     #     print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
+#     #     if all(cum_var_exp[threshold:] <= (100 + (tol * 10))):
+#     #         threshold = len(eval) - 1
+#     #         print("ALL <= (100 + tol * 10)) threshold ", threshold)
+#     #     else:
+#     #         print("tol ", tol)
+#     #         print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
+#     #         cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))#1e-5)
+#     #         cut_threshold -= 1
+#     #         print("CUT threshold ", cut_threshold)
+#     #         if cut_threshold < threshold:  # and not threshold_set:
+#     #             threshold = cut_threshold
+#     #
+#     #         threshold = cut_threshold
+#     #
+#     # print("computed threshold ", threshold)
+#
+#     threshold_set = False
+#     # if threshold == len(eval)-1:
+#     #     threshold_set = True
+#
+#     #threshold = 0#cut_threshold -10
+#
+#     if threshold <= 0:
+#         threshold = len(eval) - 1
+#         threshold_set = True
+#
+#     # if threshold > 30:
+#     #     threshold = 30
+#
+#
+#
+#     cum_var_exp = np.floor(cum_var_exp)#, 2)
+#     #print("np.round(cum_var_exp, 2) ", cum_var_exp)
+#
+#     # threshold = 0
+#     # maximum = 0
+#     # for idx in range(len(cum_var_exp)):
+#     #     if cum_var_exp[idx] > maximum:
+#     #         print("cum var exp threshold ", idx)
+#     #         threshold = idx
+#     #         maximum = cum_var_exp[idx]
+#     #         break
+#     #
+#     # print("maximum ", maximum)
+#     # print("maximum threshold ", maximum)
+#
+#     #threshold = np.argmax(cum_var_exp)
+#
+#     # print("np.floor(cum_var_exp) ",cum_var_exp)
+#     # print("np.floor(cum_var_exp).argmax(axis=0) ", cum_var_exp.argmax(axis=0))
+#
+#     ##########!!!!! previous version
+#     #mx = np.max(cum_var_exp)
+#     ############!!!!!!!!!!
+#
+#
+#     # mx_index = np.argmax(cum_var_exp < (100.1))
+#     # if mx_index == 0:
+#     #     mx_index = len(eval) - 1
+#     # print("mx index ", mx_index)
+#     # mx = cum_var_exp[mx_index]
+#     # print("mx ", mx)
+#
+#     #threshold = np.max([i for i, j in enumerate(cum_var_exp) if j == mx])
+#
+#
+#     # print("all(cum_var_exp[threshold:] == mx) ", all(cum_var_exp[threshold:] == mx))
+#     #
+#     # cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
+#     # # cut_threshold = np.argmax(np.array(var_exp) < tol)
+#     #
+#     # print("cut threshold ", cut_threshold)
+#
+#     ### !!!! previous
+#     # if all(cum_var_exp[threshold:] == mx):
+#     #     threshold = len(cum_var_exp) - 1
+#     #     #print("np.array(np.abs(var_exp)) ", np.array(np.abs(var_exp)))
+#     #     threshold = np.argmax(np.array(np.abs(var_exp)) < 1e-5)
+#     # else:
+#     #     ##### !!!!!
+#     #
+#     #     threshold = mx_index
+#
+#     # if threshold == 0:
+#     #     threshold = len(eval) - 1
+#     #
+#     # print("threshold ", threshold)
+#
+#     # print("threshold if threshold < cut_threshold else cut_threshold ", threshold if threshold < cut_threshold else cut_threshold)
+#     # if cut_threshold < threshold:# and not threshold_set:
+#     #     threshold = cut_threshold
+#     #
+#     # #threshold = threshold if threshold < cut_threshold else cut_threshold
+#     # print("threshold after if ", threshold)
+#
+#     #threshold = cut_threshold
+#
+#     # if threshold == 0:
+#     #     threshold = len(eval) - 1
+#     #
+#     # #exit()
+#
+#     threshold += 1
+#
+#     #threshold = 35
+#
+#     print("tol ", tol)
+#
+#     #threshold = 9#len(new_eig_pairs)
+#     print("THreshold ", threshold)
+#
+#     # for pair in eig_pairs:
+#     #     print("evec ", pair[1])
+#
+#     new_evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
+#     new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
+#
+#     threshold = len(new_eval)-1
+#
+#     print_cumul(new_eval)
+#
+#     # cut eigen values under treshold
+#     # new_eval = eval[threshold:]
+#     # new_evec = evec[:, threshold:]
+#
+#     eval = np.flip(new_eval, axis=0)
+#     evec = np.flip(new_evec, axis=1)
+#
+#     eval = new_eval
+#     evec = new_evec
+#
+#
+#
+#     #print("evec ", evec)
+#
+#     # for i in range(len(original_eval)):
+#     #     threshold = len(original_eval) - i
+#     #     print("THRESHOLD ", threshold)
+#     #
+#     #     evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
+#     #
+#     #     for ev in evec:
+#     #         print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+#     #         testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+#     #     print('Everything ok!')
+#     #
+#     # exit()
+#
+#     # print("evec ", evec)
+#     #
+#     #
+#     # for ev in evec:
+#     #     print("ev")
+#     #     print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+#     #     #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+#     # print('Everything ok!')
+#
+#     return eval, evec, threshold, original_eval,None# new_evec
+
+def _pca_(cov_center, tol):
+    from numpy import ma
+    eval, evec = np.linalg.eigh(cov_center)
+
+    original_eval = eval
+    print("original eval ", original_eval)
+    #
+    # print("original evec ")
+    # print(pd.DataFrame(evec))
+
+    cum_var_exp, var_exp = print_cumul(sorted(eval, reverse=True))
+    print("CUM VAR EXP ", cum_var_exp)
+
+    eval = np.flip(eval, axis=0)
+    evec = np.flip(evec, axis=1)
+
+    eig_pairs = [(np.abs(eval[i]), evec[:, i]) for i in range(len(eval))]
+
+    # threshold = np.argmax(cum_var_exp > 110)
+    # if threshold == 0:
+    #     threshold = len(eval)
+    # #threshold = len(eval)
+
+    cumul_hundred = np.argmax(cum_var_exp == 100)
+    #print("cumul hundred ", cumul_hundred)
+
+    # cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
+    # cum_var_exp, var_exp = print_cumul(eval[:cut_threshold])
+    # print("new cum var exp ", cum_var_exp)
+
+    ######!!!!!! previous
+
+    print("np.max(np.floor(cum_var_exp))", )
+
+    threshold = 0
+
+    max_cum = np.max(np.floor(cum_var_exp))
+    if max_cum > 100:
+        threshold = np.argmax(np.floor(cum_var_exp))
+    else:
+        for idx in range(len(cum_var_exp)):
+            if cum_var_exp[idx] > (100 + tol * 10):
+                #print("cum var exp threshold ", idx)
+                threshold = idx
+                print("cum var exp threshold FOR ", threshold)
+                break
+
+        if threshold <= 0:
+            threshold = len(eval) - 1
+
+        print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
+        if all(cum_var_exp[threshold:] <= (100 + tol * 10)):
+            threshold = len(eval) - 1
+            print("ALL <= (100 + tol * 10)) threshold ", threshold)
+        else:
+            print("tol ", tol)
+            print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
+            cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))#1e-5)
+            cut_threshold -= 1
+            print("CUT threshold ", cut_threshold)
+            if cut_threshold < threshold:  # and not threshold_set:
+                threshold = cut_threshold
+
+            threshold = cut_threshold
+
+    print("computed threshold ", threshold)
+
+    threshold_set = False
+    # if threshold == len(eval)-1:
+    #     threshold_set = True
+
+    #threshold = cut_threshold -10
+
+    if threshold <= 0:
+        threshold = len(eval) - 1
+        threshold_set = True
+
+    cum_var_exp = np.floor(cum_var_exp)#, 2)
+    #print("np.round(cum_var_exp, 2) ", cum_var_exp)
+
+    # threshold = 0
+    # maximum = 0
+    # for idx in range(len(cum_var_exp)):
+    #     if cum_var_exp[idx] > maximum:
+    #         print("cum var exp threshold ", idx)
+    #         threshold = idx
+    #         maximum = cum_var_exp[idx]
+    #         break
+    #
+    # print("maximum ", maximum)
+    # print("maximum threshold ", maximum)
+
+    #threshold = np.argmax(cum_var_exp)
+
+    # print("np.floor(cum_var_exp) ",cum_var_exp)
+    # print("np.floor(cum_var_exp).argmax(axis=0) ", cum_var_exp.argmax(axis=0))
+
+    ##########!!!!! previous version
+    #mx = np.max(cum_var_exp)
+    ############!!!!!!!!!!
+
+
+    # mx_index = np.argmax(cum_var_exp < (100.1))
+    # if mx_index == 0:
+    #     mx_index = len(eval) - 1
+    # print("mx index ", mx_index)
+    # mx = cum_var_exp[mx_index]
+    # print("mx ", mx)
+
+    #threshold = np.max([i for i, j in enumerate(cum_var_exp) if j == mx])
+
+
+    # print("all(cum_var_exp[threshold:] == mx) ", all(cum_var_exp[threshold:] == mx))
+    #
+    # cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
+    # # cut_threshold = np.argmax(np.array(var_exp) < tol)
+    #
+    # print("cut threshold ", cut_threshold)
+
+    ### !!!! previous
+    # if all(cum_var_exp[threshold:] == mx):
+    #     threshold = len(cum_var_exp) - 1
+    #     #print("np.array(np.abs(var_exp)) ", np.array(np.abs(var_exp)))
+    #     threshold = np.argmax(np.array(np.abs(var_exp)) < 1e-5)
+    # else:
+    #     ##### !!!!!
+    #
+    #     threshold = mx_index
+
+    # if threshold == 0:
+    #     threshold = len(eval) - 1
+    #
+    # print("threshold ", threshold)
+
+    # print("threshold if threshold < cut_threshold else cut_threshold ", threshold if threshold < cut_threshold else cut_threshold)
+    # if cut_threshold < threshold:# and not threshold_set:
+    #     threshold = cut_threshold
+    #
+    # #threshold = threshold if threshold < cut_threshold else cut_threshold
+    # print("threshold after if ", threshold)
+
+    #threshold = cut_threshold
+
+    # if threshold == 0:
+    #     threshold = len(eval) - 1
+    #
+    # #exit()
+
+    threshold += 1
+
+    print("tol ", tol)
+
+    #threshold = 9#len(new_eig_pairs)
+    print("THreshold ", threshold)
+
+    # for pair in eig_pairs:
+    #     print("evec ", pair[1])
+
+    new_evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
+    new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
+
+    threshold = len(new_eval)-1
+
+    print_cumul(new_eval)
+
+    # cut eigen values under treshold
+    # new_eval = eval[threshold:]
+    # new_evec = evec[:, threshold:]
+
+    eval = np.flip(new_eval, axis=0)
+    evec = np.flip(new_evec, axis=1)
+
+    eval = new_eval
+    evec = new_evec
+
+    #print("evec ", evec)
+
+    # for i in range(len(original_eval)):
+    #     threshold = len(original_eval) - i
+    #     print("THRESHOLD ", threshold)
+    #
+    #     evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
+    #
+    #     for ev in evec:
+    #         print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+    #         testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+    #     print('Everything ok!')
+    #
+    # exit()
+
+    # print("evec ", evec)
+    #
+    #
+    # for ev in evec:
+    #     print("ev")
+    #     print("np.linalg.norm(ev) ", np.linalg.norm(ev))
+    #     #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
+    # print('Everything ok!')
+
+    return eval, evec, threshold, original_eval,None# new_evec
+
+
 def _pca(cov_center, tol):
     from numpy import ma
     eval, evec = np.linalg.eigh(cov_center)
@@ -1808,18 +2411,18 @@ def _pca(cov_center, tol):
     if threshold == 0:
         threshold = len(eval) - 1
 
-    print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
+    #print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
     if all(cum_var_exp[threshold:] <= (100 + tol * 10)):
         threshold = len(eval) - 1
         print("ALL <= (100 + tol * 10)) threshold ", threshold)
     else:
         print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
-        cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))#1e-5)
+        cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-10, tol]))#1e-5)
         print("CUT threshold ", cut_threshold)
         if cut_threshold < threshold:  # and not threshold_set:
             threshold = cut_threshold
-
-    print("computed threshold ", threshold)
+    # threshold = cut_threshold
+    # print("computed threshold ", threshold)
 
     threshold_set = False
     # if threshold == len(eval)-1:
@@ -2127,9 +2730,9 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     :return: orthogonal moments object of the same size.
     """
     threshold = 0
-    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    #     print("cov ")
-    #     print(pd.DataFrame(cov))
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print("cov ")
+        print(pd.DataFrame(cov))
 
     # print("cov matrix rank ", numpy.linalg.matrix_rank(cov))
 
@@ -2175,6 +2778,9 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     elif orth_method == 5:
         eval_flipped, evec_flipped, threshold, original_eval, projection_matrix = \
             _pca_add_one(cov_center, tol=tol, moments=moments)
+    elif orth_method == 6:
+        eval_flipped, evec_flipped, threshold, original_eval, projection_matrix = \
+            _svd_cut(cov_center, tol=tol)
 
     else:
         raise Exception("No eigenvalues method")

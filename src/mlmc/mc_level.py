@@ -536,13 +536,13 @@ class Level:
         :param sample_indices: subsample indices
         :return: None
         """
-        self.sample_indices = None if sample_indices is None else sample_indices.copy()
+        self.sample_indices = None if sample_indices is None or size is None else sample_indices.copy()
 
         if size is not None and sample_indices is None:
             assert self.last_moments_eval is not None
             n_moment_samples = len(self.last_moments_eval[0])
             assert 0 < size, "0 < {}".format(size)
-            self.sample_indices = np.random.choice(np.arange(n_moment_samples, dtype=int), size=size)
+            self.sample_indices = np.random.choice(np.arange(n_moment_samples, dtype=int), size=size, replace=False)
             self.sample_indices.sort()  # Better for caches.
 
     def evaluate_moments(self, moments_fn, force=False):
@@ -570,8 +570,8 @@ class Level:
             # Moments from fine and coarse samples
             self.last_moments_eval = moments_fine, moments_coarse
 
-            # if self.sample_indices is not None:
-            #     self.subsample(len(self.sample_indices))
+            if self.sample_indices is not None:
+                self.subsample(len(self.sample_indices))
 
             self._remove_outliers_moments()
 

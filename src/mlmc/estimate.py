@@ -453,6 +453,29 @@ class Estimate:
 
         return self.cov_mat
 
+    def quad_regularization(self, tol):
+        a, b = self.moments.domain
+        m = self.moments.size - 1
+        gauss_degree = 150
+
+        integral = np.zeros((self.moments.size, self.moments.size))
+        for i in range(self.moments.size):
+            for j in range(i + 1):
+                def fn_moments(x):
+                    all_moments = self.moments.eval_all_der(x, degree=2)
+                    return all_moments[:, i] * all_moments[:, j]
+
+                [x, w] = np.polynomial.legendre.leggauss(gauss_degree)
+                x = (x[None, :] + 1) / 2 * (b - a) + a
+                w = w[None, :] * 0.5 * (b - a)
+                x = x.flatten()
+                w = w.flatten()
+                integ = (np.sum(w * fn_moments(x)))
+                #integ = integrate.quad(fn_moments, self.moments.domain[0], self.moments.domain[1], epsabs=tol)[0]
+                integral[i][j] = integral[j][i] = integ
+
+        return integral
+
     def regularization(self, tol):
         """
 
@@ -484,16 +507,19 @@ class Estimate:
         """
         import pandas as pd
         cov = self.estimate_covariance(self.moments, self.mlmc.levels)
+        # print("cov")
+        # print(pd.DataFrame(cov))
         reg_term = np.zeros(cov.shape)
         if reg_param != 0:
-            reg_term = self.regularization(tol)
+            reg_term = self.quad_regularization(tol)
+            #reg_term = self.regularization(tol)
             print("reg term ", reg_term)
 
         cov += 2 * reg_param * reg_term
 
         moments_obj, info, cov_centered = simple_distribution.construct_orthogonal_moments(self.moments, cov,
                                                                                            tol=orth_moments_tol,
-                                                                                           orth_method=orth_method
+                                                                                            orth_method=orth_method
                                                                                         )
         print("n levels: ", self.n_levels, "size: ", moments_obj.size)
 
@@ -501,6 +527,7 @@ class Estimate:
         est_moments = np.squeeze(est_moments)
         est_vars = np.squeeze(est_vars)
         exact_moments = mlmc.simple_distribution.compute_exact_moments(moments_obj, exact_pdf)
+
 
         from src.mlmc.moments import TransformedMomentsDerivative
         moments_obj_derivative = TransformedMomentsDerivative(moments_obj._origin, moments_obj._transform)
@@ -519,7 +546,7 @@ class Estimate:
         #est_moments = np.zeros(moments_obj.size)
         est_moments[0] = 1.0
         #est_vars[0] = 1
-        #est_vars = np.ones(moments_obj.size)
+        est_vars = np.ones(moments_obj.size)
         min_var, max_var = np.min(est_vars[1:]), np.max(est_vars[1:])
         print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
         moments_data = np.stack((est_moments, est_vars), axis=1)
@@ -534,10 +561,10 @@ class Estimate:
         regularization = mlmc.simple_distribution.Regularization2ndDerivation()
         distr_obj = simple_distribution.SimpleDistribution(moments_obj, moments_data, domain=moments_obj.domain,
                                                            reg_param=reg_param, regularization=regularization)
-        distr_obj.estimate_density_minimize(tol)  # 0.95 two side quantile
+        result = distr_obj.estimate_density_minimize(tol)  # 0.95 two side quantile
         self._distribution = distr_obj
 
-        return info
+        return info, result
 
     def _bs_get_estimates(self):
         moments_fn = self.moments

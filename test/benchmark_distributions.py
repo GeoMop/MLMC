@@ -31,6 +31,7 @@ class TwoGaussians(st.rv_continuous):
     weights = [0.93, .07]
 
     #domain = [-6.642695234009825, 14.37690544689409]
+    domain = [-6.9639446068758595, 18.3417226311775]
 
     def _pdf(self, x):
         result = 0
