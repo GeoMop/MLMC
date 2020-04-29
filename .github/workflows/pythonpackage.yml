@@ -9,9 +9,9 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    strategy:
+    strategy:      
       matrix:
-        python-version: [3.6]
+        python-version: [3.6, 3.7, 3.8]
 
     steps:
     - uses: actions/checkout@v2
@@ -26,3 +26,6 @@ jobs:
         pip install tox tox-gh-actions
     - name: Test with tox
       run: tox
+
+      
+
