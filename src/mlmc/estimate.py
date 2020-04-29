@@ -462,30 +462,19 @@ class Estimate:
         for i in range(self.moments.size):
             for j in range(i + 1):
                 def fn_moments(x):
-                    moments = self.moments.eval_all_der(x, degree=2)[0, :]
-                    return moments[i] * moments[j]
+                    all_moments = self.moments.eval_all_der(x, degree=2)
+                    return all_moments[:, i] * all_moments[:, j]
 
                 [x, w] = np.polynomial.legendre.leggauss(gauss_degree)
                 x = (x[None, :] + 1) / 2 * (b - a) + a
+                w = w[None, :] * 0.5 * (b - a)
                 x = x.flatten()
                 w = w.flatten()
-                # print("w ", w)
-                # print("fn_moments(x) ", fn_moments(x))
-                integ = (np.sum(w * fn_moments(x), axis=0) * 0.5 * (b - a))
-
+                integ = (np.sum(w * fn_moments(x)))
                 #integ = integrate.quad(fn_moments, self.moments.domain[0], self.moments.domain[1], epsabs=tol)[0]
                 integral[i][j] = integral[j][i] = integ
 
-        print("integral ", integral)
         return integral
-
-        # [x, w] = np.polynomial.legendre.leggauss(gauss_degree)
-        # x = (x[None, :] + 1) / 2 * (b - a) + a
-        # x = x.flacalc_tten()
-        # w = w.flatten()
-        # reg_term = (np.sum(w * integrand(x), axis=1) * 0.5 * (b - a))
-
-
 
     def regularization(self, tol):
         """
@@ -518,6 +507,8 @@ class Estimate:
         """
         import pandas as pd
         cov = self.estimate_covariance(self.moments, self.mlmc.levels)
+        # print("cov")
+        # print(pd.DataFrame(cov))
         reg_term = np.zeros(cov.shape)
         if reg_param != 0:
             reg_term = self.quad_regularization(tol)
