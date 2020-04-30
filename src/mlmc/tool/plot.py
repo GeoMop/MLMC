@@ -132,6 +132,8 @@ class SimpleDistribution:
         self.plot_matrix = []
         self.i_plot = 0
 
+        self.original_distr_added = False
+
         self.colormap = plt.cm.tab10
 
         if cdf_plot:
@@ -209,6 +211,7 @@ class SimpleDistribution:
         self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4)
 
     def add_original_distribution(self, X, Y_pdf, Y_cdf, domain, label=None):
+        self.original_distr_added = True
         color = self.colormap(self.i_plot)
 
         self.adjust_domain(domain)
@@ -287,6 +290,30 @@ class SimpleDistribution:
         """
         #self._add_exact_distr()
         self.ax_pdf.legend(title=self._legend_title, loc=1, fontsize=label_fontsize)
+
+        if self.original_distr_added:
+            from matplotlib.lines import Line2D
+            from matplotlib.patches import Rectangle, RegularPolygon, FancyBboxPatch
+
+            legend = self.ax_pdf.legend()
+            ax = legend.axes
+
+            handles, labels = ax.get_legend_handles_labels()
+
+            print("handles ", handles)
+
+            #handles[-1] = FancyBboxPatch([0, 1], width=0.05, height=1, boxstyle='square',color="black")
+            handles[-1] = RegularPolygon([0, 1], numVertices=4, radius=0.5, color="black")
+            handles.append(Line2D([0, 1], [0, 1], color="black", linestyle=":"))
+            labels.append('bez regularizace')
+
+            handles.append(Line2D([0, 1], [0, 1], color="black", linestyle="-"))
+            labels.append('s regularizace')
+
+            legend._legend_box = None
+            legend._init_legend_box(handles, labels)
+            legend._set_loc(legend._loc)
+            legend.set_title(legend.get_title().get_text())
 
         #_show_and_save(self.fig_kl, file, self._title)
 
@@ -1572,12 +1599,13 @@ class Aux:
         plt.show()
 
 
-class RegParametersPlot():
-    def __init__(self, title, x_label=r"$\log(\alpha)$", y_label="MSE", x_log=True, reg_info=True, reg_kl=True):
+class SplineInterpolationPointsPlot():
+    def __init__(self, title, x_label="int points", y_label="KL div", x_log=True):
 
         self.data = []
         self.title = title
         self.colormap = ["b", "g", "r", "c", "m", "y"]#plt.cm.tab20
+        self.colormap = plt.cm.tab20
         self.i_plot = 0
         self.fig, self.ax = plt.subplots(1, 1, figsize=(12, 10))
 
@@ -1586,6 +1614,98 @@ class RegParametersPlot():
         if x_log:
             self.ax.set_xscale('log')
 
+        self.ax.set_yscale('log')
+
+        self.ax.set_xlabel(x_label, size=label_fontsize)
+        self.ax.set_ylabel(y_label, size=label_fontsize)
+
+        #self.ax.set_xscale('log')
+        self.ax.legend(loc='best')
+
+    def add_values(self, inter_point, kl_div_l2_dist, label=""):
+        self.data.append((inter_point, kl_div_l2_dist, label))
+
+    def plot_values(self):
+
+        for index, (inter_points, kl_div_l2_dist, label) in enumerate(self.data):
+            col = self.colormap(index)
+
+            print("reg params ", inter_points)
+            print("kl_divs ", kl_div_l2_dist)
+            print("kl_divs type ", type(kl_div_l2_dist))
+
+            for reg_param, (kl_div, l2_dist) in zip(inter_points, kl_div_l2_dist):
+                print("reg param ", reg_param)
+                print("reg_param: {}, kl_div: {}, l2_dist: {}".format(reg_param, kl_div, l2_dist))
+
+            #zipped = zip(inter_points, kl_div_l2_dist)
+
+
+            kl_divs = kl_div_l2_dist[:, 0]
+            l2_dist = kl_div_l2_dist[:, 1]
+
+            kl_div_sorted = sorted(zip(inter_points, kl_div_l2_dist), key=lambda x: x[1][0])
+            l2_dist_sorted = sorted(zip(inter_points, kl_div_l2_dist), key=lambda x: x[1][1])
+
+            kl_min_best = None
+            for s_tuple in kl_div_sorted:
+                if kl_min_best is None:
+                    kl_min_best = (s_tuple[0], s_tuple[1][0])
+
+            l2_min_best = None
+            for s_tuple in l2_dist_sorted:
+                if l2_min_best is None:
+                    l2_min_best = (s_tuple[0], s_tuple[1][1])
+
+            print("inter points ", inter_points)
+            print("kl divs ", kl_divs)
+
+            best_params = []
+            #best_params.append(0)
+            # min_best = None
+            # for s_tuple in sorted_zip:
+            #     if min_best is None:
+            #         min_best = s_tuple
+            #
+            # print("sorted reg_param: {}, kl div: {}".format(s_tuple[0], s_tuple[1]))
+
+            import matplotlib
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots()
+            self.ax.plot(inter_points, kl_divs, ":", color=col, label=label + "KL div")
+            self.ax.plot(inter_points, l2_dist, "--", color=col, label=label + "L2 dist")
+            self.ax.plot(kl_min_best[0], kl_min_best[1], 'x', color='red', label="min, n_int: {}, kl div: {}".
+                         format(kl_min_best[0], kl_min_best[1]))
+
+            self.ax.plot(l2_min_best[0], l2_min_best[1], 'x', color='red', label="min, n_int: {}, L2 div: {}".
+                         format(l2_min_best[0], l2_min_best[1]))
+
+            logfmt = matplotlib.ticker.LogFormatterExponent(base=10.0, labelOnlyBase=True)
+            #self.ax.xaxis.set_major_formatter(logfmt)
+
+    def show(self):
+        self.plot_values()
+        legend = self.ax.legend()
+        file = self.title + ".pdf"
+        self.fig.show()
+        self.fig.savefig(file)
+
+
+class RegParametersPlot():
+    def __init__(self, title, x_label=r"$\log(\alpha)$", y_label="MSE", x_log=True, reg_info=True, reg_kl=True):
+
+        self.data = []
+        self.cond_numbers = []
+        self.title = title
+        self.colormap = ["b", "g", "r", "c", "m", "y"]#plt.cm.tab20
+        self.colormap = plt.cm.tab20
+        self.i_plot = 0
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(12, 10))
+
+        self.markers = ["o", "v", "s", "p", "X", "D"]
+
+        if x_log:
+            self.ax.set_xscale('log')
 
         self.ax.set_yscale('log')
 
@@ -1610,13 +1730,16 @@ class RegParametersPlot():
     def add_values(self, reg_params, mse, label=""):
         self.data.append((reg_params, mse, label))
 
+    def add_cond_numbers(self, cond_numbers):
+        self.cond_numbers.append(cond_numbers)
+
     def add_info(self, info):
         self.info.append(info)
 
     def plot_values(self):
 
         for index, (reg_params, mse, label) in enumerate(self.data):
-            col = self.colormap[index]
+            col = self.colormap(index)
 
             zipped = zip(reg_params, mse)
 
@@ -1640,6 +1763,10 @@ class RegParametersPlot():
             self.ax.plot(reg_params, mse, ":", color=col, label=label)
             self.ax.plot(min_best[0], min_best[1], 'x', color='red', label="minimální hodnota")
 
+
+            if len(self.cond_numbers) > 0:
+                self.ax.plot(reg_params, self.cond_numbers[index], "s", color=col, label='condition numbers')
+
             logfmt = matplotlib.ticker.LogFormatterExponent(base=10.0, labelOnlyBase=True)
             self.ax.xaxis.set_major_formatter(logfmt)
 
@@ -1656,7 +1783,8 @@ class RegParametersPlot():
 
                 self.ax_kl.plot(reg_params, mse, ":", color=col, label="MSE")
 
-                self.ax_kl.plot(min_best[0], min_best[1], 'x', color='red', label="MSE min - kl :{:0.4g}".format(min_best[2]))
+                self.ax_kl.plot(min_best[0], min_best[1], 'x', color='red', label="MSE min - kl:{:0.4g},"
+                                                                                  " reg:{:0.5g}".format(min_best[2], min_best[0]))
 
 
                 zipped = zip(reg_params, kl_div)
@@ -1668,7 +1796,9 @@ class RegParametersPlot():
                         min_kl_div = s_tuple
 
                 self.ax_kl.plot(reg_params, kl_div,  "--", color=col, label="kl div")
-                self.ax_kl.plot(min_kl_div[0], min_kl_div[1], "x", color='red', label="KL div min :{:0.4g}".format(min_kl_div[1]))
+                self.ax_kl.plot(min_kl_div[0], min_kl_div[1], "x", color='red', label="KL div min :{:0.4g},"
+                                                                                      " reg:{:0.4g}".format(min_kl_div[1],
+                                                                                                            min_kl_div[0]))
 
 
         # if self.reg_info is not None:
@@ -1694,6 +1824,7 @@ class RegParametersPlot():
         self.plot_values()
         legend = self.ax.legend()
 
+
         if self.reg_kl:
             self.ax_kl.legend()
             self.fig_kl.show()
@@ -1713,6 +1844,7 @@ class RegParametersPlot():
 
 
 label_fontsize = 12
+marker_size = 75
 class KL_div_mom_err():
 
     def __init__(self, title, x_label, y_label, x_log=True):
@@ -1793,21 +1925,25 @@ class KL_div_mom_err():
             #print("iter x ", np.array(iter_x)**2)
             #print("failed_iter_x ", np.array(failed_iter_x)**2)
 
-            self.ax_iter.scatter(np.array(iter_x), iterations, color=col, marker=self.markers[index], label=density)
+            self.ax_iter.scatter(np.array(iter_x), iterations, color=col, marker=self.markers[index], label=density,
+                                 s=marker_size)
 
             print("failed iter x ", failed_iter_x)
             if len(failed_iterations) > 0:
-                self.ax_iter.scatter(np.array(failed_iter_x), failed_iterations, color="black", marker=self.markers[index])
+                self.ax_iter.scatter(np.array(failed_iter_x), failed_iterations, color="black", marker=self.markers[index],
+                                     s=marker_size)
 
             if len(self.constants) > 0 and not self.const_plot:
                 print("self.constants[index] ", self.constants)
 
-                self.ax.plot(mom_err, self.constants, color="black", marker=self.markers[index], label="C_R")
+                self.ax.plot(mom_err, self.constants, color="black", marker=self.markers[index], label="C_R",
+)
                 self.const_plot =True
 
             if len(self.inexact_constr) > 0:
                 print("self.constants[index] ", self.constants)
-                self.ax.plot(mom_err, self.inexact_constr[index], color="black", marker=self.markers[index], label="C_R")
+                self.ax.plot(mom_err, self.inexact_constr[index], color="black", marker=self.markers[index], label="C_R",
+              )
 
     def show(self):
         self.plot_values()
