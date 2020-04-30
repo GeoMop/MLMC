@@ -1,11 +1,11 @@
 import numpy as np
 from scipy import integrate, optimize
 from scipy.interpolate import interp1d, CubicSpline, splrep, splev
-
+from scipy.interpolate import BSpline
 
 class SplineApproximation:
 
-    def __init__(self, mlmc, inter_points_domain, poly_degree, accuracy):
+    def __init__(self, mlmc, inter_points_domain, poly_degree, accuracy, spline_poly=False):
         """
         Cdf and pdf spline approximation
         :param mlmc: MLMC instance
@@ -17,6 +17,7 @@ class SplineApproximation:
         self.domain = inter_points_domain
         self.poly_degree = poly_degree
         self.accuracy = accuracy
+        self.spline_poly = spline_poly
 
         self.smoothing_factor = np.zeros(self.mlmc.n_levels)
         self.interpolation_points = []
@@ -88,6 +89,12 @@ class SplineApproximation:
         Set global variable polynomial
         :return: None
         """
+        if self.spline_poly:
+            spl_poly = SplinePolynomail()
+            spl_poly.get_g_function()
+            self.polynomial = spl_poly.polynomial
+            return
+
         coeficients_matrix = np.empty((self.poly_degree+1, self.poly_degree+1))
         constants_matrix = np.empty(self.poly_degree+1)
 
@@ -227,21 +234,24 @@ class SplineApproximation:
 
         self.sampling_error = np.max(sampling_error)
 
-    # def _test_smoothing_polynomial(self):
-    #     degrees = [3, 5, 7, 9, 11]
-    #     X = np.linspace(-1, 1, 1000)
-    #
-    #     for d in degrees:
-    #         self.poly_degree = d
-    #         self._create_smooth_polynomial()
-    #
-    #         Y = self.polynomial(X)
-    #         plt.plot(X, Y, label="r = {}".format(d))
-    #
-    #     plt.title("Smoothing polynomial")
-    #     plt.legend()
-    #     plt.show()
-    #     exit()
+    def plot_smoothing_polynomial(self):
+        degrees = [3, 5, 7, 9, 11]
+        X = np.linspace(-1, 1, 1000)
+        import matplotlib.pyplot as plt
+
+        #for d in degrees:
+        # self.poly_degree = d
+        # self._create_smooth_polynomial()
+
+        Y = self.polynomial(X)
+        if self.spline_poly:
+            plt.plot(X, Y, label="spline poly")
+        else:
+            plt.plot(X, Y, label="poly1d")
+
+        plt.title("Smoothing polynomial")
+        plt.legend()
+        plt.show()
 
     def _setup(self):
         """
@@ -385,3 +395,135 @@ class BSplineApproximation(SplineApproximation):
     #     res = bspline_derivative(points)
     #     print("BSpline PDF")
     #     return res
+
+
+class SplinePolynomail():
+    def __init__(self):
+        self.splines = []
+        self.poly_degree = 3
+        self.size = 3
+
+        self.ref_domain = (-1, 1)
+
+        self.knots = self.generate_knots()
+        self.create_splines()
+
+        self.multipliers = np.zeros(len(self.splines))
+
+        #print("self splines ", self.splines)
+
+        self.alpha = None
+
+    def generate_knots(self):
+        knot_range = self.ref_domain
+        degree = self.poly_degree
+        n_intervals = self.size
+        n = n_intervals + 2 * degree + 1
+        knots = np.array((knot_range[0],) * n)
+        diff = (knot_range[1] - knot_range[0]) / n_intervals
+        for i in range(degree + 1, n - degree):
+            knots[i] = (i - degree) * diff + knot_range[0]
+        knots[-degree - 1:] = knot_range[1]
+        return knots
+
+    def create_splines(self):
+        for i in range(self.size):
+            c = np.zeros(len(self.knots))
+            c[i] = 1
+            self.splines.append(BSpline(self.knots, c, self.poly_degree))
+
+    def _indicator(self, x):
+        if x <= 0:
+            return np.ones(len(self.splines))
+        else:
+            return np.zeros(len(self.splines))
+
+    def eval_splines(self, x, alpha=None):
+        if alpha is not None:
+            return alpha * np.array([spline(x) for spline in self.splines])
+
+        # print("np.array([spline(x) for spline in self.splines]) ",
+        #       np.array([spline(x) for spline in self.splines]))
+
+        return np.array([spline(x) for spline in self.splines])
+
+    def func(self, x):
+        spl_eval = self.eval_splines(x)
+
+        # print("spl eval ", spl_eval)
+        # print("self multipliers ", self.multipliers)
+        #
+        # a = np.array([1, 2, 3])
+        # b = np.array([4, 5, 6])
+        #
+        # c = a * b
+        #
+        # print("c ", c)
+        # d =np.outer(a, b)
+        # print("np.outer(a, b) ", d)
+        # print("np.sum(d) ", np.sum(d, axis=1))
+        #
+        # exit()
+
+        # print("self.multipliers * spl_eval ", self.multipliers * spl_eval)
+        # print("np.outer(self.multipliers, spl_eval) ", np.outer(self.multipliers, spl_eval))
+        #
+        #
+        # print("(self.multipliers * spl_eval) ", (self.multipliers * spl_eval))
+        # print("self._indicator(x) - (self.multipliers * spl_eval) ", self._indicator(x) - (self.multipliers * spl_eval))
+        # print("self._indicator(x) ", self._indicator(x))
+
+        func_value = spl_eval * (self._indicator(x) - np.sum(np.outer(self.multipliers, spl_eval), axis=1))
+        # print("FUNC ", func_value)
+        # print("FUNC sum ", np.sum(func_value))
+
+        return np.sum(spl_eval * (self._indicator(x) - np.sum(np.outer(self.multipliers, spl_eval), axis=1)))
+
+    def _calculate_functional(self, multipliers):
+        self.multipliers = multipliers
+        #print("self multipliers ", self.multipliers)
+        func_res = integrate.quad(self.func, -1, 1)[0]
+
+        #print("functional res ", func_res)
+
+        return func_res
+
+    def get_g_function(self):
+        tol = 1e-5
+        max_it = 25
+        # method = "Newton-CG"
+        # result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
+        #                               options={'tol': tol, 'xtol': tol,
+        #                                        'gtol': tol, 'disp': True, 'maxiter': max_it}
+        #                              )
+
+        root = optimize.newton(self._calculate_functional, self.multipliers, full_output=True, tol=1e-15)
+
+        # print("root result ", root)
+        # print("result ", root[0])
+
+        self.alpha = root[0]
+
+    def polynomial(self, x):
+        if self.alpha is None:
+            self.get_g_function()
+
+        self.alpha = np.ones(len(self.alpha))
+
+        result = []
+        if isinstance(x, np.ndarray):
+            for d in x:
+                result.append(np.sum(self.eval_splines(d, alpha=self.alpha)))
+
+            return result
+        else:
+            return np.sum(self.eval_splines(x, alpha=self.alpha))
+
+    def plot_polynomial(self):
+        import matplotlib.pyplot as plt
+
+        x = np.linspace(-1, 1, 1000)
+        y = [self.polynomial(d) for d in x]
+
+        plt.plot(x, y)
+        plt.show()
