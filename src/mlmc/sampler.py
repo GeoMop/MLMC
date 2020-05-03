@@ -263,7 +263,7 @@ class Sampler:
         """
         return self._n_target_samples
 
-    def resurrect_failed(self):
+    def renew_failed_samples(self):
         """
         Resurrect failed samples
         :return: None

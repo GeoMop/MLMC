@@ -7,7 +7,43 @@ import json
 import glob
 from mlmc.level_simulation import LevelSimulation
 from mlmc.sampling_pool import SamplingPool
-from mlmc.pbs_process import PbsProcess
+from mlmc.pbs_job import PbsJob
+
+
+"""
+SamplingPoolPBS description
+    - this class inherits from SampleStorage, both abstract methods and other crucial ones are described
+
+    schedule_sample(sample_id, level_sim)
+        - serialize level_sim (mlmc/level_simulation.py), pickle is used
+        - compute random seed from sample_id
+        - add (level_sim.level_id, sample_id, seed) to job's scheduled samples 
+        - add job weight, increment number of samples in job and execute if job_weight is exceeded
+    
+    execute()
+        - it is call when job weight (Maximum sum of task sizes summation in single one job) is exceeded
+        - methods from mlmc/pbs_job.py are called
+            - PbsJob class is created and serialized (PbsJob static method does both)
+            - scheduled samples are saved through PbsJob class static method
+        - pbs script is written out and ready to run
+        
+    get_finished()
+        - run execute()
+        - get finished_pbs_jobs and unfinished_pbs_jobs from qstat output
+        - call get_result_files(), it returns successful samples, failed samples and times all of that is return to Sampler
+        
+    _get_result_files()
+        - set n_running - number of running samples, it is given from unfinished_pbs_jobs
+        - successful samples, failed samples and run times are retrieved from PbsJob class with given job_id
+        - if there are _unfinished_sample_ids ('renew' command was use) these samples are appended to previous ones
+        
+    
+    This class cooperate with PbsJob (mlmc/pbs_job), which is used as "mediator" between master process and
+    worker (job) process. Data which are necessary for worker process are passed to PbsJob from SampleStoragePbs. 
+    Master process serializes PbsJob instance.
+    Then PbsJob is deserialized in worker process.
+    
+"""
 
 
 class SamplingPoolPBS(SamplingPool):
@@ -41,7 +77,7 @@ class SamplingPoolPBS(SamplingPool):
         # List of scheduled samples
         self._pbs_ids = []
         # List of pbs job ids which should run
-        self._unfinished_sample_ids = []
+        self._unfinished_sample_ids = set()
         # List of sample id which are not collected - collection attempts are done in the get_finished()
 
         self.force = force
@@ -50,9 +86,6 @@ class SamplingPoolPBS(SamplingPool):
         self._jobs_dir = None
         self._create_output_dir()
         self._create_job_dir()
-
-        self._job_count = self._get_job_count()
-        # Current number of jobs - sort of jobID
 
     def _create_output_dir(self):
         """
@@ -79,12 +112,13 @@ class SamplingPoolPBS(SamplingPool):
         Get number of created jobs.
         :return:
         """
-        if os.path.exists(os.path.join(self._jobs_dir, SamplingPoolPBS.JOBS_COUNT)):
-            with open(os.path.join(self._jobs_dir, SamplingPoolPBS.JOBS_COUNT), "r") as reader:
-                count = reader.readline()
-                return int(count) + 1
-        else:
+        files_pattern = os.path.join(self._jobs_dir, "*_job.sh")
+        files = glob.glob(files_pattern)
+        if not files:
             return 0
+
+        job_id = re.findall(r'(\d+)_job.sh', files[-1])[0]
+        return int(job_id) + 1
 
     def _save_structure(self):
         """
@@ -126,13 +160,8 @@ class SamplingPoolPBS(SamplingPool):
                                      '#PBS -e {pbs_output_dir}/{job_name}.ER',
                                      '']
 
-        self._pbs_header_template.extend(('cd {work_dir}',
-                                          'module load python36-modules-gcc',
-                                          'source env/bin/activate',
-                                          'pip3 install /storage/liberec3-tul/home/martin_spetlik/MLMC_new_design',))
-
-        self._pbs_header_template.extend(kwargs['modules'])
-        self._pbs_header_template.extend(('{python} {pbs_process_file_dir}/pbs_process.py {output_dir} {job_name} >'
+        self._pbs_header_template.extend(kwargs['env_setting'])
+        self._pbs_header_template.extend(('{python} {pbs_process_file_dir}/pbs_job.py {output_dir} {job_name} >'
                                           '{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
         self._pbs_config = kwargs
 
@@ -173,8 +202,8 @@ class SamplingPoolPBS(SamplingPool):
         if len(self._scheduled) > 0:
             job_id = "{:04d}".format(self._job_count)
             # Create pbs job
-            pbs_process = PbsProcess.create_job(self._output_dir, self._jobs_dir, job_id,
-                                                                       SamplingPoolPBS.LEVEL_SIM_CONFIG)
+            pbs_process = PbsJob.create_job(self._output_dir, self._jobs_dir, job_id,
+                                            SamplingPoolPBS.LEVEL_SIM_CONFIG)
             # Write scheduled samples to file
             pbs_process.save_scheduled(self._scheduled)
 
@@ -240,7 +269,7 @@ class SamplingPoolPBS(SamplingPool):
         """
         self.execute()
         finished_pbs_jobs, unfinished_pbs_jobs = self._qstat_pbs_job()
-        return self.get_result_files(finished_pbs_jobs, unfinished_pbs_jobs)
+        return self._get_result_files(finished_pbs_jobs, unfinished_pbs_jobs)
 
     def _qstat_pbs_job(self):
         """
@@ -271,7 +300,7 @@ class SamplingPoolPBS(SamplingPool):
 
         return finished_pbs_jobs, unfinished_pbs_jobs
 
-    def get_result_files(self, finished_pbs_jobs, unfinished_pbs_jobs):
+    def _get_result_files(self, finished_pbs_jobs, unfinished_pbs_jobs):
         """
         Get results from files
         :param finished_pbs_jobs: List[str], finished pbs jobs,
@@ -289,7 +318,7 @@ class SamplingPoolPBS(SamplingPool):
             reg = "*_{}".format(pbs_id)
             file = glob.glob(reg)
             job_id = re.findall(r'(\d+)_\d+', file[0])[0]
-            n_running += PbsProcess.get_job_n_running(job_id, self._jobs_dir)
+            n_running += PbsJob.get_job_n_running(job_id, self._jobs_dir)
 
         successful_results = {}
         failed_results = {}
@@ -303,7 +332,7 @@ class SamplingPoolPBS(SamplingPool):
                 file = file[0]
                 job_id = re.findall(r'(\d+)_\d+', file)[0]
                 # Get sample results
-                successful, failed, time = PbsProcess.read_results(job_id, self._jobs_dir)
+                successful, failed, time = PbsJob.read_results(job_id, self._jobs_dir)
 
                 # Split results to levels
                 for level_id, results in successful.items():
@@ -322,6 +351,19 @@ class SamplingPoolPBS(SamplingPool):
 
         return successful_results, failed_results, n_running, times
     
+    def _permanent_sample_job_id(self, sample_dir):
+        """
+
+        :param sample_dir: path to sample directory
+        :return: str, job id
+        """
+
+        file_name = os.path.join(sample_dir, PbsJob.PERMANENT_SAMPLE.format("*"))
+        file = glob.glob(file_name)[0]
+        job_id = re.findall(r'._(\d+)', file)[0]
+
+        return job_id
+
     def _collect_unfinished(self, successful_results, failed_results, times):
         """
         Collect samples which had finished after main process crashed, append them to new collected samples
@@ -330,29 +372,28 @@ class SamplingPoolPBS(SamplingPool):
         :param times: dict
         :return: all input dictionaries
         """
-        already_collected = []
+        already_collected = set()
 
         for sample_id in self._unfinished_sample_ids:
             if sample_id in already_collected:
                 continue
 
             sample_dir = os.path.join(self._output_dir, sample_id)
-            file_name = os.path.join(sample_dir, PbsProcess.PERMANENT_SAMPLE.format("*"))
-            file = glob.glob(file_name)[0]
-            job_id = re.findall(r'._(\d+)', file)[0]
+            job_id = self._permanent_sample_job_id(sample_dir)
 
-            successful, failed, time = PbsProcess.read_results(job_id, self._jobs_dir)
+            successful, failed, time = PbsJob.read_results(job_id, self._jobs_dir)
 
             # Split results to levels
             for level_id, results in successful.items():
                 for res in results:
                     if res[0] in self._unfinished_sample_ids:
-                        already_collected.append(res[0])
+                        already_collected.add(res[0])
                         successful_results.setdefault(level_id, []).append(res)
+
             for level_id, results in failed_results.items():
                 for res in results:
                     if res[0] in self._unfinished_sample_ids:
-                        already_collected.append(res[0])
+                        already_collected.add(res[0])
                         failed_results.setdefault(level_id, []).append(res)
 
             for level_id, results in times.items():
@@ -364,7 +405,7 @@ class SamplingPoolPBS(SamplingPool):
             # Delete pbsID file - it means job is finished
             # SamplingPoolPBS.delete_pbs_id_file(file)
 
-        self._unfinished_sample_ids = []
+        self._unfinished_sample_ids = set()
 
         return successful_results, failed_results, times
 
@@ -372,7 +413,7 @@ class SamplingPoolPBS(SamplingPool):
         """
         List of unfinished sample ids, the corresponding samples are collecting in next get_finished() call .
         """
-        self._unfinished_sample_ids = sample_ids
+        self._unfinished_sample_ids = set(sample_ids)
         
     @staticmethod
     def delete_pbs_id_file(file_path):

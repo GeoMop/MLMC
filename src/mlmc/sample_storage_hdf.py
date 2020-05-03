@@ -21,7 +21,7 @@ class SampleStorageHDF(SampleStorage):
             if append:
                 load_from_file = True
             else:
-                raise FileExistsError("HDF file {} already exists, use --force to delete it".format(file_path))
+                raise FileExistsError("HDF file {} already exists, use --clean to delete it".format(file_path))
 
         # HDF5 interface
         self._hdf_object = hdf.HDF5(file_path=file_path, load_from_file=load_from_file)

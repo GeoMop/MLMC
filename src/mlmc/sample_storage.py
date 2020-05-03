@@ -72,6 +72,7 @@ class SampleStorage(metaclass=ABCMeta):
         :return: List[float]
         """
 
+    @abstractmethod
     def unfinished_ids(self):
         """
         Get unfinished sample's ids
