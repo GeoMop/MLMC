@@ -208,7 +208,7 @@ class PbsJob:
         if times:
             self._append_file(times, self._times_file)
 
-        self._current_samples_to_permanent(current_samples)
+        self._save_sample_id_job_id_map(current_samples)
 
     def _write_end_mark(self, path):
         """
@@ -224,7 +224,7 @@ class PbsJob:
             with open(path, "w") as f:
                 yaml.dump(data, f)
 
-    def _current_samples_to_permanent(self, current_samples):
+    def _save_sample_id_job_id_map(self, current_samples):
         for sample_id in current_samples:
             self._change_to_sample_directory(sample_id)
 

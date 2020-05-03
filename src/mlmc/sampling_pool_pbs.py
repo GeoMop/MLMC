@@ -161,7 +161,7 @@ class SamplingPoolPBS(SamplingPool):
                                      '']
 
         self._pbs_header_template.extend(kwargs['env_setting'])
-        self._pbs_header_template.extend(('{python} {pbs_process_file_dir}/pbs_job.py {output_dir} {job_name} >'
+        self._pbs_header_template.extend(('{python} -m mlmc.pbs_job {output_dir} {job_name} >'
                                           '{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
         self._pbs_config = kwargs
 
@@ -351,13 +351,11 @@ class SamplingPoolPBS(SamplingPool):
 
         return successful_results, failed_results, n_running, times
     
-    def _permanent_sample_job_id(self, sample_dir):
+    def _load_sample_id_job_id_map(self, sample_dir):
         """
-
         :param sample_dir: path to sample directory
         :return: str, job id
         """
-
         file_name = os.path.join(sample_dir, PbsJob.PERMANENT_SAMPLE.format("*"))
         file = glob.glob(file_name)[0]
         job_id = re.findall(r'._(\d+)', file)[0]
@@ -379,7 +377,7 @@ class SamplingPoolPBS(SamplingPool):
                 continue
 
             sample_dir = os.path.join(self._output_dir, sample_id)
-            job_id = self._permanent_sample_job_id(sample_dir)
+            job_id = self._load_sample_id_job_id_map(sample_dir)
 
             successful, failed, time = PbsJob.read_results(job_id, self._jobs_dir)
 
