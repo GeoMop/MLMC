@@ -95,24 +95,26 @@ class SplineApproximation:
             self.polynomial = spl_poly.polynomial
             return
 
-        coeficients_matrix = np.empty((self.poly_degree+1, self.poly_degree+1))
-        constants_matrix = np.empty(self.poly_degree+1)
+        # coeficients_matrix = np.empty((self.poly_degree+1, self.poly_degree+1))
+        # constants_matrix = np.empty(self.poly_degree+1)
+        #
+        # # g(1) = 0, g(-1) = 1
+        # coeficients_matrix[0] = np.ones(self.poly_degree+1)
+        # coeficients_matrix[1] = [1 if i % 2 != 0 or i == self.poly_degree else -1 for i in range(self.poly_degree+1)]
+        # constants_matrix[0] = 0
+        # constants_matrix[1] = 1
+        #
+        # for j in range(self.poly_degree - 1):
+        #     coeficients_matrix[j+2] = np.flip(np.array([(1 ** (i + j + 1) - (-1) ** (i + j + 1)) / (i + j + 1) for i
+        #                                                 in range(self.poly_degree+1)]))
+        #     constants_matrix[j + 2] = (-1) ** j / (j + 1)
+        #
+        # poly_coefs = np.linalg.solve(coeficients_matrix, constants_matrix)
+        # self.polynomial = np.poly1d(poly_coefs)
 
-        # g(1) = 0, g(-1) = 1
-        coeficients_matrix[0] = np.ones(self.poly_degree+1)
-        coeficients_matrix[1] = [1 if i % 2 != 0 or i == self.poly_degree else -1 for i in range(self.poly_degree+1)]
-        constants_matrix[0] = 0
-        constants_matrix[1] = 1
+        self.polynomial = self.giles_poly
 
-        for j in range(self.poly_degree - 1):
-            coeficients_matrix[j+2] = np.flip(np.array([(1 ** (i + j + 1) - (-1) ** (i + j + 1)) / (i + j + 1) for i
-                                                        in range(self.poly_degree+1)]))
-            constants_matrix[j + 2] = (-1) ** j / (j + 1)
-
-        poly_coefs = np.linalg.solve(coeficients_matrix, constants_matrix)
-        self.polynomial = np.poly1d(poly_coefs)
-
-        self._test_poly()
+        #self._test_poly()
 
     def _test_poly(self):
         """
@@ -145,9 +147,14 @@ class SplineApproximation:
         indices = (-1 <= data) & (data <= 1)
         data = data[indices]
 
+        #print("data ", data)
+
         if len(data) > 0:
             result[indices] = self.polynomial(data)
         return result
+
+    def giles_poly(self, data):
+        return 0.5 + (5*(data**3) - 9*data)/8
 
     def indicator(self, interpolation_point, data):
         """
@@ -218,6 +225,10 @@ class SplineApproximation:
             self._level_smoothing_factor = self.accuracy**(1/(self.poly_degree + 1)) #/ 5
             #self._level_smoothing_factor = self.smoothing_factor[level._level_idx]
 
+            # self._level_smoothing_factor = 0.0625
+            # #self._level_smoothing_factor = 1e-6
+            # self._level_smoothing_factor =1
+
             #print("_level_smoothing_factor ", self._level_smoothing_factor)
 
             for n, s in enumerate(self.interpolation_points):
@@ -248,6 +259,9 @@ class SplineApproximation:
             plt.plot(X, Y, label="spline poly")
         else:
             plt.plot(X, Y, label="poly1d")
+
+        Y = self.giles_poly(X)
+        plt.plot(X, Y, label="giles poly")
 
         plt.title("Smoothing polynomial")
         plt.legend()
@@ -373,11 +387,16 @@ class BSplineApproximation(SplineApproximation):
         """
         self._setup()
         spl = splrep(self.interpolation_points, self.all_levels_indicator)
+        t, c, k = spl
+
+        spl = (t, self.all_levels_indicator, k)
         return splev(points, spl)
 
     def density(self, points):
         self._setup()
         spl = splrep(self.interpolation_points, self.all_levels_indicator)
+        t, c, k = spl
+        spl = (t, self.all_levels_indicator, k)
 
         return splev(points, spl, der=1)
 
