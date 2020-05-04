@@ -2371,6 +2371,7 @@ def _pca_(cov_center, tol):
 
 def _pca(cov_center, tol):
     from numpy import ma
+    print("tol ", tol)
     eval, evec = np.linalg.eigh(cov_center)
 
     original_eval = eval
@@ -2384,7 +2385,6 @@ def _pca(cov_center, tol):
 
     # cum_var_exp, var_exp = print_cumul(sorted(np.abs(eval), reverse=True))
     # print("ABS CUM VAR EXP ", cum_var_exp)
-
 
     eval = np.flip(eval, axis=0)
     evec = np.flip(evec, axis=1)
@@ -2435,6 +2435,12 @@ def _pca(cov_center, tol):
     # if threshold == len(eval)-1:
     #     threshold_set = True
 
+    print("cut: {}, threshold: {}".format(cut, threshold))
+
+    # There is cut on cumul value, so cut it from original eig pairs
+    if cut is False and threshold != (len(eval) - 1):
+        eig_pairs = [(eval[i], evec[:, i]) for i in range(len(eval))]
+
     if threshold == 0:
         threshold = len(eval) - 1
         threshold_set = True
@@ -2446,7 +2452,6 @@ def _pca(cov_center, tol):
 
     #threshold = 35
 
-    print("tol ", tol)
 
     #threshold = 9#len(new_eig_pairs)
     print("THreshold ", threshold)
@@ -2456,8 +2461,7 @@ def _pca(cov_center, tol):
 
     print("cut ", cut)
 
-    if cut is False:
-        eig_pairs = [(eval[i], evec[:, i]) for i in range(len(eval))]
+
 
     new_evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
     new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
@@ -2742,8 +2746,14 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     else:
         # print("evec flipped ", evec_flipped)
         # print("eval flipped ", eval_flipped)
+        #
+        # print("evec_flipped * (1 / np.sqrt(eval_flipped))[None, :]")
+        # print(pd.DataFrame(evec_flipped * (1 / np.sqrt(eval_flipped))[None, :]))
 
         icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
+
+        # print("icov_sqrt_t")
+        # print(pd.DataFrame(icov_sqrt_t))
 
         # try:
         #     eval, evec = np.linalg.eigh(icov_sqrt_t)
