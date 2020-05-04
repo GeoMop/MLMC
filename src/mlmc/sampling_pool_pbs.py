@@ -54,11 +54,11 @@ class SamplingPoolPBS(SamplingPool):
     JOB = "{}_job.sh"  # Pbs process file
     JOBS_COUNT = "jobs_count.txt" # Contains current number of jobs which is also job unique identifier
 
-    def __init__(self, work_dir, job_weight=200000, force=False):
+    def __init__(self, work_dir, job_weight=200000, clean=False):
         """
         :param work_dir: Path to working directory
         :param job_weight: Maximum sum of task sizes summation in single one job, if this value is exceeded then the job is executed
-        :param force: bool, if True delete output dir
+        :param clean: bool, if True delete output dir
         """
         self._work_dir = work_dir
         # Working directory - other subdirectories are created in this one
@@ -80,12 +80,15 @@ class SamplingPoolPBS(SamplingPool):
         self._unfinished_sample_ids = set()
         # List of sample id which are not collected - collection attempts are done in the get_finished()
 
-        self.force = force
+        self.clean = clean
 
         self._output_dir = None
         self._jobs_dir = None
         self._create_output_dir()
         self._create_job_dir()
+
+        self._job_count = self._get_job_count()
+        # Current number of jobs - sort of jobID
 
     def _create_output_dir(self):
         """
@@ -94,7 +97,7 @@ class SamplingPoolPBS(SamplingPool):
         """
         self._output_dir = os.path.join(self._work_dir, SamplingPoolPBS.OUTPUT_DIR)
 
-        if self.force and os.path.isdir(self._output_dir):
+        if self.clean and os.path.isdir(self._output_dir):
             shutil.rmtree(self._output_dir)
 
         os.makedirs(self._output_dir, mode=0o775, exist_ok=True)
@@ -340,7 +343,7 @@ class SamplingPoolPBS(SamplingPool):
                 for level_id, results in failed.items():
                     failed_results.setdefault(level_id, []).extend(results)
                 for level_id, results in time.items():
-                    times[level_id] = results
+                    times[level_id] = results[-1]
 
                 # Delete pbsID file - it means job is finished
                 SamplingPoolPBS.delete_pbs_id_file(file)

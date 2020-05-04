@@ -17,18 +17,13 @@ class Process:
 
     def __init__(self):
         args = self.get_arguments(sys.argv[1:])
-
-        print("args ", args)
-
-        self.rm_hdf_file = True
-        # Rm mlmc_hdf file, if the file exists and append is False than the exception is raised from SampleStorageHDF class
-
+        
         self.step_range = (1, 0.01)
         # Number of step_range items corresponds to the number of levels
 
         self.work_dir = args.work_dir
         self.append = False
-        self.clean = True
+        self.clean = args.clean
 
         if args.command == 'run':
             self.run()
@@ -51,7 +46,7 @@ class Process:
                                  'collect - keep collected, append existing HDF file'
                                  'renew - renew failed samples, run new samples with failed sample ids (which determine random seed)')
         parser.add_argument('work_dir', help='Work directory')
-        parser.add_argument("-f", "--clean", default=False, action='store_true', help="Clean before run") # todo: použije se jen při commandu "run"
+        parser.add_argument("-c", "--clean", default=False, action='store_true', help="Clean before run") # todo: použije se jen při commandu "run"
         #parser.add_argument("-c", "--clean", default=False, action='store_true', help="Clean auxiliary structures")
 
         args = parser.parse_args(arguments)
@@ -61,7 +56,7 @@ class Process:
     def run(self, renew=False):
         np.random.seed(3)
         n_moments = 5
-        failed_fraction = 0.1
+        failed_fraction = 0
 
         # work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
         # if os.path.exists(work_dir):
@@ -150,7 +145,7 @@ class ProcessPBS(Process):
         simulation_config = {"config_yaml": os.path.join(self.work_dir, 'synth_sim_config.yaml')}
         simulation_factory = SynthSimulationWorkspace(simulation_config)
 
-        if self.rm_hdf_file:
+        if self.clean:
             file_path = os.path.join(self.work_dir, "mlmc_{}.hdf5".format(len(step_range)))
             if os.path.exists(file_path):
                 os.remove(os.path.join(self.work_dir, "mlmc_{}.hdf5".format(len(step_range))))
