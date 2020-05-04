@@ -2423,7 +2423,7 @@ def _pca(cov_center, tol):
         print("ALL <= (100 + tol * 10)) threshold ", threshold)
     else:
         print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
-        cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-10, tol]))#1e-5)
+        cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))#1e-5)
         print("CUT threshold ", cut_threshold)
         if cut_threshold < threshold:  # and not threshold_set:
             threshold = cut_threshold
