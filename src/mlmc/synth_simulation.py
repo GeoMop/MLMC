@@ -288,18 +288,4 @@ class SynthSimulationWorkspace(Simulation):
         return config
 
     def result_format(self):
-        return SynthSimulationWorkspace.result_format()
-
-    @staticmethod
-    def result_format() -> List[QuantitySpec]:
-        """
-        Result format
-        :return:
-        """
-        spec1 = QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=['10', '20'])
-        spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40'])
-        # spec1 = QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=[(1, 2, 3), (4, 5, 6)])
-        # spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=[(7, 8, 9), (10, 11, 12)])
-        return [spec1, spec2]
-
-
+        return SynthSimulation.result_format()

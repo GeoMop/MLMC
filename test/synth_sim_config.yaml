@@ -1,0 +1,4 @@
+distr: norm
+complexity: 2
+nan_fraction: 0.2
+sim_method: _sample_fn

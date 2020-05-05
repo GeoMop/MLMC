@@ -369,14 +369,35 @@ class LevelGroup:
             successful_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.collected_ids_dset][()]]
             return np.concatenate((np.array(successful_ids), np.array(failed_ids)), axis=0)
 
+    def get_unfinished_ids(self):
+        """
+        Get unfinished sample ids as difference between scheduled ids and finished ids
+        :return: list
+        """
+        scheduled_ids = [sample[0].decode() for sample in self.scheduled()]
+        return list(set(scheduled_ids) - set(self.get_finished_ids()))
+
     def get_failed_ids(self):
         """
         Failed samples ids
-        :return: set() of failed sample ids
+        :return: list of failed sample ids
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
-            # Return NumPy array otherwise return set()
-            return set(hdf_file[self.level_group_path][self.failed_dset])
+            failed_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.failed_dset][()]]
+
+        return failed_ids
+
+    def clear_failed_dataset(self):
+        """
+        Clear failed_ids dataset
+        :return: None
+        """
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            if self.failed_dset in hdf_file[self.level_group_path]:
+                del hdf_file[self.level_group_path][self.failed_dset]
+                # Create dataset for failed samples
+                self._make_dataset(name=self.failed_dset, shape=(0,), dtype=LevelGroup.FAILED_DTYPE, maxshape=(None,),
+                                   chunks=True)
 
     @property
     def n_ops_estimate(self):

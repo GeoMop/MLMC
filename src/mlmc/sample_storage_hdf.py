@@ -9,15 +9,19 @@ import mlmc.hdf5 as hdf
 # Starts from scratch
 class SampleStorageHDF(SampleStorage):
 
-    def __init__(self, file_path):
+    def __init__(self, file_path, append=False):
         """
         HDF5 storage, provide method to interact with storage
         :param file_path: absolute path to hdf file (which not exists at the moment)
+        :param append: append to existing hdf5
         """
         # If file exists load not create new file
         load_from_file = False
         if os.path.exists(file_path):
-            load_from_file = True
+            if append:
+                load_from_file = True
+            else:
+                raise FileExistsError("HDF file {} already exists, use --clean to delete it".format(file_path))
 
         # HDF5 interface
         self._hdf_object = hdf.HDF5(file_path=file_path, load_from_file=load_from_file)
@@ -133,9 +137,10 @@ class SampleStorageHDF(SampleStorage):
         levels_results = list(np.empty(len(self._level_groups)))
         for level in self._level_groups:
             results = level.collected()
-            if results is None:
+            if results is None or len(results) == 0:
+                levels_results[int(level.level_id)] = []
                 continue
-                
+
             levels_results[int(level.level_id)] = results.transpose((2, 0, 1))
 
         return levels_results
@@ -150,6 +155,35 @@ class SampleStorageHDF(SampleStorage):
             n_finished[int(level.level_id)] += len(level.get_finished_ids())
 
         return n_finished
+
+    def unfinished_ids(self):
+        """
+        List of unfinished ids
+        :return: list
+        """
+        unfinished = []
+
+        for level in self._level_groups:
+            unfinished.extend(level.get_unfinished_ids())
+
+        return unfinished
+
+    def failed_samples(self):
+        """
+        Dictionary of failed samples
+        :return: dict
+        """
+        failed_samples = {}
+
+        for level in self._level_groups:
+            print("level.get_failed_ids() ", level.get_failed_ids())
+            failed_samples[str(level.level_id)] = list(level.get_failed_ids())
+
+        return failed_samples
+
+    def clear_failed(self):
+        for level in self._level_groups:
+            level.clear_failed_dataset()
 
     def save_n_ops(self, n_ops):
         """

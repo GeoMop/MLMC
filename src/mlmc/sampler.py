@@ -21,15 +21,22 @@ class Sampler:
 
         self._step_range = step_range
 
-        # Number of created samples
-        self._n_scheduled_samples = np.zeros(len(step_range))
-        # Number of target samples
         self._n_target_samples = np.zeros(len(step_range))
+        # Number of target samples
         self._level_sim_objects = []
         self._create_level_sim_objects(len(step_range), sim_factory)
 
         sample_storage.save_global_data(step_range=step_range,
                                         result_format=sim_factory.result_format())
+
+        self._n_scheduled_samples = [len(level_scheduled) for level_scheduled in sample_storage.load_scheduled_samples()]
+        # Number of created samples
+
+        if not self._n_scheduled_samples:
+            self._n_scheduled_samples = np.zeros(len(step_range))
+
+        # Are there any unfinished samples which have already finished?
+        self._check_failed_samples()
 
         # @TODO: get unfinished samples from sampler and call have permanent samples -> add results to pool's queues,
         # before scheduled samples call, call get_finished - we need to know how many samples is finished
@@ -114,6 +121,9 @@ class Sampler:
         :return: None
         """
         self.ask_sampling_pool_for_samples()
+
+        print("plan samples ", self._n_target_samples)
+        print("scheduled samples ", self._n_scheduled_samples)
         # @TODO: avoid negative number of planned samples
         plan_samples = self._n_target_samples - self._n_scheduled_samples
 
@@ -133,6 +143,14 @@ class Sampler:
 
             # Store scheduled samples
             self.sample_storage.save_scheduled_samples(level_id, samples)
+            
+    def _check_failed_samples(self):
+        """
+        Get unfinished samples and check if failed samples have saved results then collect them
+        :return:
+        """
+        unfinished_sample_ids = self.sample_storage.unfinished_ids()
+        self._sampling_pool.have_permanent_samples(unfinished_sample_ids)
 
     def ask_sampling_pool_for_samples(self, sleep=0, timeout=None):
         """
@@ -174,11 +192,14 @@ class Sampler:
     def process_adding_samples(self, n_estimated, sleep, add_coef=0.1):
         """
         Process adding samples
+        Note: n_estimated are wrong if n_ops is similar through all levels
         :param n_estimated: Number of estimated samples on each level, list
         :param sleep: Sample waiting time
         :param add_coef: default value 0.1
         :return: bool, if True adding samples is complete
         """
+        self.ask_sampling_pool_for_samples()
+
         # Get default scheduled samples
         n_scheduled = self.l_scheduled_samples()
 
@@ -241,3 +262,21 @@ class Sampler:
         :return: list
         """
         return self._n_target_samples
+
+    def renew_failed_samples(self):
+        """
+        Resurrect failed samples
+        :return: None
+        """
+        failed_samples = self.sample_storage.failed_samples()
+
+        for level_id, sample_ids in failed_samples.items():
+            samples = []
+            level_id = int(level_id)
+            for sample_id in sample_ids:
+                level_sim = self._level_sim_objects[level_id]
+                # Schedule current sample
+                self._sampling_pool.schedule_sample(sample_id, level_sim)
+                samples.append(sample_id)
+
+        self.sample_storage.clear_failed()
