@@ -27,9 +27,9 @@ class SamplingPool(ABC):
         """
 
     @abstractmethod
-    def have_permanent_sample(self, sample_id):
+    def have_permanent_samples(self, sample_ids):
         """
-        Is sample serialized?
+        Informs the Pool about sample_ids that have been scheduled but not yet finished
         """
 
     @abstractmethod
@@ -190,7 +190,7 @@ class OneProcessPool(SamplingPool):
             self.times[level_id][0] += running_time
             self.times[level_id][1] += 1
 
-    def have_permanent_sample(self, sample_id):
+    def have_permanent_samples(self, sample_ids):
         return False
 
     def get_finished(self):
@@ -241,6 +241,7 @@ class ProcessPool(OneProcessPool):
 
         if not err_msg:
             self._queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
+            self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
         else:
             self._failed_queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, err_msg))
             self._move_failed_dir(sample_id, level_sim.need_sample_workspace)

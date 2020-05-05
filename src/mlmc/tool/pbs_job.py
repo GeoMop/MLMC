@@ -4,12 +4,14 @@ import sys
 import yaml
 import time
 import pickle
-import json
 from typing import List
+import ruamel.yaml
+import warnings
+from ruamel.yaml.error import ReusedAnchorWarning
+warnings.simplefilter("ignore", ReusedAnchorWarning)
 
 
-class PbsProcess:
-
+class PbsJob:
     SCHEDULED = "{}_scheduled.yaml"
     # Store scheduled samples as List[(level_sim.level_id, sample_id, seed)]
     SUCCESSFUL_RESULTS = "{}_successful_results.yaml"
@@ -22,6 +24,9 @@ class PbsProcess:
     # File which name assign our job id to pbs jobs id 'JobID_Pbs_ID'
     CLASS_FILE = "pbs_process_serialized.txt"
     # Serialized data which are "passed" from sampling pool to pbs process
+    PERMANENT_SAMPLE = "permanent_jobID_{}"
+
+    # Indicates that sample is stored in _successful_results.yaml or _failed_results.yaml
 
     def __init__(self, output_dir, jobs_dir, job_id, level_sim_file):
         """
@@ -50,7 +55,7 @@ class PbsProcess:
         :return: PbsProcess instance
         """
         pbs_process = cls(output_dir, jobs_dir, job_id, level_sim_file)
-        PbsProcess._serialize_pbs_process(pbs_process)
+        PbsJob._serialize_pbs_process(pbs_process)
 
         return pbs_process
 
@@ -60,8 +65,8 @@ class PbsProcess:
         Create PbsProcess via PBS
         :return:
         """
-        job_id, output_dir = PbsProcess.command_params()
-        jobs_dir, level_sim_file_format = PbsProcess._deserialize_pbs_process(output_dir)
+        job_id, output_dir = PbsJob.command_params()
+        jobs_dir, level_sim_file_format = PbsJob._deserialize_pbs_process(output_dir)
 
         return cls(output_dir, jobs_dir, job_id, level_sim_file_format)
 
@@ -73,8 +78,8 @@ class PbsProcess:
         :param pbs_process: PbsProcess instance
         :return: None
         """
-        if not os.path.exists(os.path.join(pbs_process._output_dir, PbsProcess.CLASS_FILE)):
-            with open(os.path.join(pbs_process._output_dir, PbsProcess.CLASS_FILE), "w") as writer:
+        if not os.path.exists(os.path.join(pbs_process._output_dir, PbsJob.CLASS_FILE)):
+            with open(os.path.join(pbs_process._output_dir, PbsJob.CLASS_FILE), "w") as writer:
                 writer.write(pbs_process._jobs_dir + ";")
                 writer.write(pbs_process._level_sim_file + ";")
 
@@ -85,7 +90,7 @@ class PbsProcess:
         :param output_dir: str
         :return: jobs_dir, level_sim_file
         """
-        with open(os.path.join(output_dir, PbsProcess.CLASS_FILE), "r") as reader:
+        with open(os.path.join(output_dir, PbsJob.CLASS_FILE), "r") as reader:
             line = reader.readline().split(';')
 
             return line[0], line[1]
@@ -115,7 +120,7 @@ class PbsProcess:
         Get scheduled samples
         :return: List[Tuple[level_id: int, sample_id: str, seed: int]] sorted by level_id ASC
         """
-        with open(os.path.join(self._jobs_dir, PbsProcess.SCHEDULED.format(self._job_id))) as file:
+        with open(os.path.join(self._jobs_dir, PbsJob.SCHEDULED.format(self._job_id))) as file:
             level_id_sample_id_seed = yaml.load(file, yaml.Loader)
 
         level_id_sample_id_seed.sort(key=lambda tup: tup[0])
@@ -126,19 +131,24 @@ class PbsProcess:
         Calculate scheduled samples
         :return:
         """
-        success_file = os.path.join(self._jobs_dir, PbsProcess.SUCCESSFUL_RESULTS.format(self._job_id))
-        failed_file = os.path.join(self._jobs_dir, PbsProcess.FAILED_RESULTS.format(self._job_id))
-        times_file = os.path.join(self._jobs_dir, PbsProcess.TIME.format(self._job_id))
+        self._success_file = os.path.join(self._jobs_dir, PbsJob.SUCCESSFUL_RESULTS.format(self._job_id))
+        self._failed_file = os.path.join(self._jobs_dir, PbsJob.FAILED_RESULTS.format(self._job_id))
+        self._times_file = os.path.join(self._jobs_dir, PbsJob.TIME.format(self._job_id))
 
         # List of Tuple[level id, sample id, random seed]
         level_id_sample_id_seed = self._get_level_id_sample_id_seed()
 
-        failed = {}
-        success = {}
+        failed = []
+        # Failed samples - Tuple(level_id, sample_id, error_msg)
+        success = []
+        # Successful samples - Tuple(level_id, sample_id, (fine result, coarse result))
         current_level = 0
+        current_samples = []
+        # Currently saved samples, permanent sample file is created for them
         start_time = time.time()
-        times = {0: [0, 0]}
-        chunk_to_file = 2  # Number of samples which are saved to file at one time
+        times = []
+        # Sample calculation time - Tuple(level_id, [n samples, cumul time for n sample])
+        n_times = 0
         for level_id, sample_id, seed in level_id_sample_id_seed:
             # Deserialize level simulation config
             if level_id not in self._level_simulations:
@@ -146,13 +156,14 @@ class PbsProcess:
 
             # Start measuring time
             if current_level != level_id:
-                times[current_level][0] = time.time() - start_time
-                times[level_id] = [0, 0]
+                # Save previous level times
+                times.append((current_level, time.time() - start_time, n_times))
+                n_times = 0
                 start_time = time.time()
                 current_level = level_id
 
-            level_sim = self._level_simulations[level_id]
-            assert level_sim.level_id == level_id
+            level_sim = self._level_simulations[current_level]
+            assert level_sim.level_id == current_level
             self._handle_sim_files(sample_id, level_sim)
 
             # Calculate sample
@@ -163,75 +174,73 @@ class PbsProcess:
             except Exception as err:
                 err_msg = str(err)
 
-            # Decrement number of samples, if zero then it is saved
-            chunk_to_file -= 1
-
             if not err_msg:
-                success.setdefault(level_id, []).append((sample_id, (res[0], res[1])))
+                success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
-                times[level_id][1] += 1
-                #self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
+                # self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
             else:
-                failed.setdefault(level_id, []).append((sample_id, err_msg))
-                #self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
+                failed.append((current_level, sample_id, err_msg))
+                # self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
+            current_samples.append(sample_id)
+            n_times += 1
+            times.append((current_level, time.time() - start_time, n_times))
+            self._save_to_file(success, failed, times, current_samples)
 
-            if chunk_to_file == 0:
-                chunk_to_file = 2
+            success = []
+            failed = []
+            current_samples = []
 
-                times[level_id][0] = time.time() - start_time
+        self._save_to_file(success, failed, times, current_samples)
 
-                # Write results to files
-                if success:
-                    self._append_file(success, success_file, level_id)
-                if failed:
-                    self._append_file(failed, failed_file, level_id)
-                if times:
-                    self._append_file(times, times_file, level_id, True)
+        # self._write_end_mark(self._success_file)
+        # self._write_end_mark(self._failed_file)
+        # self._write_end_mark(self._times_file)
 
-                success = {}
-                failed = {}
-
-        self._write_end_mark(success_file)
-        self._write_end_mark(failed_file)
-        self._write_end_mark(times_file)
-
-    def _write_end_mark(self, path):
+    def _save_to_file(self, success, failed, times, current_samples):
         """
-        Write end mark to the file
-        :param path: str, file path
+        Save sample results to files, create file which indicates that sample in stored
+        :param success: dict
+        :param failed: dict
+        :param times: dict
+        :param current_samples: list
         :return: None
         """
-        if os.path.exists(path):
-            with open(path, "r") as reader:
-                data = yaml.load(reader, yaml.Loader)
-            # Add end mark to the file
-            data["end"] = ""
-            with open(path, "w") as f:
-                yaml.dump(data, f)
+        # Write results to files
+        if success:
+            self._append_file(success, self._success_file)
+        if failed:
+            self._append_file(failed, self._failed_file)
+        if times:
+            self._append_file(times, self._times_file)
 
+        self._save_sample_id_job_id_map(current_samples)
 
-    def _append_file(self, data, path, level_id, time=False):
+    # def _write_end_mark(self, path):
+    #     """
+    #     Write end mark to the file
+    #     :param path: str, file path
+    #     :return: None
+    #     """
+    #     if os.path.exists(path):
+    #         with open(path, "a") as f:
+    #             yaml.dump("end", f)
+
+    def _save_sample_id_job_id_map(self, current_samples):
+        for sample_id in current_samples:
+            self._change_to_sample_directory(sample_id)
+
+            file_name = os.path.join(os.getcwd(), PbsJob.PERMANENT_SAMPLE.format(self._job_id))
+            with open(file_name, 'w') as w:
+                pass
+
+    def _append_file(self, data, path):
         """
         Append result files, it works on read - update - write basis
         :param data: Data to append
         :param path: file path
-        :param level_id: current level
-        :param time: bool, if true save time data
         :return: None
         """
-        if os.path.exists(path):
-            with open(path, "r") as reader:
-                file_data = yaml.load(reader, yaml.Loader)
-                if time:
-                    file_data[level_id] = data[level_id]
-                else:
-                    if level_id not in file_data:
-                        file_data[level_id] = []
-
-                    file_data[level_id].extend(data[level_id])
-                data = file_data
-
-        with open(path, "w") as f:
+        with open(path, "a") as f:
             yaml.dump(data, f)
 
     def _handle_sim_files(self, sample_id, level_sim):
@@ -244,7 +253,7 @@ class PbsProcess:
         if level_sim.need_sample_workspace:
             self._change_to_sample_directory(sample_id)
             self._copy_sim_files(level_sim.common_files)
-            
+
     def _change_to_sample_directory(self, sample_id):
         """
         Create sample directory and change working directory
@@ -277,24 +286,59 @@ class PbsProcess:
         """
         successful = {}
         failed = {}
-        time = [0, 0]
+        time = {}
 
         # Save successful results
-        if os.path.exists(os.path.join(jobs_dir, PbsProcess.SUCCESSFUL_RESULTS.format(job_id))):
-            with open(os.path.join(jobs_dir, PbsProcess.SUCCESSFUL_RESULTS.format(job_id)), "r") as reader:
-                successful = yaml.load(reader, yaml.Loader)
+        if os.path.exists(os.path.join(jobs_dir, PbsJob.SUCCESSFUL_RESULTS.format(job_id))):
+            with open(os.path.join(jobs_dir, PbsJob.SUCCESSFUL_RESULTS.format(job_id)), "r") as reader:
+                successful_samples = ruamel.yaml.load(reader)
+                for level_id, sample_id, result in successful_samples:
+                    successful.setdefault(level_id, []).append((sample_id, result))
 
         # Save failed results
-        if os.path.exists(os.path.join(jobs_dir, PbsProcess.FAILED_RESULTS.format(job_id))):
-            with open(os.path.join(jobs_dir, PbsProcess.FAILED_RESULTS.format(job_id)), "r") as reader:
-                failed = yaml.load(reader, yaml.Loader)
+        if os.path.exists(os.path.join(jobs_dir, PbsJob.FAILED_RESULTS.format(job_id))):
+            with open(os.path.join(jobs_dir, PbsJob.FAILED_RESULTS.format(job_id)), "r") as reader:
+                failed_samples = ruamel.yaml.load(reader)
+                for level_id, sample_id, err_msg in failed_samples:
+                    failed.setdefault(level_id, []).append((sample_id, err_msg))
 
         # Save time
-        if os.path.exists(os.path.join(jobs_dir, PbsProcess.TIME.format(job_id))):
-            with open(os.path.join(jobs_dir, PbsProcess.TIME.format(job_id)), "r") as reader:
-                time = yaml.load(reader, yaml.Loader)
+        if os.path.exists(os.path.join(jobs_dir, PbsJob.TIME.format(job_id))):
+            with open(os.path.join(jobs_dir, PbsJob.TIME.format(job_id)), "r") as reader:
+                times = ruamel.yaml.load(reader)
+                for level_id, n_samples, t in times:
+                    time.setdefault(level_id, []).append((n_samples, t))
+
+        # Deal with not finished (failed) samples in finished job
+        level_id_sample_id_seed = PbsJob.get_scheduled_sample_ids(job_id, jobs_dir)
+
+        for level_id, sample_id, _ in level_id_sample_id_seed:
+            successfull_ids = [success[0] for success in successful.get(level_id, [])]
+            failed_ids = [f[0] for f in failed.get(level_id, [])]
+            if sample_id not in failed_ids and sample_id not in successfull_ids:
+                failed.setdefault(level_id, []).append((sample_id, "job failed"))
+
+        # if "end" in successful:
+        #     del successful["end"]
+        # if "end" in failed:
+        #     del failed["end"]
+        # if "end" in time:
+        #     del time["end"]
 
         return successful, failed, time
+
+    @staticmethod
+    def get_scheduled_sample_ids(job_id, jobs_dir):
+        """
+        Get scheduled samples
+        :param job_id: str
+        :param jobs_dir: str
+        :return:
+        """
+        with open(os.path.join(jobs_dir, PbsJob.SCHEDULED.format(job_id))) as file:
+            level_id_sample_id_seed = yaml.load(file, yaml.Loader)
+
+        return level_id_sample_id_seed
 
     def write_pbs_id(self, pbs_job_id):
         """
@@ -302,7 +346,7 @@ class PbsProcess:
         :param pbs_job_id: str
         :return: None
         """
-        file_name = os.path.join(self._jobs_dir, PbsProcess.PBS_ID.format(self._job_id))
+        file_name = os.path.join(self._jobs_dir, PbsJob.PBS_ID.format(self._job_id))
         file_name += pbs_job_id
         with open(file_name, 'w') as w:
             pass
@@ -314,7 +358,7 @@ class PbsProcess:
         :return: None
         """
         try:
-            with open(os.path.join(self._jobs_dir, PbsProcess.SCHEDULED.format(self._job_id)), "w") as file:
+            with open(os.path.join(self._jobs_dir, PbsJob.SCHEDULED.format(self._job_id)), "w") as file:
                 yaml.dump(scheduled, file)
         except FileNotFoundError:
             print("Make sure you call _create_files method previously")
@@ -327,11 +371,11 @@ class PbsProcess:
         :param jobs_dir: str, path to jobs directory
         :return: int
         """
-        with open(os.path.join(jobs_dir, PbsProcess.SCHEDULED.format(job_id))) as file:
+        with open(os.path.join(jobs_dir, PbsJob.SCHEDULED.format(job_id))) as file:
             lines = yaml.load(file, yaml.Loader)
             return len(lines)
 
 
 if __name__ == "__main__":
-    pbs_process = PbsProcess.create_process()
+    pbs_process = PbsJob.create_process()
     pbs_process.calculate_samples()

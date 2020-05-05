@@ -25,13 +25,14 @@ class QuantityEstimate:
 
         # @TODO: it does not works with arrays quantities, remove ASAP
         new_level_results = []
-        if level_results[0].shape[0] > 1:
-            for l_res in level_results:
-                if isinstance(l_res, np.ndarray):
-                    new_level_results.append(l_res[0])
-        else:
-            new_level_results = level_results
 
+        for lev_res in level_results:
+            if len(lev_res) == 0:
+                continue
+
+            if lev_res[0].shape[0] > 1:
+                if isinstance(lev_res, np.ndarray):
+                    new_level_results.append(lev_res[0])
         return new_level_results
 
     def estimate_diff_vars_regression(self, n_created_samples, moments_fn=None, raw_vars=None):

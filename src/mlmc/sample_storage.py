@@ -72,6 +72,13 @@ class SampleStorage(metaclass=ABCMeta):
         :return: List[float]
         """
 
+    @abstractmethod
+    def unfinished_ids(self):
+        """
+        Get unfinished sample's ids
+        :return: list
+        """
+
 
 class Memory(SampleStorage):
 
@@ -208,4 +215,12 @@ class Memory(SampleStorage):
         n_ops = list(np.empty(len(np.max(self._n_ops.keys()))))
         for level, time in self._n_ops.items():
             n_ops[level] = time
+
         return n_ops
+
+    def unfinished_ids(self):
+        """
+        We finished all samples in memory
+        :return:
+        """
+        return []

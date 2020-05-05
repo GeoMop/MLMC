@@ -18,22 +18,17 @@ cat >$pbs_script <<EOF
 #PBS -j oe
 
 cd ${work_dir}
+module load python36-modules-gcc
 
-echo "Load modules..."
-
-module use /storage/praha1/home/jan-hybs/modules
-module load flow123d
-
-python3 -m venv env
+python3 -m venv env --clear
 source env/bin/activate
-pip3 install pyyaml attrs numpy scipy h5py ${mlmc}
+
+pip3 install pyyaml attrs numpy scipy h5py ruamel.yaml ${mlmc}
 
 cd ${script_path}
 
-#pip3 freeze
-#module list
-python3 ${py_script} ${work_dir}
+python3 ${py_script} run ${work_dir} --clean
+deactivate
 EOF
 
-#qsub $pbs_script
-sh .$pbs_script
+qsub $pbs_script
