@@ -204,7 +204,7 @@ class OneProcessPool(SamplingPool):
 
     def _queues_to_list(self, queue_dict):
         results = {}
-        for level_id, q in queue_dict.items():
+        for level_id, q in list(queue_dict.items()):
             queue_list = list(q.queue)
             if not queue_list:
                 continue
