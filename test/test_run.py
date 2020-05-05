@@ -3,6 +3,7 @@ import shutil
 import numpy as np
 from scipy import stats
 import pytest
+import copy
 from mlmc.sim.synth_simulation import SynthSimulation, SynthSimulationWorkspace
 from mlmc.sampler import Sampler
 from mlmc.sample_storage import Memory
@@ -45,15 +46,15 @@ sampling_pool_thread_dir = ThreadPool(4, work_dir=work_dir)
 @pytest.mark.parametrize("test_case", [(simulation, storage_memory, sampling_pool_single_process),
                                        (simulation, storage_memory, sampling_pool_processes),
                                        (simulation, storage_memory, sampling_pool_thread),
-                                       (simulation, storage_hdf, sampling_pool_single_process),
-                                       (simulation, storage_hdf, sampling_pool_processes),
-                                       (simulation, storage_hdf, sampling_pool_thread),
+                                       (simulation, copy.deepcopy(storage_hdf), sampling_pool_single_process),
+                                       (simulation, copy.deepcopy(storage_hdf), sampling_pool_processes),
+                                       (simulation, copy.deepcopy(storage_hdf), sampling_pool_thread),
                                        (simulation_workspace, storage_memory, sampling_pool_single_process_dir),
                                        (simulation_workspace, storage_memory, sampling_pool_processes_dir),
                                        (simulation_workspace, storage_memory, sampling_pool_thread_dir),
-                                       (simulation_workspace, storage_hdf, sampling_pool_single_process_dir),
-                                       (simulation_workspace, storage_hdf, sampling_pool_processes_dir),
-                                       (simulation_workspace, storage_hdf, sampling_pool_thread_dir)])
+                                       (simulation_workspace, copy.deepcopy(storage_hdf), sampling_pool_single_process_dir),
+                                       (simulation_workspace, copy.deepcopy(storage_hdf), sampling_pool_processes_dir),
+                                       (simulation_workspace, copy.deepcopy(storage_hdf), sampling_pool_thread_dir)])
 def test_mlmc(test_case):
     np.random.seed(1234)
     n_moments = 5

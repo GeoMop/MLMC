@@ -29,7 +29,7 @@ class Sampler:
         sample_storage.save_global_data(step_range=step_range,
                                         result_format=sim_factory.result_format())
 
-        self._n_scheduled_samples = [len(level_scheduled) for level_scheduled in sample_storage.load_scheduled_samples()]
+        self._n_scheduled_samples = [len(level_scheduled) for level_id, level_scheduled in sample_storage.load_scheduled_samples().items()]
         # Number of created samples
 
         if not self._n_scheduled_samples:

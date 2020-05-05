@@ -71,7 +71,7 @@ class SampleStorageHDF(SampleStorage):
     def load_scheduled_samples(self):
         """
         Get scheduled samples for each level
-        :return: List[List]
+        :return:  Dict[level_id, List[sample_id: str]]
         """
         scheduled = {}
         for level in self._level_groups:
