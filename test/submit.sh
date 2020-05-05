@@ -23,11 +23,11 @@ module load python36-modules-gcc
 python3 -m venv env --clear
 source env/bin/activate
 
-pip3 install pyyaml attrs numpy scipy h5py ${mlmc}
+pip3 install pyyaml attrs numpy scipy h5py ruamel.yaml ${mlmc}
 
 cd ${script_path}
 
-python3 ${py_script} run ${work_dir} --force
+python3 ${py_script} run ${work_dir} --clean
 deactivate
 EOF
 

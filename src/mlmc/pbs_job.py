@@ -5,6 +5,10 @@ import yaml
 import time
 import pickle
 from typing import List
+import ruamel.yaml
+import warnings
+from ruamel.yaml.error import ReusedAnchorWarning
+warnings.simplefilter("ignore", ReusedAnchorWarning)
 
 
 class PbsJob:
@@ -181,15 +185,15 @@ class PbsJob:
             times.append((current_level, time.time() - start_time, n_times))
             self._save_to_file(success, failed, times, current_samples)
 
-            success = {}
-            failed = {}
+            success = []
+            failed = []
             current_samples = []
 
         self._save_to_file(success, failed, times, current_samples)
 
-        self._write_end_mark(self._success_file)
-        self._write_end_mark(self._failed_file)
-        self._write_end_mark(self._times_file)
+        # self._write_end_mark(self._success_file)
+        # self._write_end_mark(self._failed_file)
+        # self._write_end_mark(self._times_file)
 
     def _save_to_file(self, success, failed, times, current_samples):
         """
@@ -210,19 +214,15 @@ class PbsJob:
 
         self._save_sample_id_job_id_map(current_samples)
 
-    def _write_end_mark(self, path):
-        """
-        Write end mark to the file
-        :param path: str, file path
-        :return: None
-        """
-        if os.path.exists(path):
-            with open(path, "r") as reader:
-                data = yaml.load(reader, yaml.Loader)
-            # Add end mark to the file
-            data["end"] = ""
-            with open(path, "w") as f:
-                yaml.dump(data, f)
+    # def _write_end_mark(self, path):
+    #     """
+    #     Write end mark to the file
+    #     :param path: str, file path
+    #     :return: None
+    #     """
+    #     if os.path.exists(path):
+    #         with open(path, "a") as f:
+    #             yaml.dump("end", f)
 
     def _save_sample_id_job_id_map(self, current_samples):
         for sample_id in current_samples:
@@ -290,21 +290,21 @@ class PbsJob:
         # Save successful results
         if os.path.exists(os.path.join(jobs_dir, PbsJob.SUCCESSFUL_RESULTS.format(job_id))):
             with open(os.path.join(jobs_dir, PbsJob.SUCCESSFUL_RESULTS.format(job_id)), "r") as reader:
-                successful_samples = yaml.load(reader, yaml.Loader)
+                successful_samples = ruamel.yaml.load(reader)
                 for level_id, sample_id, result in successful_samples:
                     successful.setdefault(level_id, []).append((sample_id, result))
 
         # Save failed results
         if os.path.exists(os.path.join(jobs_dir, PbsJob.FAILED_RESULTS.format(job_id))):
             with open(os.path.join(jobs_dir, PbsJob.FAILED_RESULTS.format(job_id)), "r") as reader:
-                failed_samples = yaml.load(reader, yaml.Loader)
+                failed_samples = ruamel.yaml.load(reader)
                 for level_id, sample_id, err_msg in failed_samples:
                     failed.setdefault(level_id, []).append((sample_id, err_msg))
 
         # Save time
         if os.path.exists(os.path.join(jobs_dir, PbsJob.TIME.format(job_id))):
             with open(os.path.join(jobs_dir, PbsJob.TIME.format(job_id)), "r") as reader:
-                times = yaml.load(reader, yaml.Loader)
+                times = ruamel.yaml.load(reader)
                 for level_id, n_samples, t in times:
                     time.setdefault(level_id, []).append((n_samples, t))
 
@@ -317,12 +317,12 @@ class PbsJob:
             if sample_id not in failed_ids and sample_id not in successfull_ids:
                 failed.setdefault(level_id, []).append((sample_id, "job failed"))
 
-        if "end" in successful:
-            del successful["end"]
-        if "end" in failed:
-            del failed["end"]
-        if "end" in time:
-            del time["end"]
+        # if "end" in successful:
+        #     del successful["end"]
+        # if "end" in failed:
+        #     del failed["end"]
+        # if "end" in time:
+        #     del time["end"]
 
         return successful, failed, time
 
