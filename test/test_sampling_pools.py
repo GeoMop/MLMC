@@ -3,7 +3,7 @@ import shutil
 import numpy as np
 from scipy import stats
 
-from mlmc.sim.synth_simulation import SynthSimulation
+from test.synth_sim_for_tests import SynthSimulationForTests
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import ProcessPool, ThreadPool, OneProcessPool
@@ -27,7 +27,7 @@ def test_sampling_pools():
     os.makedirs(work_dir)
 
     simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
-    simulation_factory = SynthSimulation(simulation_config)
+    simulation_factory = SynthSimulationForTests(simulation_config)
 
     single_process_pool = OneProcessPool(work_dir=work_dir)
     multiprocess_pool = ProcessPool(4, work_dir=work_dir)
