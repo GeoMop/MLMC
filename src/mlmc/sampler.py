@@ -165,7 +165,7 @@ class Sampler:
             return 1
 
         n_running = 1
-        t0 = time.clock()
+        t0 = time.perf_counter()
         while n_running > 0:
             successful_samples, failed_samples, n_running, n_ops = self._sampling_pool.get_finished()
 
@@ -173,7 +173,7 @@ class Sampler:
             self._store_samples(successful_samples, failed_samples, n_ops)
 
             time.sleep(sleep)
-            if 0 < timeout < (time.clock() - t0):
+            if 0 < timeout < (time.perf_counter() - t0):
                 break
 
         return n_running
