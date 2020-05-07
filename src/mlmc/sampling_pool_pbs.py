@@ -164,7 +164,7 @@ class SamplingPoolPBS(SamplingPool):
                                      '']
 
         self._pbs_header_template.extend(kwargs['env_setting'])
-        self._pbs_header_template.extend(('{python} -m mlmc.pbs_job {output_dir} {job_name} >'
+        self._pbs_header_template.extend(('{python} -m mlmc.tool.pbs_job {output_dir} {job_name} >'
                                           '{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
         self._pbs_config = kwargs
 
