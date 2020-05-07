@@ -1,12 +1,10 @@
 import os
-import yaml
+import ruamel.yaml as yaml
 import numpy as np
 from typing import List
 import scipy.stats as stats
 from mlmc.sim.simulation import Simulation, QuantitySpec
 from mlmc.level_simulation import LevelSimulation
-from random import random
-from time import sleep
 
 
 class SynthSimulation(Simulation):
@@ -95,8 +93,6 @@ class SynthSimulation(Simulation):
         :param config: dictionary containing simulation configuration
         :return:
         """
-        sleep(random()*2)
-
         fine_random, coarse_random = SynthSimulation.generate_random_samples(config["distr"], seed)
 
         fine_step = config["fine"]["step"]

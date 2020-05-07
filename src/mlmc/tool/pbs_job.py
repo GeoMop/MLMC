@@ -1,11 +1,10 @@
 import os
 import shutil
 import sys
-import yaml
+import ruamel.yaml as yaml
 import time
 import pickle
 from typing import List
-import ruamel.yaml
 import warnings
 from ruamel.yaml.error import ReusedAnchorWarning
 warnings.simplefilter("ignore", ReusedAnchorWarning)
@@ -291,21 +290,21 @@ class PbsJob:
         # Save successful results
         if os.path.exists(os.path.join(jobs_dir, PbsJob.SUCCESSFUL_RESULTS.format(job_id))):
             with open(os.path.join(jobs_dir, PbsJob.SUCCESSFUL_RESULTS.format(job_id)), "r") as reader:
-                successful_samples = ruamel.yaml.load(reader)
+                successful_samples = yaml.load(reader)
                 for level_id, sample_id, result in successful_samples:
                     successful.setdefault(level_id, []).append((sample_id, result))
 
         # Save failed results
         if os.path.exists(os.path.join(jobs_dir, PbsJob.FAILED_RESULTS.format(job_id))):
             with open(os.path.join(jobs_dir, PbsJob.FAILED_RESULTS.format(job_id)), "r") as reader:
-                failed_samples = ruamel.yaml.load(reader)
+                failed_samples = yaml.load(reader)
                 for level_id, sample_id, err_msg in failed_samples:
                     failed.setdefault(level_id, []).append((sample_id, err_msg))
 
         # Save time
         if os.path.exists(os.path.join(jobs_dir, PbsJob.TIME.format(job_id))):
             with open(os.path.join(jobs_dir, PbsJob.TIME.format(job_id)), "r") as reader:
-                times = ruamel.yaml.load(reader)
+                times = yaml.load(reader)
                 for level_id, n_samples, t in times:
                     time.setdefault(level_id, []).append((n_samples, t))
 

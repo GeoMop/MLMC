@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from scipy import stats
 from mlmc.sim.synth_simulation import SynthSimulation, SynthSimulationWorkspace
@@ -9,6 +10,9 @@ from mlmc.moments import Legendre
 from mlmc.quantity_estimate import QuantityEstimate
 import mlmc.estimator as new_estimator
 
+"""
+Debug tests for developer
+"""
 
 def sampler_hdf_test():
     np.random.seed(3)

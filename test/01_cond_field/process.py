@@ -1,6 +1,6 @@
 import os
 import sys
-import yaml
+import ruamel.yaml as yaml
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(src_path, '..', '..', 'src'))

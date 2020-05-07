@@ -1,6 +1,6 @@
 import os
 import sys
-import yaml
+import ruamel.yaml as yaml
 import numpy as np
 
 src_path = os.path.dirname(os.path.abspath(__file__))
