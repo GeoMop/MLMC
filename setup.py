@@ -22,11 +22,9 @@ def read(*names, **kwargs):
     ).read()
 
 
-
-long_description='%s\n%s' % (
-    re.compile('^.. start-badges.*^.. end-badges', re.M | re.S).sub('', read('README.rst')),
-    re.sub(':[a-z]+:`~?(.*?)`', r'``\1``', read('CHANGES.rst'))
-)
+long_description_content_type='text/markdown'
+with open('README.md', encoding='utf-8') as f:
+    long_description = f.read()
 
 
 setup(

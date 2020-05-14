@@ -10,3 +10,4 @@ def stat_profiler():
     yield  statprof
     statprof.stop()
     statprof.display()
+

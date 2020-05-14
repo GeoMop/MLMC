@@ -33,15 +33,11 @@ import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-import mlmc.plot
-import mlmc.estimate
-import mlmc.distribution
-import mlmc.simple_distribution
+import mlmc.tool.plot
+# import mlmc.estimate
+# import mlmc.distribution
+# import mlmc.simple_distribution
 from mlmc import moments
-import mlmc.plot
 
 
 class CutDistribution:

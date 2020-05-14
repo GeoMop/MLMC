@@ -789,3 +789,4 @@ class CompareLevels:
 
     def plot_var_var(self, nl):
         self[nl].plot_bootstrap_var_var(self.moments)
+

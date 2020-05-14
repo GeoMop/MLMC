@@ -3,14 +3,16 @@ import shutil
 import numpy as np
 from scipy import stats
 import pytest
-from mlmc.synth_simulation import SynthSimulation, SynthSimulationWorkspace
+import copy
+from mlmc.sim.synth_simulation import SynthSimulationWorkspace
+from test.synth_sim_for_tests import SynthSimulationForTests
 from mlmc.sampler import Sampler
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
 from mlmc.moments import Legendre
 from mlmc.quantity_estimate import QuantityEstimate
-import mlmc.new_estimator
+import mlmc.estimator
 
 
 # Set work dir
@@ -24,14 +26,24 @@ os.makedirs(work_dir)
 failed_fraction = 0.1
 distr = stats.norm()
 simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
-simulation = SynthSimulation(simulation_config)
+simulation = SynthSimulationForTests(simulation_config)
 shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
 simulation_config = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
 simulation_workspace = SynthSimulationWorkspace(simulation_config)
 
 # Create sample storages
-storage_hdf = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_test.hdf5"))
 storage_memory = Memory()
+
+def hdf_storage_factory():
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+    work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+    if os.path.exists(work_dir):
+        shutil.rmtree(work_dir)
+    os.makedirs(work_dir)
+
+    # Create sample storages
+    return SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_test.hdf5"))
+
 
 # Create sampling pools
 sampling_pool_single_process = OneProcessPool()
@@ -45,21 +57,22 @@ sampling_pool_thread_dir = ThreadPool(4, work_dir=work_dir)
 @pytest.mark.parametrize("test_case", [(simulation, storage_memory, sampling_pool_single_process),
                                        (simulation, storage_memory, sampling_pool_processes),
                                        (simulation, storage_memory, sampling_pool_thread),
-                                       (simulation, storage_hdf, sampling_pool_single_process),
-                                       (simulation, storage_hdf, sampling_pool_processes),
-                                       (simulation, storage_hdf, sampling_pool_thread),
+                                       (simulation, hdf_storage_factory(), sampling_pool_single_process),
+                                       (simulation, hdf_storage_factory(), sampling_pool_processes),
+                                       (simulation, hdf_storage_factory(), sampling_pool_thread),
                                        (simulation_workspace, storage_memory, sampling_pool_single_process_dir),
                                        (simulation_workspace, storage_memory, sampling_pool_processes_dir),
                                        (simulation_workspace, storage_memory, sampling_pool_thread_dir),
-                                       (simulation_workspace, storage_hdf, sampling_pool_single_process_dir),
-                                       (simulation_workspace, storage_hdf, sampling_pool_processes_dir),
-                                       (simulation_workspace, storage_hdf, sampling_pool_thread_dir)])
+                                       (simulation_workspace, hdf_storage_factory(), sampling_pool_single_process_dir),
+                                       (simulation_workspace, hdf_storage_factory(), sampling_pool_processes_dir),
+                                       (simulation_workspace, hdf_storage_factory(), sampling_pool_thread_dir)])
 def test_mlmc(test_case):
     np.random.seed(1234)
     n_moments = 5
     step_range = [0.1, 0.001]
 
     simulation_factory, sample_storage, sampling_pool = test_case
+
     if sampling_pool._work_dir is not None:
         if os.path.exists(work_dir):
             shutil.rmtree(work_dir)
@@ -106,3 +119,4 @@ def test_mlmc(test_case):
     print("vars ", vars)
     assert means[0] == 1
     assert vars[0] == 0
+

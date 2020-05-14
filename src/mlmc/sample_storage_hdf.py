@@ -2,8 +2,8 @@ import os
 import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.simulation import QuantitySpec
-import mlmc.hdf5 as hdf
+from mlmc.sim.simulation import QuantitySpec
+import mlmc.tool.hdf5 as hdf
 
 
 # Starts from scratch
@@ -71,9 +71,9 @@ class SampleStorageHDF(SampleStorage):
     def load_scheduled_samples(self):
         """
         Get scheduled samples for each level
-        :return: List[List]
+        :return:  Dict[level_id, List[sample_id: str]]
         """
-        scheduled = list(np.empty(len(self._level_groups)))
+        scheduled = {}
         for level in self._level_groups:
             scheduled[int(level.level_id)] = [sample[0].decode() for sample in level.scheduled()]
         return scheduled

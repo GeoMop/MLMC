@@ -1,9 +1,9 @@
 import os
-import yaml
+import ruamel.yaml as yaml
 import numpy as np
 from typing import List
 import scipy.stats as stats
-from mlmc.simulation import Simulation, QuantitySpec
+from mlmc.sim.simulation import Simulation, QuantitySpec
 from mlmc.level_simulation import LevelSimulation
 
 

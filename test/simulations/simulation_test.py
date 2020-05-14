@@ -1,6 +1,5 @@
-from mlmc.simulation import Simulation
+from mlmc.sim.simulation import Simulation
 import numpy as np
-import scipy.stats
 
 
 class SimulationTest(Simulation):

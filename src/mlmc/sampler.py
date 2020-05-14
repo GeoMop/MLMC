@@ -3,7 +3,7 @@ import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
 from mlmc.sampling_pool import SamplingPool
-from mlmc.simulation import Simulation
+from mlmc.sim.simulation import Simulation
 
 
 class Sampler:
@@ -29,7 +29,7 @@ class Sampler:
         sample_storage.save_global_data(step_range=step_range,
                                         result_format=sim_factory.result_format())
 
-        self._n_scheduled_samples = [len(level_scheduled) for level_scheduled in sample_storage.load_scheduled_samples()]
+        self._n_scheduled_samples = [len(level_scheduled) for level_id, level_scheduled in sample_storage.load_scheduled_samples().items()]
         # Number of created samples
 
         if not self._n_scheduled_samples:
@@ -165,7 +165,7 @@ class Sampler:
             return 1
 
         n_running = 1
-        t0 = time.clock()
+        t0 = time.perf_counter()
         while n_running > 0:
             successful_samples, failed_samples, n_running, n_ops = self._sampling_pool.get_finished()
 
@@ -173,7 +173,7 @@ class Sampler:
             self._store_samples(successful_samples, failed_samples, n_ops)
 
             time.sleep(sleep)
-            if 0 < timeout < (time.clock() - t0):
+            if 0 < timeout < (time.perf_counter() - t0):
                 break
 
         return n_running
@@ -246,15 +246,14 @@ class Sampler:
             self.ask_sampling_pool_for_samples()
             n_finished = self.n_finished_samples
 
-    def set_level_target_n_samples(self, n_samples, fraction=1.0):
+    def set_level_target_n_samples(self, n_samples):
         """
         Set level number of target samples
         :param n_samples: list, each level target samples
-        :param fraction: Use just fraction of total samples
         :return: None
         """
         for level, n in enumerate(n_samples):
-            self._n_target_samples[level] += int(n * fraction)
+            self._n_target_samples[level] = max(self._n_target_samples[level], n)
 
     def l_scheduled_samples(self):
         """

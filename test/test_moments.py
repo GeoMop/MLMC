@@ -3,10 +3,10 @@ Test class monomials
 """
 import numpy as np
 import mlmc.moments
-import mlmc.distribution
+import mlmc.tool.distribution
 import scipy.integrate as integrate
 import scipy.stats as stats
-#import matplotlib.pyplot as plt
+
 
 
 def test_monomials():

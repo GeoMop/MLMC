@@ -1,11 +1,10 @@
 import os
 import shutil
 import sys
-import yaml
+import ruamel.yaml as yaml
 import time
 import pickle
 from typing import List
-import ruamel.yaml
 import warnings
 from ruamel.yaml.error import ReusedAnchorWarning
 warnings.simplefilter("ignore", ReusedAnchorWarning)
@@ -25,6 +24,7 @@ class PbsJob:
     CLASS_FILE = "pbs_process_serialized.txt"
     # Serialized data which are "passed" from sampling pool to pbs process
     PERMANENT_SAMPLE = "permanent_jobID_{}"
+
     # Indicates that sample is stored in _successful_results.yaml or _failed_results.yaml
 
     def __init__(self, output_dir, jobs_dir, job_id, level_sim_file):
@@ -176,10 +176,10 @@ class PbsJob:
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
-                #self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
+                # self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
             else:
                 failed.append((current_level, sample_id, err_msg))
-                #self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
+                # self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
             current_samples.append(sample_id)
             n_times += 1
             times.append((current_level, time.time() - start_time, n_times))
@@ -252,7 +252,7 @@ class PbsJob:
         if level_sim.need_sample_workspace:
             self._change_to_sample_directory(sample_id)
             self._copy_sim_files(level_sim.common_files)
-            
+
     def _change_to_sample_directory(self, sample_id):
         """
         Create sample directory and change working directory
@@ -290,27 +290,27 @@ class PbsJob:
         # Save successful results
         if os.path.exists(os.path.join(jobs_dir, PbsJob.SUCCESSFUL_RESULTS.format(job_id))):
             with open(os.path.join(jobs_dir, PbsJob.SUCCESSFUL_RESULTS.format(job_id)), "r") as reader:
-                successful_samples = ruamel.yaml.load(reader)
+                successful_samples = yaml.load(reader)
                 for level_id, sample_id, result in successful_samples:
                     successful.setdefault(level_id, []).append((sample_id, result))
 
         # Save failed results
         if os.path.exists(os.path.join(jobs_dir, PbsJob.FAILED_RESULTS.format(job_id))):
             with open(os.path.join(jobs_dir, PbsJob.FAILED_RESULTS.format(job_id)), "r") as reader:
-                failed_samples = ruamel.yaml.load(reader)
+                failed_samples = yaml.load(reader)
                 for level_id, sample_id, err_msg in failed_samples:
                     failed.setdefault(level_id, []).append((sample_id, err_msg))
 
         # Save time
         if os.path.exists(os.path.join(jobs_dir, PbsJob.TIME.format(job_id))):
             with open(os.path.join(jobs_dir, PbsJob.TIME.format(job_id)), "r") as reader:
-                times = ruamel.yaml.load(reader)
+                times = yaml.load(reader)
                 for level_id, n_samples, t in times:
                     time.setdefault(level_id, []).append((n_samples, t))
 
         # Deal with not finished (failed) samples in finished job
         level_id_sample_id_seed = PbsJob.get_scheduled_sample_ids(job_id, jobs_dir)
-        
+
         for level_id, sample_id, _ in level_id_sample_id_seed:
             successfull_ids = [success[0] for success in successful.get(level_id, [])]
             failed_ids = [f[0] for f in failed.get(level_id, [])]
