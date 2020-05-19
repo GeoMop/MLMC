@@ -121,10 +121,6 @@ class Sampler:
         :return: None
         """
         self.ask_sampling_pool_for_samples()
-
-        print("plan samples ", self._n_target_samples)
-        print("scheduled samples ", self._n_scheduled_samples)
-        # @TODO: avoid negative number of planned samples
         plan_samples = self._n_target_samples - self._n_scheduled_samples
 
         for level_id, n_samples in enumerate(plan_samples):
