@@ -251,7 +251,8 @@ class PbsJob:
         """
         if level_sim.need_sample_workspace:
             self._change_to_sample_directory(sample_id)
-            self._copy_sim_files(level_sim.common_files)
+            if level_sim.common_files is not None:
+                self._copy_sim_files(level_sim.common_files)
 
     def _change_to_sample_directory(self, sample_id):
         """
