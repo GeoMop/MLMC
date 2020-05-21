@@ -302,7 +302,11 @@ class FlowSim(Simulation):
         using common fields_step.msh file for generated fields.
         :return:
         """
-        subprocess.call([self.env['gmsh'], "-2", '-clscale', str(fine_step), '-o', mesh_file, geo_file])
+        if self.env['gmsh_version'] == 2:
+            subprocess.call(
+                [self.env['gmsh'], "-2", '-format', 'msh2', '-clscale', str(fine_step), '-o', mesh_file, geo_file])
+        else:
+            subprocess.call([self.env['gmsh'], "-2", '-clscale', str(fine_step), '-o', mesh_file, geo_file])
 
     @staticmethod
     def extract_mesh(mesh_file):

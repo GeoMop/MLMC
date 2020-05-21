@@ -9,6 +9,7 @@ from mlmc.tool import flow_mc
 from mlmc.moments import Legendre
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
+from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.tool import base_process
 from mlmc.tool.flow_mc import FlowSim
@@ -57,7 +58,7 @@ class CondField(base_process.Process):
             # Create sampler (mlmc.Sampler instance) - crucial class which actually schedule samples
             sampler = self.setup_config(step_range, clean=True)
             # Schedule samples
-            self.generate_jobs(sampler, n_samples=[100, 50], renew=renew)
+            self.generate_jobs(sampler, n_samples=[5, 5], renew=renew)
 
             sampler_list.append(sampler)
 
@@ -77,9 +78,12 @@ class CondField(base_process.Process):
         # Create Pbs sampling pool
         sampling_pool = self.create_pbs_sampling_pool()
 
+        #sampling_pool = OneProcessPool(work_dir=self.work_dir)  # Everything runs in one process
+        #sampling_pool = ProcessPool(n_processes=4, work_dir=self.work_dir)  # Simulations run in different processes
+
         simulation_config = {
             'work_dir': self.work_dir,
-            'env': dict(flow123d=self.flow123d, gmsh=self.gmsh),  # The Environment.
+            'env': dict(flow123d=self.flow123d, gmsh=self.gmsh, gmsh_version=1),  # The Environment.
             'yaml_file': os.path.join(self.work_dir, '01_conductivity.yaml'),
             # The template with a mesh and field placeholders
             'sim_param_range': step_range,  # Range of MLMC simulation parametr. Here the mesh step.
