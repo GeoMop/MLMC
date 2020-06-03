@@ -61,10 +61,10 @@ class Sampler:
         n_levels = len(level_parameters)
         for level_id in range(n_levels):
             if level_id == 0:
-                level_sim = sim_factory.level_instance([level_parameters[level_id]], [0])
+                level_sim = sim_factory.level_instance(level_parameters[level_id], [0])
 
             else:
-                level_sim = sim_factory.level_instance([level_parameters[level_id]], [level_parameters[level_id - 1]])
+                level_sim = sim_factory.level_instance(level_parameters[level_id], level_parameters[level_id - 1])
 
             level_sim.calculate = sim_factory.calculate
             level_sim.level_id = level_id

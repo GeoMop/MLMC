@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
@@ -16,14 +17,23 @@ class CondField(process_base.ProcessBase):
     def __init__(self):
         args = self.get_arguments(sys.argv[1:])
 
-        self.step_range = [[1, 0.01]]  # Each level must have a defined step, len(step_range) == number of MLMC levels
-        # step_range allows defined more MLMC realizations each one has step_range i.e. [1, 0.1]
-
         self.work_dir = args.work_dir
         self.append = False
-        # add samples to existing ones
+        # Add samples to existing ones
         self.clean = args.clean
-        # remove HDF5 file, start from scratch
+        # Remove HDF5 file, start from scratch
+        self.use_pbs = False
+        # Use PBS sampling pool
+        self.n_levels = 2
+        # Number of MLMC levels
+
+        step_range = [1, 0.01]
+        # step_range [simulation step at the coarsest level, simulation step at the finest level]
+
+        # Determine level parameters at each level (In this case, simulation step at each level) are set automatically
+        self.level_parameters = CondField.determine_level_parameters(self.n_levels, step_range)
+        # Determine number of samples at each level
+        self.n_samples = CondField.determine_n_samples(self.n_levels)
 
         if args.command == 'run':
             self.run()
@@ -41,28 +51,22 @@ class CondField(process_base.ProcessBase):
         # Create working directory if necessary
         os.makedirs(self.work_dir, mode=0o775, exist_ok=True)
 
-        # Create sampler and schedule samples for each step range
-        sampler_list = []
-        for step_range in self.step_range:  # Length of step range determines number of levels
-            if self.clean:
-                # Remove HFD5 file
-                if os.path.exists(os.path.join(self.work_dir, "mlmc_{}.hdf5".format(len(step_range)))):
-                    os.remove(os.path.join(self.work_dir, "mlmc_{}.hdf5".format(len(step_range))))
+        if self.clean:
+            # Remove HFD5 file
+            if os.path.exists(os.path.join(self.work_dir, "mlmc_{}.hdf5".format(self.n_levels))):
+                os.remove(os.path.join(self.work_dir, "mlmc_{}.hdf5".format(self.n_levels)))
 
-            # Create sampler (mlmc.Sampler instance) - crucial class which actually schedule samples
-            sampler = self.setup_config(step_range, clean=True)
-            # Schedule samples
-            self.generate_jobs(sampler, n_samples=[5, 5], renew=renew)
+        # Create sampler (mlmc.Sampler instance) - crucial class which actually schedule samples
+        sampler = self.setup_config(clean=True)
+        # Schedule samples
+        self.generate_jobs(sampler, n_samples=[5, 5], renew=renew)
 
-            sampler_list.append(sampler)
+        self.all_collect(sampler)  # Check if all samples are finished
+        self.calculate_moments(sampler)  # Simple moment check
 
-        self.all_collect(sampler_list)  # Check if all samples are finished
-        self.calculate_moments(sampler_list)  # Simple moment check
-
-    def setup_config(self, step_range, clean):
+    def setup_config(self, clean):
         """
         Simulation dependent configuration
-        :param step_range: Simulation's step range, length of them is number of levels
         :param clean: bool, If True remove existing files
         :return: mlmc.sampler instance
         """
@@ -70,34 +74,27 @@ class CondField(process_base.ProcessBase):
         self.set_environment_variables()
 
         # Create Pbs sampling pool
-        sampling_pool = self.create_pbs_sampling_pool()
-
-        #sampling_pool = OneProcessPool(work_dir=self.work_dir)  # Everything runs in one process
-        #sampling_pool = ProcessPool(n_processes=4, work_dir=self.work_dir)  # Simulations run in different processes
+        sampling_pool = self.create_sampling_pool(pbs=self.use_pbs)
 
         simulation_config = {
             'work_dir': self.work_dir,
             'env': dict(flow123d=self.flow123d, gmsh=self.gmsh, gmsh_version=1),  # The Environment.
             'yaml_file': os.path.join(self.work_dir, '01_conductivity.yaml'),
-            # The template with a mesh and field placeholders
-            'sim_param_range': step_range,  # Range of MLMC simulation parametr. Here the mesh step.
             'geo_file': os.path.join(self.work_dir, 'square_1x1.geo'),
-            # The file with simulation geometry (independent of the step)
-            # 'field_template': "!FieldElementwise {mesh_data_file: \"${INPUT}/%s\", field_name: %s}"
             'field_template': "!FieldElementwise {mesh_data_file: \"$INPUT_DIR$/%s\", field_name: %s}"
         }
 
         # Create simulation factory
-        simulation_factory = FlowSim(step_range, config=simulation_config, clean=clean)
+        simulation_factory = FlowSim(config=simulation_config, clean=clean)
 
         # Create HDF sample storage
         sample_storage = SampleStorageHDF(
-            file_path=os.path.join(self.work_dir, "mlmc_{}.hdf5".format(len(step_range))),
+            file_path=os.path.join(self.work_dir, "mlmc_{}.hdf5".format(self.n_levels)),
             append=self.append)
 
         # Create sampler, it manages sample scheduling and so on
         sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
-                          step_range=step_range)
+                          level_parameters=self.level_parameters)
 
         return sampler
 
@@ -125,21 +122,14 @@ class CondField(process_base.ProcessBase):
             self.flow123d = "/home/jb/workspace/flow123d/bin/fterm flow123d dbg"
             self.gmsh = "/home/jb/local/gmsh-3.0.5-git-Linux/bin/gmsh"
 
-    # def rm_files(self, output_dir):
-    #     """
-    #     Rm files and dirs
-    #     :param output_dir: Output directory path
-    #     :return:
-    #     """
-    #     if os.path.isdir(output_dir):
-    #         shutil.rmtree(output_dir, ignore_errors=True)
-    #     os.makedirs(output_dir, mode=0o775, exist_ok=True)
-
-    def create_pbs_sampling_pool(self):
+    def create_sampling_pool(self):
         """
-        Initialize object for PBS execution
+        Initialize sampling pool, object which
         :return: None
         """
+        if not self.use_pbs:
+            return OneProcessPool(work_dir=self.work_dir)  # Everything runs in one process
+
         # Create PBS sampling pool
         sampling_pool = SamplingPoolPBS(job_weight=20000000, work_dir=self.work_dir, clean=self.clean)
 
@@ -211,23 +201,49 @@ class CondField(process_base.ProcessBase):
         true_domain = QuantityEstimate.estimate_domain(sample_storage, quantile=0.01)
         return Legendre(n_moments, true_domain)
 
-    # def process(self):
-    #     """
-    #     Use collected data
-    #     :return: None
-    #     """
-    #     assert os.path.isdir(self.work_dir)
-    #     mlmc_est_list = []
-    #     # for nl in [ 1,3,5,7,9]:
-    #
-    #     import time
-    #     for nl in [5]:  # high resolution fields
-    #         start = time.time()
-    #         sampler = self.setup_config(nl, clean=False)
-    #         print("celkový čas ", time.time() - start)
-    #         # Use wrapper object for working with collected data
-    #         mlmc_est = Estimate(mlmc)
-    #         mlmc_est_list.append(mlmc_est)
+    @staticmethod
+    def determine_level_parameters(n_levels, step_range):
+        """
+        Determine level parameters,
+        In this case, a step of fine simulation at each level
+        :param n_levels: number of MLMC levels
+        :param step_range: simulation step range
+        :return: List
+        """
+        assert step_range[0] < step_range[1]
+        level_parameters = []
+        for i_level in range(n_levels):
+            if n_levels == 1:
+                level_param = 1
+            else:
+                level_param = i_level / (n_levels - 1)
+            level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
+
+        return level_parameters
+
+    @staticmethod
+    def determine_n_samples(n_levels, n_samples=None):
+        """
+        Set target number of samples for each level
+        :param n_levels: number of levels
+        :param n_samples: array of number of samples
+        :return: None
+        """
+        if n_samples is None:
+            n_samples = [100, 3]
+        # Num of samples to ndarray
+        n_samples = np.atleast_1d(n_samples)
+
+        # Just maximal number of samples is set
+        if len(n_samples) == 1:
+            n_samples = np.array([n_samples[0], 3])
+
+        # Create number of samples for all levels
+        if len(n_samples) == 2:
+            n0, nL = n_samples
+            n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), n_levels))).astype(int)
+
+        return n_samples
 
 
 if __name__ == "__main__":

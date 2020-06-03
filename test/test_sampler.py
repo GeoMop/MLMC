@@ -15,13 +15,13 @@ def test_sampler():
     storage = Memory()
     sampling_pool = OneProcessPool()
 
-    step_range = [0.1, 0.01, 0.001]
+    step_range = [[0.1], [0.01], [0.001]]
 
-    sampler = Sampler(sample_storage=storage, sampling_pool=sampling_pool, sim_factory=simulation, step_range=step_range)
+    sampler = Sampler(sample_storage=storage, sampling_pool=sampling_pool, sim_factory=simulation, level_parameters=step_range)
 
     assert len(sampler._level_sim_objects) == len(step_range)
     for step, level_sim in zip(step_range, sampler._level_sim_objects):
-        assert step == level_sim.config_dict['fine']['step']
+        assert step[0] == level_sim.config_dict['fine']['step']
 
     init_samples = list(np.ones(len(step_range)) * 10)
 

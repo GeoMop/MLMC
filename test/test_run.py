@@ -69,7 +69,7 @@ sampling_pool_thread_dir = ThreadPool(4, work_dir=work_dir)
 def test_mlmc(test_case):
     np.random.seed(1234)
     n_moments = 5
-    step_range = [0.1, 0.001]
+    step_range = [[0.1], [0.001]]
 
     simulation_factory, sample_storage, sampling_pool = test_case
 
@@ -82,7 +82,7 @@ def test_mlmc(test_case):
         shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
 
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
-                      step_range=step_range)
+                      level_parameters=step_range)
 
     true_domain = distr.ppf([0.0001, 0.9999])
     moments_fn = Legendre(n_moments, true_domain)

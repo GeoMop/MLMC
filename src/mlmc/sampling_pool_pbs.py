@@ -59,7 +59,7 @@ class SamplingPoolPBS(SamplingPool):
         :param job_weight: Maximum sum of task sizes summation in single one job, if this value is exceeded then the job is executed
         :param clean: bool, if True delete output dir
         """
-        self._work_dir = work_dir
+        self._work_dir = os.path.abspath(work_dir)
         # Working directory - other subdirectories are created in this one
         self.job_weight = job_weight
         # Weight of the single PBS script (putting more small jobs into single PBS job).

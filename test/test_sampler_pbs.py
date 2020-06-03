@@ -11,6 +11,7 @@ from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.quantity_estimate import QuantityEstimate
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
 
+
 @pytest.mark.pbs
 def test_sampler_pbs():
     np.random.seed(3)
@@ -31,7 +32,7 @@ def test_sampler_pbs():
     simulation_factory = SynthSimulationWorkspace(simulation_config)
 
     sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_{}.hdf5".format(len(step_range))))
-    sampling_pool = SamplingPoolPBS(job_weight=20000000, job_count=0, work_dir=work_dir)
+    sampling_pool = SamplingPoolPBS(job_weight=20000000, work_dir=work_dir)
 
     pbs_config = dict(
         n_cores=1,

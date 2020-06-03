@@ -2,12 +2,10 @@ import os
 import sys
 import shutil
 import numpy as np
-
-from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.moments import Legendre
 
 
-class Process:
+class ProcessBase:
     """
     Parent class for particular simulation processes
     """

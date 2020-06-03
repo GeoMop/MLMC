@@ -89,7 +89,7 @@ class FlowSim(Simulation):
 
     """
 
-    def __init__(self, mesh_step_range, config=None, clean=None):
+    def __init__(self, config=None, clean=None):
         """
         Simple simulation using flow123d
         :param config: configuration of the simulation, processed keys:
@@ -99,8 +99,8 @@ class FlowSim(Simulation):
                 <mesh_file> - replaced by generated mesh
                 <FIELD> - for FIELD be name of any of `fields`, replaced by the FieldElementwise field with generated
                  field input file and the field name for the component.
-            geo_file: Path to the geometry file. (TODO: default is <yaml file base>.geo
-        :param mesh_step_range: Mesh step_range, List[coarse simulation step, fine simulation step].
+            geo_file: Path to the geometry file.
+        :param clean: bool, if True remove existing simulation files - mesh files, ...
         """
         self.need_workspace = True
         # This simulation requires workspace
@@ -116,8 +116,6 @@ class FlowSim(Simulation):
         self.field_template = config.get('field_template',
                                          "!FieldElementwise {mesh_data_file: $INPUT_DIR$/%s, field_name: %s}")
         self.work_dir = config['work_dir']
-
-        self.step_range = mesh_step_range
         self.clean = clean
 
         super(Simulation, self).__init__()

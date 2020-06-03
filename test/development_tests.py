@@ -1,4 +1,5 @@
 import os
+import shutil
 import numpy as np
 from scipy import stats
 from mlmc.sim.synth_simulation import SynthSimulation, SynthSimulationWorkspace
@@ -89,7 +90,7 @@ def multiproces_sampler_test():
     failed_fraction = 0.1
     distr = stats.norm(loc=1, scale=2)
 
-    step_range = [0.01]#, 0.001, 0.0001]
+    step_range = [[0.01], [0.001], [0.0001]]
 
     # Create simulation instance
     simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
@@ -100,7 +101,7 @@ def multiproces_sampler_test():
 
     # Plan and compute samples
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
-                      step_range=step_range)
+                      level_parameters=step_range)
 
     true_domain = distr.ppf([0.0001, 0.9999])
     moments_fn = Legendre(n_moments, true_domain)

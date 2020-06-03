@@ -26,9 +26,9 @@ class SampleStorage(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def save_global_data(self, result_format: List[QuantitySpec], step_range=None):
+    def save_global_data(self, result_format: List[QuantitySpec], level_parameters=None):
         """
-        Save global data, at the moment: result_format, step_range
+        Save global data, at the moment: result_format, level_parameters
         """
 
     @abstractmethod
@@ -100,7 +100,7 @@ class Memory(SampleStorage):
         self._save_successful(successful_samples)
         self._save_failed(failed_samples)
 
-    def save_global_data(self, result_format, step_range=None):
+    def save_global_data(self, result_format, level_parameters=None):
         self.save_result_format(result_format)
 
     def _save_successful(self, samples):

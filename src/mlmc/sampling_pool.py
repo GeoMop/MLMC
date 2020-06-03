@@ -15,6 +15,8 @@ from mlmc.level_simulation import LevelSimulation
 class SamplingPool(ABC):
 
     def __init__(self, work_dir=None):
+        if work_dir is not None:
+            work_dir = os.path.abspath(work_dir)
         self._work_dir = work_dir
 
         self._prepare_failed_dir()
@@ -161,6 +163,8 @@ class OneProcessPool(SamplingPool):
         """
         Everything is running in one process
         """
+        if work_dir is not None:
+            work_dir = os.path.abspath(work_dir)
         self._work_dir = work_dir
         self._failed_queues = {}
         self._queues = {}
