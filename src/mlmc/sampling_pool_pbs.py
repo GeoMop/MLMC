@@ -52,7 +52,6 @@ class SamplingPoolPBS(SamplingPool):
     JOBS_DIR = "jobs"
     LEVEL_SIM_CONFIG = "level_{}_simulation_config"  # Serialized level simulation
     JOB = "{}_job.sh"  # Pbs process file
-    JOBS_COUNT = "jobs_count.txt" # Contains current number of jobs which is also job unique identifier
 
     def __init__(self, work_dir, job_weight=200000, clean=False):
         """
@@ -112,7 +111,7 @@ class SamplingPoolPBS(SamplingPool):
 
     def _get_job_count(self):
         """
-        Get number of created jobs.
+        Get number of created jobs
         :return:
         """
         files_pattern = os.path.join(self._jobs_dir, "*_job.sh")
@@ -221,7 +220,6 @@ class SamplingPoolPBS(SamplingPool):
             script_content = "\n".join(self.pbs_script)
 
             self.write_script(script_content, job_file)
-            self.write_script(str(self._job_count), SamplingPoolPBS.JOBS_COUNT)
             # Write current job count
             self._job_count += 1
 

@@ -17,6 +17,14 @@ class SamplingPool(ABC):
     def __init__(self, work_dir=None):
         self._work_dir = work_dir
 
+        self._prepare_failed_dir()
+
+    def _prepare_failed_dir(self):
+        if self._work_dir is not None:
+            failed_dir = os.path.join(self._work_dir, "failed")
+            if os.path.exists(failed_dir):
+                shutil.rmtree(failed_dir)
+
     @abstractmethod
     def schedule_sample(self, sample_id, level_sim: LevelSimulation):
         """
@@ -107,7 +115,9 @@ class SamplingPool(ABC):
         :return: None
         """
         sample_dir = SamplingPool._change_to_sample_directory(work_dir, sample_id)
-        SamplingPool._copy_sim_files(level_sim.common_files, sample_dir)
+        if level_sim.common_files is not None:
+            SamplingPool._copy_sim_files(level_sim.common_files, sample_dir)
+        os.chdir(sample_dir)
 
     def _create_failed(self):
         """
@@ -156,6 +166,7 @@ class OneProcessPool(SamplingPool):
         self._queues = {}
         self._n_running = 0
         self.times = {}
+        super().__init__(work_dir=work_dir)
 
     def schedule_sample(self, sample_id, level_sim):
         self._n_running += 1
@@ -173,7 +184,7 @@ class OneProcessPool(SamplingPool):
             self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
         else:
             self._failed_queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, err_msg))
-            self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
+            #self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
 
     def _save_running_time(self, level_id, running_time):
         """

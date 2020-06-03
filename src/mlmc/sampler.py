@@ -9,31 +9,29 @@ from mlmc.sim.simulation import Simulation
 class Sampler:
 
     def __init__(self, sample_storage: SampleStorage, sampling_pool: SamplingPool, sim_factory: Simulation,
-                 step_range: List[float]):
+                 level_parameters: List[float]):
         """
         :param sample_storage: store scheduled samples, results and result structure
         :param sampling_pool: calculate samples
         :param sim_factory: generate samples
-        :param step_range: simulation step range
+        :param level_parameters: List of e.g. simulation steps, ...
         """
         self.sample_storage = sample_storage
         self._sampling_pool = sampling_pool
 
-        self._step_range = step_range
-
-        self._n_target_samples = np.zeros(len(step_range))
+        self._n_target_samples = np.zeros(len(level_parameters))
         # Number of target samples
         self._level_sim_objects = []
-        self._create_level_sim_objects(len(step_range), sim_factory)
+        self._create_level_sim_objects(level_parameters, sim_factory)
 
-        sample_storage.save_global_data(step_range=step_range,
+        sample_storage.save_global_data(level_parameters=level_parameters,
                                         result_format=sim_factory.result_format())
 
         self._n_scheduled_samples = [len(level_scheduled) for level_id, level_scheduled in sample_storage.load_scheduled_samples().items()]
         # Number of created samples
 
         if not self._n_scheduled_samples:
-            self._n_scheduled_samples = np.zeros(len(step_range))
+            self._n_scheduled_samples = np.zeros(len(level_parameters))
 
         # Are there any unfinished samples which have already finished?
         self._check_failed_samples()
@@ -53,19 +51,20 @@ class Sampler:
         """
         return self.sample_storage.n_finished()
 
-    def _create_level_sim_objects(self, n_levels, sim_factory):
+    def _create_level_sim_objects(self, level_parameters, sim_factory):
         """
         Create LevelSimulation object for each level, use simulation factory
-        :param: n_levels: int, number of levels
+        :param: level_parameters: List, simulation steps, ...
         :param: sim_factory: Simulation instance
         :return: None
         """
+        n_levels = len(level_parameters)
         for level_id in range(n_levels):
             if level_id == 0:
-                level_sim = sim_factory.level_instance([self._step_range[level_id]], [0])
+                level_sim = sim_factory.level_instance([level_parameters[level_id]], [0])
 
             else:
-                level_sim = sim_factory.level_instance([self._step_range[level_id]], [self._step_range[level_id - 1]])
+                level_sim = sim_factory.level_instance([level_parameters[level_id]], [level_parameters[level_id - 1]])
 
             level_sim.calculate = sim_factory.calculate
             level_sim.level_id = level_id
@@ -121,10 +120,6 @@ class Sampler:
         :return: None
         """
         self.ask_sampling_pool_for_samples()
-
-        print("plan samples ", self._n_target_samples)
-        print("scheduled samples ", self._n_scheduled_samples)
-        # @TODO: avoid negative number of planned samples
         plan_samples = self._n_target_samples - self._n_scheduled_samples
 
         for level_id, n_samples in enumerate(plan_samples):
