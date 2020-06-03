@@ -24,6 +24,7 @@ def create_corr_field():
         cf.Field('conductivity', cf.FourierSpatialCorrelatedField('gauss', dim=2, corr_length=0.125, log=True)),
     ])
 
+
 def substitute_placeholders(file_in, file_out, params):
     """
     Substitute for placeholders of format '<name>' from the dict 'params'.
@@ -228,7 +229,7 @@ class FlowSim(Simulation):
         # Rename fields_sample.msh to fine_fields_sample.msh, we might remove it
         for filename in os.listdir(os.getcwd()):
             if not filename.startswith("fine"):
-                os.rename(filename, "fine_" + filename)
+                shutil.move(os.path.join(os.getcwd(), filename), os.path.join(os.getcwd(), "fine_" + filename))
 
         # Run coarse sample
         coarse_res = np.zeros(len(fine_res))
