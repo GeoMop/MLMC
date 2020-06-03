@@ -4,6 +4,10 @@ from typing import List, Dict, Any
 
 @attr.s(auto_attribs=True)
 class LevelSimulation:
+    """
+    This class is used to pass simulation data at a given level between a Sampler and a SamplingPool
+    """
+
     # Calculate configuration.
     config_dict: Dict[Any, Any]
 

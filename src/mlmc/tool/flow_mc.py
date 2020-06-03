@@ -422,7 +422,7 @@ class FlowSim(Simulation):
     def result_format() -> List[QuantitySpec]:
         """
         Result format
-        :return:
+        :return: List[QuantitySpec, ...]
         """
         spec1 = QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=['10', '20'])
         spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40'])
