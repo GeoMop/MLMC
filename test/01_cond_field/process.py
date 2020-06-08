@@ -19,7 +19,7 @@ class CondField(process_base.ProcessBase):
         self.step_range = [[1, 0.01]]  # Each level must have a defined step, len(step_range) == number of MLMC levels
         # step_range allows defined more MLMC realizations each one has step_range i.e. [1, 0.1]
 
-        self.work_dir = args.work_dir
+        self.work_dir = os.path.abspath(args.work_dir)  # Make sure work dir is in absolute path
         self.append = False
         # add samples to existing ones
         self.clean = args.clean

@@ -14,7 +14,7 @@ class QuantityEstimate:
         """
         self._sample_storage = sample_storage
         self._moments_fn = moments_fn
-        self._sim_steps = sim_steps
+        self._sim_steps = [s_step[0] for s_step in sim_steps]
 
     @property
     def levels_results(self):

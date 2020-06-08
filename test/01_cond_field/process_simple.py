@@ -6,23 +6,22 @@ from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
-from mlmc.tool import process_base
 from mlmc.tool.flow_mc import FlowSim
 from mlmc.moments import Legendre
 from mlmc.quantity_estimate import QuantityEstimate
 
 
-class CondField(process_base.ProcessBase):
+class ProcessSimple:
 
     def __init__(self):
-        args = self.get_arguments(sys.argv[1:])
+        args = ProcessSimple.get_arguments(sys.argv[1:])
 
-        self.work_dir = args.work_dir
+        self.work_dir = os.path.abspath(args.work_dir)
         self.append = False
         # Add samples to existing ones
         self.clean = args.clean
         # Remove HDF5 file, start from scratch
-        self.use_pbs = False
+        self.use_pbs = True
         # Use PBS sampling pool
         self.n_levels = 2
         # Number of MLMC levels
@@ -31,9 +30,9 @@ class CondField(process_base.ProcessBase):
         # step_range [simulation step at the coarsest level, simulation step at the finest level]
 
         # Determine level parameters at each level (In this case, simulation step at each level) are set automatically
-        self.level_parameters = CondField.determine_level_parameters(self.n_levels, step_range)
+        self.level_parameters = ProcessSimple.determine_level_parameters(self.n_levels, step_range)
         # Determine number of samples at each level
-        self.n_samples = CondField.determine_n_samples(self.n_levels)
+        self.n_samples = ProcessSimple.determine_n_samples(self.n_levels)
 
         if args.command == 'run':
             self.run()
@@ -74,7 +73,7 @@ class CondField(process_base.ProcessBase):
         self.set_environment_variables()
 
         # Create Pbs sampling pool
-        sampling_pool = self.create_sampling_pool(pbs=self.use_pbs)
+        sampling_pool = self.create_sampling_pool()
 
         simulation_config = {
             'work_dir': self.work_dir,
@@ -107,7 +106,7 @@ class CondField(process_base.ProcessBase):
         while root_dir != '/':
             root_dir, tail = os.path.split(root_dir)
 
-        if tail == 'storage':
+        if tail == 'storage' or tail == 'auto':
             # Metacentrum
             self.sample_sleep = 30
             self.init_sample_timeout = 600
@@ -173,33 +172,67 @@ class CondField(process_base.ProcessBase):
             sampler.schedule_samples()
             sampler.ask_sampling_pool_for_samples(sleep=self.sample_sleep, timeout=self.sample_timeout)
 
-    def calculate_moments(self, sampler_list):
+    def all_collect(self, sampler):
+        """
+        Collect samples
+        :param sampler: mlmc.Sampler object
+        :return: None
+        """
+        running = 1
+        while running > 0:
+            running = 0
+            running += sampler.ask_sampling_pool_for_samples(sleep=self.sample_sleep, timeout=0.1)
+            print("N running: ", running)
+
+    def calculate_moments(self, sampler):
         """
         Calculate moments through the mlmc.QuantityEstimate
-        :param sampler_list: List of samplers (mlmc.Sampler)
+        :param sampler: mlmc.Sampler
         :return: None
         """
         # Simple moment evaluation
-        for sampler in sampler_list:
-            moments_fn = self.set_moments(sampler.sample_storage)
+        moments_fn = self.set_moments(sampler.sample_storage)
 
-            q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
-                                           sim_steps=self.step_range)
+        q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
+                                       sim_steps=self.level_parameters)
 
-            print("collected samples ", sampler._n_scheduled_samples)
-            means, vars = q_estimator.estimate_moments(moments_fn)
-            print("means ", means)
-            print("vars ", vars)
+        print("collected samples ", sampler._n_scheduled_samples)
+        means, vars = q_estimator.estimate_moments(moments_fn)
+        print("means ", means)
+        print("vars ", vars)
 
-            # The first moment is in any case 1 and its variance is 0
-            assert means[0] == 1
-            # assert np.isclose(means[1], 0, atol=1e-2)
-            assert vars[0] == 0
+        # The first moment is in any case 1 and its variance is 0
+        assert means[0] == 1
+        # assert np.isclose(means[1], 0, atol=1e-2)
+        assert vars[0] == 0
 
     def set_moments(self, sample_storage):
         n_moments = 5
         true_domain = QuantityEstimate.estimate_domain(sample_storage, quantile=0.01)
         return Legendre(n_moments, true_domain)
+
+    @staticmethod
+    def get_arguments(arguments):
+        """
+        Getting arguments from console
+        :param arguments: list of arguments
+        :return: namespace
+        """
+        import argparse
+        parser = argparse.ArgumentParser()
+
+        parser.add_argument('command', choices=['run', 'collect', 'renew'],
+                            help='run - create new execution,'
+                                 'collect - keep collected, append existing HDF file'
+                                 'renew - renew failed samples, run new samples with failed sample ids (which determine random seed)')
+        parser.add_argument('work_dir', help='Work directory')
+        parser.add_argument("-c", "--clean", default=False, action='store_true',
+                            help="Clean before run, used only with 'run' command")
+
+        args = parser.parse_args(arguments)
+
+        return args
+
 
     @staticmethod
     def determine_level_parameters(n_levels, step_range):
@@ -210,7 +243,7 @@ class CondField(process_base.ProcessBase):
         :param step_range: simulation step range
         :return: List
         """
-        assert step_range[0] < step_range[1]
+        assert step_range[0] > step_range[1]
         level_parameters = []
         for i_level in range(n_levels):
             if n_levels == 1:
@@ -247,4 +280,4 @@ class CondField(process_base.ProcessBase):
 
 
 if __name__ == "__main__":
-    pr = CondField()
+    pr = ProcessSimple()
