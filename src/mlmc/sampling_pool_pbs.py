@@ -137,7 +137,17 @@ class SamplingPoolPBS(SamplingPool):
     def pbs_common_setting(self, **kwargs):
         """
         Values for common header of script
-        :param kwargs: dict with params vales
+        :param kwargs: Dict[
+                            env_setting: environmental setting - load modules, install packages, ...
+                            n_nodes: number of used nodes,
+                            n_cores: number of cores a node,
+                            mem: used memory a job,
+                            queue: used queue on the server,
+
+                            optional params:
+                                select_flags: other select flags, see https://wiki.metacentrum.cz/wiki/About_scheduling_system for other possible parameters
+                                python: python command, default: python3
+        ]
         :return: None
         """
         # Script header
