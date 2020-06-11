@@ -52,7 +52,6 @@ class SamplingPoolPBS(SamplingPool):
     JOBS_DIR = "jobs"
     LEVEL_SIM_CONFIG = "level_{}_simulation_config"  # Serialized level simulation
     JOB = "{}_job.sh"  # Pbs process file
-    JOBS_COUNT = "jobs_count.txt" # Contains current number of jobs which is also job unique identifier
 
     def __init__(self, work_dir, job_weight=200000, clean=False):
         """
@@ -60,7 +59,7 @@ class SamplingPoolPBS(SamplingPool):
         :param job_weight: Maximum sum of task sizes summation in single one job, if this value is exceeded then the job is executed
         :param clean: bool, if True delete output dir
         """
-        self._work_dir = work_dir
+        self._work_dir = os.path.abspath(work_dir)
         # Working directory - other subdirectories are created in this one
         self.job_weight = job_weight
         # Weight of the single PBS script (putting more small jobs into single PBS job).
@@ -112,7 +111,7 @@ class SamplingPoolPBS(SamplingPool):
 
     def _get_job_count(self):
         """
-        Get number of created jobs.
+        Get number of created jobs
         :return:
         """
         files_pattern = os.path.join(self._jobs_dir, "*_job.sh")
@@ -138,7 +137,17 @@ class SamplingPoolPBS(SamplingPool):
     def pbs_common_setting(self, **kwargs):
         """
         Values for common header of script
-        :param kwargs: dict with params vales
+        :param kwargs: Dict[
+                            env_setting: environmental setting - load modules, install packages, ...
+                            n_nodes: number of used nodes,
+                            n_cores: number of cores a node,
+                            mem: used memory a job,
+                            queue: used queue on the server,
+
+                            optional params:
+                                select_flags: other select flags, see https://wiki.metacentrum.cz/wiki/About_scheduling_system for other possible parameters
+                                python: python command, default: python3
+        ]
         :return: None
         """
         # Script header
@@ -221,7 +230,6 @@ class SamplingPoolPBS(SamplingPool):
             script_content = "\n".join(self.pbs_script)
 
             self.write_script(script_content, job_file)
-            self.write_script(str(self._job_count), SamplingPoolPBS.JOBS_COUNT)
             # Write current job count
             self._job_count += 1
 

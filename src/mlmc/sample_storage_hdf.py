@@ -49,20 +49,20 @@ class SampleStorageHDF(SampleStorage):
 
         return result_dtype
 
-    def save_global_data(self, step_range: List[np.float], result_format: List[QuantitySpec]):
+    def save_global_data(self, level_parameters: List[np.float], result_format: List[QuantitySpec]):
         """
         Save hdf5 file global attributes
-        :param step_range: list of simulation steps
+        :param level_parameters: list of simulation steps
         :param result_format: simulation result format
         :return: None
         """
         res_dtype = self._hdf_result_format(result_format[0].locations, result_format[0].times)
 
         # Create file structure
-        self._hdf_object.create_file_structure(step_range)
+        self._hdf_object.create_file_structure(level_parameters)
 
         # Create group for each level
-        for i_level in range(len(step_range)):
+        for i_level in range(len(level_parameters)):
             self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
 
         # Save result format (QuantitySpec)

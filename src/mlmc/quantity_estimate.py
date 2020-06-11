@@ -14,11 +14,22 @@ class QuantityEstimate:
         """
         self._sample_storage = sample_storage
         self._moments_fn = moments_fn
-        self._sim_steps = sim_steps
+        self._sim_steps = [s_step[0] for s_step in sim_steps]
 
     @property
     def levels_results(self):
-        level_results = self._sample_storage.sample_pairs()
+        new_level_results = QuantityEstimate.get_level_results(self._sample_storage)
+
+        return new_level_results
+
+    @staticmethod
+    def get_level_results(sample_storage):
+        """
+        Get sample results split to levels
+        :param sample_storage: Storage that provides the samples
+        :return: level results, shape: (n_levels, )
+        """
+        level_results = sample_storage.sample_pairs()
 
         if len(level_results) == 0:
             raise Exception("No data")
@@ -33,6 +44,7 @@ class QuantityEstimate:
             if lev_res[0].shape[0] > 1:
                 if isinstance(lev_res, np.ndarray):
                     new_level_results.append(lev_res[0])
+
         return new_level_results
 
     def estimate_diff_vars_regression(self, n_created_samples, moments_fn=None, raw_vars=None):
@@ -278,3 +290,24 @@ class QuantityEstimate:
         # New moments without outliers
         self.last_moments_eval = self.last_moments_eval[0][ok_fine_coarse, :],\
                                  self.last_moments_eval[1][ok_fine_coarse, :]
+
+    @staticmethod
+    def estimate_domain(sample_storage, quantile=None):
+        """
+        Estimate moments domain from MLMC samples.
+        :parameter sample_storage: Storage that provides the samples
+        :parameter quantile: float in interval (0, 1), None means whole sample range
+        :return: lower_bound, upper_bound
+        """
+        new_level_results = QuantityEstimate.get_level_results(sample_storage)
+
+        ranges = []
+        if quantile is None:
+            quantile = 0.01
+
+        for lev_res in new_level_results:
+            fine_sample = lev_res[:, 0]
+            ranges.append(np.percentile(fine_sample, [100 * quantile, 100 * (1 - quantile)]))
+
+        ranges = np.array(ranges)
+        return np.min(ranges[:, 0]), np.max(ranges[:, 1])

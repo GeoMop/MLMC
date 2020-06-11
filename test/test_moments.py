@@ -8,7 +8,6 @@ import scipy.integrate as integrate
 import scipy.stats as stats
 
 
-
 def test_monomials():
     # Natural domain (0,1).
     size = 5  # Number of moments
@@ -17,7 +16,7 @@ def test_monomials():
     ref = [values**r for r in range(size)]
 
     # Monomials moments object
-    moments_fn  = mlmc.moments.Monomial(size, safe_eval=False)
+    moments_fn = mlmc.moments.Monomial(size, safe_eval=False)
 
     # Calculated moments
     moments = moments_fn(values)
@@ -253,15 +252,28 @@ def plot_distribution():
 
 
 def test_transform():
-    distr = stats.norm(loc=-5, scale=1)
-    #distr = stats.lognorm(scale=np.exp(-5), s=1)
-    domain = distr.ppf([0.001, 0.999])
-    moments_fn = mlmc.moments.Legendre(10, domain, log=False, safe_eval=True)
+    size = 5
+    domain = [-1.0, 1.0]
+    values = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
 
-    transform_means = []
-    size = 10000
-    for _ in range(0, size):
-        t = moments_fn(distr.rvs(size=100000))
-        transform_means.append(np.mean(t))
+    moments_fn = mlmc.moments.Legendre(size, domain, log=False, safe_eval=True)
+
+    matrix = np.eye(size)
+    transformed_moments = mlmc.moments.TransformedMoments(moments_fn, matrix)
+    mom = moments_fn(values)
+    trans_mom = transformed_moments(values)
+    expected_trans_mom = np.matmul(mom, matrix.T)
+
+    np.allclose(mom, trans_mom)
+    np.allclose(mom, expected_trans_mom)
+
+    matrix = np.ones((size, size))
+    transformed_moments = mlmc.moments.TransformedMoments(moments_fn, matrix)
+    mom = moments_fn(values)
+    trans_mom = transformed_moments(values)
+    expected_trans_mom = np.matmul(mom, matrix.T)
+
+    np.allclose(expected_trans_mom, trans_mom)
+
 
 test_legendre()

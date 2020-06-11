@@ -16,7 +16,7 @@ def test_sampling_pools():
     n_moments = 5
 
     distr = stats.norm(loc=1, scale=2)
-    step_range = [0.01, 0.001, 0.0001]
+    step_range = [[0.01], [0.001], [0.0001]]
     failed_fraction = 0
 
     # Set work dir
@@ -47,7 +47,7 @@ def test_sampling_pools():
         sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_{}.hdf5".format(len(step_range))))
         # Plan and compute samples
         sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
-                          step_range=step_range)
+                          level_parameters=step_range)
 
         true_domain = distr.ppf([0.0001, 0.9999])
         moments_fn = Legendre(n_moments, true_domain)

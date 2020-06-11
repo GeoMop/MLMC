@@ -31,7 +31,7 @@ def test_storage(storage, n_levels):
     format = [QuantitySpec(name="length", unit="m", shape=(2, res_lenght - 2), times=[1, 2, 3], locations=['10', '20']),
               QuantitySpec(name="width", unit="mm", shape=(2, res_lenght - 2), times=[1, 2, 3], locations=['30', '40'])]
 
-    storage.save_global_data(step_range=np.ones(n_levels), result_format=format)
+    storage.save_global_data(level_parameters=np.ones(n_levels), result_format=format)
 
     for l_id in range(n_levels):
         # Dict[level_id, List[Tuple[sample_id:str, Tuple[fine_result: ndarray, coarse_result: ndarray]]]]

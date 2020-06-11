@@ -1,6 +1,6 @@
-pyyaml
 numpy
 scipy
 sklearn
 h5py
 ruamel.yaml
+attrs

@@ -28,9 +28,17 @@ class Simulation(ABC):
         """
 
     @staticmethod
-    def calculate(config_dict, sample_workspace=None):
-        pass
+    def calculate(config_dict, seed):
+        """
+        Method that actually run the calculation, calculate fine and coarse sample and also extract their results
+        :param config_dict: dictionary containing simulation configuration, LevelSimulation.config_dict (set in level_instance)
+        :param seed: random seed, int
+        :return: List[fine result, coarse result], both flatten arrays (see mlmc.sim.synth_simulation.calculate())
+        """
 
     @staticmethod
     def result_format()-> List[QuantitySpec]:
-        pass
+        """
+        Define simulation result format
+        :return: List[QuantitySpec, ...]
+        """
