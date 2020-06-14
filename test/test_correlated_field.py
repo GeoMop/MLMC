@@ -5,6 +5,7 @@ import numpy.linalg as la
 
 from mlmc.random.correlated_field import SpatialCorrelatedField
 from mlmc.random.correlated_field import FourierSpatialCorrelatedField
+from mlmc.random.correlated_field import GSToolsSpatialCorrelatedField
 
 # Only for debugging
 #import statprof
@@ -150,7 +151,6 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, fourier=Fals
     sigma = 1.5
     field = field_impl(corr_exp, dim=points.dim, corr_length=corr_length)
 
-
     field.set_points(points.points, mu, sigma)
     if isinstance(field, SpatialCorrelatedField):
         field.svd_dcmp(precision=0.01, n_terms_range=n_terms_range)
@@ -166,6 +166,7 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, fourier=Fals
 
     for _ in range(n_samples):
         sample = field.sample()
+
         cum_mean += sample
         centered = sample - mu
         cum_sigma += centered * centered
@@ -174,7 +175,6 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, fourier=Fals
     mu_err = np.abs(cum_mean.avg_array() - mu)  # cum_mean.avg%array has size [log 2 N * n] but its one value along n axis
     #plot_mc(cum_mean.n_array(), mu_err, "Error of 'mu' estimate as func of samples.")   # convergence plot
     #points.plot_field_2d(mu_err[-1, :], "Error in 'mu' estimate, N={}.".format(n_samples))  # error distribution  , the last averaged error?
-
     # check convergence
     means = np.mean(mu_err, axis=1)
 
@@ -215,7 +215,6 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, fourier=Fals
     print("Sigma fit: {} {} {}".format(s1, log_sigma, np.exp(log_sigma)))
     assert np.exp(log_sigma) < 0.1     # should be about 0.7
 
-@pytest.mark.skip
 @pytest.mark.parametrize('seed', [2, 5, 6])
 def test_field_mean_std_convergence(seed):
     np.random.seed(seed)
@@ -229,7 +228,7 @@ def test_field_mean_std_convergence(seed):
     gauss = 2.0
     n_terms = (np.inf, np.inf)  # Use full expansion to avoid error in approximation.
 
-    for impl in [SpatialCorrelatedField, FourierSpatialCorrelatedField]:
+    for impl in [GSToolsSpatialCorrelatedField, SpatialCorrelatedField, FourierSpatialCorrelatedField]:
         print("Test exponential, grid points.")
         impl_test_mu_sigma(impl, exponential, grid_points, n_terms_range=n_terms)
         print("Test Gauss, grid points.")
@@ -251,7 +250,6 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
     """
     corr_length = 10.0
     field = field_impl(corr_exp, dim=points.dim, corr_length=corr_length)
-
 
     field.set_points(points.points)
     if isinstance(field, SpatialCorrelatedField):
@@ -301,7 +299,6 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
         plt.plot(X, Y)
         plt.show()
 
-
     def plot_variogram():
         # For sigma == 1 variogram is 1-correlation function
         # Plot mean of every cell.
@@ -338,7 +335,6 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
     print("Mean fit: {} {} {}".format(m1, log_mean, np.exp(log_mean)))
     assert np.exp(log_mean) < 0.08
 
-@pytest.mark.skip
 @pytest.mark.parametrize('seed', [10, 8])
 def test_cov_func_convergence(seed):
     # TODO:
@@ -363,11 +359,13 @@ def test_cov_func_convergence(seed):
     impl_test_cov_func(FourierSpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms)
     impl_test_cov_func(FourierSpatialCorrelatedField, exponential, random_points, n_terms_range=n_terms)
 
+    impl_test_cov_func(GSToolsSpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms)
+    impl_test_cov_func(GSToolsSpatialCorrelatedField, exponential, random_points, n_terms_range=n_terms)
+
     impl_test_cov_func(SpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms)
     impl_test_cov_func(SpatialCorrelatedField, exponential, random_points, n_terms_range=n_terms)
 
-
 if __name__ == "__main__":
     test_field_mean_std_convergence(2)
-    test_cov_func_convergence(2)
+    #test_cov_func_convergence(2)
 

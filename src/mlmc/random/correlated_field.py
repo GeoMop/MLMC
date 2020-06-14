@@ -4,6 +4,8 @@ import numpy.linalg as la
 import numpy.random as rand
 import scipy as sp
 from sklearn.utils.extmath import randomized_svd
+import mlmc.random.gstools_wrapper as gs
+import gstools
 
 
 def kozeny_carman(porosity, m, factor, viscosity):
@@ -343,7 +345,6 @@ class RandomFieldBase:
     def _set_points(self):
         pass
 
-
     def sample(self):
         """
         :param uncorelated: Random samples from standard normal distribution.
@@ -386,7 +387,6 @@ class SpatialCorrelatedField(RandomFieldBase):
     def _set_points(self):
         self.cov_mat = None
         self._cov_l_factor = None
-
 
     def cov_matrix(self):
         """
@@ -499,6 +499,89 @@ class SpatialCorrelatedField(RandomFieldBase):
         return self._cov_l_factor.dot(uncorelated)
 
 
+class GSToolsSpatialCorrelatedField(RandomFieldBase):
+    def _initialize(self, **kwargs):
+        """
+        Own intialization.
+        :param mode_no: Number of Fourier modes
+        """
+        self.len_scale = self._corr_length * 2*np.pi
+        self.mode_no = kwargs.get("mode_no", 1000)
+
+    def gau(self, mode_no=1000):
+        """
+        Compute a gaussian spectrum
+        :param mode_no: int, Number of Fourier modes
+        :return: numpy.ndarray
+        """
+        model = gstools.Gaussian(dim=self.dim, var=self.sigma ** 2, len_scale=self.len_scale)
+        srf = gstools.SRF(model, mean=self.mu, mode_no=mode_no)
+        return srf
+
+    def exp(self, mode_no=1000):
+        """
+        Compute a exponential spectrum
+        :param mode_no: int, Number of Fourier modes
+        :return: numpy.ndarray
+        """
+        model = gstools.Exponential(dim=self.dim, var=self.sigma ** 2, len_scale=self.len_scale)
+        srf = gstools.SRF(model, mean=self.mu, mode_no=mode_no)
+        return srf
+
+    def random_field(self):
+        """
+        Calculates the random modes for the randomization method.
+        """
+        if self.correlation_exponent == 2:
+            srf = self.gau(self.mode_no)
+        else:
+            srf = self.exp(self.mode_no)
+
+        if self.dim == 1:
+            x = self.points
+            x.reshape(len(x), 1)
+            field = srf((x))
+        elif self.dim == 2:
+            x, y = self.points.T
+            x = x.reshape(len(x), 1)
+            y = y.reshape(len(y), 1)
+            field = srf((x, y))
+        else:
+            x, y, z = self.points.T
+            x = x.reshape(len(x), 1)
+            y = y.reshape(len(y), 1)
+            z = z.reshape(len(z), 1)
+            field = srf((x, y, z))
+
+        return field
+
+    def sample(self):
+        """
+        :param uncorelated: Random samples from standard normal distribution.
+               Removed as the spectral method do not support it.
+        :return: Random field evaluated in points given by 'set_points'.
+        """
+        # if uncorelated is None:
+        #     uncorelated = np.random.normal(0, 1, self.n_approx_terms)
+        # else:
+        #     assert uncorelated.shape == (self.n_approx_terms,)
+
+        field = self._sample()
+
+        if not self.log:
+            return field
+        return np.exp(field)
+
+    def _sample(self):
+        """
+        :return: Random field evaluated in points given by 'set_points'.
+        """
+        return self.random_field()
+
+        if not self.log:
+            return field
+        return np.exp(field)
+
 class FourierSpatialCorrelatedField(RandomFieldBase):
     """
     Generate spatial random fields
@@ -511,7 +594,6 @@ class FourierSpatialCorrelatedField(RandomFieldBase):
         """
         self.len_scale = self._corr_length * 2*np.pi
         self.mode_no = kwargs.get("mode_no", 1000)
-
 
     def get_normal_distr(self):
         """
@@ -687,7 +769,7 @@ class FourierSpatialCorrelatedField(RandomFieldBase):
                 break
 
         field = np.sqrt(1.0 / self.mode_no) * summed_modes
-        return  field
+        return field
 
     def _sample(self):
         """
