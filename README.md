@@ -1,6 +1,6 @@
 MLMC
 ====
-
+[![Actions Status](https://xxx.execute-api.us-west-2.amazonaws.com/production/badge/GeoMop/MLMC)](https://xxx.execute-api.us-west-2.amazonaws.com/production/results/GeoMop/MLMC)
 ![Build](https://github.com/GeoMop/MLMC/workflows/package/badge.svg)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/mlmc.svg)](https://pypi.org/project/mlmc/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/mlmc.svg)](https://pypi.org/project/mlmc/)
