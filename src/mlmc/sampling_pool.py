@@ -5,6 +5,8 @@ import time
 import hashlib
 import copy
 import numpy as np
+import traceback
+import sys
 from typing import List
 from abc import ABC, abstractmethod
 from multiprocessing import Pool as ProcPool
@@ -82,7 +84,11 @@ class SamplingPool(ABC):
             res = level_sim.calculate(level_sim.config_dict, seed)
             running_time = time.time() - start
         except Exception as err:
-            err_msg = str(err)
+            # err_msg = str(err)
+            etype, exc, tb = sys.exc_info()
+            str_list = traceback.format_exception(etype, exc, tb)
+            err_msg = "".join(str_list)
+
 
         return sample_id, res, err_msg, running_time
 
@@ -187,6 +193,7 @@ class OneProcessPool(SamplingPool):
             self._queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
             self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
         else:
+            print(err_msg)
             self._failed_queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, err_msg))
             #self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
 
