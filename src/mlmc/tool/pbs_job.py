@@ -1,6 +1,7 @@
 import os
 import shutil
 import sys
+import traceback
 import ruamel.yaml as yaml
 import time
 import pickle
@@ -171,13 +172,17 @@ class PbsJob:
             try:
                 res = level_sim.calculate(level_sim.config_dict, seed)
             except Exception as err:
-                err_msg = str(err)
+                # err_msg = str(err)
+                etype, exc, tb = sys.exc_info()
+                str_list = traceback.format_exception(etype, exc, tb)
+                err_msg = "".join(str_list)
 
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
                 # self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
             else:
+                print(err_msg)
                 failed.append((current_level, sample_id, err_msg))
                 # self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
             current_samples.append(sample_id)
