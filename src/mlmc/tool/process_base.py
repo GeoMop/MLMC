@@ -12,7 +12,7 @@ class ProcessBase:
     def __init__(self):
         args = self.get_arguments(sys.argv[1:])
 
-        self.step_range = (1, 0.01)
+        self.step_range = [[1, 0.01]]
 
         self.work_dir = args.work_dir
         self.append = False
