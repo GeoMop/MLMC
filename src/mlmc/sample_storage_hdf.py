@@ -100,6 +100,22 @@ class SampleStorageHDF(SampleStorage):
 
         return quantities
 
+    def load_collected_values (self, level, quantity_name, fine_res=True):
+        root_group = self._hdf_object.load_level_group(level)
+        collected_level = root_group.collected()
+        collected_level_fine = collected_level[:, 0 if fine_res else 1]
+
+        # load quantity specifications from file
+        quantities = self.load_result_format()
+        # get the quantity by name
+        iqspec, qspec = next(((i, q) for i, q in enumerate(quantities) if q.name == quantity_name), (0, None))
+        assert qspec is not None
+
+        # use qspec.shape ????
+        start = iqspec*len(qspec.times)
+        stop = start + len(qspec.times)
+        return collected_level_fine[:, start:stop], qspec
+
     def save_samples(self, successful, failed):
         """
         Save successful and failed samples
