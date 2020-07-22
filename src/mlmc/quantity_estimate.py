@@ -1,51 +1,58 @@
 import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
-
+from mlmc.sim.simulation import QuantitySpec
 
 class QuantityEstimate:
 
-    def __init__(self, sample_storage, moments_fn, sim_steps):
+    def __init__(self, sample_storage, sim_steps, qspec: QuantitySpec, time_id):
         """
         Quantity estimates
         :param sample_storage: SampleStorage instance
-        :param moments_fn: moments function
         :param sim_steps: simulation steps on each level
+        :param qspec: quantity which moments are to be estimated, given by QuantitySpec
+        :param time_id: index in time axis for which the moments are to be estimated
         """
         self._sample_storage = sample_storage
-        self._moments_fn = moments_fn
+        self._quantity = qspec
+        self._time_id = time_id
         self._sim_steps = [s_step[0] for s_step in sim_steps]
 
     @property
     def levels_results(self):
-        new_level_results = QuantityEstimate.get_level_results(self._sample_storage)
+        new_level_results = QuantityEstimate.get_level_results(self._sample_storage, self._quantity, self._time_id)
 
         return new_level_results
 
     @staticmethod
-    def get_level_results(sample_storage):
+    def get_level_results(sample_storage, quantity: QuantitySpec, time_id):
         """
         Get sample results split to levels
         :param sample_storage: Storage that provides the samples
+        :param quantity
+        :param time_id
         :return: level results, shape: (n_levels, )
         """
-        level_results = sample_storage.sample_pairs()
+        quantity_results = sample_storage.load_collected_values_all_levels(quantity.name, fine_res=True)
 
-        if len(level_results) == 0:
+        if len(quantity_results) == 0:
             raise Exception("No data")
 
-        # @TODO: it does not works with arrays quantities, remove ASAP
-        new_level_results = []
+        q = np.transpose(quantity_results, (2, 0, 1))
+        return q[time_id]
 
-        for lev_res in level_results:
-            if len(lev_res) == 0:
-                continue
-
-            if lev_res[0].shape[0] > 1:
-                if isinstance(lev_res, np.ndarray):
-                    new_level_results.append(lev_res[0])
-
-        return new_level_results
+        # # @TODO: it does not works with arrays quantities, remove ASAP
+        # new_level_results = []
+        #
+        # for lev_res in level_results:
+        #     if len(lev_res) == 0:
+        #         continue
+        #
+        #     if lev_res[0].shape[0] > 1:
+        #         if isinstance(lev_res, np.ndarray):
+        #             new_level_results.append(lev_res[0])
+        #
+        # return new_level_results
 
     def estimate_diff_vars_regression(self, n_created_samples, moments_fn=None, raw_vars=None):
         """
@@ -208,7 +215,7 @@ class QuantityEstimate:
         assert len(mom_fine) == len(mom_coarse)
         assert len(mom_fine) >= 2
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
-        ns = level_results.shape[1]
+        ns = level_results.shape[0]
         return var_vec, ns
 
     def estimate_diff_mean(self, moments_fn, level_result, zero_level=False):
@@ -260,7 +267,7 @@ class QuantityEstimate:
         samples = np.squeeze(level_results)
 
         # Moments from fine samples
-        moments_fine = moments_fn(samples[:, 0])
+        moments_fine = moments_fn(samples)
 
         # For first level moments from coarse samples are zeroes
         if is_zero_level:
@@ -292,22 +299,24 @@ class QuantityEstimate:
                                  self.last_moments_eval[1][ok_fine_coarse, :]
 
     @staticmethod
-    def estimate_domain(sample_storage, quantile=None):
+    def estimate_domain(sample_storage, quantity: QuantitySpec, time_id, quantile=None):
         """
         Estimate moments domain from MLMC samples.
         :parameter sample_storage: Storage that provides the samples
+        :parameter quantity: quantity given by QuantitySpec
+        :parameter time_id: index in time axis for which the estimate is to be evaluated
         :parameter quantile: float in interval (0, 1), None means whole sample range
         :return: lower_bound, upper_bound
         """
-        new_level_results = QuantityEstimate.get_level_results(sample_storage)
+        new_level_results = QuantityEstimate.get_level_results(sample_storage, quantity, time_id)
 
         ranges = []
         if quantile is None:
             quantile = 0.01
 
         for lev_res in new_level_results:
-            fine_sample = lev_res[:, 0]
-            ranges.append(np.percentile(fine_sample, [100 * quantile, 100 * (1 - quantile)]))
+            # fine_sample = lev_res[:, 0]
+            ranges.append(np.percentile(lev_res, [100 * quantile, 100 * (1 - quantile)]))
 
         ranges = np.array(ranges)
         return np.min(ranges[:, 0]), np.max(ranges[:, 1])
