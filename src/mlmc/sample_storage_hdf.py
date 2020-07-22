@@ -100,7 +100,30 @@ class SampleStorageHDF(SampleStorage):
 
         return quantities
 
-    def load_collected_values (self, level, quantity_name, fine_res=True):
+    def n_levels(self):
+        return self._hdf_object.n_levels()
+
+    def load_collected_values_all_levels(self, quantity_name, fine_res=True):
+        """
+        Read all collected values over all levels for given quantity.
+        :param quantity_name: string
+        :param fine_res:
+        :return:
+        """
+        values = []
+        for lev_id in range(self.n_levels()):
+            v, q = self.load_collected_values(lev_id, quantity_name, fine_res)
+            values.append(v)
+        return np.array(values)
+
+    def load_collected_values(self, level, quantity_name, fine_res=True):
+        """
+
+        :param level: MC level id
+        :param quantity_name: the name of the quantity to be retrieved, specified in the Simulation.result_format
+        :param fine_res: true for fine resolution results, false for coarse (if available)
+        :return: a tuple: results in an ndarray
+        """
         root_group = self._hdf_object.load_level_group(level)
         collected_level = root_group.collected()
         collected_level_fine = collected_level[:, 0 if fine_res else 1]

@@ -126,6 +126,11 @@ class HDF5:
 
         return LevelGroup(self.file_name, level_group_hdf_path, level_id, loaded_from_file=self._load_from_file)
 
+    def n_levels(self):
+        with h5py.File(self.file_name, "r") as hdf_file:
+            assert 'Levels' in hdf_file
+            return len(hdf_file['Levels'])
+
     def load_level_group(self, level_id):
         """
         Load a group of particular level, parent group is 'Levels'
@@ -133,7 +138,7 @@ class HDF5:
         :return: LevelGroup instance, it is container for h5py.Group instance
         """
         # HDF5 path to particular level group
-        level_group_hdf_path = '/Levels/' + level_id
+        level_group_hdf_path = '/Levels/' + str(level_id)
 
         with h5py.File(self.file_name, "r") as hdf_file:
             assert level_group_hdf_path in hdf_file
