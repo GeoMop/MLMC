@@ -212,14 +212,14 @@ class OneProcessPool(SamplingPool):
         """
         return results from queue - list of (sample_id, pair_of_result_vectors, error_message)
         """
-        successful = self._queues_to_list(self._queues)
-        failed = self._queues_to_list(self._failed_queues)
+        successful = self._queues_to_list(list(self._queues.items()))
+        failed = self._queues_to_list(list(self._failed_queues.items()))
 
         return successful, failed, self._n_running, copy.deepcopy(self.times)
 
-    def _queues_to_list(self, queue_dict):
+    def _queues_to_list(self, queue_dict_list):
         results = {}
-        for level_id, q in list(queue_dict.items()):
+        for level_id, q in queue_dict_list:
             queue_list = list(q.queue)
             if not queue_list:
                 continue
