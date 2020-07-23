@@ -4,9 +4,7 @@ import numpy as np
 import numpy.linalg as la
 
 from mlmc.random.correlated_field import SpatialCorrelatedField
-from mlmc.random.correlated_field import FourierSpatialCorrelatedField
 from mlmc.random.correlated_field import GSToolsSpatialCorrelatedField
-
 
 # Only for debugging
 #import statprof
@@ -138,13 +136,13 @@ def plot_mc(n_samples, data, title=""):
     plt.show()
 
 
-def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, corr_length=2, fourier=False):
+def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, corr_length=2):
     """
     Test rate of convergence for global mu and sigma.
     :param corr_exp: Correlation exponent,
     :param points: Point set
     :param n_terms_range: Limits for size of approximation
-    :param fourier: bool, if true then use FourierSpatialRandomField class
+    :param corr_length: correlation length
     :return: None
     """
     n_pt = points.size
@@ -173,7 +171,6 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, corr_length=
         if isinstance(field_impl, GSToolsSpatialCorrelatedField):
             field.change_srf(seed=np.random.randint(0, 1e5))
         sample = field.sample()
-
         cum_mean += sample
         centered = sample - mu
         cum_sigma += centered * centered
@@ -188,7 +185,7 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, corr_length=
     m1, _ = np.polyfit(np.log(cum_mean.n_array()), np.log(means), 1)
     log_mean = np.average(np.log(means))
 
-    assert -m1 > 0.4    # convergence rate close to 0.5 (optimal for MC)
+    assert -m1 > 0.3    # convergence rate close to 0.5 (optimal for MC)
     print("Mean fit: {} {} {}".format(m1, log_mean, np.exp(log_mean)))
     assert np.exp(log_mean) < 0.2     # should be about 0.1
 
@@ -215,8 +212,8 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, corr_length=
 
     sigmas = np.mean(sigma_err, axis=1)
     s1, s0 = np.polyfit(np.log(cum_sigma.n_array()), np.log(sigmas), 1)
-    print("s1 ", s1)
-    print("s0 ", s0)
+    # print("s1 ", s1)
+    # print("s0 ", s0)
 
     assert -s1 > 0.38    # convergence rate close to 0.5 (optimal for MC)
     #assert s0 < 0.05     # small absolute error
@@ -239,26 +236,26 @@ def test_field_mean_std_convergence(seed):
     corr_length = 2
     n_terms = (np.inf, np.inf)  # Use full expansion to avoid error in approximation.
 
-    # for impl in [SpatialCorrelatedField, FourierSpatialCorrelatedField]:
-    #     print("Test exponential, grid points.")
-    #     impl_test_mu_sigma(impl, exponential, grid_points, n_terms_range=n_terms)
-    #     print("Test Gauss, grid points.")
-    #     impl_test_mu_sigma(impl, gauss, grid_points, n_terms_range=n_terms)
-    #     print("Test exponential, random points.")
-    #     impl_test_mu_sigma(impl, exponential, random_points, n_terms_range=n_terms)
-    #     print("Test Gauss, random points.")
-    #     impl_test_mu_sigma(impl, gauss, random_points, n_terms_range=n_terms)
+    for impl in [SpatialCorrelatedField]:
+        #print("Test exponential, grid points.")
+        impl_test_mu_sigma(impl, exponential, grid_points, n_terms_range=n_terms)
+        #print("Test Gauss, grid points.")
+        impl_test_mu_sigma(impl, gauss, grid_points, n_terms_range=n_terms)
+        #print("Test exponential, random points.")
+        impl_test_mu_sigma(impl, exponential, random_points, n_terms_range=n_terms)
+        #print("Test Gauss, random points.")
+        impl_test_mu_sigma(impl, gauss, random_points, n_terms_range=n_terms)
 
     len_scale = corr_length * 2 * np.pi
 
-    # # Random points gauss model
-    # gauss_model = gstools.Gaussian(dim=random_points.dim, len_scale=len_scale)
-    # impl = GSToolsSpatialCorrelatedField(gauss_model)
-    # impl_test_mu_sigma(impl, gauss, random_points, n_terms_range=n_terms, corr_length=2)
-    # # Random points exp model
-    # exp_model = gstools.Exponential(dim=random_points.dim, len_scale=len_scale)
-    # impl = GSToolsSpatialCorrelatedField(exp_model)
-    # impl_test_mu_sigma(impl, exponential, random_points, n_terms_range=n_terms, corr_length=2)
+    # Random points gauss model
+    gauss_model = gstools.Gaussian(dim=random_points.dim, len_scale=len_scale)
+    impl = GSToolsSpatialCorrelatedField(gauss_model)
+    impl_test_mu_sigma(impl, gauss, random_points, n_terms_range=n_terms, corr_length=2)
+    # Random points exp model
+    exp_model = gstools.Exponential(dim=random_points.dim, len_scale=len_scale)
+    impl = GSToolsSpatialCorrelatedField(exp_model)
+    impl_test_mu_sigma(impl, exponential, random_points, n_terms_range=n_terms, corr_length=2)
 
     # Grid points gauss model
     gauss_model = gstools.Gaussian(dim=grid_points.dim, len_scale=len_scale)
@@ -271,7 +268,7 @@ def test_field_mean_std_convergence(seed):
     impl_test_mu_sigma(impl, exp_model, grid_points, n_terms_range=n_terms, corr_length=2)
 
 
-def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
+def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range, corr_length=10):
     """
     Test if random field covariance match given covariance function
     :param corr_exp: Correlation exponent, currently: 1 - exponential distr, 2 - gauss distr
@@ -280,10 +277,12 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
     :param fourier: bool, if true then FourierSpatialRandomField class is used
     :return: None
     """
-    corr_length = 10.0
-    field = field_impl(corr_exp, dim=points.dim, corr_length=corr_length)
+    if isinstance(field_impl, GSToolsSpatialCorrelatedField):
+        field = field_impl
+    else:
+        field = field_impl(corr_exp, dim=points.dim, corr_length=corr_length)
 
-    field.set_points(points.points)
+    field.set_points(points.points, mu=0, sigma=1)
     if isinstance(field, SpatialCorrelatedField):
         field.svd_dcmp(precision=0.01, n_terms_range=n_terms_range)
     # # plot single sample
@@ -302,17 +301,21 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
     cell_lists = np.transpose(pairs[indices, :].reshape(n_cells, n_fn_samples, 2), axes=(1, 0, 2))
     lengths = np.mean(pair_dists, axis=1)
 
-
     # Estimate statistics by Monte Carlo
     # correlation function - stationary, isotropic
-    corr_fn = lambda dist: np.exp(-(dist / corr_length) ** corr_exp)
+    if isinstance(field, SpatialCorrelatedField):
+        corr_fn = lambda dist: np.exp(-(dist / corr_length) ** corr_exp)
+    else:
+        corr_fn = field.model.correlation
 
     errors = Cumul(n_cells)
     #lengths = Cumul(n_cells)
     field_diffs = Cumul(n_cells)
 
-    n_samples = 1000
+    n_samples = 2000
     for _ in range(n_samples):
+        if isinstance(field_impl, GSToolsSpatialCorrelatedField):
+            field.change_srf(seed=np.random.randint(0, 1e5))
         sample = field.sample()
         for i_pt, pa in enumerate(cell_lists):
             dist = pair_dists[:, i_pt]
@@ -346,7 +349,6 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
     m1, m0 = np.polyfit(np.log(X), np.log(Y), 1)
     log_mean = np.average(np.log(Y))
 
-
     def plot_fit():
         legend = "rate: {}".format(m1)
         for c in range(n_cells):
@@ -359,7 +361,6 @@ def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range):
         plt.yscale('log')
         plt.xscale('log')
         plt.show()
-
     #plot_fit()
 
     # @TODO determine the parameters more precisely
@@ -387,16 +388,20 @@ def test_cov_func_convergence(seed):
     random_points = PointSet(bounds, 100)
     exponential = 1.0
     gauss = 2.0
+    corr_length = 2
     n_terms = (np.inf, np.inf)  # Use full expansion to avoid error in approximation.
 
-    impl_test_cov_func(FourierSpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms)
-    impl_test_cov_func(FourierSpatialCorrelatedField, exponential, random_points, n_terms_range=n_terms)
+    impl_test_cov_func(SpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms, corr_length=corr_length)
+    impl_test_cov_func(SpatialCorrelatedField, exponential, random_points, n_terms_range=n_terms, corr_length=corr_length)
 
-    impl_test_cov_func(GSToolsSpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms)
-    impl_test_cov_func(GSToolsSpatialCorrelatedField, exponential, random_points, n_terms_range=n_terms)
-
-    impl_test_cov_func(SpatialCorrelatedField, gauss, random_points, n_terms_range=n_terms)
-    impl_test_cov_func(SpatialCorrelatedField, exponential, random_points, n_terms_range=n_terms)
+    len_scale = corr_length * 2 * np.pi
+    gauss_model = gstools.Gaussian(dim=random_points.dim, len_scale=len_scale)
+    impl = GSToolsSpatialCorrelatedField(gauss_model)
+    impl_test_cov_func(impl, gauss, random_points, n_terms_range=n_terms)
+    # Random points exp model
+    exp_model = gstools.Exponential(dim=random_points.dim, len_scale=len_scale)
+    impl = GSToolsSpatialCorrelatedField(exp_model)
+    impl_test_cov_func(impl, exponential, random_points, n_terms_range=n_terms)
 
 
 if __name__ == "__main__":

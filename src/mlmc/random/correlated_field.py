@@ -5,6 +5,8 @@ import numpy.random as rand
 import scipy as sp
 from sklearn.utils.extmath import randomized_svd
 import mlmc.random.gstools_wrapper as gs
+import warnings
+warnings.simplefilter('always', DeprecationWarning)
 import gstools
 
 
@@ -482,7 +484,7 @@ class SpatialCorrelatedField(RandomFieldBase):
         #print("KL approximation: {} for {} points.".format(m, self.n_points))
         self.n_approx_terms = m
         self._sqrt_ev = np.sqrt(ev[0:m])
-        self._cov_l_factor = U[:, 0:m].dot(sp.diag(self._sqrt_ev))
+        self._cov_l_factor = U[:, 0:m].dot(np.diag(self._sqrt_ev))
         self.cov_mat = None
         return self._cov_l_factor, ev[0:m]
 
@@ -501,7 +503,8 @@ class GSToolsSpatialCorrelatedField(RandomFieldBase):
 
     def __init__(self, model, mode_no=1000):
         """
-        :param model: covmodel from gstools package
+        :param model: instance of covariance model class, which parent is gstools.covmodel.CovModel
+        :param mode_no: number of Fourier modes, default: 1000 as in gstools package
         """
         self.model = model
         self.mode_no = mode_no
@@ -510,7 +513,7 @@ class GSToolsSpatialCorrelatedField(RandomFieldBase):
 
     def change_srf(self, seed):
         """
-        Spatial random field with new seed but keep
+        Spatial random field with new seed
         :param seed: int, random number generator seed
         :return: None
         """
@@ -518,7 +521,8 @@ class GSToolsSpatialCorrelatedField(RandomFieldBase):
 
     def random_field(self):
         """
-        Calculates the random modes for the randomization method.
+        Generate the spatial random field
+        :return: field, np.ndarray
         """
         if self.dim == 1:
             x = self.points
@@ -540,7 +544,7 @@ class GSToolsSpatialCorrelatedField(RandomFieldBase):
 
     def sample(self):
         """
-        :return: Random field evaluated in points given by 'set_points'.
+        :return: Random field evaluated in points given by 'set_points'
         """
         return self.sigma * self.random_field() + self.mu
 
@@ -555,6 +559,8 @@ class FourierSpatialCorrelatedField(RandomFieldBase):
         Own intialization.
         :param mode_no: Number of Fourier modes
         """
+        warnings.warn("FourierSpatialCorrelatedField class is deprecated, try to use GSToolsSpatialCorrelatedField class instead",
+            DeprecationWarning)
         self.len_scale = self._corr_length * 2*np.pi
         self.mode_no = kwargs.get("mode_no", 1000)
 
