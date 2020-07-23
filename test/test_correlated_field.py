@@ -222,7 +222,7 @@ def impl_test_mu_sigma(field_impl, corr_exp, points, n_terms_range, corr_length=
     assert np.exp(log_sigma) < 0.1     # should be about 0.7
 
 #@pytest.mark.skip
-@pytest.mark.parametrize('seed', [2, 5, 6])
+@pytest.mark.parametrize('seed', [2, 5])
 def test_field_mean_std_convergence(seed):
     np.random.seed(seed)
     np.random.rand(1000)
@@ -236,15 +236,15 @@ def test_field_mean_std_convergence(seed):
     corr_length = 2
     n_terms = (np.inf, np.inf)  # Use full expansion to avoid error in approximation.
 
-    for impl in [SpatialCorrelatedField]:
-        #print("Test exponential, grid points.")
-        impl_test_mu_sigma(impl, exponential, grid_points, n_terms_range=n_terms)
-        #print("Test Gauss, grid points.")
-        impl_test_mu_sigma(impl, gauss, grid_points, n_terms_range=n_terms)
-        #print("Test exponential, random points.")
-        impl_test_mu_sigma(impl, exponential, random_points, n_terms_range=n_terms)
-        #print("Test Gauss, random points.")
-        impl_test_mu_sigma(impl, gauss, random_points, n_terms_range=n_terms)
+    impl = SpatialCorrelatedField
+    #print("Test exponential, grid points.")
+    impl_test_mu_sigma(impl, exponential, grid_points, n_terms_range=n_terms)
+    #print("Test Gauss, grid points.")
+    impl_test_mu_sigma(impl, gauss, grid_points, n_terms_range=n_terms)
+    #print("Test exponential, random points.")
+    impl_test_mu_sigma(impl, exponential, random_points, n_terms_range=n_terms)
+    #print("Test Gauss, random points.")
+    impl_test_mu_sigma(impl, gauss, random_points, n_terms_range=n_terms)
 
     len_scale = corr_length * 2 * np.pi
 
@@ -271,10 +271,11 @@ def test_field_mean_std_convergence(seed):
 def impl_test_cov_func(field_impl, corr_exp, points, n_terms_range, corr_length=10):
     """
     Test if random field covariance match given covariance function
+    :param field_impl: class for random field generation
     :param corr_exp: Correlation exponent, currently: 1 - exponential distr, 2 - gauss distr
     :param points: PointSet instance
-    :param n_terms_range: (min, max), number of terms in KL expansion to use.
-    :param fourier: bool, if true then FourierSpatialRandomField class is used
+    :param n_terms_range: (min, max), number of terms in KL expansion to use
+    :param corr_length: correlation length, default 10
     :return: None
     """
     if isinstance(field_impl, GSToolsSpatialCorrelatedField):
