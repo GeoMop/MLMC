@@ -84,9 +84,24 @@ class Moments:
 
 
 class Monomial(Moments):
-    def __init__(self, size, domain=(0, 1), log=False, safe_eval=True):
-        self.ref_domain = (0, 1)
+    @staticmethod
+    def factory(size, domain=(0, 1), ref_domain=(0, 1), log=False, safe_eval=True, center=None):
+        if center is not None:
+            # d = (0-center, 1-center)
+            # rd = d
+            d = domain
+            rd = ref_domain
+            return Monomial(size, d, rd, log=False, safe_eval=False, center=center)
+        else:
+            return Monomial(size, domain, ref_domain, log, safe_eval)
+
+    def __init__(self, size, domain=(0, 1), ref_domain=(0, 1), log=False, safe_eval=True, center=None):
+        self.ref_domain = ref_domain
         super().__init__(size, domain, log=log, safe_eval=safe_eval)
+
+        if center is not None:
+            self.transform = lambda val: val - center
+            self.inv_transform = lambda ref: ref + center
 
     def _eval_all(self, value, size):
         # Create array from values and transform values outside the ref domain
