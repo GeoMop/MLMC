@@ -134,6 +134,11 @@ class SampleStorageHDF(SampleStorage):
         Load results from hdf file
         :return: List[Array[M, N, 2]]
         """
+        if len(self._level_groups) == 0:
+            raise Exception("self._level_groups shouldn't be empty, save_global_data() method should have set it, "
+                            "that method is always called from mlmc.sampler.Sampler constructor."
+                            " In other cases, call save_global_data() directly")
+
         levels_results = list(np.empty(len(self._level_groups)))
         for level in self._level_groups:
             results = level.collected()
