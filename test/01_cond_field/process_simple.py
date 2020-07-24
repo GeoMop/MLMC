@@ -58,7 +58,7 @@ class ProcessSimple:
         # Create sampler (mlmc.Sampler instance) - crucial class which actually schedule samples
         sampler = self.setup_config(clean=True)
         # Schedule samples
-        self.generate_jobs(sampler, n_samples=[5, 5], renew=renew)
+        self.generate_jobs(sampler, n_samples=[10, 10], renew=renew)
 
         self.all_collect(sampler)  # Check if all samples are finished
         self.calculate_moments(sampler)  # Simple moment check
@@ -138,10 +138,11 @@ class ProcessSimple:
             select_flags=['cgroups=cpuacct'],
             mem='128mb',
             queue='charon_2h',
+            walltime='2:00:00',
             home_dir='/storage/liberec3-tul/home/martin_spetlik/',
             # pbs_process_file_dir='/auto/liberec3-tul/home/martin_spetlik/MLMC_new_design/src/mlmc',
             python='python3',
-            env_setting=['cd {work_dir}',
+            env_setting=['cd $MLMC_WORKDIR',
                          'module load python36-modules-gcc',
                          'source env/bin/activate',
                          'pip3 install /storage/liberec3-tul/home/martin_spetlik/MLMC_new_design',
