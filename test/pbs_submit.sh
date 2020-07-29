@@ -7,7 +7,7 @@ pbs_script=`pwd`/$1.pbs
 script_path=${py_script%/*}
 
 work_dir=$2
-mlmc=/storage/liberec3-tul/home/martin_spetlik/MLMC_new_design
+mlmc=/storage/liberec3-tul/home/martin_spetlik/MLMC_proc_01
 
 cat >$pbs_script <<EOF
 #!/bin/bash
