@@ -61,7 +61,7 @@ class ProcessSimple:
         # Create sampler (mlmc.Sampler instance) - crucial class which actually schedule samples
         sampler = self.setup_config(clean=True)
         # Schedule samples
-        self.generate_jobs(sampler, n_samples=[5, 5], renew=renew)
+        self.generate_jobs(sampler, n_samples=[10, 10], renew=renew)
 
         self.all_collect(sampler)  # Check if all samples are finished
         self.calculate_moments(sampler)  # Simple moment check
@@ -143,7 +143,7 @@ class ProcessSimple:
             queue='charon_2h',
             pbs_name='MLMC_test',
             walltime='1:00:00',
-            optional_pbs_requests=[],  # e.g. ['#PBS -m ae']
+            optional_pbs_requests=[],  # e.g. ['#PBS -m ae', ...]
             home_dir='/storage/liberec3-tul/home/martin_spetlik/',
             python='python3',
             env_setting=['cd $MLMC_WORKDIR',

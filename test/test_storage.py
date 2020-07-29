@@ -8,30 +8,24 @@ from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sim.simulation import QuantitySpec
 
 
-@pytest.mark.parametrize("storage", ['memory', 'hdf'])
-@pytest.mark.parametrize("n_levels", [1, 2, 5])
-def test_storage(storage, n_levels):
-    if storage == 'memory':
-        storage = Memory()
-    elif storage == 'hdf':
-        work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
-        if os.path.exists(work_dir):
-            shutil.rmtree(work_dir)
-        os.makedirs(work_dir)
-        storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5".format()))
-
-    n_successful = 5
-    n_failed = 4
-    res_lenght = 3
-
+def add_samples(storage, n_levels, n_successful=5, n_failed=4, res_lenght=3):
+    """
+    Create samples for sample storage save
+    :param storage: SampleStorage
+    :param n_levels: number of levels
+    :param n_successful: number of successful samples
+    :param n_failed: number of failed samples
+    :param res_lenght: result length
+    :return: None
+    """
     successful_samples = {}
     failed_samples = {}
     n_ops = {}
     # It is possible to save arbitrary format (there is no dependency on data)
-    format = [QuantitySpec(name="length", unit="m", shape=(2, res_lenght - 2), times=[1, 2, 3], locations=['10', '20']),
+    format_quant = [QuantitySpec(name="length", unit="m", shape=(2, res_lenght - 2), times=[1, 2, 3], locations=['10', '20']),
               QuantitySpec(name="width", unit="mm", shape=(2, res_lenght - 2), times=[1, 2, 3], locations=['30', '40'])]
 
-    storage.save_global_data(level_parameters=np.ones(n_levels), result_format=format)
+    storage.save_global_data(level_parameters=np.ones(n_levels), result_format=format_quant)
 
     for l_id in range(n_levels):
         # Dict[level_id, List[Tuple[sample_id:str, Tuple[fine_result: ndarray, coarse_result: ndarray]]]]
@@ -47,6 +41,25 @@ def test_storage(storage, n_levels):
 
     storage.save_samples(successful_samples, failed_samples)
     storage.save_n_ops(n_ops)
+
+    return format_quant
+
+@pytest.mark.parametrize("storage", ['memory', 'hdf'])
+@pytest.mark.parametrize("n_levels", [1, 2, 5])
+def test_storage(storage, n_levels):
+    if storage == 'memory':
+        storage = Memory()
+    elif storage == 'hdf':
+        work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+        if os.path.exists(work_dir):
+            shutil.rmtree(work_dir)
+        os.makedirs(work_dir)
+        storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5".format()))
+
+    n_successful = 5
+    n_failed = 4
+    res_lenght = 3
+    format_quant = add_samples(storage, n_levels, n_successful=n_successful, n_failed=n_failed, res_lenght=res_lenght)
 
     scheduled = storage.load_scheduled_samples()
 
@@ -68,8 +81,8 @@ def test_storage(storage, n_levels):
 
     loaded_format = storage.load_result_format()
 
-    assert len(format) == len(loaded_format)
-    for f1, f2 in zip(format, loaded_format):
+    assert len(format_quant) == len(loaded_format)
+    for f1, f2 in zip(format_quant, loaded_format):
         assert f1.name == f2.name
         assert f1.unit == f2.unit
 
@@ -77,3 +90,36 @@ def test_storage(storage, n_levels):
 
     assert len(n_finished) == n_levels
     assert np.allclose(n_finished, n_successful + n_failed)
+
+
+def test_hdf_append():
+    work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+    if os.path.exists(work_dir):
+        shutil.rmtree(work_dir)
+    os.makedirs(work_dir)
+    storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5".format()))
+
+    n_levels = 4
+    format_quant = add_samples(storage, n_levels)
+
+    storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5".format()), append=True)
+    storage.save_global_data(level_parameters=np.ones(n_levels), result_format=format_quant)
+
+    results = np.array(storage.sample_pairs())
+
+    assert len(results) == n_levels
+    for level_res in results:
+        assert np.allclose(level_res[:, :, 0], 1)
+        assert np.allclose(level_res[:, :, 1], 0)
+
+    n_ops = storage.get_n_ops()
+    assert len(n_ops) == n_levels
+
+    loaded_format = storage.load_result_format()
+    assert len(format_quant) == len(loaded_format)
+    for f1, f2 in zip(format_quant, loaded_format):
+        assert f1.name == f2.name
+        assert f1.unit == f2.unit
+
+    n_finished = storage.n_finished()
+    assert len(n_finished) == n_levels

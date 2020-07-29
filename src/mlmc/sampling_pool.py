@@ -74,8 +74,8 @@ class SamplingPool(ABC):
         :param sample_id: str
         :param level_sim: LevelSimulation
         :param work_dir: working directory
-        :param seed: random numbers seed
-        :return: sample id, result, error message with traceback, running time
+        :param seed: random seed
+        :return: sample id, sample result, error message with traceback, running time
         """
         if seed is None:
             seed = SamplingPool.compute_seed(sample_id)
@@ -85,7 +85,6 @@ class SamplingPool(ABC):
 
         if level_sim.need_sample_workspace:
             SamplingPool._handle_sim_files(work_dir, sample_id, level_sim)
-
         try:
             start = time.time()
             res = level_sim.calculate(level_sim.config_dict, seed)
