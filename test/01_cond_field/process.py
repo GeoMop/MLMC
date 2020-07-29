@@ -87,8 +87,9 @@ class CondField(process_base.ProcessBase):
             'field_template': "!FieldElementwise {mesh_data_file: \"$INPUT_DIR$/%s\", field_name: %s}"
         }
 
+        print()
         # Create simulation factory
-        simulation_factory = FlowSim(step_range, config=simulation_config, clean=clean)
+        simulation_factory = FlowSim(config=simulation_config, clean=clean)
 
         # Create HDF sample storage
         sample_storage = SampleStorageHDF(
@@ -97,7 +98,7 @@ class CondField(process_base.ProcessBase):
 
         # Create sampler, it manages sample scheduling and so on
         sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
-                          step_range=step_range)
+                          level_parameters=step_range)
 
         return sampler
 
@@ -149,10 +150,11 @@ class CondField(process_base.ProcessBase):
             select_flags=['cgroups=cpuacct'],
             mem='128mb',
             queue='charon_2h',
+            walltime="1:00:00",
             home_dir='/storage/liberec3-tul/home/martin_spetlik/',
             # pbs_process_file_dir='/auto/liberec3-tul/home/martin_spetlik/MLMC_new_design/src/mlmc',
             python='python3',
-            env_setting=['cd {work_dir}',
+            env_setting=['cd $MLMC_WORKDIR',
                          'module load python36-modules-gcc',
                          'source env/bin/activate',
                          'pip3 install /storage/liberec3-tul/home/martin_spetlik/MLMC_new_design',

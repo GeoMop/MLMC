@@ -4,7 +4,7 @@ import shutil
 import numpy as np
 from scipy import stats
 
-from mlmc.synth_simulation import SynthSimulation, SynthSimulationWorkspace
+from mlmc.sim.synth_simulation import SynthSimulation, SynthSimulationWorkspace
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool, ProcessPool

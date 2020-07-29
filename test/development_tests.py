@@ -138,7 +138,7 @@ def multiproces_sampler_test():
     print("means ", means)
     print("vars ", vars)
     assert means[0] == 1
-    assert np.isclose(means[1], 0, atol=1e-2)
+    assert np.isclose(means[1], 0, atol=5*1e-2)
     assert vars[0] == 0
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
