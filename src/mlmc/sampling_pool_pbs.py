@@ -53,11 +53,14 @@ class SamplingPoolPBS(SamplingPool):
     LEVEL_SIM_CONFIG = "level_{}_simulation_config"  # Serialized level simulation
     JOB = "{}_job.sh"  # Pbs process file
 
-    def __init__(self, work_dir, job_weight=200000, clean=False):
+    def __init__(self, work_dir, job_weight=200000, clean=False, debug=False):
         """
         :param work_dir: Path to working directory
-        :param job_weight: Maximum sum of task sizes summation in single one job, if this value is exceeded then the job is executed
+        :param job_weight: Maximum sum of task sizes summation in single one job, if this value is exceeded then the job
+                           is executed
         :param clean: bool, if True delete output dir
+        :param debug: bool, if True keep sample directories
+                      it is the strongest parameter so it overshadows 'clean' param
         """
         self._work_dir = os.path.abspath(work_dir)
         # Working directory - other subdirectories are created in this one
@@ -78,9 +81,10 @@ class SamplingPoolPBS(SamplingPool):
         # List of pbs job ids which should run
         self._unfinished_sample_ids = set()
         # List of sample id which are not collected - collection attempts are done in the get_finished()
-
-        self.clean = clean
-
+        self._clean = False if debug else clean
+        # If true then remove output dir
+        self._debug = debug
+        # If true then keep sample directories
         self._output_dir = None
         self._jobs_dir = None
         self._create_output_dir()
@@ -96,7 +100,7 @@ class SamplingPoolPBS(SamplingPool):
         """
         self._output_dir = os.path.join(self._work_dir, SamplingPoolPBS.OUTPUT_DIR)
 
-        if self.clean and os.path.isdir(self._output_dir):
+        if self._clean and os.path.isdir(self._output_dir):
             shutil.rmtree(self._output_dir)
 
         os.makedirs(self._output_dir, mode=0o775, exist_ok=True)
@@ -161,17 +165,22 @@ class SamplingPoolPBS(SamplingPool):
         if 'python' not in kwargs:
             kwargs['python'] = "python3"
 
+        if 'std_out_err' not in kwargs:
+            kwargs['std_out_err'] = 'oe' # Standard error and standard output are  merged  into standard output.
+
         self._pbs_header_template = ["#!/bin/bash",
                                      '#PBS -S /bin/bash',
                                      '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}{select_flags}',
-                                     '#PBS -l walltime=1:00:00',
+                                     '#PBS -l walltime={walltime}',
                                      '#PBS -q {queue}',
-                                     '#PBS -N MLMC_sim',
-                                     '#PBS -j oe',
+                                     '#PBS -N {pbs_name}',
+                                     '#PBS -j {std_out_err}',  # Specifies  whether and how to join the job's
+                                                               # standard error and standard output streams.
                                      '#PBS -o {pbs_output_dir}/{job_name}.OU',
-                                     '#PBS -e {pbs_output_dir}/{job_name}.ER',
-                                     '']
+                                     '#PBS -e {pbs_output_dir}/{job_name}.ER'
+                                     ]
 
+        self._pbs_header_template.extend(kwargs['optional_pbs_requests'])  # e.g. ['#PBS -m ae'] means mail is sent when the job aborts or terminates
         self._pbs_header_template.extend(kwargs['env_setting'])
         self._pbs_header_template.extend(('{python} -m mlmc.tool.pbs_job {output_dir} {job_name} >'
                                           '{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
@@ -215,7 +224,7 @@ class SamplingPoolPBS(SamplingPool):
             job_id = "{:04d}".format(self._job_count)
             # Create pbs job
             pbs_process = PbsJob.create_job(self._output_dir, self._jobs_dir, job_id,
-                                            SamplingPoolPBS.LEVEL_SIM_CONFIG)
+                                            SamplingPoolPBS.LEVEL_SIM_CONFIG, self._debug)
             # Write scheduled samples to file
             pbs_process.save_scheduled(self._scheduled)
 
