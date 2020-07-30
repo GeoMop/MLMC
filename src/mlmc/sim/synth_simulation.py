@@ -23,7 +23,6 @@ class SynthSimulation(Simulation):
                 nan_fraction=fraction of failed samples
                 sim_method=used method for calculating sample result
         """
-        super().__init__(config)
         self.config = config
         SynthSimulation.n_nans = 0
         SynthSimulation.nan_fraction = config.get('nan_fraction', 0.0)
@@ -159,7 +158,6 @@ class SynthSimulationWorkspace(Simulation):
                 nan_fraction=fraction of failed samples
                 sim_method=used method for calculating sample result
         """
-        super().__init__(config)
         self.config_yaml = config["config_yaml"]
 
         SynthSimulationWorkspace.n_nans = 0

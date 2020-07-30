@@ -84,7 +84,7 @@ class SamplingPool(ABC):
         running_time = 0
 
         if level_sim.need_sample_workspace:
-            SamplingPool._handle_sim_files(work_dir, sample_id, level_sim)
+            SamplingPool.handle_sim_files(work_dir, sample_id, level_sim)
         try:
             start = time.time()
             res = level_sim.calculate(level_sim.config_dict, seed)
@@ -96,7 +96,7 @@ class SamplingPool(ABC):
         return sample_id, res, err_msg, running_time
 
     @staticmethod
-    def _change_to_sample_directory(work_dir, path: str):
+    def change_to_sample_directory(work_dir, path: str):
         """
         Create sample directory and change working directory
         :param path: str
@@ -108,7 +108,7 @@ class SamplingPool(ABC):
         return sample_dir
 
     @staticmethod
-    def _copy_sim_files(files: List[str], sample_dir):
+    def copy_sim_files(files: List[str], sample_dir):
         """
         Copy simulation common files to current simulation sample directory
         :param files: List of files
@@ -118,20 +118,20 @@ class SamplingPool(ABC):
             shutil.copy(file, sample_dir)
 
     @staticmethod
-    def _handle_sim_files(work_dir, sample_id, level_sim):
+    def handle_sim_files(work_dir, sample_id, level_sim):
         """
         Change working directory to sample dir and copy common files
         :param sample_id: str
         :param level_sim: LevelSimulation
         :return: None
         """
-        sample_dir = SamplingPool._change_to_sample_directory(work_dir, sample_id)
+        sample_dir = SamplingPool.change_to_sample_directory(work_dir, sample_id)
         if level_sim.common_files is not None:
-            SamplingPool._copy_sim_files(level_sim.common_files, sample_dir)
+            SamplingPool.copy_sim_files(level_sim.common_files, sample_dir)
         os.chdir(sample_dir)
 
     @staticmethod
-    def create_failed(work_dir):
+    def _create_failed(work_dir):
         """
         Create directory for all failed samples
         :return: None
@@ -152,8 +152,8 @@ class SamplingPool(ABC):
         :return: None
         """
         if sample_workspace and work_dir is not None:
-            failed_dir = SamplingPool.create_failed(work_dir)
-            sample_dir = SamplingPool._change_to_sample_directory(work_dir, sample_id)
+            failed_dir = SamplingPool._create_failed(work_dir)
+            sample_dir = SamplingPool.change_to_sample_directory(work_dir, sample_id)
             shutil.copytree(sample_dir, os.path.join(failed_dir, sample_id))
             shutil.rmtree(sample_dir, ignore_errors=True)
 
@@ -167,7 +167,7 @@ class SamplingPool(ABC):
         :return: None
         """
         if sample_workspace and work_dir is not None:
-            sample_dir = SamplingPool._change_to_sample_directory(work_dir, sample_id)
+            sample_dir = SamplingPool.change_to_sample_directory(work_dir, sample_id)
             shutil.rmtree(sample_dir, ignore_errors=True)
 
 

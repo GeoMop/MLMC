@@ -252,9 +252,9 @@ class PbsJob:
         :return: None
         """
         if level_sim.need_sample_workspace:
-            SamplingPool._change_to_sample_directory(self._output_dir, sample_id)
+            SamplingPool.change_to_sample_directory(self._output_dir, sample_id)
             if level_sim.common_files is not None:
-                SamplingPool._copy_sim_files(level_sim.common_files, os.getcwd())
+                SamplingPool.copy_sim_files(level_sim.common_files, os.getcwd())
 
     @staticmethod
     def read_results(job_id, jobs_dir):
