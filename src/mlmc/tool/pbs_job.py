@@ -54,6 +54,7 @@ class PbsJob:
         :param jobs_dir: str
         :param job_id: str
         :param level_sim_file: str, file name format of LevelSimulation serialization
+        :param debug: bool, if True keep sample directories
         :return: PbsProcess instance
         """
         pbs_process = cls(output_dir, jobs_dir, job_id, level_sim_file, debug)
@@ -171,17 +172,6 @@ class PbsJob:
             # Calculate sample
             _, res, err_msg, _ = SamplingPool.calculate_sample(sample_id, level_sim, work_dir=self._output_dir, seed=seed)
 
-            print("res ", res)
-            print("error message ", err_msg)
-
-            # # Calculate sample
-            # res = (None, None)
-            # err_msg = ""
-            # try:
-            #     res = level_sim.calculate(level_sim.config_dict, seed)
-            # except Exception as err:
-            #     err_msg = str(err)
-
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
@@ -189,14 +179,6 @@ class PbsJob:
                     SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
             else:
                 failed.append((current_level, sample_id, err_msg))
-                SamplingPool.move_failed_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
-
-            print("level_sim.need_sample_workspace ", level_sim.need_sample_workspace)
-            print("n times ", n_times)
-            #@TODO: remove ASAP
-            if n_times > 1:
-                failed.append((current_level, sample_id, err_msg))
-                print("failed ", failed)
                 SamplingPool.move_failed_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
 
             current_samples.append(sample_id)
@@ -245,11 +227,12 @@ class PbsJob:
 
     def _save_sample_id_job_id_map(self, current_samples):
         for sample_id in current_samples:
-            SamplingPool._change_to_sample_directory(self._output_dir, sample_id)
+            sample_dir = SamplingPool._change_to_sample_directory(self._output_dir, sample_id)
 
-            file_name = os.path.join(os.getcwd(), PbsJob.PERMANENT_SAMPLE.format(self._job_id))
-            with open(file_name, 'w') as w:
-                pass
+            if os.path.exists(sample_dir):
+                file_name = os.path.join(sample_dir, PbsJob.PERMANENT_SAMPLE.format(self._job_id))
+                with open(file_name, 'w') as w:
+                    pass
 
     def _append_file(self, data, path):
         """

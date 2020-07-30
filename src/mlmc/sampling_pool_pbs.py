@@ -53,21 +53,18 @@ class SamplingPoolPBS(SamplingPool):
     LEVEL_SIM_CONFIG = "level_{}_simulation_config"  # Serialized level simulation
     JOB = "{}_job.sh"  # Pbs process file
 
-    def __init__(self, work_dir, job_weight=200000, clean=False, debug=False):
+    def __init__(self, work_dir, clean=False, debug=False):
         """
         :param work_dir: Path to working directory
-        :param job_weight: Maximum sum of task sizes summation in single one job, if this value is exceeded then the job
-                           is executed
         :param clean: bool, if True delete output dir
         :param debug: bool, if True keep sample directories
                       it is the strongest parameter so it overshadows 'clean' param
         """
         self._work_dir = os.path.abspath(work_dir)
         # Working directory - other subdirectories are created in this one
-        self.job_weight = job_weight
-        # Weight of the single PBS script (putting more small jobs into single PBS job).
         self._current_job_weight = 0
-        # Current collected weight.
+        # Current job weight.
+        # Job is scheduled when current job weight is above 1 (this condition replaces previous job_weight param)
         self._n_samples_in_job = 0
         # Number of samples in job
         self.pbs_script = None
@@ -181,7 +178,7 @@ class SamplingPoolPBS(SamplingPool):
                                      ]
 
         self._pbs_header_template.extend(kwargs['optional_pbs_requests'])  # e.g. ['#PBS -m ae'] means mail is sent when the job aborts or terminates
-        self._pbs_header_template.extend(('$MLMC_WORKDIR={}'.format(self._work_dir),))
+        self._pbs_header_template.extend(('MLMC_WORKDIR=\"{}\"'.format(self._work_dir),))
         self._pbs_header_template.extend(kwargs['env_setting'])
         self._pbs_header_template.extend(('{python} -m mlmc.tool.pbs_job {output_dir} {job_name} >'
                                           '{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
@@ -201,7 +198,7 @@ class SamplingPoolPBS(SamplingPool):
 
         self._n_samples_in_job += 1
         self._current_job_weight += level_sim.task_size
-        if self._current_job_weight > self.job_weight:
+        if self._current_job_weight > 1:
             self.execute()
 
     def serialize_level_sim(self, level_sim: LevelSimulation):
