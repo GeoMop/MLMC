@@ -17,7 +17,7 @@ class LevelSimulation:
     # List of files in the level workspace to copy/symlink to the sample workspace.
 
     level_id: int = None
-    # Set out of the Simulation by the Sampler. Necessary in the sampling pool.
+    # Level id is set by mlmc.sampler.Sampler. It is internal variable and user shouldn't change it.
 
     need_sample_workspace: bool = False
     # If the simulation needs sample workspace at all.

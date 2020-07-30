@@ -31,9 +31,9 @@ def test_sampling_pools():
 
     single_process_pool = OneProcessPool(work_dir=work_dir)
     multiprocess_pool = ProcessPool(4, work_dir=work_dir)
-    thread_pool = ThreadPool(4, work_dir=work_dir)
+    #thread_pool = ThreadPool(4, work_dir=work_dir)
 
-    pools = [single_process_pool, multiprocess_pool, thread_pool]
+    pools = [single_process_pool, multiprocess_pool]#, thread_pool]
 
     all_data = []
     times = []
@@ -69,4 +69,4 @@ def test_sampling_pools():
 
     assert times[1] < times[0]
     assert np.allclose(all_data[0], all_data[1])
-    assert np.allclose(all_data[1], all_data[2])
+    #assert np.allclose(all_data[1], all_data[2])

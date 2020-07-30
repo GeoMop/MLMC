@@ -245,7 +245,7 @@ class PbsJob:
 
     def _save_sample_id_job_id_map(self, current_samples):
         for sample_id in current_samples:
-            SamplingPool._change_to_sample_directory(self._output_dir, sample_id)
+            SamplingPool.change_to_sample_directory(self._output_dir, sample_id)
 
             file_name = os.path.join(os.getcwd(), PbsJob.PERMANENT_SAMPLE.format(self._job_id))
             with open(file_name, 'w') as w:
@@ -269,9 +269,9 @@ class PbsJob:
         :return: None
         """
         if level_sim.need_sample_workspace:
-            SamplingPool._change_to_sample_directory(self._output_dir, sample_id)
+            SamplingPool.change_to_sample_directory(self._output_dir, sample_id)
             if level_sim.common_files is not None:
-                SamplingPool._copy_sim_files(level_sim.common_files, os.getcwd())
+                SamplingPool.copy_sim_files(level_sim.common_files, os.getcwd())
 
     @staticmethod
     def read_results(job_id, jobs_dir):
