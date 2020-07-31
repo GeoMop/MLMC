@@ -281,7 +281,7 @@ def oneprocess_test():
     n_moments = 5
 
     distr = stats.norm(loc=1, scale=2)
-    step_range = [0.01, 0.001, 0.0001]
+    step_range = [[0.01], [0.001], [0.0001]]
 
     # Set work dir
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -295,11 +295,11 @@ def oneprocess_test():
     simulation_factory = SynthSimulationWorkspace(simulation_config)
 
     sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_{}.hdf5".format(len(step_range))))
-    sampling_pool = OneProcessPool(work_dir=work_dir)
+    sampling_pool = OneProcessPool(work_dir=work_dir, debug=True)
 
     # Plan and compute samples
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
-                      step_range=step_range)
+                      level_parameters=step_range)
 
     true_domain = distr.ppf([0.0001, 0.9999])
     moments_fn = Legendre(n_moments, true_domain)
@@ -334,7 +334,7 @@ def oneprocess_test():
     print("means ", means)
     print("vars ", vars)
     assert means[0] == 1
-    assert np.isclose(means[1], 0, atol=1e-2)
+    assert np.isclose(means[1], 0, atol=5e-2)
     assert vars[0] == 0
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
@@ -457,5 +457,6 @@ def thread_test():
 
 
 if __name__ == "__main__":
-    multiproces_sampler_test()
+    oneprocess_test()
+    #multiproces_sampler_test()
     #threads_sampler_test()

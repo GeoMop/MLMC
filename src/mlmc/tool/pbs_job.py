@@ -168,7 +168,6 @@ class PbsJob:
 
             level_sim = self._level_simulations[current_level]
             assert level_sim.level_id == current_level
-            self._handle_sim_files(sample_id, level_sim)
             # Calculate sample
             _, res, err_msg, _ = SamplingPool.calculate_sample(sample_id, level_sim, work_dir=self._output_dir, seed=seed)
 

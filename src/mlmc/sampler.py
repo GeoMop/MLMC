@@ -9,7 +9,7 @@ from mlmc.sim.simulation import Simulation
 class Sampler:
 
     def __init__(self, sample_storage: SampleStorage, sampling_pool: SamplingPool, sim_factory: Simulation,
-                 level_parameters: List[float]):
+                 level_parameters: List[List[float]]):
         """
         :param sample_storage: store scheduled samples, results and result structure
         :param sampling_pool: calculate samples

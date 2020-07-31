@@ -75,7 +75,7 @@ def test_mlmc(test_case):
 
     simulation_factory, sample_storage, sampling_pool = test_case
 
-    if sampling_pool._work_dir is not None:
+    if sampling_pool._output_dir is not None:
         if os.path.exists(work_dir):
             shutil.rmtree(work_dir)
         os.makedirs(work_dir)

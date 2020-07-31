@@ -151,7 +151,7 @@ class QuantityEstimate:
             n_samples = self._n_created_samples
         if hasattr(self, "_saved_var_var"):
             ns, var_var = self._saved_var_var
-            if np.sum(np.abs(ns - n_samples)) == 0:
+            if np.sum(np.abs(np.array(ns) - np.array(n_samples))) == 0:
                 return var_var
 
         vars = []

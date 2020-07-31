@@ -1,72 +1,92 @@
 import os
 import shutil
+import copy
 import numpy as np
 from scipy import stats
-
-from test.synth_sim_for_tests import SynthSimulationForTests
+import pytest
+import yaml
+from test.synth_sim_for_tests import SynthSimulationForTests, SynthSimulationWorkspaceForTests
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import ProcessPool, ThreadPool, OneProcessPool
 from mlmc.moments import Legendre
 from mlmc.quantity_estimate import QuantityEstimate
-from time import time
 
+np.random.seed(1234)
+ref_means = [1., -0.03814235, -0.42411443, 0.05103307, 0.2123083]
+ref_vars = [0., 0.02713652, 0.00401481, 0.04033169, 0.01629022]
 
-def test_sampling_pools():
+# Set work dir
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
+work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+if os.path.exists(work_dir):
+    shutil.rmtree(work_dir)
+os.makedirs(work_dir)
+
+# Create simulations
+distr = stats.norm(loc=1, scale=2)
+step_range = [[0.01], [0.001], [0.0001]]
+failed_fraction = 0
+
+simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
+simulation_factory = SynthSimulationForTests(simulation_config)
+simulation_config_workspace = copy.deepcopy(simulation_config)
+simulation_config_workspace['distr'] = 'norm'
+with open('synth_sim_config_test.yaml', "w") as file:
+    yaml.dump(simulation_config_workspace, file, default_flow_style=False)
+shutil.copyfile('synth_sim_config_test.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
+sim_config_workspace = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
+simulation_factory_workspace = SynthSimulationWorkspaceForTests(sim_config_workspace)
+
+# Create sampling pools
+single_process_pool = OneProcessPool(work_dir=work_dir)
+multiprocess_pool = ProcessPool(4, work_dir=work_dir)
+#thread_pool = ThreadPool(4, work_dir=work_dir)
+
+single_process_pool_debug = OneProcessPool(work_dir=work_dir, debug=True)
+multiprocess_pool_debug = ProcessPool(4, work_dir=work_dir, debug=True)
+#thread_pool_debug = ThreadPool(4, work_dir=work_dir)
+
+@pytest.mark.parametrize("sampling_pool, simulation_factory", [(single_process_pool, simulation_factory),
+                                                               (multiprocess_pool, simulation_factory),
+                                                               (single_process_pool_debug, simulation_factory_workspace),
+                                                               (multiprocess_pool_debug, simulation_factory_workspace)
+                                                               ])
+def test_sampling_pools(sampling_pool, simulation_factory):
     n_moments = 5
 
-    distr = stats.norm(loc=1, scale=2)
-    step_range = [[0.01], [0.001], [0.0001]]
-    failed_fraction = 0
-
-    # Set work dir
-    os.chdir(os.path.dirname(os.path.realpath(__file__)))
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
     if os.path.exists(work_dir):
         shutil.rmtree(work_dir)
     os.makedirs(work_dir)
-
-    simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
-    simulation_factory = SynthSimulationForTests(simulation_config)
-
-    single_process_pool = OneProcessPool(work_dir=work_dir)
-    multiprocess_pool = ProcessPool(4, work_dir=work_dir)
-    #thread_pool = ThreadPool(4, work_dir=work_dir)
-
-    pools = [single_process_pool, multiprocess_pool]#, thread_pool]
-
-    all_data = []
-    times = []
-    for sampling_pool in pools:
+    if simulation_factory.need_workspace:
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
-        if os.path.exists(work_dir):
-            shutil.rmtree(work_dir)
-        os.makedirs(work_dir)
+        shutil.copyfile('synth_sim_config_test.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
 
-        shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
-        sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_{}.hdf5".format(len(step_range))))
-        # Plan and compute samples
-        sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
-                          level_parameters=step_range)
+    print("os.path.join(work_dir, 'synth_sim_config.yaml') ", os.path.join(work_dir, 'synth_sim_config.yaml'))
 
-        true_domain = distr.ppf([0.0001, 0.9999])
-        moments_fn = Legendre(n_moments, true_domain)
+    sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_{}.hdf5".format(len(step_range))))
+    # Plan and compute samples
+    sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
+                      level_parameters=step_range)
 
-        start = time()
+    true_domain = distr.ppf([0.0001, 0.9999])
+    moments_fn = Legendre(n_moments, true_domain)
 
-        sampler.set_initial_n_samples([10, 10, 10])
-        sampler.schedule_samples()
-        sampler.ask_sampling_pool_for_samples()
+    sampler.set_initial_n_samples([10, 10, 10])
+    sampler.schedule_samples()
+    sampler.ask_sampling_pool_for_samples()
 
-        times.append(time() - start)
-        q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
+    q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
+    means, vars = q_estimator.estimate_moments(moments_fn)
 
-        means, vars = q_estimator.estimate_moments(moments_fn)
-        all_data.append(np.array([means, vars]))
+    assert means[0] == 1
+    assert vars[0] == 0
 
-        assert means[0] == 1
-        assert vars[0] == 0
+    assert np.allclose(np.array(ref_means), np.array(means))
+    assert np.allclose(np.array(ref_vars), np.array(ref_vars))
 
-    assert times[1] < times[0]
-    assert np.allclose(all_data[0], all_data[1])
-    #assert np.allclose(all_data[1], all_data[2])
+    if sampling_pool._debug:
+        assert 'output' in next(os.walk(work_dir))[1]
+
+
