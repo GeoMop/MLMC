@@ -226,7 +226,7 @@ class PbsJob:
 
     def _save_sample_id_job_id_map(self, current_samples):
         for sample_id in current_samples:
-            sample_dir = SamplingPool._change_to_sample_directory(self._output_dir, sample_id)
+            sample_dir = SamplingPool.change_to_sample_directory(self._output_dir, sample_id)
 
             if os.path.exists(sample_dir):
                 file_name = os.path.join(sample_dir, PbsJob.PERMANENT_SAMPLE.format(self._job_id))
