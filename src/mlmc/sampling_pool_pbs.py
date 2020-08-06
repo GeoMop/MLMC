@@ -164,7 +164,7 @@ class SamplingPoolPBS(SamplingPool):
         self._pbs_header_template = ["#!/bin/bash",
                                      '#PBS -S /bin/bash',
                                      '#PBS -l select={n_nodes}:ncpus={n_cores}:mem={mem}{select_flags}',
-                                     '#PBS -l walltime=1:00:00',
+                                     '#PBS -l walltime={walltime}',
                                      '#PBS -q {queue}',
                                      '#PBS -N MLMC_sim',
                                      '#PBS -j oe',
@@ -172,6 +172,7 @@ class SamplingPoolPBS(SamplingPool):
                                      '#PBS -e {pbs_output_dir}/{job_name}.ER',
                                      '']
 
+        self._pbs_header_template.extend(('$MLMC_WORKDIR={}'.format(self._work_dir),))
         self._pbs_header_template.extend(kwargs['env_setting'])
         self._pbs_header_template.extend(('{python} -m mlmc.tool.pbs_job {output_dir} {job_name} >'
                                           '{pbs_output_dir}/{job_name}_STDOUT 2>&1',))

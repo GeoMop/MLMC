@@ -61,22 +61,23 @@ class SamplingPool(ABC):
         return seed
 
     @staticmethod
-    def calculate_sample(sample_id, level_sim, work_dir=None):
+    def calculate_sample(sample_id, level_sim, work_dir=None, seed=None):
         """
         Method for calculating results
         :param sample_id: str
         :param level_sim: LevelSimulation
         :param work_dir: working directory
-        :return:
+        :param seed: random seed
+        :return: sample id, sample result, error message - empty str if no error, running time
         """
-        seed = SamplingPool.compute_seed(sample_id)
+        if seed is None:
+            seed = SamplingPool.compute_seed(sample_id)
         res = (None, None)
         err_msg = ""
         running_time = 0
 
         if level_sim.need_sample_workspace:
             SamplingPool._handle_sim_files(work_dir, sample_id, level_sim)
-
         try:
             start = time.time()
             res = level_sim.calculate(level_sim.config_dict, seed)
