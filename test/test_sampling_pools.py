@@ -4,11 +4,11 @@ import copy
 import numpy as np
 from scipy import stats
 import pytest
-import yaml
-from test.synth_sim_for_tests import SynthSimulationForTests, SynthSimulationWorkspaceForTests
+import ruamel.yaml as yaml
+from test.synth_sim_for_tests import SynthSimulationWorkspaceForTests
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc.sampling_pool import ProcessPool, ThreadPool, OneProcessPool
+from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
 from mlmc.moments import Legendre
 from mlmc.quantity_estimate import QuantityEstimate
 
@@ -28,12 +28,10 @@ distr = stats.norm(loc=1, scale=2)
 step_range = [[0.01], [0.001], [0.0001]]
 failed_fraction = 0
 
-simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
-simulation_factory = SynthSimulationForTests(simulation_config)
-simulation_config_workspace = copy.deepcopy(simulation_config)
-simulation_config_workspace['distr'] = 'norm'
+simulation_config = dict(distr='norm', complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
+
 with open('synth_sim_config_test.yaml', "w") as file:
-    yaml.dump(simulation_config_workspace, file, default_flow_style=False)
+    yaml.dump(simulation_config, file, default_flow_style=False)
 shutil.copyfile('synth_sim_config_test.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
 sim_config_workspace = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
 simulation_factory_workspace = SynthSimulationWorkspaceForTests(sim_config_workspace)
@@ -47,13 +45,15 @@ single_process_pool_debug = OneProcessPool(work_dir=work_dir, debug=True)
 multiprocess_pool_debug = ProcessPool(4, work_dir=work_dir, debug=True)
 #thread_pool_debug = ThreadPool(4, work_dir=work_dir)
 
-@pytest.mark.parametrize("sampling_pool, simulation_factory", [(single_process_pool, simulation_factory),
-                                                               (multiprocess_pool, simulation_factory),
+
+@pytest.mark.parametrize("sampling_pool, simulation_factory", [(single_process_pool, simulation_factory_workspace),
+                                                               (multiprocess_pool, simulation_factory_workspace),
                                                                (single_process_pool_debug, simulation_factory_workspace),
-                                                               (multiprocess_pool_debug, simulation_factory_workspace)
+                                                               (multiprocess_pool_debug, simulation_factory_workspace),
                                                                ])
 def test_sampling_pools(sampling_pool, simulation_factory):
     n_moments = 5
+    np.random.seed(123)
 
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
     if os.path.exists(work_dir):
@@ -82,11 +82,8 @@ def test_sampling_pools(sampling_pool, simulation_factory):
 
     assert means[0] == 1
     assert vars[0] == 0
-
-    assert np.allclose(np.array(ref_means), np.array(means))
-    assert np.allclose(np.array(ref_vars), np.array(ref_vars))
+    assert np.allclose(np.array(ref_means), np.array(means), atol=1e-5)
+    assert np.allclose(np.array(ref_vars), np.array(ref_vars), atol=1e-5)
 
     if sampling_pool._debug:
         assert 'output' in next(os.walk(work_dir))[1]
-
-

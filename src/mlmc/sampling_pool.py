@@ -21,6 +21,7 @@ class SamplingPool(ABC):
         :param work_dir: Path to working directory
         :param debug: bool, if True keep sample directories
         """
+        self._output_dir = None
         if work_dir is not None:
             work_dir = os.path.abspath(work_dir)
             self._output_dir = os.path.join(work_dir, "output")
@@ -191,13 +192,11 @@ class OneProcessPool(SamplingPool):
         """
         Everything is running in one process
         """
-        if work_dir is not None:
-            work_dir = os.path.abspath(work_dir)
+        super().__init__(work_dir=work_dir, debug=debug)
         self._failed_queues = {}
         self._queues = {}
         self._n_running = 0
         self.times = {}
-        super().__init__(work_dir=work_dir, debug=debug)
 
     def schedule_sample(self, sample_id, level_sim):
         self._n_running += 1
@@ -308,9 +307,9 @@ class ThreadPool(ProcessPool):
     Suitable local parallel sampling for simulations WITH external program call
     """
 
-    def __init__(self, n_thread, work_dir=None):
+    def __init__(self, n_thread, work_dir=None, debug=False):
+        super().__init__(n_thread, work_dir=work_dir, debug=debug)
         self._pool = pool.ThreadPool(n_thread)
-        self._work_dir = work_dir
         self._failed_queues = {}
         self._queues = {}
         self._n_running = 0
