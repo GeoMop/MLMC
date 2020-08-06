@@ -298,7 +298,6 @@ class LevelGroup:
 
     def append_successful(self, samples: np.array):
         """
-        @TODO: improve doc
         Save level samples to datasets (h5py.Dataset), save ids of collected samples and their results
         :param samples: np.ndarray
         :return: None
