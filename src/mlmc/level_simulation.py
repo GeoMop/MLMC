@@ -6,6 +6,7 @@ from typing import List, Dict, Any
 class LevelSimulation:
     """
     This class is used to pass simulation data at a given level between a Sampler and a SamplingPool
+    User should't change this class
     """
     config_dict: Dict[Any, Any]
     # Calculate configuration.
@@ -17,7 +18,7 @@ class LevelSimulation:
     # List of files in the level workspace to copy/symlink to the sample workspace.
 
     level_id: int = None
-    # Set out of the Simulation by the Sampler. Necessary in the sampling pool.
+    # Level id is set by mlmc.sampler.Sampler. It is internal variable and user should'n change it.
 
     need_sample_workspace: bool = False
     # If the simulation needs sample workspace at all.

@@ -9,13 +9,15 @@ from mlmc.sim.simulation import Simulation
 class Sampler:
 
     def __init__(self, sample_storage: SampleStorage, sampling_pool: SamplingPool, sim_factory: Simulation,
-                 level_parameters: List[float]):
+                 level_parameters: List[float], seed=1234):
         """
         :param sample_storage: store scheduled samples, results and result structure
         :param sampling_pool: calculate samples
         :param sim_factory: generate samples
         :param level_parameters: List of e.g. simulation steps, ...
+        :param seed: global random seed
         """
+        np.random.seed(seed)
         self.sample_storage = sample_storage
         self._sampling_pool = sampling_pool
 

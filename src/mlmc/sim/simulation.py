@@ -15,9 +15,6 @@ class QuantitySpec:
 
 class Simulation(ABC):
 
-    def __init__(self, config):
-        self._config = config
-
     @abstractmethod
     def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float])-> LevelSimulation:
         """
@@ -37,7 +34,7 @@ class Simulation(ABC):
         """
 
     @staticmethod
-    def result_format()-> List[QuantitySpec]:
+    def result_format() -> List[QuantitySpec]:
         """
         Define simulation result format
         :return: List[QuantitySpec, ...]

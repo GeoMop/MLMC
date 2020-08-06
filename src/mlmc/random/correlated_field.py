@@ -4,6 +4,10 @@ import numpy.linalg as la
 import numpy.random as rand
 import scipy as sp
 from sklearn.utils.extmath import randomized_svd
+import mlmc.random.gstools_wrapper as gs
+import warnings
+warnings.simplefilter('always', DeprecationWarning)
+import gstools
 
 
 def kozeny_carman(porosity, m, factor, viscosity):
@@ -311,10 +315,8 @@ class RandomFieldBase:
 
         self._initialize(**kwargs)  # Implementation dependent initialization.
 
-
     def _initialize(self, **kwargs):
         raise NotImplementedError()
-
 
     def set_points(self, points, mu=None, sigma=None):
         """
@@ -342,7 +344,6 @@ class RandomFieldBase:
 
     def _set_points(self):
         pass
-
 
     def sample(self):
         """
@@ -386,7 +387,6 @@ class SpatialCorrelatedField(RandomFieldBase):
     def _set_points(self):
         self.cov_mat = None
         self._cov_l_factor = None
-
 
     def cov_matrix(self):
         """
@@ -484,7 +484,7 @@ class SpatialCorrelatedField(RandomFieldBase):
         #print("KL approximation: {} for {} points.".format(m, self.n_points))
         self.n_approx_terms = m
         self._sqrt_ev = np.sqrt(ev[0:m])
-        self._cov_l_factor = U[:, 0:m].dot(sp.diag(self._sqrt_ev))
+        self._cov_l_factor = U[:, 0:m].dot(np.diag(self._sqrt_ev))
         self.cov_mat = None
         return self._cov_l_factor, ev[0:m]
 
@@ -499,6 +499,56 @@ class SpatialCorrelatedField(RandomFieldBase):
         return self._cov_l_factor.dot(uncorelated)
 
 
+class GSToolsSpatialCorrelatedField(RandomFieldBase):
+
+    def __init__(self, model, mode_no=1000):
+        """
+        :param model: instance of covariance model class, which parent is gstools.covmodel.CovModel
+        :param mode_no: number of Fourier modes, default: 1000 as in gstools package
+        """
+        self.model = model
+        self.mode_no = mode_no
+        self.srf = gstools.SRF(model, mode_no=mode_no)
+        self.dim = model.dim
+
+    def change_srf(self, seed):
+        """
+        Spatial random field with new seed
+        :param seed: int, random number generator seed
+        :return: None
+        """
+        self.srf = gstools.SRF(self.model, seed=seed, mode_no=self.mode_no)
+
+    def random_field(self):
+        """
+        Generate the spatial random field
+        :return: field, np.ndarray
+        """
+        if self.dim == 1:
+            x = self.points
+            x.reshape(len(x), 1)
+            field = self.srf((x))
+        elif self.dim == 2:
+            x, y = self.points.T
+            x = x.reshape(len(x), 1)
+            y = y.reshape(len(y), 1)
+            field = self.srf((x, y))
+        else:
+            x, y, z = self.points.T
+            x = x.reshape(len(x), 1)
+            y = y.reshape(len(y), 1)
+            z = z.reshape(len(z), 1)
+            field = self.srf((x, y, z))
+
+        return field
+
+    def sample(self):
+        """
+        :return: Random field evaluated in points given by 'set_points'
+        """
+        return self.sigma * self.random_field() + self.mu
+
+
 class FourierSpatialCorrelatedField(RandomFieldBase):
     """
     Generate spatial random fields
@@ -509,9 +559,10 @@ class FourierSpatialCorrelatedField(RandomFieldBase):
         Own intialization.
         :param mode_no: Number of Fourier modes
         """
+        warnings.warn("FourierSpatialCorrelatedField class is deprecated, try to use GSToolsSpatialCorrelatedField class instead",
+            DeprecationWarning)
         self.len_scale = self._corr_length * 2*np.pi
         self.mode_no = kwargs.get("mode_no", 1000)
-
 
     def get_normal_distr(self):
         """
@@ -687,7 +738,7 @@ class FourierSpatialCorrelatedField(RandomFieldBase):
                 break
 
         field = np.sqrt(1.0 / self.mode_no) * summed_modes
-        return  field
+        return field
 
     def _sample(self):
         """
