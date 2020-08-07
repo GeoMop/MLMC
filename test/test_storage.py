@@ -98,19 +98,19 @@ def test_hdf_append():
         shutil.rmtree(work_dir)
     os.makedirs(work_dir)
     storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5".format()))
-
     n_levels = 4
     format_quant = add_samples(storage, n_levels)
-
-    storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5".format()), append=True)
-    storage.save_global_data(level_parameters=np.ones(n_levels), result_format=format_quant)
-
     results = np.array(storage.sample_pairs())
 
+    storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5".format()), append=True)
+    loaded_results = np.array(storage.sample_pairs())
+
     assert len(results) == n_levels
-    for level_res in results:
+    for level_res, level_res_loaded in zip(results, loaded_results):
         assert np.allclose(level_res[:, :, 0], 1)
         assert np.allclose(level_res[:, :, 1], 0)
+        assert np.allclose(level_res[:, :, 0], level_res_loaded[:, :, 0])
+        assert np.allclose(level_res[:, :, 1], level_res_loaded[:, :, 1])
 
     n_ops = storage.get_n_ops()
     assert len(n_ops) == n_levels
@@ -123,3 +123,8 @@ def test_hdf_append():
 
     n_finished = storage.n_finished()
     assert len(n_finished) == n_levels
+
+
+
+
+test_hdf_append()

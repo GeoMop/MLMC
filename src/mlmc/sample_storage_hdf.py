@@ -26,6 +26,11 @@ class SampleStorageHDF(SampleStorage):
         # HDF5 interface
         self._hdf_object = hdf.HDF5(file_path=file_path, load_from_file=load_from_file)
         self._level_groups = []
+        # 'Load' level groups
+        if load_from_file:
+            # Create level group for each level
+            for i_level in range(len(self._hdf_object.level_parameters)):
+                self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
 
     def _hdf_result_format(self, locations, times):
         """
@@ -181,7 +186,6 @@ class SampleStorageHDF(SampleStorage):
         failed_samples = {}
 
         for level in self._level_groups:
-            print("level.get_failed_ids() ", level.get_failed_ids())
             failed_samples[str(level.level_id)] = list(level.get_failed_ids())
 
         return failed_samples
