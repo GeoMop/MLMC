@@ -34,7 +34,7 @@ class Simulation(ABC):
         """
 
     @staticmethod
-    def result_format()-> List[QuantitySpec]:
+    def result_format() -> List[QuantitySpec]:
         """
         Define simulation result format
         :return: List[QuantitySpec, ...]

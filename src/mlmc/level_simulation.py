@@ -6,6 +6,7 @@ from typing import List, Dict, Any
 class LevelSimulation:
     """
     This class is used to pass simulation data at a given level between a Sampler and a SamplingPool
+    User should't change this class
     """
     config_dict: Dict[Any, Any]
     # Calculate configuration.
@@ -24,6 +25,8 @@ class LevelSimulation:
 
     task_size: int = 0
     # Relative size of the simulation at this level.
+    # When using PBS, keep in mind that the pbs job size is the sum of task_sizes, and if this sum is above 1,
+    # the job is scheduled and PBS scheduler manages it
 
     sample_workspace: str = None
 
