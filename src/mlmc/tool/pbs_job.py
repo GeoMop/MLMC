@@ -1,11 +1,10 @@
 import os
-import shutil
 import sys
-import ruamel.yaml as yaml
 import time
-import pickle
-from typing import List
 import warnings
+import numpy as np
+import ruamel.yaml as yaml
+import pickle
 from mlmc.sampling_pool import SamplingPool
 from ruamel.yaml.error import ReusedAnchorWarning
 warnings.simplefilter("ignore", ReusedAnchorWarning)
@@ -13,7 +12,7 @@ warnings.simplefilter("ignore", ReusedAnchorWarning)
 
 class PbsJob:
     SCHEDULED = "{}_scheduled.yaml"
-    # Store scheduled samples as List[(level_sim.level_id, sample_id, seed)]
+    # Store scheduled samples as List[(level_sim._level_id, sample_id, seed)]
     SUCCESSFUL_RESULTS = "{}_successful_results.yaml"
     # Simulation results as Dict[level_id, List[Tuple[sample_id, (fine result, coarse result)]]]
     FAILED_RESULTS = "{}_failed_results.yaml"
@@ -117,7 +116,7 @@ class PbsJob:
         """
         with open(os.path.join(self._output_dir, self._level_sim_file.format(level_id)), "rb") as reader:
             l_sim = pickle.load(reader)
-            self._level_simulations[l_sim.level_id] = l_sim
+            self._level_simulations[l_sim._level_id] = l_sim
 
     def _get_level_id_sample_id_seed(self):
         """
@@ -167,9 +166,17 @@ class PbsJob:
                 current_level = level_id
 
             level_sim = self._level_simulations[current_level]
-            assert level_sim.level_id == current_level
+            assert level_sim._level_id == current_level
             # Calculate sample
             _, res, err_msg, _ = SamplingPool.calculate_sample(sample_id, level_sim, work_dir=self._output_dir, seed=seed)
+
+            res_format = level_sim._result_format()
+
+            res_expected_len = np.sum(
+                [np.prod(quantity_spec.shape) * len(quantity_spec.times) * len(quantity_spec.locations)
+                 for quantity_spec in res_format])
+
+            assert len(res[0].flatten()) == len(res[1].flatten()) == res_expected_len, "Unexpected result format"
 
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))

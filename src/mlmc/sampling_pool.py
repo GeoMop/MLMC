@@ -98,7 +98,7 @@ class SamplingPool(ABC):
             SamplingPool.handle_sim_files(work_dir, sample_id, level_sim)
         try:
             start = time.time()
-            res = level_sim.calculate(level_sim.config_dict, seed)
+            res = level_sim._calculate(level_sim.config_dict, seed, level_sim._result_format)
             running_time = time.time() - start
         except Exception:
             str_list = traceback.format_exception(*sys.exc_info())
@@ -220,14 +220,14 @@ class OneProcessPool(SamplingPool):
         :return: None
         """
         # Save running time for n_ops
-        self._save_running_time(level_sim.level_id, running_time)
+        self._save_running_time(level_sim._level_id, running_time)
 
         if not err_msg:
-            self._queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
+            self._queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
             if not self._debug:
                 SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
         else:
-            self._failed_queues.setdefault(level_sim.level_id, queue.Queue()).put((sample_id, err_msg))
+            self._failed_queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, err_msg))
             SamplingPool.move_failed_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
 
     def _save_running_time(self, level_id, running_time):

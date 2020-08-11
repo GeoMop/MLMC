@@ -68,8 +68,9 @@ class Sampler:
             else:
                 level_sim = sim_factory.level_instance(level_parameters[level_id], level_parameters[level_id - 1])
 
-            level_sim.calculate = sim_factory.calculate
-            level_sim.level_id = level_id
+            level_sim._calculate = sim_factory.calculate
+            level_sim._result_format = sim_factory.result_format
+            level_sim._level_id = level_id
             self._level_sim_objects.append(level_sim)
 
     def sample_range(self, n0, nL):

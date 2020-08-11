@@ -17,7 +17,7 @@ SamplingPoolPBS description
     schedule_sample(sample_id, level_sim)
         - serialize level_sim (mlmc/level_simulation.py), pickle is used
         - compute random seed from sample_id
-        - add (level_sim.level_id, sample_id, seed) to job's scheduled samples 
+        - add (level_sim._level_id, sample_id, seed) to job's scheduled samples 
         - add job weight, increment number of samples in job and execute if job_weight is exceeded
     
     execute()
@@ -194,7 +194,7 @@ class SamplingPoolPBS(SamplingPool):
         self.serialize_level_sim(level_sim)
 
         seed = self.compute_seed(sample_id)
-        self._scheduled.append((level_sim.level_id, sample_id, seed))
+        self._scheduled.append((level_sim._level_id, sample_id, seed))
 
         self._n_samples_in_job += 1
         self._current_job_weight += level_sim.task_size
@@ -207,7 +207,7 @@ class SamplingPoolPBS(SamplingPool):
         :param level_sim: LevelSimulation
         :return: None
         """
-        file_path = os.path.join(self._output_dir, SamplingPoolPBS.LEVEL_SIM_CONFIG.format(level_sim.level_id))
+        file_path = os.path.join(self._output_dir, SamplingPoolPBS.LEVEL_SIM_CONFIG.format(level_sim._level_id))
 
         if not os.path.exists(file_path):
             with open(file_path, "wb") as f:
