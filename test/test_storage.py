@@ -58,8 +58,8 @@ def test_storage(storage, n_levels):
 
     n_successful = 5
     n_failed = 4
-    res_lenght = 3
-    format_quant = add_samples(storage, n_levels, n_successful=n_successful, n_failed=n_failed, res_lenght=res_lenght)
+    res_length = 3
+    format_quant = add_samples(storage, n_levels, n_successful=n_successful, n_failed=n_failed, res_lenght=res_length)
 
     scheduled = storage.load_scheduled_samples()
 
@@ -72,7 +72,7 @@ def test_storage(storage, n_levels):
     assert len(results) == n_levels
     for level_res in results:
         assert level_res.shape[1] == n_successful
-        assert level_res.shape[0] == res_lenght
+        assert level_res.shape[0] == res_length
         assert np.allclose(level_res[:, :, 0], 1)
         assert np.allclose(level_res[:, :, 1], 0)
 

@@ -208,7 +208,7 @@ class Memory(SampleStorage):
 
         for level_id in self.get_level_ids():
             results = self.sample_pairs_level(level_id)
-            levels_results[level_id] = results.transpose((2, 0, 1))
+            levels_results[level_id] = results
 
         return levels_results
 
