@@ -110,7 +110,9 @@ class SamplingPool(ABC):
                     [np.prod(quantity_spec.shape) * len(quantity_spec.times) * len(quantity_spec.locations)
                      for quantity_spec in level_sim._result_format()])
 
-                assert len(flatten_fine_res) == len(flatten_coarse_res) == res_expected_len, "Unexpected result format"
+                assert len(flatten_fine_res) == len(flatten_coarse_res) == res_expected_len,\
+                    "Unexpected result format, expected length: {}, resultf length: {}".format(res_expected_len,
+                                                                                               len(flatten_fine_res))
 
         except Exception:
             str_list = traceback.format_exception(*sys.exc_info())

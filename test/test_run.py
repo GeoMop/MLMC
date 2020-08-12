@@ -56,7 +56,7 @@ sampling_pool_thread_dir = ThreadPool(4, work_dir=work_dir)
 
 @pytest.mark.parametrize("test_case", [(simulation, storage_memory, sampling_pool_single_process),
                                        (simulation, storage_memory, sampling_pool_processes),
-                                       (simulation, storage_memory, sampling_pool_thread),
+                                       # (simulation, storage_memory, sampling_pool_thread),
                                        (simulation, hdf_storage_factory(), sampling_pool_single_process),
                                        (simulation, hdf_storage_factory(), sampling_pool_processes),
                                        #(simulation, hdf_storage_factory(), sampling_pool_thread),

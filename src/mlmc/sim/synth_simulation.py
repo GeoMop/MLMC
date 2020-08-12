@@ -65,7 +65,7 @@ class SynthSimulation(Simulation):
         config["fine"]["step"] = fine_level_params[0]
         config["coarse"]["step"] = coarse_level_params[0]
         config["distr"] = self.config["distr"]
-        config["size"] = np.prod(self.result_format()[0].shape)
+        config["res_format"] = self.result_format()
 
         return LevelSimulation(config_dict=config, task_size=self.n_ops_estimate(fine_level_params[0]))
 
@@ -96,7 +96,8 @@ class SynthSimulation(Simulation):
         :param seed: random number generator seed
         :return: np.ndarray, np.ndarray
         """
-        fine_random, coarse_random = SynthSimulation.generate_random_samples(config["distr"], seed, config['size'])
+        quantity_format = config["res_format"]
+        fine_random, coarse_random = SynthSimulation.generate_random_samples(config["distr"], seed, np.prod(quantity_format[0].shape))
 
         fine_step = config["fine"]["step"]
         coarse_step = config["coarse"]["step"]
@@ -199,7 +200,7 @@ class SynthSimulationWorkspace(SynthSimulation):
 
         config["fine"]["step"] = fine_level_params[0]
         config["coarse"]["step"] = coarse_level_params[0]
-        config["size"] = np.prod(self.result_format()[0].shape)
+        config["res_format"] = self.result_format()
 
         return LevelSimulation(config_dict=config,
                                common_files=[self.config_yaml],
@@ -242,8 +243,10 @@ class SynthSimulationWorkspace(SynthSimulation):
         config_file = SynthSimulationWorkspace._read_config()
         SynthSimulationWorkspace.nan_fraction = config_file["nan_fraction"]
 
+        quantity_format = config["res_format"]
+
         fine_random, coarse_random = SynthSimulationWorkspace.generate_random_samples(config_file["distr"], seed,
-                                                                                      config['size'])
+                                                                                      np.prod(quantity_format[0].shape))
 
         fine_step = config["fine"]["step"]
         coarse_step = config["coarse"]["step"]
@@ -271,7 +274,7 @@ class SynthSimulationWorkspace(SynthSimulation):
                 quantities.append(times)
             results.append(np.array(quantities))
 
-        return flatten_fine_res, flatten_coarse_res
+        return results[0].flatten(), results[1].flatten()
 
     def n_ops_estimate(self, step):
         # @TODO: how to determine n ops
