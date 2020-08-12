@@ -170,14 +170,6 @@ class PbsJob:
             # Calculate sample
             _, res, err_msg, _ = SamplingPool.calculate_sample(sample_id, level_sim, work_dir=self._output_dir, seed=seed)
 
-            res_format = level_sim._result_format()
-
-            res_expected_len = np.sum(
-                [np.prod(quantity_spec.shape) * len(quantity_spec.times) * len(quantity_spec.locations)
-                 for quantity_spec in res_format])
-
-            assert len(res[0].flatten()) == len(res[1].flatten()) == res_expected_len, "Unexpected result format"
-
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time

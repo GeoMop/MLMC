@@ -65,6 +65,7 @@ class SynthSimulation(Simulation):
         config["fine"]["step"] = fine_level_params[0]
         config["coarse"]["step"] = coarse_level_params[0]
         config["distr"] = self.config["distr"]
+        config["size"] = np.prod(self.result_format()[0].shape)
 
         return LevelSimulation(config_dict=config, task_size=self.n_ops_estimate(fine_level_params[0]))
 
@@ -88,15 +89,14 @@ class SynthSimulation(Simulation):
         return y, y
 
     @staticmethod
-    def calculate(config, seed, result_format):
+    def calculate(config, seed):
         """
         Calculate fine and coarse sample and also extract their results
         :param config: dictionary containing simulation configuration
-        :return:
+        :param seed: random number generator seed
+        :return: np.ndarray, np.ndarray
         """
-        quantity_format = result_format()
-        fine_random, coarse_random = SynthSimulation.generate_random_samples(config["distr"], seed,
-                                                                             np.prod(quantity_format[0].shape))
+        fine_random, coarse_random = SynthSimulation.generate_random_samples(config["distr"], seed, config['size'])
 
         fine_step = config["fine"]["step"]
         coarse_step = config["coarse"]["step"]
@@ -110,8 +110,6 @@ class SynthSimulation(Simulation):
 
         if np.any(np.isnan(fine_result)) or np.any(np.isnan(coarse_result)):
             raise Exception("result is nan")
-
-        quantity_format = result_format()
 
         results = []
         for result in [fine_result, coarse_result]:
@@ -128,10 +126,6 @@ class SynthSimulation(Simulation):
     def n_ops_estimate(self, step):
         return (1 / step) ** self.config['complexity'] * np.log(max(1 / step, 2.0))
 
-    # def _result_format(self):
-    #     return SynthSimulation._result_format()
-    #
-    # @staticmethod
     def result_format(self) -> List[QuantitySpec]:
         """
         Result format
@@ -162,7 +156,6 @@ class SynthSimulationWorkspace(SynthSimulation):
                 nan_fraction=fraction of failed samples
                 sim_method=used method for calculating sample result
         """
-        #super().__init__(config)
         self.config_yaml = config["config_yaml"]
 
         SynthSimulationWorkspace.n_nans = 0
@@ -206,6 +199,7 @@ class SynthSimulationWorkspace(SynthSimulation):
 
         config["fine"]["step"] = fine_level_params[0]
         config["coarse"]["step"] = coarse_level_params[0]
+        config["size"] = np.prod(self.result_format()[0].shape)
 
         return LevelSimulation(config_dict=config,
                                common_files=[self.config_yaml],
@@ -238,25 +232,23 @@ class SynthSimulationWorkspace(SynthSimulation):
         return y, y
 
     @staticmethod
-    def calculate(config, seed, result_format):
+    def calculate(config, seed):
         """
         Calculate fine and coarse sample and also extract their results
         :param config: dictionary containing simulation configuration
-        :return:
+        :param seed: random number generator seed
+        :return: np.ndarray, np.ndarray
         """
         config_file = SynthSimulationWorkspace._read_config()
         SynthSimulationWorkspace.nan_fraction = config_file["nan_fraction"]
-        quantity_format = result_format()
 
         fine_random, coarse_random = SynthSimulationWorkspace.generate_random_samples(config_file["distr"], seed,
-                                                                                      np.prod(quantity_format[0].shape))
+                                                                                      config['size'])
 
         fine_step = config["fine"]["step"]
         coarse_step = config["coarse"]["step"]
 
         fine_result = SynthSimulation.sample_fn(fine_random, fine_step)
-
-        print("fine result ", fine_result)
 
         if coarse_step == 0:
             coarse_result = np.zeros(len(fine_result))
@@ -277,22 +269,7 @@ class SynthSimulationWorkspace(SynthSimulation):
                     locations = np.array([result + i for i in range(len(quantity.locations))])
                 times = np.array([locations for _ in range(len(quantity.times))])
                 quantities.append(times)
-                print("np.array(quantities) ", np.array(quantities).shape)
-
-            print("np.array(quantities) ", np.array(quantities).shape)
             results.append(np.array(quantities))
-
-        flatten_fine_res = results[0].flatten()
-        flatten_coarse_res = results[1].flatten()
-
-        res_expected_len = np.sum(
-             [np.prod(quantity_spec.shape) * len(quantity_spec.times) * len(quantity_spec.locations)
-              for quantity_spec in quantity_format])
-
-        print("len(flatten_coarse_res)", len(flatten_coarse_res))
-        print("res_expected_len ", res_expected_len)
-
-        assert len(flatten_fine_res) == len(flatten_coarse_res) == res_expected_len, "Unexpected result format"
 
         return flatten_fine_res, flatten_coarse_res
 

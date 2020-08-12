@@ -4,3 +4,4 @@ sklearn
 h5py
 ruamel.yaml
 attrs
+gstools

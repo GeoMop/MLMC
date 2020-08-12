@@ -98,8 +98,20 @@ class SamplingPool(ABC):
             SamplingPool.handle_sim_files(work_dir, sample_id, level_sim)
         try:
             start = time.time()
-            res = level_sim._calculate(level_sim.config_dict, seed, level_sim._result_format)
+            res = level_sim._calculate(level_sim.config_dict, seed)
             running_time = time.time() - start
+
+            # Check result format
+            if type(res[0]) is np.ndarray and type(res[1]) is np.ndarray:
+                flatten_fine_res = res[0].flatten()
+                flatten_coarse_res = res[1].flatten()
+
+                res_expected_len = np.sum(
+                    [np.prod(quantity_spec.shape) * len(quantity_spec.times) * len(quantity_spec.locations)
+                     for quantity_spec in level_sim._result_format()])
+
+                assert len(flatten_fine_res) == len(flatten_coarse_res) == res_expected_len, "Unexpected result format"
+
         except Exception:
             str_list = traceback.format_exception(*sys.exc_info())
             err_msg = "".join(str_list)

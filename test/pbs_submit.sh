@@ -23,7 +23,7 @@ module load python36-modules-gcc
 python3 -m venv env --clear
 source env/bin/activate
 
-pip3 install attrs numpy scipy h5py ruamel.yaml ${mlmc}
+pip3 install attrs numpy scipy h5py gstools ruamel.yaml ${mlmc}
 
 cd ${script_path}
 

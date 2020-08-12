@@ -220,7 +220,7 @@ class FlowSim(Simulation):
         np.random.seed(seed)
         # Generate random samples
         fine_input_sample, coarse_input_sample = FlowSim.generate_random_sample(fields, coarse_step=coarse_step,
-                                                                                n_fine_elements=len(fine_mesh_data['points']))
+                                                                        n_fine_elements=len(fine_mesh_data['points']))
 
         # Run fine sample
         fields_file = os.path.join(os.getcwd(), FlowSim.FIELDS_FILE)
@@ -413,7 +413,7 @@ class FlowSim(Simulation):
         Define simulation result format
         :return: List[QuantitySpec, ...]
         """
-        spec1 = QuantitySpec(name="conductivity", unit="m", shape=(1, 1), times=[1], locations=['0', '0'])
+        spec1 = QuantitySpec(name="conductivity", unit="m", shape=(1, 1), times=[1], locations=['0'])
         #spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40'])
         return [spec1]
 
