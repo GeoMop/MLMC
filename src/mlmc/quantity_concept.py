@@ -1,7 +1,29 @@
+import abc
 import numpy as np
+from typing import List, Tuple
+from collections import OrderedDict
+from mlmc.sample_storage import SampleStorage
+from mlmc.sim.simulation import QuantitySpec
 
 
-def estimate_mean(quantity):
+def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
+    """
+    :param storage: sample storage
+    :param q_specs: same as result format in simulation class
+    :return: dict
+    """
+    dict_types = []
+    for q_spec in q_specs:
+        scalar_type = ScalarType(float)
+        array_type = ArrayType(q_spec.shape, scalar_type)
+        field_type = FieldType([(tuple(q_spec.locations), array_type)])
+        ts_type = TimeSeriesType(q_spec.times, field_type)
+        dict_types.append((q_spec.name, ts_type))
+    dict_type = DictType(dict_types)
+    return QuantityStorage(storage, dict_type)
+
+
+def estimate_mean(quantity):#, selection_quantity - se):
     """
     Concept of the MLMC mean estimator.
     TODO:
@@ -10,44 +32,56 @@ def estimate_mean(quantity):
     :param quantity:
     :return:
     """
-    quantity_vec_size = quantity._size()
-    n_levels = 1
+    quantity_vec_size = quantity.size()
     n_samples = None
     sums = None
     i_chunk = 0
+
     while True:
-        chunk = quantity._samples(i_chunk)
-        if chunk is None:
-            break;
+        level_ids = quantity.n_levels()
+
         if i_chunk == 0:
             # initialization
-            n_levels = len(chunk)
+            n_levels = len(level_ids)
             n_samples = [0] * n_levels
-            sums = [np.zeros(chunk[0].shape[1]) for level in chunk]
-        for i_level, level_chunk in enumerate(chunk):
-            # level_chunk is Numpy Array with shape [M, chunk_size, 2]
-            n_samples[i_level] += len(level_chunk)
-            assert(level_chunk.shape[1] == quantity_vec_size)
-            sums[i_level] += np.sum(level_chunk[:, :, 0] - level_chunk[:, :, 1], axis=1)
+
+        for level_id in level_ids:
+            # Chunk of samples for given level id
+            chunk = quantity.samples(level_id, i_chunk)
+
+            if chunk is not None:
+                if level_id == 0:
+                    sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+
+                # level_chunk is Numpy Array with shape [M, chunk_size, 2]
+                n_samples[level_id] += len(chunk)
+                assert(chunk.shape[0] == quantity_vec_size)
+                sums[level_id] += np.sum(chunk[:, :, 0] - chunk[:, :, 1], axis=1)
+
+        if chunk is None:
+            break
+        i_chunk += 1
+
     mean = np.zeros_like(sums[0])
     for s, n in zip(sums, n_samples):
         mean += s / n
-    return quantity.make_value(mean)
 
+    return quantity._make_value(mean)
 
 
 # Just for type hints, change to protocol
-class QBase:
-    def __init__(self, input_quantities, operation = None):
-        assert (len(input_quantities) > 0)
-        self._input_quantities = input_quantities
+class Quantity:
+    def __init__(self, quantity_type, input_quantities, operation=None):
+        #assert (len(input_quantities) > 0)
+        self._qtype = quantity_type
         # List of quantities on which the 'self' dependes. their number have to match number of arguments to the operation.
         self._operation = operation
+        self._input_quantities = input_quantities
         # function  lambda(*args : List[array[M, N, 2]]) -> List[array[M, N, 2])]
         # It takes list of chunks for individual levels as a single argument, with number of arguments matching the
         # number of input qunatities. Operation performs actual quantity operation on the sample chunks.
         # One chunk is a np.array with shape [sample_vector_size, n_samples_in_chunk, 2], 2 = (coarse, fine) pair.
-        self._size = sum( (q._size for q in self._input_quantities) )
+        #self._size = sum((q._size() for q in self._input_quantities))
         # Number of values allocated by this quantity in the sample vector.
 
         # TODO: design a separate class and mechanisms to avoid repetitive evaluation of quantities
@@ -62,27 +96,26 @@ class QBase:
         # self._chunk = None
         # #  memoized  resulting chunk
 
+    def size(self):
+        return self._qtype.size()
 
-    def _samples(self, i_chunk):
+    def samples(self, level_id, i_chunk):
         """
         Yields list of sample chunks for individual levels.
         Possibly calls underlaying quantities.
         Try to write into the chunk array.
         TODO: possibly pass down the full table of composed quantities and store comuted temporaries directly into the composed table
-
         TODO: possible problem when more quantities dependes on a single one, this probabely leads to
         repetitive evaluation of the shared quantity
         This prevents some coies in concatenation.
         """
-        chunks_quantity_level = [q._samples(i_chunk) for  q in self._input_quantities]
+        chunks_quantity_level = [q.samples(level_id, i_chunk) for q in self._input_quantities]
         is_valid = (ch is not None for ch in chunks_quantity_level)
         if any(is_valid):
             assert (all(is_valid))
-            chunks_level_quantity = zip(*chunks_quantity_level)
-            return [self.operation(*one_level_chunks) for one_level_chunks in chunks_level_quantity]
+            return self._operation(*chunks_quantity_level)
         else:
             return None
-
 
     def _make_value(self, data_row: np.array):
         """
@@ -92,18 +125,22 @@ class QBase:
         :param data_row:
         :return:
         """
-        pass
+        return data_row  # @TODO: expand possibilities of use
 
-    def _reduction_op(self, *quantities, operation):
+    def _reduction_op(self, quantities, operation):
         """
-        Check if the quantities are the same and possibly return copy of the common quantity
+        Check if the quantities have the same structure and possibly return copy of the common quantity
         structure depending on the other quantities with given operation.
         TODO: Not so simple, but similar problem to constraction of the initial structure over storage.
         :param quantities:
+        :param operation: function which is run with given quantitiees
         :return:
+        @TODO: quantity same structure test: check unit, c
         """
+        # @TODO: check if all items in quantitites are Quantity
+        assert all(x.size() == quantities[0].size() for x in quantities), "Quantity must have same structure"
 
-
+        return Quantity(quantities[0]._qtype, operation=operation, input_quantities=quantities)
 
     def __add__(self, other):
         def add_op(x, y):
@@ -121,120 +158,109 @@ class QBase:
     def __rmul__(self, other):
         if isinstance(other, (float, int)):
             return self.__const_mult(other)
-        assert(False)
+        assert False
 
     def __const_mult(self, other):
         def cmult_op(x, c=other):
             return c * x
         return self._reduction_op([self], cmult_op)
 
-def make_root_quantity(storage: Storage, q_specs : List[QSpec])
-    i_range = 0
-    dict_items = []
-    for q_spec in q_specs:
-        time_frames = []
-        for t in q_spec.times:
-            field_values = []
-            for loc in q_spec.locations:
-                q_range = QRange(storage)
-                array = Array.from_range(q_spec.shape, q_range)
-                q_range.set(i_range, array._size)
-                i_range += array._size
-                field_values.append( (loc, array) )
-            time_frames.append( (t, Field(field_values)) )
-        dict_items = (q_spec.name, TimeSeries(time_frames))
-    return Dict(dict_items)
+    def __getitem__(self, key):
+        try:
+            return Quantity(quantity_type=self._qtype[key], input_quantities=self._input_quantities, operation=self._operation)
+        except KeyError:
+            return key
+
+    def __iter__(self):
+        raise Exception("This class is not iterable")
+
+    def n_levels(self):
+        return self._input_quantities[0].n_levels()
 
 
-
-class QRange:
-    def __init__(self, storage):
+class QuantityStorage(Quantity):
+    def __init__(self, storage, qtype):
         self._storage = storage
+        self._qtype = qtype
+        self._input_quantities = None
+        self._operation = None
 
-    def set(self, range_begin, size):
-        self.begin = range_begin
-        self._size = size
-        self.end = range_begin + size
+    def n_levels(self):
+        return self._storage.get_level_ids()
 
-    def _samples(self, i_chunk):
-        level_chunks = self.storage.sample_pairs(i_chunk)
-        return [chunk[self.begin:self.end, :, :]  for chunk in level_chunks]
-
-
-
-
-class TimeSeries(QBase):
-    """
-    We should assume that all quantities have same structure (check only same size)
-    but can be of any type. Meanigful are only onther types then TimeSeries.
-    """
-    def __init__(self, time_frames : List[Tuple[float, QBase]]):
-        super().__init__(time_frames)
-        self.frame0 = time_frames[0][1]
-        assert( all( (q._size == self.frame0._size for t,q in time_frames) ) )
-        assert( all( (q.__class__ == self.frame0.__class__ for t,q in time_frames) ))
-
-
-        self.time_frames = time_frames
-        # list of pairs (time, value)
-        self.block_starts = []
-        # starts of blocks of the time values on the single sample row
-        self.operation = lambda lch : np.concatenate(lch, axis=0)
-
-    def max(self):
+    def samples(self, level_id, i_chunk):
         """
-        Create quantity for the maximum over the time series.
-        :return:
+        Get results for given level id and chunk id
+        :param level_id: int
+        :param i_chunk: int
+        :return: Array[M, chunk size, 2]
         """
-        def max_op(*input_chunks):
-            table = np.stack(input_chunks)
-            return np.max(table, axis=0)
+        level_chunk = self._storage.sample_pairs_level(level_id, i_chunk)  # Array[M, chunk size, 2]
+        if level_chunk is not None:
+            assert self._qtype.size() == level_chunk.shape[0]
+        return level_chunk
 
-        return self.frame0._copy(*[q for t, q in self.time_frames], operation = max_op)
 
-    def interpolate(self):
+class QType(metaclass=abc.ABCMeta):
+    def size(self):
         """
-        Create quantity for the maximum over the time series.
+        Size of type
         :return:
         """
 
-        def max_op(*input_chunks):
-            table = np.stack(input_chunks)
-            return np.max(table, axis=0)
-
-        return self.frame0._copy(*[q for t, q in self.time_frames], operation=max_op)
-
+    def __eq__(self, other):
+        if isinstance(other, QType):
+            return self.size == other.size
+        return False
 
 
-class Dict(QBase):
-    def __init__(self, *args: Tuple[str, QBase]):
-        self.quantity_dict = OrderedDict(*args)
+class ScalarType(QType):
+    def __init__(self, qtype=float):
+        self._qtype = qtype
 
-    def __getattr__(self, key):
-        # JB: TODO
-        if key in self.quantity_dict:
-            return self.quantity_dict[key]
-        return getattr(key)
+    def size(self):
+        return 1
 
-    def max(self):
+
+class ArrayType(QType):
+    def __init__(self, shape, qtype: QType):
+        self._shape = shape
+        self._qtype = qtype
+
+    def size(self):
+        return np.prod(self._shape) * self._qtype.size()
+
+
+class TimeSeriesType(QType):
+    def __init__(self, object, qtype):
+        self._object = object
+        self._qtype = qtype
+
+    def size(self):
+        return len(self._object) * self._qtype.size()
+
+
+class FieldType(QType):
+    def __init__(self, args: List[Tuple[Tuple, QType]]):
         """
-        Create quantity for the maximum over the time series.
-        :return:
+        QType must have same structure
+        :param args:
         """
-        return _QMax(*[q for q in self.quantity_dict.values()])
+        self._dict = OrderedDict(args)
+        self._locations = self._dict.keys()
+        self._qtype = args[0][1]
+        assert all(q_type == self._qtype for _, q_type in args)
+
+    def size(self):
+        return np.sum(len(loc) * self._qtype.size() for loc in self._locations)
 
 
+class DictType(QType):
+    def __init__(self, args: List[Tuple[str, QType]]):
+        self._dict = OrderedDict(args)
 
-class Array(QBase):
-    def __init__(self, *args):
-        assert( all( (a.is_array() for a in args) ) )
-        assert( all( (a.shape == args[0].shape for a in args) ) )
-        self.q_list = args
-        self.shape = [len(self.q_list)] + args[0].shape
+    def size(self):
+        return np.sum(q_type.size() for _, q_type in self._dict.items())
 
-
-
-class Field(QBase):
-    def __init__(self, *args: Tuple[str, QBase]):
-        self.quantity_dict = OrderedDict(*args)
-
+    def __getitem__(self, key):
+        return self._dict[key]

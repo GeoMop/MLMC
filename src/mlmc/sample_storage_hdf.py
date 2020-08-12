@@ -140,15 +140,25 @@ class SampleStorageHDF(SampleStorage):
                             " In other cases, call save_global_data() directly")
 
         levels_results = list(np.empty(len(self._level_groups)))
+
         for level in self._level_groups:
-            results = level.collected()
+            results = self.sample_pairs_level(level_id=level.level_id)
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue
 
-            levels_results[int(level.level_id)] = results.transpose((2, 0, 1))
+            levels_results[int(level.level_id)] = results
 
         return levels_results
+
+    def sample_pairs_level(self, level_id, i_chunk=0):
+        """
+        Get result for particular level and chunk
+        :param level_id: int, level id
+        :param i_chunk: int, chunk id
+        :return:
+        """
+        return self._level_groups[int(level_id)].collected(i_chunk).transpose((2, 0, 1))
 
     def n_finished(self):
         """
@@ -212,3 +222,6 @@ class SampleStorageHDF(SampleStorage):
             n_ops[int(level.level_id)] = level.n_ops_estimate
 
         return n_ops
+
+    def get_level_ids(self):
+        return [level.level_id for level in self._level_groups]

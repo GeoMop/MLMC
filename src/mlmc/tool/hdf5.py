@@ -346,7 +346,7 @@ class LevelGroup:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             return scheduled_dset[()]
 
-    def collected(self):
+    def collected(self, i_chunk=0):
         """
         Read all level datasets with collected data, create fine and coarse samples as Sample() instances
         :return: all dataset values, TODO: generator in future

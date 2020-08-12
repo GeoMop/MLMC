@@ -79,6 +79,19 @@ class SampleStorage(metaclass=ABCMeta):
         :return: list
         """
 
+    @abstractmethod
+    def get_level_ids(self):
+        """
+        Get number of levels
+        :return: int
+        """
+
+    # @staticmethod
+    # def determine_chunk_size(data):
+    #     print("data ", data)
+    #     print("data.shape ", data.shape)
+    #     exit()
+
 
 class Memory(SampleStorage):
 
@@ -187,13 +200,29 @@ class Memory(SampleStorage):
     def sample_pairs(self):
         """
         Sample results split to numpy arrays
+        :param i_chunk: identifier of chunk
         :return: List[Array[M, N, 2]]
         """
         levels_results = list(np.empty(len(np.max(self._results.keys()))))
-        for level_id, results in self._results.items():
+        #SampleStorage.determine_chunk_size(levels_results[0])
+
+        for level_id in self.get_level_ids():
+            results = self.sample_pairs_level(level_id)
             levels_results[level_id] = results.transpose((2, 0, 1))
 
         return levels_results
+
+    def sample_pairs_level(self, level_id, i_chunk=0):
+        """
+
+        :param level_id:
+        :param i_chunk:
+        :return:
+        """
+        if i_chunk != 0:
+            return None
+
+        return self._results[int(level_id)].transpose((2, 0, 1))
 
     def save_n_ops(self, n_ops):
         """
@@ -224,3 +253,7 @@ class Memory(SampleStorage):
         :return:
         """
         return []
+
+    def get_level_ids(self):
+        return list(self._results.keys())
+
