@@ -3,34 +3,93 @@ import numpy as np
 import random
 from mlmc.sim.simulation import QuantitySpec
 from mlmc.sample_storage import Memory
-from mlmc.quantity_concept import make_root_quantity
-from mlmc.quantity_concept_2 import make_root_quantity, estimate_mean
+from mlmc.quantity_concept import make_root_quantity, estimate_mean
 
 
-class MyTestCase(unittest.TestCase):
-    def test_something(self):
+class QuantityTests(unittest.TestCase):
+    def test_basics(self):
+        sample_storage = Memory()
+        result_format, size = self.fill_sample_storage(sample_storage)
+        root_quantity = make_root_quantity(sample_storage, result_format)
+
+        # results = sample_storage.sample_pairs()
+        # print("results ", results)
+
+        means = estimate_mean(root_quantity)
+        print("means ", means)
+        self.assertEqual(len(means), size)
+
+        length = root_quantity['length']
+        means_length = estimate_mean(length)
+        print("mean length", means_length)
+
+        # interpolation in time
+        interp_value = length.time_interpolation(2.5)
+        mean_interp_value = estimate_mean(interp_value)
+        print("mean_interp_value ", mean_interp_value)
+
+        width = root_quantity['width']
+        means_width = estimate_mean(width)
+        print("mean width", means_width)
+        width_interp_value = width.time_interpolation(2)
+        print("width_interp_value ", width_interp_value)
+        mean_width_interp_value = estimate_mean(width_interp_value)
+        print("mean_width_interp_value ", mean_width_interp_value)
+
+        # assert np.allclose((means[:len(means) // 2]).tolist(), means_length.tolist())
+        #
+        # quantity_add = root_quantity + root_quantity
+        # means_add = estimate_mean(quantity_add)
+        # print("mean add", means_add)
+        # assert np.allclose((means + means), means_add)
+        #
+        # length = quantity_add['length']
+        # means_length = estimate_mean(length)
+        # print("means length ", means_length)
+        # assert np.allclose((means_add[:len(means_add)//2]).tolist(), means_length.tolist())
+        #
+        # width = quantity_add['width']
+        # means_width = estimate_mean(width)
+        # print("mean width", means_width)
+        # assert np.allclose((means_add[len(means_add)//2:]).tolist(), means_width.tolist())
+
+        # print("root_quantity._qtype ", root_quantity._qtype)
+        # print("root_quantity._qtype.size() ", root_quantity._qtype.size())
+        #
+        # const = 5
+        # const_mult_quantity = const * root_quantity
+        # const_mult_mean = estimate_mean(const_mult_quantity)
+        # assert np.allclose((const * means).tolist(), const_mult_mean.tolist())
+
+    def test_binary_operations(self):
         sample_storage = Memory()
         result_format, size = self.fill_sample_storage(sample_storage)
         root_quantity = make_root_quantity(sample_storage, result_format)
 
         means = estimate_mean(root_quantity)
-        print("means ", means)
-
         self.assertEqual(len(means), size)
 
-        length = root_quantity['length']
-        #length_mean = estimate_mean(length)
+        quantity_add = root_quantity + root_quantity
+        means_add = estimate_mean(quantity_add)
+        assert np.allclose((means + means), means_add)
 
-        add_quantity = root_quantity + root_quantity
-        add_mean = estimate_mean(add_quantity)
-        print("add mean ", add_mean)
+        length = quantity_add['length']
+        means_length = estimate_mean(length)
+        assert np.allclose((means_add[:len(means_add)//2]).tolist(), means_length.tolist())
 
-        self.assertEqual((means + means).tolist(), add_mean.tolist())
+        width = quantity_add['width']
+        means_width = estimate_mean(width)
+        assert np.allclose((means_add[len(means_add)//2:]).tolist(), means_width.tolist())
+
+        const = 5
+        const_mult_quantity = const * root_quantity
+        const_mult_mean = estimate_mean(const_mult_quantity)
+        assert np.allclose((const * means).tolist(), const_mult_mean.tolist())
 
     def fill_sample_storage(self, sample_storage):
         np.random.seed(123)
         n_levels = 3
-        res_length = 5
+        res_length = 3
         result_format = [
             QuantitySpec(name="length", unit="m", shape=(2, res_length - 2), times=[1, 2, 3], locations=['10', '20']),
             QuantitySpec(name="width", unit="mm", shape=(2, res_length - 2), times=[1, 2, 3], locations=['30', '40'])

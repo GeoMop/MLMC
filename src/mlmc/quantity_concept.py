@@ -1,7 +1,8 @@
 import abc
 import numpy as np
+import copy
+from scipy import interpolate
 from typing import List, Tuple
-from collections import OrderedDict
 from mlmc.sample_storage import SampleStorage
 from mlmc.sim.simulation import QuantitySpec
 
@@ -20,7 +21,8 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
         ts_type = TimeSeriesType(q_spec.times, field_type)
         dict_types.append((q_spec.name, ts_type))
     dict_type = DictType(dict_types)
-    return QuantityStorage(storage, dict_type)
+
+    return Quantity(quantity_type=dict_type, input_quantities=[QuantityStorage(storage, dict_type)])
 
 
 def estimate_mean(quantity):#, selection_quantity - se):
@@ -39,7 +41,6 @@ def estimate_mean(quantity):#, selection_quantity - se):
 
     while True:
         level_ids = quantity.n_levels()
-
         if i_chunk == 0:
             # initialization
             n_levels = len(level_ids)
@@ -54,7 +55,9 @@ def estimate_mean(quantity):#, selection_quantity - se):
                     sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
 
                 # level_chunk is Numpy Array with shape [M, chunk_size, 2]
-                n_samples[level_id] += len(chunk)
+                n_samples[level_id] += chunk.shape[1]
+                # print("chunk shape ", chunk.shape)
+                # print("quantity_vec_size ", quantity_vec_size)
                 assert(chunk.shape[0] == quantity_vec_size)
                 sums[level_id] += np.sum(chunk[:, :, 0] - chunk[:, :, 1], axis=1)
 
@@ -71,7 +74,7 @@ def estimate_mean(quantity):#, selection_quantity - se):
 
 # Just for type hints, change to protocol
 class Quantity:
-    def __init__(self, quantity_type, input_quantities, operation=None):
+    def __init__(self, quantity_type, input_quantities=None, operation=None):
         #assert (len(input_quantities) > 0)
         self._qtype = quantity_type
         # List of quantities on which the 'self' dependes. their number have to match number of arguments to the operation.
@@ -96,7 +99,11 @@ class Quantity:
         # self._chunk = None
         # #  memoized  resulting chunk
 
-    def size(self):
+    def set_range(self, start, size):
+        for quantity in self._input_quantities:
+            quantity.set_range(start, size)
+
+    def size(self) -> int:
         return self._qtype.size()
 
     def samples(self, level_id, i_chunk):
@@ -110,9 +117,13 @@ class Quantity:
         This prevents some coies in concatenation.
         """
         chunks_quantity_level = [q.samples(level_id, i_chunk) for q in self._input_quantities]
+
         is_valid = (ch is not None for ch in chunks_quantity_level)
         if any(is_valid):
             assert (all(is_valid))
+            # Operation not set return first quantity samples - used in make_root_quantity
+            if self._operation is None:
+                return chunks_quantity_level[0]
             return self._operation(*chunks_quantity_level)
         else:
             return None
@@ -167,12 +178,46 @@ class Quantity:
 
     def __getitem__(self, key):
         try:
-            return Quantity(quantity_type=self._qtype[key], input_quantities=self._input_quantities, operation=self._operation)
+            new_qtype = self._qtype[key]
+            new_quantity = Quantity(quantity_type=new_qtype, input_quantities=custom_copy(self._input_quantities),
+                                    operation=self._operation)
+
+            new_quantity.set_range(new_qtype.start, new_qtype.size())
+            return new_quantity
+
         except KeyError:
             return key
 
     def __iter__(self):
         raise Exception("This class is not iterable")
+
+    def __copy__(self):
+        new = type(self)(quantity_type=self._qtype, input_quantities=custom_copy(self._input_quantities),
+                         operation=self._operation)
+        return new
+
+    def time_interpolation(self, value):
+        """
+        Interpolation in time
+        :param value:
+        :return:
+        """
+        def interp(*y):
+            f = interpolate.interp1d(self._qtype._times, y, axis=0)
+            return f(value)
+
+        quantities_in_time = []
+        # Split TimeSerie to FieldTypes, create corresponding Quantities
+        for i in range(len(self._qtype._times)):
+            new_qtype = copy.copy(self._qtype._qtype)
+            new_qtype.start = i * new_qtype.size()
+
+            quantity_t = Quantity(quantity_type=new_qtype, input_quantities=custom_copy([self]))
+            quantity_t.set_range(new_qtype.start, new_qtype.size())
+
+            quantities_in_time.append(quantity_t)
+
+        return Quantity(quantity_type=self._qtype._qtype, input_quantities=quantities_in_time, operation=interp)
 
     def n_levels(self):
         return self._input_quantities[0].n_levels()
@@ -182,8 +227,19 @@ class QuantityStorage(Quantity):
     def __init__(self, storage, qtype):
         self._storage = storage
         self._qtype = qtype
-        self._input_quantities = None
-        self._operation = None
+        self.start = None
+        self.end = None
+
+    def __copy__(self):
+        new = type(self)(self._storage, self._qtype)
+        new.__dict__.update(self.__dict__)
+        new.__dict__['start'] = None
+        new.__dict__['end'] = None
+        return new
+
+    def set_range(self, range_start: int, size: int):
+        self.start = range_start
+        self.end = range_start + size
 
     def n_levels(self):
         return self._storage.get_level_ids()
@@ -198,14 +254,17 @@ class QuantityStorage(Quantity):
         level_chunk = self._storage.sample_pairs_level(level_id, i_chunk)  # Array[M, chunk size, 2]
         if level_chunk is not None:
             assert self._qtype.size() == level_chunk.shape[0]
+
+            if self.start is not None and self.end is not None:
+                return level_chunk[self.start:self.end, :, :]
         return level_chunk
 
 
 class QType(metaclass=abc.ABCMeta):
-    def size(self):
+    def size(self) -> int:
         """
         Size of type
-        :return:
+        :return: int
         """
 
     def __eq__(self, other):
@@ -218,49 +277,73 @@ class ScalarType(QType):
     def __init__(self, qtype=float):
         self._qtype = qtype
 
-    def size(self):
+    def size(self) -> int:
         return 1
 
 
 class ArrayType(QType):
-    def __init__(self, shape, qtype: QType):
+    def __init__(self, shape, qtype: QType, start=0):
         self._shape = shape
         self._qtype = qtype
+        self.start = start
 
-    def size(self):
+    def size(self) -> int:
         return np.prod(self._shape) * self._qtype.size()
 
 
 class TimeSeriesType(QType):
-    def __init__(self, object, qtype):
-        self._object = object
+    def __init__(self, times, qtype, start=0):
+        self._times = times
         self._qtype = qtype
+        self.start = start
 
-    def size(self):
-        return len(self._object) * self._qtype.size()
+    # def __getitem__(self, key):
+    #     q_type = self._times[key]
+    #     position = list(self._times.keys()).index(key)
+    #     q_type.start = self.start + position * self._times[key].size()
+
+    def size(self) -> int:
+        return len(self._times) * self._qtype.size()
 
 
 class FieldType(QType):
-    def __init__(self, args: List[Tuple[Tuple, QType]]):
+    def __init__(self, args: List[Tuple[Tuple, QType]], start=0):
         """
         QType must have same structure
         :param args:
         """
-        self._dict = OrderedDict(args)
+        self._dict = dict(args)
+        self.start = start
         self._locations = self._dict.keys()
         self._qtype = args[0][1]
         assert all(q_type == self._qtype for _, q_type in args)
 
-    def size(self):
-        return np.sum(len(loc) * self._qtype.size() for loc in self._locations)
+    def size(self) -> int:
+        return int(np.sum(len(loc) * self._qtype.size() for loc in self._locations))
+
+    def __copy__(self):
+
+        new = type(self)([(k, v) for k, v in self._dict.items()])
+        new.__dict__.update(self.__dict__)
+        new.__dict__['start'] = None
+        new.__dict__['end'] = None
+        return new
 
 
 class DictType(QType):
     def __init__(self, args: List[Tuple[str, QType]]):
-        self._dict = OrderedDict(args)
+        self._dict = dict(args)
 
-    def size(self):
-        return np.sum(q_type.size() for _, q_type in self._dict.items())
+    def size(self) -> int:
+        return int(np.sum(q_type.size() for _, q_type in self._dict.items()))
 
     def __getitem__(self, key):
-        return self._dict[key]
+        q_type = self._dict[key]
+        position = list(self._dict.keys()).index(key)
+        q_type.start = position * self._dict[key].size()
+
+        return q_type
+
+
+def custom_copy(quantities):
+    return[copy.copy(quantity) for quantity in quantities]
