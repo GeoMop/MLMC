@@ -21,53 +21,33 @@ class QuantityTests(unittest.TestCase):
 
         length = root_quantity['length']
         means_length = estimate_mean(length)
-        print("mean length", means_length)
+        assert np.allclose((means[:len(means) // 2]).tolist(), means_length.tolist())
 
-        # interpolation in time
-        interp_value = length.time_interpolation(2.5)
-        mean_interp_value = estimate_mean(interp_value)
-        print("mean_interp_value ", mean_interp_value)
+        # Interpolation in time
+        locations = length.time_interpolation(2.5)
+        mean_interp_value = estimate_mean(locations)
+
+        # Select position
+        position = locations['10']
+        mean_position_1 = estimate_mean(position)
+        assert np.allclose(mean_interp_value[:2], mean_position_1)
+
+        position = locations['20']
+        mean_position_2 = estimate_mean(position)
+        assert np.allclose(mean_interp_value[2:], mean_position_2)
 
         width = root_quantity['width']
-        means_width = estimate_mean(width)
-        print("mean width", means_width)
-        width_interp_value = width.time_interpolation(2)
-        print("width_interp_value ", width_interp_value)
-        mean_width_interp_value = estimate_mean(width_interp_value)
-        print("mean_width_interp_value ", mean_width_interp_value)
+        width_locations = width.time_interpolation(1.2)
+        mean_width_interp_value = estimate_mean(width_locations)
 
-        # assert np.allclose((means[:len(means) // 2]).tolist(), means_length.tolist())
-        #
-        # quantity_add = root_quantity + root_quantity
-        # means_add = estimate_mean(quantity_add)
-        # print("mean add", means_add)
-        # assert np.allclose((means + means), means_add)
-        #
-        # length = quantity_add['length']
-        # means_length = estimate_mean(length)
-        # print("means length ", means_length)
-        # assert np.allclose((means_add[:len(means_add)//2]).tolist(), means_length.tolist())
-        #
-        # width = quantity_add['width']
-        # means_width = estimate_mean(width)
-        # print("mean width", means_width)
-        # assert np.allclose((means_add[len(means_add)//2:]).tolist(), means_width.tolist())
+        # Select position
+        position = width_locations['30']
+        mean_position_1 = estimate_mean(position)
+        assert np.allclose(mean_width_interp_value[:2], mean_position_1)
 
-        # print("root_quantity._qtype ", root_quantity._qtype)
-        # print("root_quantity._qtype.size() ", root_quantity._qtype.size())
-        #
-        # const = 5
-        # const_mult_quantity = const * root_quantity
-        # const_mult_mean = estimate_mean(const_mult_quantity)
-        # assert np.allclose((const * means).tolist(), const_mult_mean.tolist())
-
-    def test_binary_operations(self):
-        sample_storage = Memory()
-        result_format, size = self.fill_sample_storage(sample_storage)
-        root_quantity = make_root_quantity(sample_storage, result_format)
-
-        means = estimate_mean(root_quantity)
-        self.assertEqual(len(means), size)
+        position = width_locations['40']
+        mean_position_2 = estimate_mean(position)
+        assert np.allclose(mean_width_interp_value[2:], mean_position_2)
 
         quantity_add = root_quantity + root_quantity
         means_add = estimate_mean(quantity_add)
@@ -86,6 +66,93 @@ class QuantityTests(unittest.TestCase):
         const_mult_mean = estimate_mean(const_mult_quantity)
         assert np.allclose((const * means).tolist(), const_mult_mean.tolist())
 
+    def test_binary_operations(self):
+        sample_storage = Memory()
+        result_format, size = self.fill_sample_storage(sample_storage)
+        root_quantity = make_root_quantity(sample_storage, result_format)
+
+        means = estimate_mean(root_quantity)
+        self.assertEqual(len(means), size)
+
+        quantity_add = root_quantity + root_quantity
+        means_add = estimate_mean(quantity_add)
+        assert np.allclose((means + means), means_add)
+
+        quantity_add = root_quantity + root_quantity * 2
+        means_add = estimate_mean(quantity_add)
+        assert np.allclose((means + means * 2), means_add)
+
+        quantity_add_mult = root_quantity + root_quantity * root_quantity
+        means_add = estimate_mean(quantity_add_mult)
+        print("means_add ", means_add)
+
+        quantity_add = root_quantity + root_quantity + root_quantity
+        means_add = estimate_mean(quantity_add)
+        assert np.allclose((means + means + means), means_add)
+
+        length = quantity_add['length']
+        means_length = estimate_mean(length)
+        assert np.allclose((means_add[:len(means_add)//2]).tolist(), means_length.tolist())
+
+        width = quantity_add['width']
+        means_width = estimate_mean(width)
+        assert np.allclose((means_add[len(means_add)//2:]).tolist(), means_width.tolist())
+
+        const = 5
+        const_mult_quantity = const * root_quantity
+        const_mult_mean = estimate_mean(const_mult_quantity)
+        assert np.allclose((const * means).tolist(), const_mult_mean.tolist())
+
+    def test_condition(self):
+        sample_storage = Memory()
+        result_format, size = self.fill_sample_storage(sample_storage)
+        root_quantity = make_root_quantity(sample_storage, result_format)
+
+        #bound root quantity result - select the ones which meet conditions
+        q_bounded = (0 < root_quantity < 10)
+        mean_q_bounded = estimate_mean(q_bounded)
+
+        quantity_add = root_quantity + root_quantity
+        q_add_bounded = (0 < quantity_add < 20)
+        means_add_bounded = estimate_mean(q_add_bounded)
+        assert np.allclose((means_add_bounded), mean_q_bounded*2)
+
+        length = root_quantity['length']
+        mean_length = estimate_mean(length)
+        assert len(mean_q_bounded) == len(mean_length) * 2
+
+        quantity_lt = length < 10  # use just first sample
+        means_lt = estimate_mean(quantity_lt)
+        assert len(mean_length) == len(means_lt)
+
+        quantity_le = length <= 9  # use just first sample
+        means_le = estimate_mean(quantity_le)
+        assert len(mean_length) == len(means_le)
+
+        quantity_lt = length < 1  # no sample matches condition
+        means_lt = estimate_mean(quantity_lt)
+        assert len(means_lt) == 0
+
+        quantity_lt_gt = (9 < length < 20)  # one sample matches condition
+        means_lt_gt = estimate_mean(quantity_lt_gt)
+        assert len(mean_length) == len(means_lt_gt)
+
+        quantity_gt = 100 < length  # no sample matches condition
+        means_gt = estimate_mean(quantity_gt)
+        assert len(means_gt) == 0
+
+        quantity_ge = 100 <= length  # no sample matches condition
+        means_ge = estimate_mean(quantity_ge)
+        assert len(means_ge) == 0
+
+        quantity_eq = 1 == length
+        means_eq = estimate_mean(quantity_eq)
+        assert len(means_eq) == 0
+
+        quantity_ne = -1 != length
+        means_ne = estimate_mean(quantity_ne)
+        assert np.allclose((means_ne).tolist(), mean_length.tolist())
+
     def fill_sample_storage(self, sample_storage):
         np.random.seed(123)
         n_levels = 3
@@ -100,7 +167,7 @@ class QuantityTests(unittest.TestCase):
         successful_samples = {}
         failed_samples = {}
         n_ops = {}
-        n_successful = 3
+        n_successful = 1
         q1_size = 0
         q2_size = 0
         for l_id in range(n_levels):
@@ -108,8 +175,10 @@ class QuantityTests(unittest.TestCase):
             q2_size = np.prod(result_format[1].shape) * len(result_format[1].times) * len(result_format[1].locations)
 
             # Dict[level_id, List[Tuple[sample_id:str, Tuple[fine_result: ndarray, coarse_result: ndarray]]]]
-            successful_samples[l_id] = [(str(sample_id), (np.random.randint(5, size=(q1_size + q2_size,)),
-                                                          np.random.randint(5, size=(q1_size + q2_size,))))
+            successful_samples[l_id] = [(str(sample_id), (np.random.randint(5 + 5*sample_id, high=5+5*(1+sample_id),
+                                                                            size=(q1_size + q2_size,)),
+                                                          np.random.randint(5 + 5*sample_id, high=5+5*(1+sample_id),
+                                                                            size=(q1_size + q2_size,))))
                                         for sample_id in range(n_successful)]
             n_ops[l_id] = [random.random(), n_successful]
 
