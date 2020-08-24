@@ -200,7 +200,7 @@ class SampleStorageHDF(SampleStorage):
         :param n_ops: Dict[level_id, List[overall time, number of successful samples]]
         :return: None
         """
-        for level_id, (time, n_samples) in n_ops.items():
+        for level_id, (time, n_samples) in n_ops:
             if n_samples == 0:
                 self._level_groups[level_id].n_ops_estimate = 0
             else:

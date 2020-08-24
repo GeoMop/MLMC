@@ -201,7 +201,7 @@ class Memory(SampleStorage):
         :param n_ops: Dict[_level_id, List[time, number of valid samples]]
         :return: None
         """
-        for level, (time, n_samples)in n_ops.items():
+        for level, (time, n_samples) in n_ops:
             if level not in self._n_ops or n_samples == 0:
                 self._n_ops[level] = 0
             else:

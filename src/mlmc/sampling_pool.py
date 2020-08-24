@@ -269,7 +269,7 @@ class OneProcessPool(SamplingPool):
         successful = self._queues_to_list(list(self._queues.items()))
         failed = self._queues_to_list(list(self._failed_queues.items()))
 
-        return successful, failed, self._n_running, copy.deepcopy(self.times)
+        return successful, failed, self._n_running, list(self.times.items())
 
     def _queues_to_list(self, queue_dict_list):
         results = {}
