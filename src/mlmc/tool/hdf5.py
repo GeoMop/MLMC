@@ -43,7 +43,6 @@ class HDF5:
                                 mashape: (None, 1)
                                 chunks: True
     """
-
     def __init__(self, file_path, load_from_file=False):
         """
         Create HDF5 class instance
@@ -192,6 +191,8 @@ class LevelGroup:
     COLLECTED_ATTRS = {"sample_id": {'name': 'collected_ids', 'default_shape': (0,), 'maxshape': (None,),
                                      'dtype': SCHEDULED_DTYPE}}
 
+    chunk_size = 512000000  # bytes in decimal
+
     def __init__(self, file_name, hdf_group_path, level_id, loaded_from_file=False):
         """
         Create LevelGroup instance, each mlmc.Level has access to corresponding LevelGroup to save data
@@ -200,14 +201,14 @@ class LevelGroup:
         :param level_id: Unambiguous identifier of mlmc.Level object
         :param loaded_from_file: bool, create new file or loaded existing groups
         """
-        # HDF file name
         self.file_name = file_name
-        # mlmc.Level identifier
+        # HDF file name
         self.level_id = level_id
-        # HDF Group object (h5py.Group)
+        # Level identifier
         self.level_group_path = hdf_group_path
-        # Structure of sample format
-        self._sample_dtype = None
+        # HDF Group object (h5py.Group)
+        self._items_in_chunk = None
+        # Collected items in one chunk
 
         # Set group attribute 'level_id'
         with h5py.File(self.file_name, 'a') as hdf_file:
@@ -348,16 +349,22 @@ class LevelGroup:
 
     def collected(self, i_chunk=0):
         """
-        Read all level datasets with collected data, create fine and coarse samples as Sample() instances
-        :return: all dataset values, TODO: generator in future
+        Read collected data by chunks,
+        number of items in chunk is determined by LevelGroup.chunk_size (number of bytes)
+        :param i_chunk: int
+        :return: np.ndarray
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             if 'collected_values' not in hdf_file[self.level_group_path]:
                 return None
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
-            values = dataset[()]
 
-            return values
+            if self._items_in_chunk is None:
+                first_item = dataset[0]
+                item_byte_size = first_item.size * first_item.itemsize
+                self._items_in_chunk = int(round(LevelGroup.chunk_size / item_byte_size))
+
+            return dataset[i_chunk * self._items_in_chunk: (i_chunk + 1) * self._items_in_chunk]
 
     def get_finished_ids(self):
         """

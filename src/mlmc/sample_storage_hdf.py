@@ -158,6 +158,8 @@ class SampleStorageHDF(SampleStorage):
         :param i_chunk: int, chunk id
         :return:
         """
+        if i_chunk != 0:
+            return None
         return self._level_groups[int(level_id)].collected(i_chunk).transpose((2, 0, 1))
 
     def n_finished(self):
@@ -224,4 +226,4 @@ class SampleStorageHDF(SampleStorage):
         return n_ops
 
     def get_level_ids(self):
-        return [level.level_id for level in self._level_groups]
+        return [int(level.level_id) for level in self._level_groups]
