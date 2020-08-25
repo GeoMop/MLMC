@@ -142,7 +142,6 @@ class Quantity:
         repetitive evaluation of the shared quantity
         This prevents some coies in concatenation.
         """
-        print("id(self) ", id(self))
         chunks_quantity_level = [q.samples(level_id, i_chunk) for q in self._input_quantities]
 
         is_valid = (ch is not None for ch in chunks_quantity_level)
@@ -436,7 +435,7 @@ class FieldType(QType):
         return len(self._dict.keys()) * self._qtype.size()
 
     def __getitem__(self, key):
-        q_type = self._qtype
+        q_type = self._qtype  # @TODO: deep copy
         position = list(self._dict.keys()).index(key)
         q_type.start = position * self._dict[key].size()
         return q_type
@@ -461,7 +460,13 @@ class DictType(QType):
     def __getitem__(self, key):
         q_type = self._dict[key]
         position = list(self._dict.keys()).index(key)
-        q_type.start = position * self._dict[key].size()
+        size = 0
+        for k, qt in self._dict.items():
+            if k == key:
+                break
+            size += qt.size()
+
+        q_type.start = size
 
         return q_type
 
