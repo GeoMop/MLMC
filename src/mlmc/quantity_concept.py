@@ -1,10 +1,28 @@
 import abc
 import numpy as np
 import copy
+from functools import lru_cache
+from memoization import cached
 from scipy import interpolate
 from typing import List, Tuple
 from mlmc.sample_storage import SampleStorage
 from mlmc.sim.simulation import QuantitySpec
+
+cached_functions = []
+
+
+def clearable_cache(*args, **kwargs):
+    def decorator(func):
+        func = cached(*args, **kwargs)(func)
+        cached_functions.append(func)
+        return func
+
+    return decorator
+
+
+def clear_all_cached_functions():
+    for func in cached_functions:
+        func.cache_clear()
 
 
 def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
@@ -13,6 +31,7 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
     :param q_specs: same as result format in simulation class
     :return: dict
     """
+    clear_all_cached_functions()
     dict_types = []
     for q_spec in q_specs:
         scalar_type = ScalarType(float)
@@ -25,7 +44,7 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
     return Quantity(quantity_type=dict_type, input_quantities=[QuantityStorage(storage, dict_type)])
 
 
-def estimate_mean(quantity):#, selection_quantity - se):
+def estimate_mean(quantity):
     """
     Concept of the MLMC mean estimator.
     TODO:
@@ -76,9 +95,11 @@ class Quantity:
 
         # @TODO: check if variable
         self.qtype = quantity_type
-        # List of quantities on which the 'self' dependes. their number have to match number of arguments to the operation.
+        # List of quantities on which the 'self' dependens. their number have to match number of arguments to the operation.
         self._operation = operation
         self._input_quantities = input_quantities
+
+        # Cache mechanism
 
         # function  lambda(*args : List[array[M, N, 2]]) -> List[array[M, N, 2])]
         # It takes list of chunks for individual levels as a single argument, with number of arguments matching the
@@ -106,6 +127,11 @@ class Quantity:
     def size(self) -> int:
         return self.qtype.size()
 
+    # def get_cache_key(self, level_id, i_chunk):
+    #     return str(hash(str(level_id) + str(i_chunk) + str(self._input_quantities) + str(id(self))))
+
+    #@clearable_cache(custom_key_maker=get_cache_key)
+    #@lru_cache
     def samples(self, level_id, i_chunk):
         """
         Yields list of sample chunks for individual levels.
@@ -116,6 +142,7 @@ class Quantity:
         repetitive evaluation of the shared quantity
         This prevents some coies in concatenation.
         """
+        print("id(self) ", id(self))
         chunks_quantity_level = [q.samples(level_id, i_chunk) for q in self._input_quantities]
 
         is_valid = (ch is not None for ch in chunks_quantity_level)
@@ -124,6 +151,7 @@ class Quantity:
             # Operation not set return first quantity samples - used in make_root_quantity
             if self._operation is None:
                 return chunks_quantity_level[0]
+
             return self._operation(*chunks_quantity_level)
         else:
             return None
@@ -155,6 +183,12 @@ class Quantity:
 
         return Quantity(quantities[0].qtype, operation=operation, input_quantities=quantities)
 
+    def select(self, quantity):
+        def op(x):
+            return x[:, quantity._operation(x)]
+
+        return Quantity(quantity_type=self.qtype, input_quantities=[self], operation=op)
+
     def __add__(self, other):
         def add_op(x, y):
             return x + y
@@ -178,64 +212,54 @@ class Quantity:
             return c * x
         return self._reduction_op([self], cmult_op)
 
-    def compare_quantity(self, value, op):
+    def _process_mask(self, mask):
+        # all values for sample must meet given condition,
+        # if any value doesn't meet the condition, whole sample is eliminated
+        return mask.all(axis=0).all(axis=1)
+
+    def _create_quantity(self, value, op):
         if isinstance(value, float) or isinstance(value, int):
             return Quantity(quantity_type=self.qtype, input_quantities=[self], operation=op)
         return self
 
     def __lt__(self, value):
         def lt_op(x):
-            cond = x < value
-            cond = cond.all(axis=0).all(axis=1)
-            # all values for sample must meet given condition,
-            # if any value doesn't meet the condition, whole sample is eliminated
-            return x[:, cond]
-        return self.compare_quantity(value, lt_op)
+            return self._process_mask(x < value)
+        return self._create_quantity(value, lt_op)
 
     def __le__(self, value):
         def le_op(x):
-            cond = x <= value
-            cond = cond.all(axis=0).all(axis=1)
-            # all values for sample must meet given condition,
-            # if any value doesn't meet the condition, whole sample is eliminated
-            return x[:, cond]
-        return self.compare_quantity(value, le_op)
+            return self._process_mask(x <= value)
+        return self._create_quantity(value, le_op)
 
     def __gt__(self, value):
         def gt_op(x):
-            cond = x > value
-            cond = cond.all(axis=0).all(axis=1)
-            # all values for sample must meet given condition,
-            # if any value doesn't meet the condition, whole sample is eliminated
-            return x[:, cond]
-        return self.compare_quantity(value, gt_op)
+            return self._process_mask(x > value)
+        return self._create_quantity(value, gt_op)
 
     def __ge__(self, value):
         def ge_op(x):
-            cond = x >= value
-            cond = cond.all(axis=0).all(axis=1)
-            # all values for sample must meet given condition,
-            # if any value doesn't meet the condition, whole sample is eliminated
-            return x[:, cond]
-        return self.compare_quantity(value, ge_op)
+            return self._process_mask(x >= value)
+        return self._create_quantity(value, ge_op)
 
     def __eq__(self, value):
         def eq_op(x):
-            cond = (x == value)
-            cond = cond.all(axis=0).all(axis=1)
-            # all values for sample must meet given condition,
-            # if any value doesn't meet the condition, whole sample is eliminated
-            return x[:, cond]
-        return self.compare_quantity(value, eq_op)
+            return self._process_mask(x == value)
+        return self._create_quantity(value, eq_op)
 
     def __ne__(self, value):
         def ne_op(x):
-            cond = (x != value)
-            cond = cond.all(axis=0).all(axis=1)
-            # all values for sample must meet given condition,
-            # if any value doesn't meet the condition, whole sample is eliminated
-            return x[:, cond]
-        return self.compare_quantity(value, ne_op)
+            return self._process_mask(x != value)
+        return self._create_quantity(value, ne_op)
+
+    def sampling(self, size):
+        def mask_gen(x):
+            indices = np.random.choice(x.shape[1], size=size)
+            mask = np.zeros(x.shape[1], bool)
+            mask[indices] = True
+            return mask
+
+        return self._create_quantity(size, mask_gen)
 
     def __getitem__(self, key):
         """
@@ -249,7 +273,7 @@ class Quantity:
             for i, quantity in enumerate(input_quantities):
                 # Change quantity range
                 # e.g. allows select Field from time interpolation quantity
-                # in general it allows to determine interval of 'selected' values from results (it is used in QuantityStorage.samples())
+                # it generally allows to determine interval of 'selected' values from results (it is used in QuantityStorage.samples())
                 quantity.set_range(quantity.qtype.start + new_qtype.start, new_qtype.size())
 
             new_quantity = Quantity(quantity_type=new_qtype, input_quantities=input_quantities,
@@ -265,6 +289,12 @@ class Quantity:
         new = type(self)(quantity_type=self.qtype, input_quantities=custom_copy(self._input_quantities),
                          operation=self._operation)
         return new
+
+    def __hash__(self):
+        return hash(str(hash(self.qtype)) +
+                    str(hash(id(self._operation))) +
+                    str(hash(self._operation([0]))) if self._operation is not None else '0' +
+                    ' '.join([str(hash(input_quantity)) for input_quantity in self._input_quantities]))
 
     def time_interpolation(self, value):
         """
@@ -337,6 +367,9 @@ class QuantityStorage(Quantity):
         new.__dict__.update(self.__dict__)
         return new
 
+    def __hash__(self):
+        return hash(str(self.start) + str(self.end))
+
 
 class QType(metaclass=abc.ABCMeta):
     def size(self) -> int:
@@ -358,6 +391,9 @@ class ScalarType(QType):
     def size(self) -> int:
         return 1
 
+    def __hash__(self):
+        return hash(self._qtype)
+
 
 class ArrayType(QType):
     def __init__(self, shape, qtype: QType, start=0):
@@ -368,6 +404,9 @@ class ArrayType(QType):
     def size(self) -> int:
         return np.prod(self._shape) * self._qtype.size()
 
+    def __hash__(self):
+        return hash(str(self._shape) + str(self.start) + str(hash(self._qtype)))
+
 
 class TimeSeriesType(QType):
     def __init__(self, times, qtype, start=0):
@@ -377,6 +416,9 @@ class TimeSeriesType(QType):
 
     def size(self) -> int:
         return len(self._times) * self._qtype.size()
+
+    def __hash__(self):
+        return hash(str(self._times) + str(self.start) + str(hash(self._qtype)))
 
 
 class FieldType(QType):
@@ -404,6 +446,9 @@ class FieldType(QType):
         new.__dict__.update(self.__dict__)
         return new
 
+    def __hash__(self):
+        return hash(str(self._dict) + str(self.start) + str(hash(self._qtype)))
+
 
 class DictType(QType):
     def __init__(self, args: List[Tuple[str, QType]]):
@@ -419,6 +464,9 @@ class DictType(QType):
         q_type.start = position * self._dict[key].size()
 
         return q_type
+
+    def __hash__(self):
+        return hash(str(self._dict) + str(self.start))
 
 
 def custom_copy(quantities):
