@@ -367,7 +367,7 @@ class SamplingPoolPBS(SamplingPool):
             successful_results, failed_results, times = self._collect_unfinished(successful_results,
                                                                                  failed_results, times)
 
-        return successful_results, failed_results, n_running, times
+        return successful_results, failed_results, n_running, list(times.items())
     
     def _load_sample_id_job_id_map(self, sample_dir):
         """

@@ -40,7 +40,7 @@ def add_samples(storage, n_levels, n_successful=5, n_failed=4, res_lenght=3):
         storage.save_scheduled_samples(l_id, samples=["S{:07d}".format(i) for i in range(n_successful + n_failed)])
 
     storage.save_samples(successful_samples, failed_samples)
-    storage.save_n_ops(n_ops)
+    storage.save_n_ops(list(n_ops.items()))
 
     return format_quant
 
@@ -123,8 +123,5 @@ def test_hdf_append():
 
     n_finished = storage.n_finished()
     assert len(n_finished) == n_levels
-
-
-
 
 test_hdf_append()
