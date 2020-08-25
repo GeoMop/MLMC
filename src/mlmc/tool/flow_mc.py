@@ -177,8 +177,11 @@ class FlowSim(Simulation):
         config["gmsh"] = self.env['gmsh']
         config["flow123d"] = self.env['flow123d']
 
+        # Auxiliary parameter which I use to determine task_size (should be from 0 to 1, if task_size is above 1 then pbs job is scheduled)
+        job_weight = 200000
+
         return LevelSimulation(config_dict=config,
-                               task_size=len(fine_mesh_data['points']),
+                               task_size=len(fine_mesh_data['points'])/job_weight,
                                calculate=FlowSim.calculate,  # method which carries out the calculation, will be called from PBS processs
                                need_sample_workspace=True  # If True, a sample directory is created
                                )
@@ -217,7 +220,7 @@ class FlowSim(Simulation):
         np.random.seed(seed)
         # Generate random samples
         fine_input_sample, coarse_input_sample = FlowSim.generate_random_sample(fields, coarse_step=coarse_step,
-                                                                                n_fine_elements=len(fine_mesh_data['points']))
+                                                                        n_fine_elements=len(fine_mesh_data['points']))
 
         # Run fine sample
         fields_file = os.path.join(os.getcwd(), FlowSim.FIELDS_FILE)
@@ -410,7 +413,7 @@ class FlowSim(Simulation):
         Define simulation result format
         :return: List[QuantitySpec, ...]
         """
-        spec1 = QuantitySpec(name="conductivity", unit="m", shape=(1, 1), times=[1], locations=['0', '0'])
+        spec1 = QuantitySpec(name="conductivity", unit="m", shape=(1, 1), times=[1], locations=['0'])
         #spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40'])
         return [spec1]
 

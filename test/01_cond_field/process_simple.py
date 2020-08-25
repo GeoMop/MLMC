@@ -8,19 +8,22 @@ from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.tool.flow_mc import FlowSim
 from mlmc.moments import Legendre
+from mlmc.tool.process_base import ProcessBase
 from mlmc.quantity_estimate import QuantityEstimate
 
 
 class ProcessSimple:
 
     def __init__(self):
-        args = ProcessSimple.get_arguments(sys.argv[1:])
+        args = ProcessBase.get_arguments(sys.argv[1:])
 
         self.work_dir = os.path.abspath(args.work_dir)
         self.append = False
         # Add samples to existing ones
         self.clean = args.clean
         # Remove HDF5 file, start from scratch
+        self.debug = args.debug
+        # 'Debug' mode is on - keep sample directories
         self.use_pbs = True
         # Use PBS sampling pool
         self.n_levels = 2
@@ -58,7 +61,7 @@ class ProcessSimple:
         # Create sampler (mlmc.Sampler instance) - crucial class which actually schedule samples
         sampler = self.setup_config(clean=True)
         # Schedule samples
-        self.generate_jobs(sampler, n_samples=[10, 10], renew=renew)
+        self.generate_jobs(sampler, n_samples=[5, 5], renew=renew)
 
         self.all_collect(sampler)  # Check if all samples are finished
         self.calculate_moments(sampler)  # Simple moment check
@@ -127,20 +130,21 @@ class ProcessSimple:
         :return: None
         """
         if not self.use_pbs:
-            return OneProcessPool(work_dir=self.work_dir)  # Everything runs in one process
+            return OneProcessPool(work_dir=self.work_dir, debug=self.debug)  # Everything runs in one process
 
         # Create PBS sampling pool
-        sampling_pool = SamplingPoolPBS(job_weight=20000000, work_dir=self.work_dir, clean=self.clean)
+        sampling_pool = SamplingPoolPBS(work_dir=self.work_dir, clean=self.clean, debug=self.debug)
 
         pbs_config = dict(
             n_cores=1,
             n_nodes=1,
             select_flags=['cgroups=cpuacct'],
-            mem='128mb',
+            mem='1Gb',
             queue='charon_2h',
-            walltime='2:00:00',
+            pbs_name='MLMC_test',
+            walltime='1:00:00',
+            optional_pbs_requests=[],  # e.g. ['#PBS -m ae', ...]
             home_dir='/storage/liberec3-tul/home/martin_spetlik/',
-            # pbs_process_file_dir='/auto/liberec3-tul/home/martin_spetlik/MLMC_new_design/src/mlmc',
             python='python3',
             env_setting=['cd $MLMC_WORKDIR',
                          'module load python36-modules-gcc',
@@ -211,30 +215,7 @@ class ProcessSimple:
         n_moments = 5
         true_domain = QuantityEstimate.estimate_domain(sample_storage, quantile=0.01)
         return Legendre(n_moments, true_domain)
-
-    @staticmethod
-    def get_arguments(arguments):
-        """
-        Getting arguments from console
-        :param arguments: list of arguments
-        :return: namespace
-        """
-        import argparse
-        parser = argparse.ArgumentParser()
-
-        parser.add_argument('command', choices=['run', 'collect', 'renew'],
-                            help='run - create new execution,'
-                                 'collect - keep collected, append existing HDF file'
-                                 'renew - renew failed samples, run new samples with failed sample ids (which determine random seed)')
-        parser.add_argument('work_dir', help='Work directory')
-        parser.add_argument("-c", "--clean", default=False, action='store_true',
-                            help="Clean before run, used only with 'run' command")
-
-        args = parser.parse_args(arguments)
-
-        return args
-
-
+    
     @staticmethod
     def determine_level_parameters(n_levels, step_range):
         """

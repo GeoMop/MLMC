@@ -14,7 +14,6 @@ from mlmc.moments import Legendre
 from mlmc.quantity_estimate import QuantityEstimate
 import mlmc.estimator
 
-
 # Set work dir
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
@@ -33,6 +32,7 @@ simulation_workspace = SynthSimulationWorkspace(simulation_config)
 
 # Create sample storages
 storage_memory = Memory()
+
 
 def hdf_storage_factory():
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -56,16 +56,18 @@ sampling_pool_thread_dir = ThreadPool(4, work_dir=work_dir)
 
 @pytest.mark.parametrize("test_case", [(simulation, storage_memory, sampling_pool_single_process),
                                        (simulation, storage_memory, sampling_pool_processes),
-                                       (simulation, storage_memory, sampling_pool_thread),
+                                       # (simulation, storage_memory, sampling_pool_thread),
                                        (simulation, hdf_storage_factory(), sampling_pool_single_process),
                                        (simulation, hdf_storage_factory(), sampling_pool_processes),
-                                       (simulation, hdf_storage_factory(), sampling_pool_thread),
+                                       #(simulation, hdf_storage_factory(), sampling_pool_thread),
                                        (simulation_workspace, storage_memory, sampling_pool_single_process_dir),
                                        (simulation_workspace, storage_memory, sampling_pool_processes_dir),
-                                       (simulation_workspace, storage_memory, sampling_pool_thread_dir),
+                                       #(simulation_workspace, storage_memory, sampling_pool_thread_dir),
                                        (simulation_workspace, hdf_storage_factory(), sampling_pool_single_process_dir),
                                        (simulation_workspace, hdf_storage_factory(), sampling_pool_processes_dir),
-                                       (simulation_workspace, hdf_storage_factory(), sampling_pool_thread_dir)])
+                                       #(simulation_workspace, hdf_storage_factory(), sampling_pool_thread_dir)
+                                       ]
+                         )
 def test_mlmc(test_case):
     np.random.seed(1234)
     n_moments = 5
@@ -73,7 +75,7 @@ def test_mlmc(test_case):
 
     simulation_factory, sample_storage, sampling_pool = test_case
 
-    if sampling_pool._work_dir is not None:
+    if sampling_pool._output_dir is not None:
         if os.path.exists(work_dir):
             shutil.rmtree(work_dir)
         os.makedirs(work_dir)

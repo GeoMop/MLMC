@@ -142,17 +142,18 @@ class CondField(process_base.ProcessBase):
         :return: None
         """
         # Create PBS sampling pool
-        sampling_pool = SamplingPoolPBS(job_weight=20000000, work_dir=self.work_dir, clean=self.clean)
+        sampling_pool = SamplingPoolPBS(work_dir=self.work_dir, clean=self.clean, debug=self.debug)
 
         pbs_config = dict(
             n_cores=1,
             n_nodes=1,
             select_flags=['cgroups=cpuacct'],
-            mem='128mb',
+            mem='2Gb',
             queue='charon_2h',
-            walltime="1:00:00",
+            pbs_name='MLMC_test',
+            walltime='1:00:00',
+            optional_pbs_requests=[],  # e.g. ['#PBS -m ae', ...]
             home_dir='/storage/liberec3-tul/home/martin_spetlik/',
-            # pbs_process_file_dir='/auto/liberec3-tul/home/martin_spetlik/MLMC_new_design/src/mlmc',
             python='python3',
             env_setting=['cd $MLMC_WORKDIR',
                          'module load python36-modules-gcc',
@@ -165,7 +166,6 @@ class CondField(process_base.ProcessBase):
         )
 
         sampling_pool.pbs_common_setting(flow_3=True, **pbs_config)
-
         return sampling_pool
 
     def generate_jobs(self, sampler, n_samples=None, renew=False):
