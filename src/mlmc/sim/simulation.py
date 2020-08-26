@@ -1,25 +1,13 @@
-import attr
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Union
 from mlmc.level_simulation import LevelSimulation
-
-
-@attr.s(auto_attribs=True)
-class QuantitySpec:
-    name: str
-    unit: str
-    shape: Tuple[int, int]
-    times: List[float]
-    locations: Union[List[str], List[Tuple[float, float, float]]]
+from mlmc.quantity_spec import QuantitySpec
 
 
 class Simulation(ABC):
 
-    def __init__(self, config):
-        self._config = config
-
     @abstractmethod
-    def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float])-> LevelSimulation:
+    def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]) -> LevelSimulation:
         """
         Create LevelSimulation object which is farther used for calculation etc.
         :param fine_level_params:
@@ -27,18 +15,19 @@ class Simulation(ABC):
         :return: LevelSimulation
         """
 
+    @abstractmethod
+    def result_format(self) -> List[QuantitySpec]:
+        """
+        Define simulation result format
+        :return: List[QuantitySpec, ...]
+        """
+
     @staticmethod
+    @abstractmethod
     def calculate(config_dict, seed):
         """
         Method that actually run the calculation, calculate fine and coarse sample and also extract their results
         :param config_dict: dictionary containing simulation configuration, LevelSimulation.config_dict (set in level_instance)
         :param seed: random seed, int
-        :return: List[fine result, coarse result], both flatten arrays (see mlmc.sim.synth_simulation.calculate())
-        """
-
-    @staticmethod
-    def result_format()-> List[QuantitySpec]:
-        """
-        Define simulation result format
-        :return: List[QuantitySpec, ...]
+        :return: List[fine result, coarse result], both flatten arrays (see mlmc.sim.synth_simulation._calculate())
         """

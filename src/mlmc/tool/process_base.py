@@ -10,13 +10,14 @@ class ProcessBase:
     Parent class for particular simulation processes
     """
     def __init__(self):
-        args = self.get_arguments(sys.argv[1:])
+        args = ProcessBase.get_arguments(sys.argv[1:])
 
         self.step_range = (1, 0.01)
 
         self.work_dir = args.work_dir
         self.append = False
         self.clean = args.clean
+        self.debug = args.debug
 
         if args.command == 'run':
             self.run()
@@ -25,7 +26,8 @@ class ProcessBase:
             self.clean = False
             self.run(renew=True) if args.command == 'renew' else self.run()
 
-    def get_arguments(self, arguments):
+    @staticmethod
+    def get_arguments(arguments):
         """
         Getting arguments from console
         :param arguments: list of arguments
@@ -41,6 +43,8 @@ class ProcessBase:
         parser.add_argument('work_dir', help='Work directory')
         parser.add_argument("-c", "--clean", default=False, action='store_true',
                             help="Clean before run, used only with 'run' command")
+        parser.add_argument("-d", "--debug", default=False, action='store_true',
+                            help="Keep sample directories")
 
         args = parser.parse_args(arguments)
 

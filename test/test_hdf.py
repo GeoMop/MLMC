@@ -18,7 +18,7 @@ def test_hdf5():
     file_path = os.path.join(work_dir, "mlmc_test.hdf5")
     hdf_obj = mlmc.tool.hdf5.HDF5(file_path, load_from_file=False)
 
-    obligatory_attributes = ['version', 'step_range']
+    obligatory_attributes = ['version', 'level_parameters']
     init_header(hdf_obj, obligatory_attributes)
 
     levels = ['1', '2', '3', '7', '8', '9']

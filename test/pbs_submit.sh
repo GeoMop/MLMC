@@ -7,7 +7,7 @@ pbs_script=`pwd`/$1.pbs
 script_path=${py_script%/*}
 
 work_dir=$2
-mlmc=/storage/liberec3-tul/home/martin_spetlik/MLMC_proc_01
+mlmc=/storage/liberec3-tul/home/martin_spetlik/MLMC_new_design
 
 cat >$pbs_script <<EOF
 #!/bin/bash
@@ -23,7 +23,7 @@ module load python36-modules-gcc
 python3 -m venv env --clear
 source env/bin/activate
 
-pip3 install attrs numpy scipy h5py ruamel.yaml ${mlmc}
+pip3 install attrs numpy scipy h5py gstools ruamel.yaml ${mlmc}
 
 cd ${script_path}
 

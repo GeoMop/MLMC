@@ -15,7 +15,7 @@ class HDF5:
         Keys:
             Levels: h5py.Group
                 Attributes:
-                    step_range: [a, b]
+                    level_parameters: [[a], [b], [], ...]
                 Keys:
                     <N>: h5py.Group (N - level id, start with 0)
                         Attributes:
@@ -52,18 +52,20 @@ class HDF5:
         self.file_name = file_path
         # If True not create file structure from scratch
         self._load_from_file = load_from_file
+        if self._load_from_file:
+            self.load_from_file()
 
-    def create_file_structure(self, step_range):
+    def create_file_structure(self, level_parameters):
         """
         Create hdf structure
-        :param step_range: List[float]
+        :param level_parameters: List[float]
         :return: None
         """
         if self._load_from_file:
             self.load_from_file()
         else:
             self.clear_groups()
-            self.init_header(step_range=step_range)
+            self.init_header(level_parameters=level_parameters)
 
     def load_from_file(self):
         """
@@ -75,6 +77,9 @@ class HDF5:
             for attr_name, value in hdf_file.attrs.items():
                 self.__dict__[attr_name] = value
 
+        if 'level_parameters' not in self.__dict__:
+            raise Exception("'level_parameters' aren't store in HDF file, so unable to create level groups")
+
     def clear_groups(self):
         """
         Remove HDF5 group Levels, it allows run same mlmc object more times
@@ -84,16 +89,16 @@ class HDF5:
             for item in hdf_file.keys():
                 del hdf_file[item]
 
-    def init_header(self, step_range):
+    def init_header(self, level_parameters):
         """
         Add h5py.File metadata to .attrs (attrs objects are of class h5py.AttributeManager)
-        :param step_range: MLMC level range of steps
+        :param level_parameters: MLMC level range of steps
         :return: None
         """
         with h5py.File(self.file_name, "a") as hdf_file:
             # Set global attributes to root group (h5py.Group)
             hdf_file.attrs['version'] = '1.0.1'
-            hdf_file.attrs['step_range'] = step_range
+            hdf_file.attrs['level_parameters'] = level_parameters
             # Create h5py.Group Levels, it contains other groups with mlmc.Level data
             hdf_file.create_group("Levels")
 
@@ -299,8 +304,8 @@ class LevelGroup:
 
     def append_successful(self, samples: np.array):
         """
-        Save level collected samples to datasets (h5py.Dataset) corresponding to the COLLECTED_ATTRS
-        :param samples: Level sample [(fine sample, coarse sample)], both are Sample() object instances
+        Save level samples to datasets (h5py.Dataset), save ids of collected samples and their results
+        :param samples: np.ndarray
         :return: None
         """
         self._append_dataset(self.collected_ids_dset, samples[:, 0])

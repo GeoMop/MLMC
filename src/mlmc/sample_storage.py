@@ -28,7 +28,7 @@ class SampleStorage(metaclass=ABCMeta):
     @abstractmethod
     def save_global_data(self, result_format: List[QuantitySpec], level_parameters=None):
         """
-        Save global data, at the moment: result_format, level_parameters
+        Save global data, at the moment: _result_format, level_parameters
         """
 
     @abstractmethod
@@ -41,7 +41,7 @@ class SampleStorage(metaclass=ABCMeta):
     def load_scheduled_samples(self):
         """
         Load scheduled samples
-        :return: Dict[level_id, List[sample_id: str]]
+        :return: Dict[_level_id, List[sample_id: str]]
         """
 
     @abstractmethod
@@ -62,7 +62,7 @@ class SampleStorage(metaclass=ABCMeta):
     def save_n_ops(self, n_ops: Dict[int, List[float]]):
         """
         Save number of operations (time)
-        :param n_ops: Dict[level_id, List[overall time, number of valid samples]]
+        :param n_ops: Dict[_level_id, List[overall time, number of valid samples]]
         """
 
     @abstractmethod
@@ -193,7 +193,7 @@ class Memory(SampleStorage):
 
     def load_scheduled_samples(self):
         """
-        :return: Dict[level_id, List[sample_id: str]]
+        :return: Dict[_level_id, List[sample_id: str]]
         """
         return self._scheduled
 
@@ -227,10 +227,10 @@ class Memory(SampleStorage):
     def save_n_ops(self, n_ops):
         """
         Save number of operations
-        :param n_ops: Dict[level_id, List[time, number of valid samples]]
+        :param n_ops: Dict[_level_id, List[time, number of valid samples]]
         :return: None
         """
-        for level, (time, n_samples)in n_ops.items():
+        for level, (time, n_samples) in n_ops:
             if level not in self._n_ops or n_samples == 0:
                 self._n_ops[level] = 0
             else:

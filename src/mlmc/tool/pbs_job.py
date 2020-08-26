@@ -1,18 +1,18 @@
 import os
-import shutil
 import sys
-import ruamel.yaml as yaml
 import time
-import pickle
-from typing import List
 import warnings
+import numpy as np
+import ruamel.yaml as yaml
+import pickle
+from mlmc.sampling_pool import SamplingPool
 from ruamel.yaml.error import ReusedAnchorWarning
 warnings.simplefilter("ignore", ReusedAnchorWarning)
 
 
 class PbsJob:
     SCHEDULED = "{}_scheduled.yaml"
-    # Store scheduled samples as List[(level_sim.level_id, sample_id, seed)]
+    # Store scheduled samples as List[(level_sim._level_id, sample_id, seed)]
     SUCCESSFUL_RESULTS = "{}_successful_results.yaml"
     # Simulation results as Dict[level_id, List[Tuple[sample_id, (fine result, coarse result)]]]
     FAILED_RESULTS = "{}_failed_results.yaml"
@@ -27,33 +27,36 @@ class PbsJob:
 
     # Indicates that sample is stored in _successful_results.yaml or _failed_results.yaml
 
-    def __init__(self, output_dir, jobs_dir, job_id, level_sim_file):
+    def __init__(self, output_dir, jobs_dir, job_id, level_sim_file, debug):
         """
         Class representing both pbs job in SamplingPoolPBS and true pbs process
         :param output_dir: output directory path
         :param jobs_dir: jobs directory path
         :param job_id: unique job id
         :param level_sim_file: file name of serialized LevelSimulation instance
+        :param debug: bool, if True keep sample directories
         """
         self._output_dir = output_dir
         self._jobs_dir = jobs_dir
         self._job_id = job_id
         self._level_sim_file = level_sim_file
+        self._debug = debug
 
         self._level_simulations = {}
         # LevelSimulations instances
 
     @classmethod
-    def create_job(cls, output_dir, jobs_dir, job_id, level_sim_file):
+    def create_job(cls, output_dir, jobs_dir, job_id, level_sim_file, debug):
         """
         Create PbsProcess instance from SamplingPoolPBS
         :param output_dir: str
         :param jobs_dir: str
         :param job_id: str
         :param level_sim_file: str, file name format of LevelSimulation serialization
+        :param debug: bool, if True keep sample directories
         :return: PbsProcess instance
         """
-        pbs_process = cls(output_dir, jobs_dir, job_id, level_sim_file)
+        pbs_process = cls(output_dir, jobs_dir, job_id, level_sim_file, debug)
         PbsJob._serialize_pbs_process(pbs_process)
 
         return pbs_process
@@ -65,9 +68,9 @@ class PbsJob:
         :return:
         """
         job_id, output_dir = PbsJob.command_params()
-        jobs_dir, level_sim_file_format = PbsJob._deserialize_pbs_process(output_dir)
+        jobs_dir, level_sim_file_format, debug = PbsJob._deserialize_pbs_process(output_dir)
 
-        return cls(output_dir, jobs_dir, job_id, level_sim_file_format)
+        return cls(output_dir, jobs_dir, job_id, level_sim_file_format, debug)
 
     @staticmethod
     def _serialize_pbs_process(pbs_process):
@@ -81,6 +84,7 @@ class PbsJob:
             with open(os.path.join(pbs_process._output_dir, PbsJob.CLASS_FILE), "w") as writer:
                 writer.write(pbs_process._jobs_dir + ";")
                 writer.write(pbs_process._level_sim_file + ";")
+                writer.write(str(pbs_process._debug) + ";")
 
     @staticmethod
     def _deserialize_pbs_process(output_dir):
@@ -92,7 +96,7 @@ class PbsJob:
         with open(os.path.join(output_dir, PbsJob.CLASS_FILE), "r") as reader:
             line = reader.readline().split(';')
 
-            return line[0], line[1]
+            return line[0], line[1], bool(line[2])
 
     @staticmethod
     def command_params():
@@ -112,7 +116,7 @@ class PbsJob:
         """
         with open(os.path.join(self._output_dir, self._level_sim_file.format(level_id)), "rb") as reader:
             l_sim = pickle.load(reader)
-            self._level_simulations[l_sim.level_id] = l_sim
+            self._level_simulations[l_sim._level_id] = l_sim
 
     def _get_level_id_sample_id_seed(self):
         """
@@ -162,24 +166,19 @@ class PbsJob:
                 current_level = level_id
 
             level_sim = self._level_simulations[current_level]
-            assert level_sim.level_id == current_level
-            self._handle_sim_files(sample_id, level_sim)
-
+            assert level_sim._level_id == current_level
             # Calculate sample
-            res = (None, None)
-            err_msg = ""
-            try:
-                res = level_sim.calculate(level_sim.config_dict, seed)
-            except Exception as err:
-                err_msg = str(err)
+            _, res, err_msg, _ = SamplingPool.calculate_sample(sample_id, level_sim, work_dir=self._output_dir, seed=seed)
 
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
-                # self._remove_sample_dir(sample_id, level_sim.need_sample_workspace)
+                if not self._debug:
+                    SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
             else:
                 failed.append((current_level, sample_id, err_msg))
-                # self._move_failed_dir(sample_id, level_sim.need_sample_workspace)
+                SamplingPool.move_failed_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
+
             current_samples.append(sample_id)
             n_times += 1
             times.append((current_level, time.time() - start_time, n_times))
@@ -226,11 +225,12 @@ class PbsJob:
 
     def _save_sample_id_job_id_map(self, current_samples):
         for sample_id in current_samples:
-            self._change_to_sample_directory(sample_id)
+            sample_dir = SamplingPool.change_to_sample_directory(self._output_dir, sample_id)
 
-            file_name = os.path.join(os.getcwd(), PbsJob.PERMANENT_SAMPLE.format(self._job_id))
-            with open(file_name, 'w') as w:
-                pass
+            if os.path.exists(sample_dir):
+                file_name = os.path.join(sample_dir, PbsJob.PERMANENT_SAMPLE.format(self._job_id))
+                with open(file_name, 'w') as w:
+                    pass
 
     def _append_file(self, data, path):
         """
@@ -250,29 +250,9 @@ class PbsJob:
         :return: None
         """
         if level_sim.need_sample_workspace:
-            self._change_to_sample_directory(sample_id)
+            SamplingPool.change_to_sample_directory(self._output_dir, sample_id)
             if level_sim.common_files is not None:
-                self._copy_sim_files(level_sim.common_files)
-
-    def _change_to_sample_directory(self, sample_id):
-        """
-        Create sample directory and change working directory
-        :param sample_id: str
-        :return: None
-        """
-        sample_dir = os.path.join(self._output_dir, sample_id)
-        if not os.path.isdir(sample_dir):
-            os.makedirs(sample_dir, mode=0o775, exist_ok=True)
-        os.chdir(sample_dir)
-
-    def _copy_sim_files(self, files: List[str]):
-        """
-        Copy simulation common files to current simulation sample directory
-        :param files: List of files
-        :return: None
-        """
-        for file in files:
-            shutil.copy(file, os.getcwd())
+                SamplingPool.copy_sim_files(level_sim.common_files, os.getcwd())
 
     @staticmethod
     def read_results(job_id, jobs_dir):
