@@ -77,6 +77,9 @@ class Moments:
     def eval(self, i, value):
         return self._eval_all(value, i+1)[:, -1]
 
+    def eval_fine_coarse(self, i, value):
+        return self._eval_all(value, i+1)[..., i]
+
     def eval_all(self, value, size=None):
         if size is None:
             size = self.size
@@ -92,11 +95,12 @@ class Monomial(Moments):
         # Create array from values and transform values outside the ref domain
         t = self.transform(np.atleast_1d(value))
         # Vandermonde matrix
-        return np.polynomial.polynomial.polyvander(t, deg = size - 1)
+        return np.polynomial.polynomial.polyvander(t, deg=size - 1)
 
     def eval(self, i, value):
         t = self.transform(np.atleast_1d(value))
         return t**i
+
 
 class Fourier(Moments):
     def __init__(self, size, domain=(0, 2*np.pi), log=False, safe_eval=True):
@@ -130,6 +134,7 @@ class Fourier(Moments):
             return np.sin( (i - 1) / 2 * t)
         else:
             return np.cos(i / 2 * t)
+
 
 class Legendre(Moments):
 
@@ -166,7 +171,7 @@ class TransformedMoments(Moments):
         # TODO: find last nonzero for every row to compute which origianl moments needs to be evaluated for differrent sizes.
 
     def __eq__(self, other):
-        return  type(self) is type(other) \
+        return type(self) is type(other) \
                 and self.size == other.size \
                 and self._origin == other._origin \
                 and np.all(self._transform == other._transform)

@@ -71,12 +71,15 @@ def estimate_mean(quantity):
 
             if chunk is not None:
                 if level_id == 0:
-                    sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+                    sums = [np.zeros(chunk.shape[:-2]) for _ in range(n_levels)]
 
-                # level_chunk is Numpy Array with shape [M, chunk_size, 2]
-                n_samples[level_id] += chunk.shape[1]
-                assert(chunk.shape[0] == quantity_vec_size)
-                sums[level_id] += np.sum(chunk[:, :, 0] - chunk[:, :, 1], axis=1)
+                    # Coarse result for level 0, there is issue for moments processing (not know about level)
+                    chunk[..., 1] = 0
+
+                # level_chunk is Numpy Array with shape [..., chunk_size, 2]
+                n_samples[level_id] += chunk.shape[-2]
+                assert(np.prod(chunk.shape[:-2]) == quantity_vec_size)   # chunk shape [..., chunk_size, 2]
+                sums[level_id] += np.sum(chunk[..., 0] - chunk[..., 1], axis=-1)
 
         if chunk is None:
             break
@@ -89,7 +92,44 @@ def estimate_mean(quantity):
     return quantity._make_value(mean)
 
 
-# Just for type hints, change to protocol
+def apply(quantities, function):
+    """
+    Works for functions whose results have same shape like input quantities
+    :param quantities:
+    :param function:
+    :return:
+    """
+    assert all(isinstance(quantity, Quantity) for quantity in quantities), "Quantity must be instance of Quantity"
+    assert all(quantity.size() == quantities[0].size() for quantity in quantities), "Quantity must have same structure"
+
+    return Quantity(quantity_type=quantities[0].qtype, input_quantities=custom_copy(quantities), operation=function)
+
+
+def estimate_moment(quantity, moments_fn, i=0):
+    def eval_moment(x):
+        return moments_fn.eval_fine_coarse(i, value=x)
+    return Quantity(quantity_type=quantity.qtype, input_quantities=[quantity], operation=eval_moment)
+
+
+def estimate_moments(quantity, moments_fn):
+    def eval_moments(x):
+        return moments_fn.eval_all(x).transpose((3, 0, 1, 2))
+
+    moments_qtype = ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
+    return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
+
+# def numpy_matmul(x, y):
+#     """
+#     @TODO: think matrix multiplication over
+#     :param x:
+#     :param y:
+#     :return:
+#     """
+#     print("x.shape ", x.shape)
+#     print("y.shape ", y.shape)
+#     np.matmul(x, y)
+
+
 class Quantity:
     def __init__(self, quantity_type, input_quantities=None, operation=None):
 
@@ -98,8 +138,6 @@ class Quantity:
         # List of quantities on which the 'self' dependens. their number have to match number of arguments to the operation.
         self._operation = operation
         self._input_quantities = input_quantities
-
-        # Cache mechanism
 
         # function  lambda(*args : List[array[M, N, 2]]) -> List[array[M, N, 2])]
         # It takes list of chunks for individual levels as a single argument, with number of arguments matching the
@@ -150,7 +188,6 @@ class Quantity:
             # Operation not set return first quantity samples - used in make_root_quantity
             if self._operation is None:
                 return chunks_quantity_level[0]
-
             return self._operation(*chunks_quantity_level)
         else:
             return None
