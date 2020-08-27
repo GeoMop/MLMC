@@ -1,6 +1,7 @@
 import abc
 import numpy as np
 import copy
+import operator
 from functools import lru_cache
 from memoization import cached
 from scipy import interpolate
@@ -131,7 +132,7 @@ def estimate_moments(quantity, moments_fn):
 
 
 class Quantity:
-    def __init__(self, quantity_type, input_quantities=None, operation=None):
+    def __init__(self, quantity_type, input_quantities=None, operation=None, mask=None):
 
         # @TODO: check if variable
         self.qtype = quantity_type
@@ -212,18 +213,50 @@ class Quantity:
         :param quantities:
         :param operation: function which is run with given quantitiees
         :return:
-        @TODO: quantity same structure test: check unit, c
         """
-        # @TODO: check if all items in quantitites are Quantity
         assert all(x.size() == quantities[0].size() for x in quantities), "Quantity must have same structure"
-
         return Quantity(quantities[0].qtype, operation=operation, input_quantities=quantities)
+
+    @staticmethod
+    def get_mask(quantity, x):
+        """
+        Get all masks, it performs logical and of masks
+        :param quantity: Quantity instance
+        :param x: int or double
+        :return: np.ndarray
+        """
+        masks = [q.get_mask(q, x) for q in quantity._input_quantities]
+
+        mask = None
+        if len(masks) > 0:
+            mask = masks[0]
+
+            if len(masks) > 1:
+                for m in masks:
+                    if m is not None:
+                        mask = np.logical_and(mask, m)
+
+        if quantity._operation is not None:
+            try:
+                current_mask = quantity._operation(x)
+            except Exception:
+                return None
+            if not np.array_equal(current_mask, current_mask.astype(bool)):
+                return None
+        else:
+            return None
+
+        if mask is None:
+            mask = np.ones((len(current_mask)))
+
+        return np.logical_and(current_mask, mask)
 
     def select(self, quantity):
         def op(x):
-            return x[:, quantity._operation(x)]
+            mask = Quantity.get_mask(quantity, x)
+            return x[..., mask, :]  # [sample size, cut number of samples, 2]
 
-        return Quantity(quantity_type=self.qtype, input_quantities=[self], operation=op)
+        return Quantity(quantity_type=self.qtype, input_quantities=custom_copy([self]), operation=op)
 
     def __add__(self, other):
         def add_op(x, y):
@@ -248,10 +281,17 @@ class Quantity:
             return c * x
         return self._reduction_op([self], cmult_op)
 
-    def _process_mask(self, mask):
+    def _process_mask(self, x, value, operator):
         # all values for sample must meet given condition,
         # if any value doesn't meet the condition, whole sample is eliminated
-        return mask.all(axis=0).all(axis=1)
+
+        # It is most likely zero level
+        if np.all((x[..., 1] == 0)):
+            mask = operator(x[..., 0], value)  # use just fine samples
+            return mask.all(axis=tuple(range(mask.ndim - 1)))
+
+        mask = operator(x, value)
+        return mask.all(axis=tuple(range(mask.ndim - 2))).all(axis=1)
 
     def _create_quantity(self, value, op):
         if isinstance(value, float) or isinstance(value, int):
@@ -260,32 +300,32 @@ class Quantity:
 
     def __lt__(self, value):
         def lt_op(x):
-            return self._process_mask(x < value)
+            return self._process_mask(x, value, operator.lt)
         return self._create_quantity(value, lt_op)
 
     def __le__(self, value):
         def le_op(x):
-            return self._process_mask(x <= value)
+            return self._process_mask(x, value, operator.le)
         return self._create_quantity(value, le_op)
 
     def __gt__(self, value):
         def gt_op(x):
-            return self._process_mask(x > value)
+            return self._process_mask(x, value, operator.gt)
         return self._create_quantity(value, gt_op)
 
     def __ge__(self, value):
         def ge_op(x):
-            return self._process_mask(x >= value)
+            return self._process_mask(x, value, operator.ge)
         return self._create_quantity(value, ge_op)
 
     def __eq__(self, value):
         def eq_op(x):
-            return self._process_mask(x == value)
+            return self._process_mask(x, value, operator.eq)
         return self._create_quantity(value, eq_op)
 
     def __ne__(self, value):
         def ne_op(x):
-            return self._process_mask(x != value)
+            return self._process_mask(x, value, operator.ne)
         return self._create_quantity(value, ne_op)
 
     def sampling(self, size):
@@ -363,6 +403,8 @@ class QuantityStorage(Quantity):
     def __init__(self, storage, qtype):
         self._storage = storage
         self.qtype = qtype
+        self._input_quantities = []
+        self._operation = None
         self.start = None
         self.end = None
 
