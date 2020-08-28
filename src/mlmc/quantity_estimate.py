@@ -223,30 +223,27 @@ class QuantityEstimate:
         mean_vec = np.mean(mom_fine - mom_coarse, axis=0)
         return mean_vec
 
-    # def estimate_covariance(self, moments_fn, stable=False):
-    #     """
-    #     Estimate covariance matrix (non central).
-    #     :param moments_fn: Moment functions object.
-    #     :param stable: Use alternative formula with better numerical stability.
-    #     :return: cov covariance matrix  with shape (n_moments, n_moments)
-    #     """
-    #     mom_fine, mom_coarse = self.evaluate_moments(moments_fn)
-    #     assert len(mom_fine) == len(mom_coarse)e
-    #     assert len(mom_fine) >= 2
-    #     assert self.n_samples == len(mom_fine)
-    #
-    #     if stable:
-    #         # Stable formula - however seems that we have no problem with numerical stability
-    #         mom_diff = mom_fine - mom_coarse
-    #         mom_sum = mom_fine + mom_coarse
-    #         cov = 0.5 * (np.matmul(mom_diff.T, mom_sum) + np.matmul(mom_sum.T, mom_diff)) / self.n_samples
-    #     else:
-    #         # Direct formula
-    #         cov_fine = np.matmul(mom_fine.T,   mom_fine)
-    #         cov_coarse = np.matmul(mom_coarse.T, mom_coarse)
-    #         cov = (cov_fine - cov_coarse) / self.n_samples
-    #
-    #     return cov
+    def estimate_covariance(self, moments_fn, stable=False):
+        """
+        Estimate covariance matrix (non central).
+        :param moments_fn: Moment functions object.
+        :param stable: Use alternative formula with better numerical stability.
+        :return: cov covariance matrix  with shape (n_moments, n_moments)
+        """
+        cov_mat = np.zeros((moments_fn.size, moments_fn.size))
+
+        for level_id, level_result in enumerate(self.levels_results):
+            zero_level = True if level_id == 0 else False
+            mom_fine, mom_coarse = self.evaluate_moments(moments_fn, level_result, zero_level)
+            n_samples = len(mom_fine)
+            assert len(mom_fine) == len(mom_coarse)
+            assert len(mom_fine) >= 2
+
+            cov_fine = np.matmul(mom_fine.T, mom_fine)
+            cov_coarse = np.matmul(mom_coarse.T, mom_coarse)
+            cov_mat += (cov_fine - cov_coarse) / n_samples
+
+        return cov_mat
 
     def evaluate_moments(self, moments_fn, level_results, is_zero_level=False):
         """

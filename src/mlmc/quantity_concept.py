@@ -119,6 +119,21 @@ def estimate_moments(quantity, moments_fn):
     moments_qtype = ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
     return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
 
+
+def estimate_covariance(quantity, moments_fn):
+
+    def eval_moments(x):
+        moments = moments_fn.eval_all(x)
+        mom_fine = moments[..., 0, :]
+        mom_coarse = moments[..., 1, :]
+        cov_fine = np.einsum('...i,...j', mom_fine, mom_fine)
+        cov_coarse = np.einsum('...i,...j', mom_coarse, mom_coarse)
+
+        return np.array([cov_fine, cov_coarse]).transpose((3, 4, 1, 2, 0))   # [R, R, M, N, 2]
+
+    moments_qtype = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
+    return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
+
 # def numpy_matmul(x, y):
 #     """
 #     @TODO: think matrix multiplication over

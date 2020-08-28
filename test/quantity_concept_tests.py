@@ -4,10 +4,11 @@ import unittest
 import numpy as np
 import random
 from scipy import stats
+import pandas as pd
 from mlmc.sim.simulation import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc.quantity_concept import make_root_quantity, estimate_mean, apply, estimate_moment, estimate_moments
+from mlmc.quantity_concept import make_root_quantity, estimate_mean, apply, estimate_moment, estimate_moments, estimate_covariance
 from mlmc.sampler import Sampler
 from mlmc.moments import Legendre
 from mlmc.quantity_estimate import QuantityEstimate
@@ -384,6 +385,7 @@ class QuantityTests(unittest.TestCase):
                                        sim_steps=step_range)
         means, vars = q_estimator.estimate_moments(moments_fn)
 
+
         root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
 
         moment_quantity = estimate_moment(root_quantity, moments_fn=moments_fn, i=0)
@@ -402,6 +404,12 @@ class QuantityTests(unittest.TestCase):
         selected_new_moments = new_moments.select(new_moments > -10)
         selected_new_moments_mean = estimate_mean(selected_new_moments)
         assert np.allclose(new_moments_mean, selected_new_moments_mean)
+
+        cov = q_estimator.estimate_covariance(moments_fn)
+        covariance_quantity = estimate_covariance(root_quantity, moments_fn=moments_fn)
+        covariance_mean = estimate_mean(covariance_quantity)
+
+        assert np.allclose(cov, covariance_mean[:, :, 0])
 
 
 if __name__ == '__main__':
