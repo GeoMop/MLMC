@@ -340,23 +340,22 @@ class Quantity:
     def __getitem__(self, key):
         """
         Get value from dictionary, it allows access item of quantities which have FieldType or DictType
-        :param key: supported dict key
+        :param key: str
         :return: Quantity
         """
+        def getitem_op(y):
+            new_qtype = self.qtype[key]
+            y_get_item = y[..., new_qtype.start: new_qtype.start + new_qtype.size(), :, :]
+            return y_get_item
+
         try:
             new_qtype = self.qtype[key]  # New quantity type
-            input_quantities = custom_copy(self._input_quantities)  # 'deep' copy of input quantities
-            for i, quantity in enumerate(input_quantities):
-                # Change quantity range
-                # e.g. allows select Field from time interpolation quantity
-                # it generally allows to determine interval of 'selected' values from results (it is used in QuantityStorage.samples())
-                quantity.set_range(quantity.qtype.start + new_qtype.start, new_qtype.size())
-
-            new_quantity = Quantity(quantity_type=new_qtype, input_quantities=input_quantities,
-                                    operation=self._operation)
-            return new_quantity
-        except KeyError:
-            return key
+            return Quantity(quantity_type=new_qtype, input_quantities=[self], operation=getitem_op)
+        except KeyError as ke:
+            print("Key " + str(ke) + " was not found in " + str(type(self.qtype).__name__) +
+                  ". Available keys: " + str(list(self.qtype._dict.keys())))
+        except TypeError as te:
+            print(str(te))
 
     def __iter__(self):
         raise Exception("This class is not iterable")
@@ -378,22 +377,13 @@ class Quantity:
         :param value:
         :return:
         """
-        def interp(*y):
+        def interp(y):
+            split_indeces = np.arange(1, len(self.qtype._times)) * self.qtype._qtype.size()
+            y = np.split(y, split_indeces, axis=-3)
             f = interpolate.interp1d(self.qtype._times, y, axis=0)
             return f(value)
 
-        quantities_in_time = []
-        # Split TimeSeries to FieldTypes, create corresponding Quantities
-        for i in range(len(self.qtype._times)):
-            new_qtype = copy.copy(self.qtype._qtype)
-            new_qtype.start = i * new_qtype.size()
-
-            quantity_t = Quantity(quantity_type=new_qtype, input_quantities=custom_copy([self]))
-            quantity_t.set_range(new_qtype.start, new_qtype.size())
-
-            quantities_in_time.append(quantity_t)
-
-        return Quantity(quantity_type=self.qtype._qtype, input_quantities=quantities_in_time, operation=interp)
+        return Quantity(quantity_type=self.qtype._qtype, input_quantities=custom_copy([self]), operation=interp)
 
     def level_ids(self):
         return self._input_quantities[0].level_ids()
@@ -538,7 +528,7 @@ class DictType(QType):
 
     def __getitem__(self, key):
         q_type = self._dict[key]
-        position = list(self._dict.keys()).index(key)
+
         size = 0
         for k, qt in self._dict.items():
             if k == key:
