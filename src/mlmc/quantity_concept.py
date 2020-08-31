@@ -93,10 +93,10 @@ def estimate_mean(quantity):
 
 def apply(quantities, function):
     """
-    Works for functions whose results have same shape like input quantities
-    :param quantities:
-    :param function:
-    :return:
+    Works for functions which results have same shape like input quantities
+    :param quantities: List[Quantity]
+    :param function: numpy function
+    :return: Quantity
     """
     assert all(isinstance(quantity, Quantity) for quantity in quantities), "Quantity must be instance of Quantity"
     assert all(quantity.size() == quantities[0].size() for quantity in quantities), "Quantity must have same structure"
@@ -105,21 +105,39 @@ def apply(quantities, function):
 
 
 def estimate_moment(quantity, moments_fn, i=0):
+    """
+    Estimate moment
+    :param quantity: Quantity instance
+    :param moments_fn: mlmc.moments.Moments child
+    :param i: index of moment
+    :return: Quantity
+    """
     def eval_moment(x):
         return moments_fn.eval_fine_coarse(i, value=x)
     return Quantity(quantity_type=quantity.qtype, input_quantities=[quantity], operation=eval_moment)
 
 
 def estimate_moments(quantity, moments_fn):
+    """
+    Estimates moments
+    :param quantity: Quantity
+    :param moments_fn: mlmc.moments.Moments child
+    :return: Quantity
+    """
     def eval_moments(x):
-        return moments_fn.eval_all(x).transpose((3, 0, 1, 2))
+        return moments_fn.eval_all(x).transpose((3, 0, 1, 2))  # [R, M, N, 2], R - number of moments
 
     moments_qtype = ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
     return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
 
 
 def estimate_covariance(quantity, moments_fn):
-
+    """
+    Estimate covariance matrix
+    :param quantity: Quantity
+    :param moments_fn: mlmc.moments.Moments child
+    :return: Quantity
+    """
     def eval_moments(x):
         moments = moments_fn.eval_all(x)
         mom_fine = moments[..., 0, :]
@@ -127,7 +145,7 @@ def estimate_covariance(quantity, moments_fn):
         cov_fine = np.einsum('...i,...j', mom_fine, mom_fine)
         cov_coarse = np.einsum('...i,...j', mom_coarse, mom_coarse)
 
-        return np.array([cov_fine, cov_coarse]).transpose((3, 4, 1, 2, 0))   # [R, R, M, N, 2]
+        return np.array([cov_fine, cov_coarse]).transpose((3, 4, 1, 2, 0))   # [R, R, M, N, 2], R - number of moments
 
     moments_qtype = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
     return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
@@ -145,9 +163,8 @@ def estimate_covariance(quantity, moments_fn):
 
 
 class Quantity:
-    def __init__(self, quantity_type, input_quantities=None, operation=None, mask=None):
+    def __init__(self, quantity_type, input_quantities=None, operation=None):
 
-        # @TODO: check if variable
         self.qtype = quantity_type
         # List of quantities on which the 'self' dependens. their number have to match number of arguments to the operation.
         self._operation = operation
@@ -266,7 +283,7 @@ class Quantity:
     def select(self, quantity):
         def op(x):
             mask = Quantity.get_mask(quantity, x)
-            return x[..., mask, :]  # [sample size, cut number of samples, 2]
+            return x[..., mask, :]  # [...sample size, cut number of samples, 2]
 
         return Quantity(quantity_type=self.qtype, input_quantities=[self], operation=op)
 
@@ -483,7 +500,7 @@ class TimeSeriesType(QType):
 
 
 class FieldType(QType):
-    def __init__(self, args: List[Tuple[Tuple, QType]], start=0):
+    def __init__(self, args: List[Tuple[str, QType]], start=0):
         """
         QType must have same structure
         :param args:
