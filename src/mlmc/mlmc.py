@@ -259,14 +259,14 @@ class MLMC:
         elif timeout <= 0:
             return 1
         n_running = 1
-        t0 = time.clock()
+        t0 = time.time()
         while n_running > 0:
             n_running = 0
             for level in self.levels:
                 n_running += level.collect_samples()
 
             time.sleep(sleep)
-            if 0 < timeout < (time.clock() - t0):
+            if 0 < timeout < (time.time() - t0):
                 break
 
         return n_running
