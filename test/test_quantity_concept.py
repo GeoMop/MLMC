@@ -4,7 +4,6 @@ import unittest
 import numpy as np
 import random
 from scipy import stats
-import pandas as pd
 from mlmc.sim.simulation import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF

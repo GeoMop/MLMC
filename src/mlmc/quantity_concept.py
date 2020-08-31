@@ -2,7 +2,6 @@ import abc
 import numpy as np
 import copy
 import operator
-from functools import lru_cache
 from memoization import cached
 from scipy import interpolate
 from typing import List, Tuple
@@ -17,7 +16,6 @@ def clearable_cache(*args, **kwargs):
         func = cached(*args, **kwargs)(func)
         cached_functions.append(func)
         return func
-
     return decorator
 
 
@@ -181,11 +179,10 @@ class Quantity:
     def size(self) -> int:
         return self.qtype.size()
 
-    # def get_cache_key(self, level_id, i_chunk):
-    #     return str(hash(str(level_id) + str(i_chunk) + str(self._input_quantities) + str(id(self))))
+    def get_cache_key(self, level_id, i_chunk):
+        return str(hash((level_id, i_chunk, id(self), *[id(q) for q in self._input_quantities])))
 
-    #@clearable_cache(custom_key_maker=get_cache_key)
-    #@lru_cache
+    @clearable_cache(custom_key_maker=get_cache_key)
     def samples(self, level_id, i_chunk):
         """
         Yields list of sample chunks for individual levels.
@@ -271,7 +268,7 @@ class Quantity:
             mask = Quantity.get_mask(quantity, x)
             return x[..., mask, :]  # [sample size, cut number of samples, 2]
 
-        return Quantity(quantity_type=self.qtype, input_quantities=custom_copy([self]), operation=op)
+        return Quantity(quantity_type=self.qtype, input_quantities=[self], operation=op)
 
     def __add__(self, other):
         def add_op(x, y):
@@ -376,15 +373,8 @@ class Quantity:
         raise Exception("This class is not iterable")
 
     def __copy__(self):
-        new = type(self)(quantity_type=self.qtype, input_quantities=custom_copy(self._input_quantities),
-                         operation=self._operation)
-        return new
-
-    def __hash__(self):
-        return hash(str(hash(self.qtype)) +
-                    str(hash(id(self._operation))) +
-                    str(hash(self._operation([0]))) if self._operation is not None else '0' +
-                    ' '.join([str(hash(input_quantity)) for input_quantity in self._input_quantities]))
+        return Quantity(quantity_type=self.qtype, input_quantities=custom_copy(self._input_quantities),
+                        operation=self._operation)
 
     def time_interpolation(self, value):
         """
@@ -450,9 +440,6 @@ class QuantityStorage(Quantity):
         new.__dict__.update(self.__dict__)
         return new
 
-    def __hash__(self):
-        return hash(str(self.start) + str(self.end))
-
 
 class QType(metaclass=abc.ABCMeta):
     def size(self) -> int:
@@ -474,9 +461,6 @@ class ScalarType(QType):
     def size(self) -> int:
         return 1
 
-    def __hash__(self):
-        return hash(self._qtype)
-
 
 class ArrayType(QType):
     def __init__(self, shape, qtype: QType, start=0):
@@ -487,9 +471,6 @@ class ArrayType(QType):
     def size(self) -> int:
         return np.prod(self._shape) * self._qtype.size()
 
-    def __hash__(self):
-        return hash(str(self._shape) + str(self.start) + str(hash(self._qtype)))
-
 
 class TimeSeriesType(QType):
     def __init__(self, times, qtype, start=0):
@@ -499,9 +480,6 @@ class TimeSeriesType(QType):
 
     def size(self) -> int:
         return len(self._times) * self._qtype.size()
-
-    def __hash__(self):
-        return hash(str(self._times) + str(self.start) + str(hash(self._qtype)))
 
 
 class FieldType(QType):
@@ -529,9 +507,6 @@ class FieldType(QType):
         new.__dict__.update(self.__dict__)
         return new
 
-    def __hash__(self):
-        return hash(str(self._dict) + str(self.start) + str(hash(self._qtype)))
-
 
 class DictType(QType):
     def __init__(self, args: List[Tuple[str, QType]]):
@@ -553,9 +528,6 @@ class DictType(QType):
         q_type.start = size
 
         return q_type
-
-    def __hash__(self):
-        return hash(str(self._dict) + str(self.start))
 
 
 def custom_copy(quantities):
