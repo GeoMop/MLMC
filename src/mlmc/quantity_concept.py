@@ -27,9 +27,12 @@ def make_method(method):
     return _method
 
 
-for method in [np.sin, np.cos, np.add, np.maximum, np.logical_and, np.logical_or]:
+for method in [np.sin, np.cos, np.add, np.maximum]:
     _method = make_method(method)
     setattr(this_module, method.__name__, _method)
+
+for method in [np.logical_and, np.logical_or]:
+    setattr(this_module, method.__name__, method)
 
 
 def apply(quantities, function):
@@ -270,16 +273,24 @@ class Quantity:
             # Operation not set return first quantity samples - used in make_root_quantity
             if self._operation is None:
                 return chunks_quantity_level[0]
+
+            try:  # numpy function do not have __code__
+                if all(par in self._operation.__code__.co_varnames for par in ['level_id', 'i_chunk']):
+                    return self._operation(*chunks_quantity_level, level_id=level_id, i_chunk=i_chunk)
+            except:
+                pass
+
             return self._operation(*chunks_quantity_level)
         else:
             return None
 
-    def _make_value(self, mean: np.array, var: np.array):
+    def _make_value(self, mean: np.ndarray, var: np.ndarray):
         """
         Crate a new quantity with the same structure but containing fixed data vector.
         Primary usage is to organise computed means and variances.
         Can possibly be used also to organise single sample row.
-        :param data_row:
+        :param mean: np.ndarray
+        :param var: np.ndarray
         :return:
         """
         if np.isnan(mean).all():
@@ -301,43 +312,14 @@ class Quantity:
         assert all(q.size() == quantities[0].size() for q in quantities), "Quantity must have same structure"
         return Quantity(quantities[0].qtype, operation=operation, input_quantities=quantities)
 
-    @staticmethod
-    def get_mask(quantity, x):
-        """
-        Get all masks, it performs logical and of masks
-        :param quantity: Quantity instance
-        :param x: int or double
-        :return: np.ndarray
-        """
-        masks = [q.get_mask(q, x) for q in quantity._input_quantities]
+    def select(self, *args):
+        masks = args[0]
+        if len(args) > 1:
+            for m in args[1:]:
+                    masks = np.logical_and(masks, m)
 
-        mask = None
-        if len(masks) > 0:
-            mask = masks[0]
-
-            if len(masks) > 1:
-                for m in masks:
-                    if m is not None:
-                        mask = np.logical_and(mask, m)
-
-        if quantity._operation is not None:
-            try:
-                current_mask = quantity._operation(x)
-            except Exception:
-                return None
-            if not np.array_equal(current_mask, current_mask.astype(bool)):
-                return None
-        else:
-            return None
-
-        if mask is None:
-            mask = np.ones((len(current_mask)))
-
-        return np.logical_and(current_mask, mask)
-
-    def select(self, quantity):
-        def op(x):
-            mask = Quantity.get_mask(quantity, x)
+        def op(x, level_id, i_chunk):
+            mask = masks[i_chunk, level_id]
             return x[..., mask, :]  # [...sample size, cut number of samples, 2]
 
         return Quantity(quantity_type=self.qtype, input_quantities=[self], operation=op)
@@ -365,61 +347,93 @@ class Quantity:
             return c * x
         return self._reduction_op([self], cmult_op)
 
-    def _process_mask(self, x, value, operator):
+    def _process_mask(self, x, y, operator):
         # all values for sample must meet given condition,
         # if any value doesn't meet the condition, whole sample is eliminated
 
-        # It is most likely zero level
+        # It is most likely zero level, so use just fine samples
         if np.all((x[..., 1] == 0)):
-            mask = operator(x[..., 0], value)  # use just fine samples
+            if isinstance(y, int) or isinstance(y, int):
+                mask = operator(x[..., 0], y)  # y is int or float
+            else:
+                mask = operator(x[..., 0], y[..., 0])  # y is from other quantity
             return mask.all(axis=tuple(range(mask.ndim - 1)))
 
-        mask = operator(x, value)
+        mask = operator(x, y)
         return mask.all(axis=tuple(range(mask.ndim - 2))).all(axis=1)
 
-    def _create_quantity(self, value, op):
-        if isinstance(value, float) or isinstance(value, int):
-            return Quantity(quantity_type=self.qtype, input_quantities=[self], operation=op)
-        return self
+    def _get_mask(self, op, other=None):
+        masks = []
+        i_chunk = 0
 
-    def __lt__(self, value):
-        def lt_op(x):
-            return self._process_mask(x, value, operator.lt)
-        return self._create_quantity(value, lt_op)  # vraci masku
+        while True:
+            level_ids = self.level_ids()
+            chunk_masks = []
+            chunk_self = None
+            chunk_other = None
+            if i_chunk == 0:
+                # initialization
+                n_levels = len(level_ids)
 
-    def __le__(self, value):
-        def le_op(x):
-            return self._process_mask(x, value, operator.le)
-        return self._create_quantity(value, le_op)
+            for level_id in level_ids:
+                # Chunk of samples for given level id
+                if other is not None and isinstance(other, Quantity):
+                    chunk_other = other.samples(level_id, i_chunk)
+                elif isinstance(other, int) or isinstance(other, float):
+                    chunk_other = other
+                chunk_self = self.samples(level_id, i_chunk)
 
-    def __gt__(self, value):
-        def gt_op(x):
-            return self._process_mask(x, value, operator.gt)
-        return self._create_quantity(value, gt_op)
+                if chunk_self is not None:
+                    if level_id == 0:
+                        chunk_masks = [[] for _ in range(n_levels)]
 
-    def __ge__(self, value):
-        def ge_op(x):
-            return self._process_mask(x, value, operator.ge)
-        return self._create_quantity(value, ge_op)
+                    mask = op(chunk_self, chunk_other)
+                    chunk_masks[level_id].extend(mask)
 
-    def __eq__(self, value):
-        def eq_op(x):
-            return self._process_mask(x, value, operator.eq)
-        return self._create_quantity(value, eq_op)
+            if chunk_self is None:
+                break
+            masks.append(chunk_masks)
+            i_chunk += 1
 
-    def __ne__(self, value):
-        def ne_op(x):
-            return self._process_mask(x, value, operator.ne)
-        return self._create_quantity(value, ne_op)
+        return np.array(masks)
+
+    def __lt__(self, other):
+        def lt_op(x, y):
+            return self._process_mask(x, y, operator.lt)
+        return self._get_mask(lt_op, other)  # vraci masku
+
+    def __le__(self, other):
+        def le_op(x, y):
+            return self._process_mask(x, y, operator.le)
+        return self._get_mask(le_op, other)
+
+    def __gt__(self, other):
+        def gt_op(x, y):
+            return self._process_mask(x, y, operator.gt)
+        return self._get_mask(gt_op, other)
+
+    def __ge__(self, other):
+        def ge_op(x, y):
+            return self._process_mask(x, y, operator.ge)
+        return self._get_mask(ge_op, other)
+
+    def __eq__(self, other):
+        def eq_op(x, y):
+            return self._process_mask(x, y, operator.eq)
+        return self._get_mask(eq_op, other)
+
+    def __ne__(self, other):
+        def ne_op(x, y):
+            return self._process_mask(x, y, operator.ne)
+        return self._get_mask(ne_op, other)
 
     def sampling(self, size):
-        def mask_gen(x):
+        def mask_gen(x, *args):
             indices = np.random.choice(x.shape[1], size=size)
             mask = np.zeros(x.shape[1], bool)
             mask[indices] = True
             return mask
-
-        return self._create_quantity(size, mask_gen)
+        return self._get_mask(mask_gen)
 
     def __getitem__(self, key):
         """

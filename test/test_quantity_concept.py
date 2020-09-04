@@ -7,7 +7,7 @@ from scipy import stats
 from mlmc.sim.simulation import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc import quantity_concept
+from mlmc import quantity_concept as q
 from mlmc.quantity_concept import make_root_quantity, estimate_mean, apply, moment, moments, covariance
 from mlmc.sampler import Sampler
 from mlmc.moments import Legendre
@@ -152,34 +152,51 @@ class QuantityTests(unittest.TestCase):
         result_format, size = self.fill_sample_storage(sample_storage)
         root_quantity = make_root_quantity(sample_storage, result_format)
 
-        # results = sample_storage.sample_pairs()
-        # print("results ", results)
+        root_quantity_mean = estimate_mean(root_quantity)
+
+        all_root_quantity = root_quantity.select(np.logical_or(0 < root_quantity, root_quantity < 10))
+        all_root_quantity_mean = estimate_mean(all_root_quantity)
+        assert np.allclose(root_quantity_mean(), all_root_quantity_mean())
 
         selected_quantity = root_quantity.select(root_quantity < 5)
         selected_quantity_mean = estimate_mean(selected_quantity)
-        self.assertEqual(len(selected_quantity_mean()), 0)
+        assert len(selected_quantity_mean()) == 0
 
-        #bound root quantity result - select the ones which meet conditions
-        q_bounded = root_quantity.select((0 < root_quantity) < 10)
+        root_quantity_comp = root_quantity.select(root_quantity == root_quantity)
+        root_quantity_comp_mean = estimate_mean(root_quantity_comp)
+        assert np.allclose(root_quantity_mean(), root_quantity_comp_mean())
+
+        root_quantity_comp = root_quantity.select(root_quantity < root_quantity)
+        root_quantity_comp_mean = estimate_mean(root_quantity_comp)
+        assert len(root_quantity_comp_mean()) == 0
+
+        new_quantity = selected_quantity + root_quantity
+        self.assertRaises(ValueError, estimate_mean, new_quantity)
+
+        # bound root quantity result - select the ones which meet conditions
+        mask = q.logical_and(0 < root_quantity, root_quantity < 10)
+        q_bounded = root_quantity.select(mask)
         mean_q_bounded = estimate_mean(q_bounded)
 
+        q_bounded_2 = root_quantity.select(0 < root_quantity, root_quantity < 10)
+        mean_q_bounded_2 = estimate_mean(q_bounded_2)
+        assert np.allclose(mean_q_bounded(), mean_q_bounded_2())
+
         quantity_add = root_quantity + root_quantity
-        q_add_bounded = quantity_add.select((0 < quantity_add) < 20)
+        q_add_bounded = quantity_add.select(0 < quantity_add, quantity_add < 20)
         means_add_bounded = estimate_mean(q_add_bounded)
         assert np.allclose((means_add_bounded()), mean_q_bounded()*2)
 
-        q_bounded = root_quantity.select((10 < root_quantity) < 20)
+        q_bounded = root_quantity.select(10 < root_quantity, root_quantity < 20)
         mean_q_bounded = estimate_mean(q_bounded)
 
         quantity_add = root_quantity + root_quantity
-        q_add_bounded = quantity_add.select((20 < quantity_add) < 40)
+        q_add_bounded = quantity_add.select(20 < quantity_add, quantity_add < 40)
         means_add_bounded = estimate_mean(q_add_bounded)
         assert np.allclose((means_add_bounded()), mean_q_bounded() * 2)
 
         length = root_quantity['length']
         mean_length = estimate_mean(length)
-        #assert len(mean_q_bounded) == len(mean_length) * 2
-
         quantity_lt = length.select(length < 10)  # use just first sample
         means_lt = estimate_mean(quantity_lt)
         assert len(mean_length()) == len(means_lt())
@@ -192,12 +209,13 @@ class QuantityTests(unittest.TestCase):
         means_lt = estimate_mean(quantity_lt)
         assert len(means_lt()) == 0
 
-        quantity_lt_gt = length.select((9 < length) < 20)  # one sample matches condition
+        quantity_lt_gt = length.select(9 < length, length < 20)  # one sample matches condition
         means_lt_gt = estimate_mean(quantity_lt_gt)
         assert len(mean_length()) == len(means_lt_gt())
 
-        quantity_gt = length.select(100 < length) # no sample matches condition
+        quantity_gt = length.select(100 < length)  # no sample matches condition
         means_gt = estimate_mean(quantity_gt)
+        print("means gt ", means_gt())
         assert len(means_gt()) == 0
 
         quantity_ge = length.select(100 <= length)  # no sample matches condition
@@ -227,20 +245,20 @@ class QuantityTests(unittest.TestCase):
 
         root_quantity_means = estimate_mean(root_quantity)
 
-        sin_root_quantity = quantity_concept.sin([root_quantity])
+        sin_root_quantity = q.sin(root_quantity)
         sin_means = estimate_mean(sin_root_quantity)
         assert len(sin_means()) == np.sum(sizes)
 
-        add_root_quantity = quantity_concept.add([root_quantity, root_quantity])  # Add arguments element-wise.
+        add_root_quantity = q.add([root_quantity, root_quantity])  # Add arguments element-wise.
         add_root_quantity_means = estimate_mean(add_root_quantity)
         assert np.allclose(add_root_quantity_means().tolist(), (root_quantity_means() * 2).tolist())
 
-        max_root_quantity = quantity_concept.maximum([root_quantity, root_quantity])  # Element-wise maximum of array elements.
+        max_root_quantity = q.maximum([root_quantity, root_quantity])  # Element-wise maximum of array elements.
         max_root_quantity_means = estimate_mean(max_root_quantity)
         assert np.allclose(max_root_quantity_means(), root_quantity_means())
 
         length = root_quantity['length']
-        sin_length = quantity_concept.sin([length])
+        sin_length = q.sin(length)
         sin_means_length = estimate_mean(sin_length)
         assert np.allclose((sin_means()[sizes[0]:sizes[0]+sizes[1]]).tolist(), sin_means_length().tolist())
 
