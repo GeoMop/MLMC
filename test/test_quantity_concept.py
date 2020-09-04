@@ -7,6 +7,7 @@ from scipy import stats
 from mlmc.sim.simulation import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
+from mlmc import quantity_concept
 from mlmc.quantity_concept import make_root_quantity, estimate_mean, apply, moment, moments, covariance
 from mlmc.sampler import Sampler
 from mlmc.moments import Legendre
@@ -224,37 +225,22 @@ class QuantityTests(unittest.TestCase):
         result_format, sizes = self.fill_sample_storage(sample_storage)
         root_quantity = make_root_quantity(sample_storage, result_format)
 
-        # results = sample_storage.sample_pairs()
-        # print("results ", results)
-
         root_quantity_means = estimate_mean(root_quantity)
 
-        sin_root_quantity = apply([root_quantity], np.sin)
+        sin_root_quantity = quantity_concept.sin([root_quantity])
         sin_means = estimate_mean(sin_root_quantity)
-        self.assertEqual(len(sin_means()), np.sum(sizes))
+        assert len(sin_means()) == np.sum(sizes)
 
-        add_root_quantity = apply([root_quantity, root_quantity], np.add)  # Add arguments element-wise.
+        add_root_quantity = quantity_concept.add([root_quantity, root_quantity])  # Add arguments element-wise.
         add_root_quantity_means = estimate_mean(add_root_quantity)
         assert np.allclose(add_root_quantity_means().tolist(), (root_quantity_means() * 2).tolist())
 
-        max_root_quantity = apply([root_quantity, root_quantity], np.maximum)  # Element-wise maximum of array elements.
+        max_root_quantity = quantity_concept.maximum([root_quantity, root_quantity])  # Element-wise maximum of array elements.
         max_root_quantity_means = estimate_mean(max_root_quantity)
-        assert np.allclose(max_root_quantity_means().tolist(), (root_quantity_means()).tolist())
-
-        # matmul_root_quantity = apply([root_quantity, root_quantity], numpy_matmul)  # Return the cross product of two (arrays of) vectors.
-        # matmul_root_quantity_means = estimate_mean(matmul_root_quantity)
-        # print("matmul_root_quantity_means ", matmul_root_quantity_means)
-        # print("matmul_root_quantity_means.shape ", matmul_root_quantity_means.shape)
-        #assert np.allclose(matmul_root_quantity_means.tolist(), (root_quantity_means).tolist())
-
-        # cross_root_quantity = apply([root_quantity, root_quantity], np.cross)  # Return the cross product of two (arrays of) vectors.
-        # cross_root_quantity_means = estimate_mean(cross_root_quantity)
-        # print("cross_root_quantity_means ", cross_root_quantity_means)
-        # print("cross_root_quantity_means.shape ", cross_root_quantity_means.shape)
-        # assert np.allclose(cross_root_quantity_means.tolist(), (root_quantity_means).tolist())
+        assert np.allclose(max_root_quantity_means(), root_quantity_means())
 
         length = root_quantity['length']
-        sin_length = apply([length], np.sin)
+        sin_length = quantity_concept.sin([length])
         sin_means_length = estimate_mean(sin_length)
         assert np.allclose((sin_means()[sizes[0]:sizes[0]+sizes[1]]).tolist(), sin_means_length().tolist())
 
@@ -348,26 +334,6 @@ class QuantityTests(unittest.TestCase):
                           level_parameters=step_range)
 
         return sampler, simulation_factory
-
-    # def test_simple_moments(self):
-    #     sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5"))
-    #     result_format, sizes = self.fill_sample_storage(sample_storage)
-    #     root_quantity = make_root_quantity(sample_storage, result_format)
-    #
-    #     results = sample_storage.sample_pairs()
-    #     print("results ", results)
-    #
-    #     means = estimate_mean(root_quantity)
-    #     self.assertEqual(len(means), np.sum(sizes))
-    #
-    #     n_moments = 5
-    #     distr = stats.norm()
-    #     true_domain = distr.ppf([0.0001, 0.9999])
-    #     moments_fn = Legendre(n_moments, true_domain)
-    #
-    #     moment_0_quantity = estimate_moment(root_quantity, moments_fn=moments_fn, i=0)
-    #     moments_mean = estimate_mean(moment_0_quantity)
-    #     print("moments mean ", moments_mean)
 
     def test_moments(self):
         np.random.seed(1234)

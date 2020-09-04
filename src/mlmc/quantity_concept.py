@@ -1,3 +1,4 @@
+import sys
 import abc
 import numpy as np
 import copy
@@ -9,6 +10,41 @@ from mlmc.sample_storage import SampleStorage
 from mlmc.sim.simulation import QuantitySpec
 
 cached_functions = []
+
+this_module = sys.modules[__name__]
+
+
+def make_method(method):
+    def _method(quantities):
+        if type(quantities) == list:
+            assert all(isinstance(quantity, Quantity) for quantity in quantities),\
+                "Quantity must be instance of Quantity"
+            assert all(quantity.size() == quantities[0].size() for quantity in quantities),\
+                "Quantity must have same structure"
+        elif isinstance(quantities, Quantity):
+            quantities = [quantities]
+        return Quantity(quantity_type=quantities[0].qtype, input_quantities=custom_copy(quantities), operation=method)
+    return _method
+
+
+for method in [np.sin, np.cos, np.add, np.maximum, np.logical_and, np.logical_or]:
+    _method = make_method(method)
+    setattr(this_module, method.__name__, _method)
+
+
+def apply(quantities, function):
+    """
+    Works for functions which results have same shape like input quantities
+    :param quantities: List[Quantity]
+    :param function: numpy function
+    :return: Quantity
+    """
+    assert all(isinstance(quantity, Quantity) for quantity in quantities), "Quantity must be instance of Quantity"
+    assert all(quantity.size() == quantities[0].size() for quantity in quantities), "Quantity must have same structure"
+
+    return Quantity(quantity_type=quantities[0].qtype, input_quantities=custom_copy(quantities), operation=function)
+
+
 
 
 def clearable_cache(*args, **kwargs):
@@ -89,19 +125,6 @@ def estimate_mean(quantity):
         mean += s / n
 
     return quantity._make_value(mean)
-
-
-def apply(quantities, function):
-    """
-    Works for functions which results have same shape like input quantities
-    :param quantities: List[Quantity]
-    :param function: numpy function
-    :return: Quantity
-    """
-    assert all(isinstance(quantity, Quantity) for quantity in quantities), "Quantity must be instance of Quantity"
-    assert all(quantity.size() == quantities[0].size() for quantity in quantities), "Quantity must have same structure"
-
-    return Quantity(quantity_type=quantities[0].qtype, input_quantities=custom_copy(quantities), operation=function)
 
 
 def moment(quantity, moments_fn, i=0):
@@ -191,7 +214,6 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
 
 class Quantity:
     def __init__(self, quantity_type, input_quantities=None, operation=None):
-
         self.qtype = quantity_type
         # List of quantities on which the 'self' dependens. their number have to match number of arguments to the operation.
         self._operation = operation
@@ -215,6 +237,13 @@ class Quantity:
         # # None for the computing quantities, that memoize their chinks
         # self._chunk = None
         # #  memoized  resulting chunk
+
+    def storage_id(self):
+        st_ids = []
+        for input_quantity in self._input_quantities:
+            st_id = input_quantity.storage_id()
+            st_ids.extend(st_id if type(st_id) == list else [st_id])
+        return st_ids
 
     def size(self) -> int:
         return self.qtype.size()
@@ -259,14 +288,16 @@ class Quantity:
 
     def _reduction_op(self, quantities, operation):
         """
-        Check if the quantities have the same structure and possibly return copy of the common quantity
+        Check if the quantities have the same structure and same storage possibly return copy of the common quantity
         structure depending on the other quantities with given operation.
-        TODO: Not so simple, but similar problem to constraction of the initial structure over storage.
-        :param quantities:
-        :param operation: function which is run with given quantitiees
-        :return:
+        :param quantities: List[Quantity]
+        :param operation: function which is run with given quantities
+        :return: Quantity
         """
-        assert all(x.size() == quantities[0].size() for x in quantities), "Quantity must have same structure"
+        assert all(np.allclose(q.storage_id(), quantities[0].storage_id()) for q in quantities), \
+            "All quantities must be from same storage"
+
+        assert all(q.size() == quantities[0].size() for q in quantities), "Quantity must have same structure"
         return Quantity(quantities[0].qtype, operation=operation, input_quantities=quantities)
 
     @staticmethod
@@ -485,13 +516,17 @@ class QuantityMean:
 
         y = self._data_row
 
+
+
         if reshape_shape is not None:
             if newshape is not None:  # reshape [Mr] to e.g. [..., R, R, M]
                 y = y.reshape((*reshape_shape, *newshape))
-            else:
+            elif (np.prod(y.shape) // np.prod(reshape_shape)) > 1:
                 y = y.reshape(*reshape_shape, np.prod(y.shape) // np.prod(reshape_shape))
+            else:
+                y = y.reshape(*reshape_shape)
 
-        y_get_item = y[slice_key, ...]
+        y_get_item = y[slice_key]
         return QuantityMean(quantity_type=new_qtype, data_row=y_get_item)
 
 
@@ -510,6 +545,9 @@ class QuantityStorage(Quantity):
         :return: list
         """
         return self._storage.get_level_ids()
+
+    def storage_id(self):
+        return id(self)
 
     def samples(self, level_id, i_chunk):
         """
