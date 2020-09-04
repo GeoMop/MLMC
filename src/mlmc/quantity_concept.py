@@ -45,8 +45,6 @@ def apply(quantities, function):
     return Quantity(quantity_type=quantities[0].qtype, input_quantities=custom_copy(quantities), operation=function)
 
 
-
-
 def clearable_cache(*args, **kwargs):
     def decorator(func):
         func = cached(*args, **kwargs)(func)
@@ -81,16 +79,14 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
 
 def estimate_mean(quantity):
     """
-    Concept of the MLMC mean estimator.
-    TODO:
-    - test
-    - calculate variance estimates as well
-    :param quantity:
-    :return:
+    MLMC mean estimator.
+    :param quantity: Quantity
+    :return: QuantityMean which holds both mean and variance
     """
     quantity_vec_size = quantity.size()
     n_samples = None
     sums = None
+    sums_power = None
     i_chunk = 0
 
     while True:
@@ -107,6 +103,7 @@ def estimate_mean(quantity):
             if chunk is not None:
                 if level_id == 0:
                     sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+                    sums_power = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
 
                     # Coarse result for level 0, there is issue for moments processing (not know about level)
                     chunk[..., 1] = 0
@@ -115,16 +112,19 @@ def estimate_mean(quantity):
                 n_samples[level_id] += chunk.shape[1]
                 assert(chunk.shape[0] == quantity_vec_size)
                 sums[level_id] += np.sum(chunk[..., 0] - chunk[..., 1], axis=1)
+                sums_power[level_id] += np.sum((chunk[..., 0] - chunk[..., 1])**2, axis=1)
 
         if chunk is None:
             break
         i_chunk += 1
 
     mean = np.zeros_like(sums[0])
-    for s, n in zip(sums, n_samples):
+    mean_power = np.zeros_like(sums[0])
+    for s, sp, n in zip(sums, sums_power, n_samples):
         mean += s / n
+        mean_power += sp / n
 
-    return quantity._make_value(mean)
+    return quantity._make_value(mean=mean, var=mean_power - mean**2)
 
 
 def moment(quantity, moments_fn, i=0):
@@ -274,7 +274,7 @@ class Quantity:
         else:
             return None
 
-    def _make_value(self, data_row: np.array):
+    def _make_value(self, mean: np.array, var: np.array):
         """
         Crate a new quantity with the same structure but containing fixed data vector.
         Primary usage is to organise computed means and variances.
@@ -282,9 +282,10 @@ class Quantity:
         :param data_row:
         :return:
         """
-        if np.isnan(data_row).all():
-            data_row = []
-        return QuantityMean(self.qtype, data_row)
+        if np.isnan(mean).all():
+            mean = []
+            var = []
+        return QuantityMean(self.qtype, mean, var)
 
     def _reduction_op(self, quantities, operation):
         """
@@ -483,12 +484,13 @@ class Quantity:
 
 class QuantityMean:
 
-    def __init__(self, quantity_type, data_row):
+    def __init__(self, quantity_type, mean, var):
         self.qtype = quantity_type
-        self._data_row = data_row
+        self._mean = mean
+        self._var = var
 
     def __call__(self):
-        return self._data_row
+        return self._mean
 
     def __getitem__(self, key):
         """
@@ -514,20 +516,23 @@ class QuantityMean:
             end = new_qtype.start + new_qtype.size()
             slice_key = slice(start, end)
 
-        y = self._data_row
-
-
+        mean = self._mean
+        var = self._var
 
         if reshape_shape is not None:
             if newshape is not None:  # reshape [Mr] to e.g. [..., R, R, M]
-                y = y.reshape((*reshape_shape, *newshape))
-            elif (np.prod(y.shape) // np.prod(reshape_shape)) > 1:
-                y = y.reshape(*reshape_shape, np.prod(y.shape) // np.prod(reshape_shape))
+                mean = mean.reshape((*reshape_shape, *newshape))
+                var = var.reshape((*reshape_shape, *newshape))
+            elif (np.prod(mean.shape) // np.prod(reshape_shape)) > 1:
+                mean = mean.reshape(*reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape))
+                var = var.reshape(*reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape))
             else:
-                y = y.reshape(*reshape_shape)
+                mean = mean.reshape(*reshape_shape)
+                var = var.reshape(*reshape_shape)
 
-        y_get_item = y[slice_key]
-        return QuantityMean(quantity_type=new_qtype, data_row=y_get_item)
+        mean_get_item = mean[slice_key]
+        var_get_item = var[slice_key]
+        return QuantityMean(quantity_type=new_qtype, mean=mean_get_item, var=var_get_item)
 
 
 class QuantityStorage(Quantity):
