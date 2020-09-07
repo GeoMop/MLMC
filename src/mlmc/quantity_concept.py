@@ -230,7 +230,7 @@ class Quantity:
         :param i_chunk: int
         :return: tuple
         """
-        return level_id, i_chunk, id(self), *[id(q) for q in self._input_quantities]
+        return (level_id, i_chunk, id(self), *[id(q) for q in self._input_quantities]) # parentheses needed due to py36, py37
 
     @cached(custom_key_maker=get_cache_key)
     def samples(self, level_id, i_chunk):
