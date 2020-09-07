@@ -9,13 +9,21 @@ from typing import List, Tuple
 from mlmc.sample_storage import SampleStorage
 from mlmc.sim.simulation import QuantitySpec
 
-cached_functions = []
-
 this_module = sys.modules[__name__]
 
 
 def make_method(method):
+    """
+    Numpy method wrapper
+    :param method: numpy method
+    :return: inner method
+    """
     def _method(quantities):
+        """
+        To process input quantities to perform numpy method
+        :param quantities: List[Quantity] or single Quantity
+        :return: Quantity
+        """
         if type(quantities) == list:
             assert all(isinstance(quantity, Quantity) for quantity in quantities),\
                 "Quantity must be instance of Quantity"
@@ -27,47 +35,25 @@ def make_method(method):
     return _method
 
 
+# Numpy methods assigned to this module, this methods work with quantities
 for method in [np.sin, np.cos, np.add, np.maximum]:
     _method = make_method(method)
     setattr(this_module, method.__name__, _method)
 
+# Numpy methods which not works with quantities
 for method in [np.logical_and, np.logical_or]:
     setattr(this_module, method.__name__, method)
 
 
-def apply(quantities, function):
-    """
-    Works for functions which results have same shape like input quantities
-    :param quantities: List[Quantity]
-    :param function: numpy function
-    :return: Quantity
-    """
-    assert all(isinstance(quantity, Quantity) for quantity in quantities), "Quantity must be instance of Quantity"
-    assert all(quantity.size() == quantities[0].size() for quantity in quantities), "Quantity must have same structure"
-
-    return Quantity(quantity_type=quantities[0].qtype, input_quantities=custom_copy(quantities), operation=function)
-
-
-def clearable_cache(*args, **kwargs):
-    def decorator(func):
-        func = cached(*args, **kwargs)(func)
-        cached_functions.append(func)
-        return func
-    return decorator
-
-
-def clear_all_cached_functions():
-    for func in cached_functions:
-        func.cache_clear()
-
-
 def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
     """
-    :param storage: sample storage
+    Create a root quantity that has QuantityStorage as the input quantity,
+    QuantityStorage is the only class that directly accesses the stored data.
+    Quantity type is created based on the q_spec parameter
+    :param storage: SampleStorage
     :param q_specs: same as result format in simulation class
-    :return: dict
+    :return: Quantity
     """
-    clear_all_cached_functions()
     dict_types = []
     for q_spec in q_specs:
         scalar_type = ScalarType(float)
@@ -82,7 +68,7 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
 
 def estimate_mean(quantity):
     """
-    MLMC mean estimator.
+    MLMC mean estimator
     :param quantity: Quantity
     :return: QuantityMean which holds both mean and variance
     """
@@ -105,8 +91,10 @@ def estimate_mean(quantity):
 
             if chunk is not None:
                 if level_id == 0:
-                    sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-                    sums_power = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+                    # Set variables for level sums and sums of powers
+                    if i_chunk == 0:
+                        sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+                        sums_power = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
 
                     # Coarse result for level 0, there is issue for moments processing (not know about level)
                     chunk[..., 1] = 0
@@ -114,8 +102,8 @@ def estimate_mean(quantity):
                 # level_chunk is Numpy Array with shape [M, chunk_size, 2]
                 n_samples[level_id] += chunk.shape[1]
                 assert(chunk.shape[0] == quantity_vec_size)
-                sums[level_id] += np.sum(chunk[..., 0] - chunk[..., 1], axis=1)
-                sums_power[level_id] += np.sum((chunk[..., 0] - chunk[..., 1])**2, axis=1)
+                sums[level_id] += np.sum(chunk[:, :, 0] - chunk[:, :, 1], axis=1)
+                sums_power[level_id] += np.sum((chunk[:, :, 0] - chunk[:, :, 1])**2, axis=1)
 
         if chunk is None:
             break
@@ -132,7 +120,7 @@ def estimate_mean(quantity):
 
 def moment(quantity, moments_fn, i=0):
     """
-    Estimate moment
+    Create quantity with operation that evaluates particular moment
     :param quantity: Quantity instance
     :param moments_fn: mlmc.moments.Moments child
     :param i: index of moment
@@ -145,7 +133,7 @@ def moment(quantity, moments_fn, i=0):
 
 def moments(quantity, moments_fn, mom_at_bottom=True):
     """
-    Estimates moments
+    Create quantity with operation that evaluates moments
     :param quantity: Quantity
     :param moments_fn: mlmc.moments.Moments child
     :param mom_at_bottom: bool, if True moments are underneath
@@ -158,10 +146,12 @@ def moments(quantity, moments_fn, mom_at_bottom=True):
             mom = moments_fn.eval_all(x).transpose((3, 0, 1, 2))  # [R, M, N, 2]
         return mom.reshape((np.prod(mom.shape[:-2]), mom.shape[-2], mom.shape[-1]))  # [M, N, 2]
 
+    # Create quantity type which has moments at the bottom
     if mom_at_bottom:
         moments_array_type = ArrayType(shape=(moments_fn.size,), qtype=ScalarType())
         moments_qtype = copy.deepcopy(quantity.qtype)
         moments_qtype.replace_scalar(moments_array_type)
+    # Create quantity type that has moments on the surface
     else:
         moments_qtype = ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
     return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
@@ -169,10 +159,10 @@ def moments(quantity, moments_fn, mom_at_bottom=True):
 
 def covariance(quantity, moments_fn, cov_at_bottom=True):
     """
-    Estimate covariance matrix
+    Create quantity with operation that evaluates covariance matrix
     :param quantity: Quantity
     :param moments_fn: mlmc.moments.Moments child
-    :param cov_at_bottom: bool, if True moments are underneath
+    :param cov_at_bottom: bool, if True cov matrices are underneath
     :return: Quantity
     """
     def eval_cov(x):
@@ -188,60 +178,38 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
             cov = np.array([cov_fine, cov_coarse]).transpose((3, 4, 1, 2, 0))   # [R, R, M, N, 2]
         return cov.reshape((np.prod(cov.shape[:-2]), cov.shape[-2], cov.shape[-1]))
 
+    # Create quantity type which has covariance matrices at the bottom
     if cov_at_bottom:
         moments_array_type = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=ScalarType())
         moments_qtype = copy.deepcopy(quantity.qtype)
         moments_qtype.replace_scalar(moments_array_type)
+    # Create quantity type that has covariance matrices on the surface
     else:
         moments_qtype = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
 
     return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_cov)
 
 
-# def numpy_matmul(quantity_1, quantity_2):
-#     """
-#     @TODO: think matrix multiplication over
-#     :param x:
-#     :param y:
-#     :return:
-#     """
-#     assert quantity_1.size() == quantity_2.size(), "Quantity must have same structure"
-#
-#     def multiply(x, y):
-#         return np.matmul(x, y)
-#
-#     new_qtype = ArrayType(shape=)  # how to specify shape
-#
-#     return Quantity(quantity_type=new_qtype, input_quantities=[quantity_1, quantity_2], operation=multiply)
-
-
 class Quantity:
     def __init__(self, quantity_type, input_quantities=None, operation=None):
+        """
+        Quantity class represents real quantity and also provides operation that can be performed with stored values.
+        Each Quantity has Qtype which describes its structure.
+        :param quantity_type: QType instance
+        :param input_quantities: List[Quantity]
+        :param operation: function
+        """
         self.qtype = quantity_type
-        # List of quantities on which the 'self' dependens. their number have to match number of arguments to the operation.
         self._operation = operation
         self._input_quantities = input_quantities
-
-        # function  lambda(*args : List[array[M, N, 2]]) -> List[array[M, N, 2])]
-        # It takes list of chunks for individual levels as a single argument, with number of arguments matching the
-        # number of input qunatities. Operation performs actual quantity operation on the sample chunks.
-        # One chunk is a np.array with shape [sample_vector_size, n_samples_in_chunk, 2], 2 = (coarse, fine) pair.
-        #self._size = sum((q._size() for q in self._input_quantities))
-        # Number of values allocated by this quantity in the sample vector.
-
-        # TODO: design a separate class and mechanisms to avoid repetitive evaluation of quantities
-        # that are parents to more then one quantity
-        # can possibly omit memoization of quantities that are just subsets of their own parent
-        #
-        # can e.g. be done through a decorator
-
-        # self._dof_vec_subset = None
-        # # list of indices to get form the parent quantity
-        # # None for the computing quantities, that memoize their chinks
-        # self._chunk = None
-        # #  memoized  resulting chunk
+        # List of quantities on which the 'self' depends, their number have to match number of arguments
+        # to the operation.
 
     def storage_id(self):
+        """
+        Get storage ids of all input quantities
+        :return: List[int]
+        """
         st_ids = []
         for input_quantity in self._input_quantities:
             st_id = input_quantity.storage_id()
@@ -249,21 +217,29 @@ class Quantity:
         return st_ids
 
     def size(self) -> int:
+        """
+        Quantity size from qtype
+        :return: int
+        """
         return self.qtype.size()
 
     def get_cache_key(self, level_id, i_chunk):
-        return str(hash((level_id, i_chunk, id(self), *[id(q) for q in self._input_quantities])))
+        """
+        Create cache key
+        :param level_id: int
+        :param i_chunk: int
+        :return: tuple
+        """
+        return level_id, i_chunk, id(self), *[id(q) for q in self._input_quantities]
 
-    @clearable_cache(custom_key_maker=get_cache_key)
+    @cached(custom_key_maker=get_cache_key)
     def samples(self, level_id, i_chunk):
         """
         Yields list of sample chunks for individual levels.
-        Possibly calls underlaying quantities.
-        Try to write into the chunk array.
-        TODO: possibly pass down the full table of composed quantities and store comuted temporaries directly into the composed table
-        TODO: possible problem when more quantities dependes on a single one, this probabely leads to
-        repetitive evaluation of the shared quantity
-        This prevents some coies in concatenation.
+        Possibly calls underlying quantities.
+        :param level_id: int
+        :param i_chunk: int
+        :return: np.ndarray
         """
         chunks_quantity_level = [q.samples(level_id, i_chunk) for q in self._input_quantities]
 
@@ -274,7 +250,7 @@ class Quantity:
             if self._operation is None:
                 return chunks_quantity_level[0]
 
-            try:  # numpy function do not have __code__
+            try:  # numpy function does not have __code__
                 if all(par in self._operation.__code__.co_varnames for par in ['level_id', 'i_chunk']):
                     return self._operation(*chunks_quantity_level, level_id=level_id, i_chunk=i_chunk)
             except:
@@ -313,7 +289,13 @@ class Quantity:
         return Quantity(quantities[0].qtype, operation=operation, input_quantities=quantities)
 
     def select(self, *args):
+        """
+        Performs sample selection based on conditions
+        :param args: conditions
+        :return: Quantity
+        """
         masks = args[0]
+        # More conditions leads to default AND
         if len(args) > 1:
             for m in args[1:]:
                     masks = np.logical_and(masks, m)
@@ -400,7 +382,7 @@ class Quantity:
     def __lt__(self, other):
         def lt_op(x, y):
             return self._process_mask(x, y, operator.lt)
-        return self._get_mask(lt_op, other)  # vraci masku
+        return self._get_mask(lt_op, other)
 
     def __le__(self, other):
         def le_op(x, y):
@@ -428,6 +410,11 @@ class Quantity:
         return self._get_mask(ne_op, other)
 
     def sampling(self, size):
+        """
+        Random sampling
+        :param size: number of samples
+        :return: np.ndarray
+        """
         def mask_gen(x, *args):
             indices = np.random.choice(x.shape[1], size=size)
             mask = np.zeros(x.shape[1], bool)
@@ -458,7 +445,7 @@ class Quantity:
             # Reshape M to original shape to allow access
             if reshape_shape is not None:
                 y = y.reshape((*reshape_shape, y.shape[-2], y.shape[-1]))
-            y_get_item = y[slice_key] # indexing
+            y_get_item = y[slice_key]  # indexing
 
             # Keep dims [M, N, 2]
             if len(y_get_item.shape) == 2:
@@ -481,8 +468,8 @@ class Quantity:
     def time_interpolation(self, value):
         """
         Interpolation in time
-        :param value:
-        :return:
+        :param value: point where to interpolate
+        :return: Quantity
         """
         def interp(y):
             split_indeces = np.arange(1, len(self.qtype._times)) * self.qtype._qtype.size()
@@ -493,17 +480,32 @@ class Quantity:
         return Quantity(quantity_type=self.qtype._qtype, input_quantities=custom_copy([self]), operation=interp)
 
     def level_ids(self):
+        """
+        List of level ids, all input quantities must be from the same storage,
+        so getting level IDs from one of them should be completely fine
+        :return: List[int]
+        """
         return self._input_quantities[0].level_ids()
 
 
 class QuantityMean:
 
     def __init__(self, quantity_type, mean, var):
+        """
+        QuantityMean represents result of estimate_mean method
+        :param quantity_type: Qtype
+        :param mean: np.ndarray
+        :param var: np.ndarray
+        """
         self.qtype = quantity_type
         self._mean = mean
         self._var = var
 
     def __call__(self):
+        """
+        Return mean
+        :return:
+        """
         return self._mean
 
     def __getitem__(self, key):
@@ -551,6 +553,11 @@ class QuantityMean:
 
 class QuantityStorage(Quantity):
     def __init__(self, storage, qtype):
+        """
+        Special Quantity for direct access to SampleStorage
+        :param storage: mlmc.sample_storage.SampleStorage child
+        :param qtype: QType
+        """
         self._storage = storage
         self.qtype = qtype
         self._input_quantities = []
@@ -561,11 +568,15 @@ class QuantityStorage(Quantity):
     def level_ids(self):
         """
         Number of levels
-        :return: list
+        :return: List[int]
         """
         return self._storage.get_level_ids()
 
     def storage_id(self):
+        """
+        Identity of QuantityStorage instance
+        :return: int
+        """
         return id(self)
 
     def samples(self, level_id, i_chunk):
@@ -603,7 +614,7 @@ class QType(metaclass=abc.ABCMeta):
 
     def replace_scalar(self, new_qtype):
         """
-        Find ScalarType and replace him with new_qtype
+        Find ScalarType and replace it with new_qtype
         :param new_qtype: QType
         :return: None
         """

@@ -8,7 +8,7 @@ from mlmc.sim.simulation import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc import quantity_concept as q
-from mlmc.quantity_concept import make_root_quantity, estimate_mean, apply, moment, moments, covariance
+from mlmc.quantity_concept import make_root_quantity, estimate_mean, moment, moments, covariance
 from mlmc.sampler import Sampler
 from mlmc.moments import Legendre
 from mlmc.quantity_estimate import QuantityEstimate
@@ -28,6 +28,9 @@ def _prepare_work_dir():
 
 class QuantityTests(unittest.TestCase):
     def test_basics(self):
+        """
+        Test basic quantity properties, especially indexing
+        """
         work_dir = _prepare_work_dir()
         sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5"))
         result_format, sizes = self.fill_sample_storage(sample_storage)
@@ -110,6 +113,9 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
 
     def test_binary_operations(self):
+        """
+        Test quantity binary operations
+        """
         sample_storage = Memory()
         result_format, sizes = self.fill_sample_storage(sample_storage)
         root_quantity = make_root_quantity(sample_storage, result_format)
@@ -148,6 +154,9 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
 
     def test_condition(self):
+        """
+        Test select method
+        """
         sample_storage = Memory()
         result_format, size = self.fill_sample_storage(sample_storage)
         root_quantity = make_root_quantity(sample_storage, result_format)
@@ -238,6 +247,9 @@ class QuantityTests(unittest.TestCase):
         means_eq = estimate_mean(root_quantity_subsamples)
 
     def test_functions(self):
+        """
+        Test numpy functions
+        """
         work_dir = _prepare_work_dir()
         sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5"))
         result_format, sizes = self.fill_sample_storage(sample_storage)
@@ -263,7 +275,7 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose((sin_means()[sizes[0]:sizes[0]+sizes[1]]).tolist(), sin_means_length().tolist())
 
         # Root quantity and length have different structure
-        self.assertRaises(AssertionError, apply, [root_quantity, length], np.add)
+        self.assertRaises(AssertionError, q.add, [root_quantity, length])
 
     def fill_sample_storage(self, sample_storage):
         np.random.seed(123)
@@ -354,6 +366,9 @@ class QuantityTests(unittest.TestCase):
         return sampler, simulation_factory
 
     def test_moments(self):
+        """
+        Moments estimation
+        """
         np.random.seed(1234)
         n_moments = 3
         step_range = [[0.1], [0.001]]
