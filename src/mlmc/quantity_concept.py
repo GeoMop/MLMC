@@ -647,22 +647,12 @@ class ArrayType(QType):
         :param key: int, tuple of ints or slice objects
         :return: QuantityType - ArrayType or self._qtype
         """
-        # int key to tuple
-        if isinstance(key, int):
-            key = (key,)
+        # Get new shape
+        new_shape = np.empty(self._shape)[key].shape
 
-        if len(key) > len(self._shape):
-            raise KeyError("Key {} does not match array shape {}".format(key, self._shape))
-
-        # Create new shape
-        new_shape = []
-        for k, s in zip(key, self._shape):
-            # handle slice objects
-            if isinstance(k, slice):
-                start, stop, step = k.indices(s)
-                new_shape.append(int((stop - start) / step))
-
-        new_shape = tuple(new_shape)
+        # One selected item is considered to be a scalar QType
+        if len(new_shape) == 1 and new_shape[0] == 1:
+            new_shape = ()
 
         # Result is also array
         if len(new_shape) > 0:

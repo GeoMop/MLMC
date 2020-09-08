@@ -67,8 +67,21 @@ class QuantityTests(unittest.TestCase):
         mean_position_1 = estimate_mean(position)
         assert np.allclose(mean_interp_value()[:len(mean_interp_value())//2], mean_position_1())
 
+        # Array indexing tests
         values = position[:, 2]
         values_mean = estimate_mean(values)
+
+        y = position[1, 2]
+        estimate_mean(y)
+
+        y = position[:, :]
+        estimate_mean(y)
+
+        y = position[:1, 1:2]
+        estimate_mean(y)
+
+        y = position[:2, ...]
+        estimate_mean(y)
 
         value = values[1]
         value_mean = estimate_mean(value)
@@ -383,9 +396,6 @@ class QuantityTests(unittest.TestCase):
         sampler.set_initial_n_samples([5, 5])
         sampler.schedule_samples()
         sampler.ask_sampling_pool_for_samples()
-
-        # results = sampler.sample_storage.sample_pairs()
-        # print("results ", results)
 
         q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
                                        sim_steps=step_range)
