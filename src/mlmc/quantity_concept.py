@@ -18,31 +18,27 @@ def make_method(method):
     :param method: numpy method
     :return: inner method
     """
-    def _method(quantities):
+    def _method(*args):
         """
         To process input quantities to perform numpy method
-        :param quantities: List[Quantity] or single Quantity
+        :param args: args
         :return: Quantity
         """
-        if type(quantities) == list:
-            assert all(isinstance(quantity, Quantity) for quantity in quantities),\
-                "Quantity must be instance of Quantity"
-            assert all(quantity.size() == quantities[0].size() for quantity in quantities),\
-                "Quantity must have same structure"
-        elif isinstance(quantities, Quantity):
-            quantities = [quantities]
-        return Quantity(quantity_type=quantities[0].qtype, input_quantities=custom_copy(quantities), operation=method)
+        if all(isinstance(quantity, Quantity) for quantity in args):
+            assert all(isinstance(quantity.qtype.base_qtype(), BoolType) for quantity in args) or\
+                   all(isinstance(quantity.qtype.base_qtype(), ScalarType) for quantity in args), \
+                "All quantities must have same base type either ScalarType or BoolType"
+
+            return Quantity(quantity_type=args[0].qtype, input_quantities=custom_copy(list(args)), operation=method)
+        else:
+            raise Exception("All parameters must be quantities")
     return _method
 
 
 # Numpy methods assigned to this module, this methods work with quantities
-for method in [np.sin, np.cos, np.add, np.maximum]:
+for method in [np.sin, np.cos, np.add, np.maximum, np.logical_and, np.logical_or]:
     _method = make_method(method)
     setattr(this_module, method.__name__, _method)
-
-# Numpy methods which not works with quantities
-for method in [np.logical_and, np.logical_or]:
-    setattr(this_module, method.__name__, method)
 
 
 def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
@@ -251,6 +247,7 @@ class Quantity:
                 return chunks_quantity_level[0]
 
             try:  # numpy function does not have __code__
+                # We need to pass level id and chunk id to select operation
                 if all(par in self._operation.__code__.co_varnames for par in ['level_id', 'i_chunk']):
                     return self._operation(*chunks_quantity_level, level_id=level_id, i_chunk=i_chunk)
             except:
@@ -291,18 +288,23 @@ class Quantity:
     def select(self, *args):
         """
         Performs sample selection based on conditions
-        :param args: conditions
+        :param args: Quantity
         :return: Quantity
         """
         masks = args[0]
+        assert all(isinstance(quantity.qtype.base_qtype(), BoolType) for quantity in args), \
+            "All mask quantities must have base type BoolType"
+
         # More conditions leads to default AND
         if len(args) > 1:
             for m in args[1:]:
-                    masks = np.logical_and(masks, m)
+                masks = logical_and(masks, m)  # method from this module
 
         def op(x, level_id, i_chunk):
-            mask = masks[i_chunk, level_id]
-            return x[..., mask, :]  # [...sample size, cut number of samples, 2]
+            mask = masks.samples(i_chunk, level_id)
+            if mask is not None:
+                return x[..., mask, :]  # [...sample size, cut number of samples, 2]
+            return x
 
         return Quantity(quantity_type=self.qtype, input_quantities=[self], operation=op)
 
@@ -330,12 +332,19 @@ class Quantity:
         return self._reduction_op([self], cmult_op)
 
     def _process_mask(self, x, y, operator):
+        """
+        Create samples mask
+        :param x: Quantity
+        :param y: Quantity or int, float
+        :param operator: operator module function
+        :return: np.ndarray of bools
+        """
         # all values for sample must meet given condition,
         # if any value doesn't meet the condition, whole sample is eliminated
 
         # It is most likely zero level, so use just fine samples
         if np.all((x[..., 1] == 0)):
-            if isinstance(y, int) or isinstance(y, int):
+            if isinstance(y, int) or isinstance(y, float):
                 mask = operator(x[..., 0], y)  # y is int or float
             else:
                 mask = operator(x[..., 0], y[..., 0])  # y is from other quantity
@@ -344,70 +353,56 @@ class Quantity:
         mask = operator(x, y)
         return mask.all(axis=tuple(range(mask.ndim - 2))).all(axis=1)
 
-    def _get_mask(self, op, other=None):
-        masks = []
-        i_chunk = 0
+    def _mask_quantity(self, other, op):
+        """
+        Create quantity that represent bool mask
+        :param other: number or Quantity
+        :param op: operation
+        :return: Quantity
+        """
+        bool_type = BoolType()
+        new_qtype = copy.deepcopy(self.qtype)
+        new_qtype.replace_scalar(bool_type)
 
-        while True:
-            level_ids = self.level_ids()
-            chunk_masks = []
-            chunk_self = None
-            chunk_other = None
-            if i_chunk == 0:
-                # initialization
-                n_levels = len(level_ids)
-
-            for level_id in level_ids:
-                # Chunk of samples for given level id
-                if other is not None and isinstance(other, Quantity):
-                    chunk_other = other.samples(level_id, i_chunk)
-                elif isinstance(other, int) or isinstance(other, float):
-                    chunk_other = other
-                chunk_self = self.samples(level_id, i_chunk)
-
-                if chunk_self is not None:
-                    if level_id == 0:
-                        chunk_masks = [[] for _ in range(n_levels)]
-
-                    mask = op(chunk_self, chunk_other)
-                    chunk_masks[level_id].extend(mask)
-
-            if chunk_self is None:
-                break
-            masks.append(chunk_masks)
-            i_chunk += 1
-
-        return np.array(masks)
+        if isinstance(other, (float, int)):
+            assert isinstance(self.qtype.base_qtype(), ScalarType), "Quantities with base type ScalarType " \
+                                                                    "are the only ones that support comparison "
+            return Quantity(quantity_type=new_qtype, input_quantities=[self], operation=op)
+        elif isinstance(other, Quantity):
+            assert self.qtype.size() == other.qtype.size(), "Both quantities must have same structure"
+            assert isinstance(self.qtype.base_qtype(), ScalarType) and isinstance(other.qtype.base_qtype(), ScalarType), \
+                "Quantities with base type ScalarType are the only ones that support comparison "
+            return Quantity(quantity_type=new_qtype, input_quantities=[self, other], operation=op)
 
     def __lt__(self, other):
-        def lt_op(x, y):
+        def lt_op(x, y=other):
             return self._process_mask(x, y, operator.lt)
-        return self._get_mask(lt_op, other)
+        return self._mask_quantity(other, lt_op)
 
     def __le__(self, other):
-        def le_op(x, y):
+        def le_op(x, y=other):
             return self._process_mask(x, y, operator.le)
-        return self._get_mask(le_op, other)
+        return self._mask_quantity(other, le_op)
 
     def __gt__(self, other):
-        def gt_op(x, y):
+        def gt_op(x, y=other):
             return self._process_mask(x, y, operator.gt)
-        return self._get_mask(gt_op, other)
+        return self._mask_quantity(other, gt_op)
 
     def __ge__(self, other):
-        def ge_op(x, y):
+        def ge_op(x, y=other):
             return self._process_mask(x, y, operator.ge)
-        return self._get_mask(ge_op, other)
+        return self._mask_quantity(other, ge_op)
 
     def __eq__(self, other):
-        def eq_op(x, y):
+        def eq_op(x, y=other):
             return self._process_mask(x, y, operator.eq)
-        return self._get_mask(eq_op, other)
+        return self._mask_quantity(other, eq_op)
 
     def __ne__(self, other):
-        def ne_op(x, y):
+        def ne_op(x, y=other):
             return self._process_mask(x, y, operator.ne)
-        return self._get_mask(ne_op, other)
+        return self._mask_quantity(other, ne_op)
 
     def sampling(self, size):
         """
@@ -420,7 +415,7 @@ class Quantity:
             mask = np.zeros(x.shape[1], bool)
             mask[indices] = True
             return mask
-        return self._get_mask(mask_gen)
+        return self._mask_quantity(size, mask_gen)
 
     def __getitem__(self, key):
         """
@@ -493,7 +488,7 @@ class QuantityMean:
     def __init__(self, quantity_type, mean, var):
         """
         QuantityMean represents result of estimate_mean method
-        :param quantity_type: Qtype
+        :param quantity_type: QType
         :param mean: np.ndarray
         :param var: np.ndarray
         """
@@ -607,6 +602,9 @@ class QType(metaclass=abc.ABCMeta):
         :return: int
         """
 
+    def base_qtype(self):
+        return self._qtype.base_qtype()
+
     def __eq__(self, other):
         if isinstance(other, QType):
             return self.size() == other.size()
@@ -628,8 +626,15 @@ class ScalarType(QType):
     def __init__(self, qtype=float):
         self._qtype = qtype
 
+    def base_qtype(self):
+        return self
+
     def size(self) -> int:
         return 1
+
+
+class BoolType(ScalarType):
+    pass
 
 
 class ArrayType(QType):
@@ -717,6 +722,16 @@ class DictType(QType):
     def __init__(self, args: List[Tuple[str, QType]]):
         self._dict = dict(args)
         self.start = 0
+
+        self._check_base_type()
+
+    def _check_base_type(self):
+        qtypes = list(self._dict.values())
+        assert all(isinstance(qtype.base_qtype(), type(qtypes[0].base_qtype())) for qtype in qtypes[1:]), \
+            "All QTypes must have same base QType, either SacalarType or BoolType"
+
+    def base_qtype(self):
+        return list(self._dict.values())[0].base_qtype()
 
     def size(self) -> int:
         return int(np.sum(q_type.size() for _, q_type in self._dict.items()))
