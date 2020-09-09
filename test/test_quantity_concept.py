@@ -274,12 +274,12 @@ class QuantityTests(unittest.TestCase):
         means_ne = estimate_mean(quantity_ne)
         assert np.allclose((means_ne()).tolist(), mean_length().tolist())
 
-        # Quantity sampling
-        root_quantity_subsamples = root_quantity.select(root_quantity.sampling(size=2))
-        means_eq = estimate_mean(root_quantity_subsamples)
-
-        root_quantity_subsamples = root_quantity.select(root_quantity.sampling(size=10))
-        means_eq = estimate_mean(root_quantity_subsamples)
+        # # Quantity sampling
+        # root_quantity_subsamples = root_quantity.select(root_quantity.sampling(size=2))
+        # means_eq = estimate_mean(root_quantity_subsamples)
+        #
+        # root_quantity_subsamples = root_quantity.select(root_quantity.sampling(size=10))
+        # means_eq = estimate_mean(root_quantity_subsamples)
 
     def test_functions(self):
         """
