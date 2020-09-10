@@ -97,6 +97,9 @@ def estimate_mean(quantity):
 
                 # level_chunk is Numpy Array with shape [M, chunk_size, 2]
                 n_samples[level_id] += chunk.shape[1]
+
+                print("chunk.shape[0] ", chunk.shape[0])
+                print("quantity vec size ", quantity_vec_size)
                 assert(chunk.shape[0] == quantity_vec_size)
                 sums[level_id] += np.sum(chunk[:, :, 0] - chunk[:, :, 1], axis=1)
                 sums_power[level_id] += np.sum((chunk[:, :, 0] - chunk[:, :, 1])**2, axis=1)
@@ -226,7 +229,7 @@ class Quantity:
         :param i_chunk: int
         :return: tuple
         """
-        return (level_id, i_chunk, id(self), *[id(q) for q in self._input_quantities]) # parentheses needed due to py36, py37
+        return (level_id, i_chunk, id(self), *[id(q) for q in self._input_quantities], id(self._operation)) # parentheses needed due to py36, py37
 
     @cached(custom_key_maker=get_cache_key)
     def samples(self, level_id, i_chunk):
