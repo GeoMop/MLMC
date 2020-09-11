@@ -36,9 +36,6 @@ class QuantityTests(unittest.TestCase):
         result_format, sizes = self.fill_sample_storage(sample_storage)
         root_quantity = make_root_quantity(sample_storage, result_format)
 
-        # results = sample_storage.sample_pairs()
-        # print("results ", results)
-
         means = estimate_mean(root_quantity)
         self.assertEqual(len(means()), np.sum(sizes))
 
@@ -70,18 +67,23 @@ class QuantityTests(unittest.TestCase):
         # Array indexing tests
         values = position[:, 2]
         values_mean = estimate_mean(values)
+        assert len(values_mean()) == 2
 
         y = position[1, 2]
-        estimate_mean(y)
+        y_mean = estimate_mean(y)
+        assert len(y_mean()) == 1
 
         y = position[:, :]
-        estimate_mean(y)
+        y_mean = estimate_mean(y)
+        assert np.allclose(y_mean(), mean_position_1())
 
         y = position[:1, 1:2]
-        estimate_mean(y)
+        y_mean = estimate_mean(y)
+        assert len(y_mean()) == 1
 
         y = position[:2, ...]
-        estimate_mean(y)
+        y_mean = estimate_mean(y)
+        assert len(y_mean()) == 6
 
         value = values[1]
         value_mean = estimate_mean(value)
@@ -268,7 +270,6 @@ class QuantityTests(unittest.TestCase):
 
         quantity_eq = length.select(1 == length)
         means_eq = estimate_mean(quantity_eq)
-        print("means eq ", means_eq())
         assert len(means_eq()) == 0
 
         quantity_ne = length.select(-1 != length)
