@@ -502,6 +502,12 @@ class QuantityMean:
         Return mean
         :return:
         """
+        return self.mean()
+
+    def var(self):
+        return self._var
+
+    def mean(self):
         return self._mean
 
     def __getitem__(self, key):
