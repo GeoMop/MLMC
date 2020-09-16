@@ -98,8 +98,8 @@ class FiveFingers(st.rv_continuous):
         y = np.fromiter((FiveFingers.distributions[i].rvs() for i in mixture_idx), dtype=np.float64)
         return y
 
-class Cauchy(st.rv_continuous):
 
+class Cauchy(st.rv_continuous):
     domain = [-20, 20]
 
     def _pdf(self, x):
@@ -152,16 +152,12 @@ class Discontinuous(st.rv_continuous):
 
 class MultivariateNorm(st.rv_continuous):
     distr = st.multivariate_normal([0, 0], [[1, 0], [0, 1]])
-
     domain = [np.array([0, 1]), np.array([0, 1])]
 
     def pdf(self, values):
-        print("PDF input values ", values)
-        print("MultivariateNorm.distr.pdf(values) ", MultivariateNorm.distr.pdf(values))
         return MultivariateNorm.distr.pdf(values)
 
     def cdf(self, x):
-        print("MultivariateNorm.distr.cdf(x) ", MultivariateNorm.distr.cdf([[0, 1], [0,1]]))
         return MultivariateNorm.distr.cdf(x)
 
     # def _cdf(self, x):
@@ -175,6 +171,107 @@ class MultivariateNorm(st.rv_continuous):
     def rvs(self, size):
         return MultivariateNorm.distr.rvs(size)
 
+
+class Rampart(st.rv_continuous):
+    def __init__(self):
+        super().__init__(name="Rampart")
+        self.dist = self
+
+    def _pdf(self, x):
+        return 16.0 / 20 * st.uniform.pdf(x) + \
+               4.5 / 20 * st.uniform.pdf(x, loc=0.3, scale=0.5) - \
+               0.5 / 20 * st.uniform.pdf(x, loc=0.4, scale=0.1)
+
+    def _cdf(self, x):
+        return 16.0 / 20 * st.uniform.cdf(x) + \
+               4.5 / 20 * st.uniform.cdf(x, loc=0.3, scale=0.5) - \
+               0.5 / 20 * st.uniform.cdf(x, loc=0.4, scale=0.1)
+
+
+class Abyss(st.rv_continuous):
+    def __init__(self):
+        super().__init__(name="Abyss")
+        self.dist = self
+        self.width = 0.1
+        self.z = 0.1
+        self.renorm = 2 * st.norm.cdf(-self.width) + self.z * 2 * self.width
+        self.renorm = 1 / self.renorm
+
+        # X = np.linspace(-5, 5, 500)
+        # plt.plot(X, self.cdf(X))
+        # plt.show()
+
+    def _pdf(self, x):
+        y = np.where(np.logical_and(-self.width < x, x < self.width),
+                      self.z * st.uniform.pdf( 0.5 * (x / self.width + 1) ),
+                      st.norm.pdf(x))
+        return self.renorm * y
+
+    def _cdf(self, x):
+        y = np.where(np.logical_and(-self.width < x, x < self.width),
+                      0.5 + self.renorm * self.z * x,
+                      st.norm.cdf(x))
+        return y
+
+
+def test_abyss():
+    ab = Abyss()
+
+    assert np.isclose(integrate.quad(ab._pdf, -np.inf, np.inf)[0], 1)
+
+    domain = ab.ppf([0.001, 0.999])
+    a = np.random.uniform(-5, 20, 1)
+    b = np.random.uniform(-5, 20, 1)
+    assert np.isclose(ab.cdf(b) - ab.cdf(a), integrate.quad(ab.pdf, a, b)[0])
+
+    size = 1000
+    values = ab.rvs(size=size)
+    print("values ", values)
+    x = np.linspace(-10, 10, size)
+    plt.plot(x, ab.pdf(x), 'r-', alpha=0.6, label='rampart pdf')
+    plt.hist(values, bins=1000, density=True, alpha=0.2)
+    #plt.xlim(-10, 20)
+    plt.legend()
+    plt.show()
+
+    from statsmodels.distributions.empirical_distribution import ECDF
+    ecdf = ECDF(values)
+    x = np.linspace(-10, 10, size)
+    plt.plot(x, ecdf(x), label="ECDF")
+    plt.plot(x, ab.cdf(x), 'r--', alpha=0.6, label='rampart cdf')
+
+    plt.legend()
+    plt.show()
+
+
+def test_rampart():
+    r = Rampart()
+
+    assert np.isclose(integrate.quad(r._pdf, -np.inf, np.inf)[0], 1)
+
+    domain = r.ppf([0.001, 0.999])
+    a = np.random.uniform(-5, 20, 1)
+    b = np.random.uniform(-5, 20, 1)
+    assert np.isclose(r.cdf(b) - r.cdf(a), integrate.quad(r.pdf, a, b)[0])
+
+    size = 1000
+    values = r.rvs(size=size)
+    print("values ", values)
+    x = np.linspace(-10, 10, size)
+    plt.plot(x, r.pdf(x), 'r-', alpha=0.6, label='rampart pdf')
+    plt.hist(values, bins=1000, density=True, alpha=0.2)
+    #plt.xlim(-10, 20)
+    plt.legend()
+    plt.show()
+
+    from statsmodels.distributions.empirical_distribution import ECDF
+    ecdf = ECDF(values)
+    x = np.linspace(-10, 10, size)
+    plt.plot(x, ecdf(x), label="ECDF")
+    plt.plot(x, r.cdf(x), 'r--', alpha=0.6, label='rampart cdf')
+
+    plt.legend()
+    plt.show()
 
 
 def test_two_gaussians():
