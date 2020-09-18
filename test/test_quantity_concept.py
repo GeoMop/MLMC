@@ -311,7 +311,8 @@ class QuantityTests(unittest.TestCase):
         sin_means_length = estimate_mean(sin_length)
         assert np.allclose((sin_means()[sizes[0]:sizes[0]+sizes[1]]).tolist(), sin_means_length().tolist())
 
-    def fill_sample_storage(self, sample_storage):
+    def fill_sample_storage(self, sample_storage, chunk_size=512000000):
+        sample_storage.set_chunk_size(chunk_size)  # bytes in decimal
         np.random.seed(123)
         n_levels = 3
         res_length = 3
@@ -381,6 +382,7 @@ class QuantityTests(unittest.TestCase):
 
         # Create sample storages
         sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_test.hdf5"))
+        sample_storage.set_chunk_size(1024)  # bytes
 
         # Create sampling pools
         sampling_pool = OneProcessPool()

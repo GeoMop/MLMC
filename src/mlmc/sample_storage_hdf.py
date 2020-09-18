@@ -6,22 +6,15 @@ from mlmc.sim.simulation import QuantitySpec
 import mlmc.tool.hdf5 as hdf
 
 
-# Starts from scratch
 class SampleStorageHDF(SampleStorage):
 
-    def __init__(self, file_path, append=False):
+    def __init__(self, file_path):
         """
         HDF5 storage, provide method to interact with storage
         :param file_path: absolute path to hdf file (which not exists at the moment)
-        :param append: append to existing hdf5
         """
         # If file exists load not create new file
-        load_from_file = False
-        if os.path.exists(file_path):
-            if append:
-                load_from_file = True
-            else:
-                raise FileExistsError("HDF file {} already exists, use --clean to delete it".format(file_path))
+        load_from_file = True if os.path.exists(file_path) else False
 
         # HDF5 interface
         self._hdf_object = hdf.HDF5(file_path=file_path, load_from_file=load_from_file)
@@ -147,7 +140,7 @@ class SampleStorageHDF(SampleStorage):
         levels_results = list(np.empty(len(self._level_groups)))
 
         for level in self._level_groups:
-            results = self.sample_pairs_level(level_id=level.level_id)
+            results = self.sample_pairs_level(level_id=level.level_id, use_chunks=False)
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue
@@ -156,16 +149,19 @@ class SampleStorageHDF(SampleStorage):
 
         return levels_results
 
-    def sample_pairs_level(self, level_id, i_chunk=0):
+    def sample_pairs_level(self, level_id, i_chunk=0, use_chunks=True):
         """
         Get result for particular level and chunk
         :param level_id: int, level id
-        :param i_chunk: int, chunk id
-        :return:
+        :param i_chunk: int, chunk identifier
+        :param use_chunks: bool, if False retrieve all samples
+        :return: np.ndarray
         """
-        if i_chunk != 0:
+        sample_pairs = self._level_groups[int(level_id)].collected(i_chunk, use_chunks, chunk_size=self._chunk_size)
+        # Chunk is empty
+        if len(sample_pairs) == 0:
             return None
-        return self._level_groups[int(level_id)].collected(i_chunk).transpose((2, 0, 1))
+        return sample_pairs.transpose((2, 0, 1))  # [M, chunk size, 2]
 
     def n_finished(self):
         """

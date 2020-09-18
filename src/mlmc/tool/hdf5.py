@@ -196,8 +196,6 @@ class LevelGroup:
     COLLECTED_ATTRS = {"sample_id": {'name': 'collected_ids', 'default_shape': (0,), 'maxshape': (None,),
                                      'dtype': SCHEDULED_DTYPE}}
 
-    chunk_size = 512000000  # bytes in decimal
-
     def __init__(self, file_name, hdf_group_path, level_id, loaded_from_file=False):
         """
         Create LevelGroup instance, each mlmc.Level has access to corresponding LevelGroup to save data
@@ -352,11 +350,13 @@ class LevelGroup:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             return scheduled_dset[()]
 
-    def collected(self, i_chunk=0):
+    def collected(self, i_chunk=0, use_chunks=True, chunk_size=512000000):
         """
         Read collected data by chunks,
         number of items in chunk is determined by LevelGroup.chunk_size (number of bytes)
         :param i_chunk: int
+        :param use_chunks: bool
+        :param chunk_size: size of chunk, bytes in decimal
         :return: np.ndarray
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
@@ -364,12 +364,14 @@ class LevelGroup:
                 return None
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
 
-            if self._items_in_chunk is None:
-                first_item = dataset[0]
-                item_byte_size = first_item.size * first_item.itemsize
-                self._items_in_chunk = int(round(LevelGroup.chunk_size / item_byte_size))
+            if use_chunks:
+                if self._items_in_chunk is None:
+                    first_item = dataset[0]
+                    item_byte_size = first_item.size * first_item.itemsize
+                    self._items_in_chunk = int(np.ceil(chunk_size / item_byte_size))
+                return dataset[i_chunk * self._items_in_chunk: (i_chunk + 1) * self._items_in_chunk]
 
-            return dataset[i_chunk * self._items_in_chunk: (i_chunk + 1) * self._items_in_chunk]
+            return dataset[()]
 
     def get_finished_ids(self):
         """

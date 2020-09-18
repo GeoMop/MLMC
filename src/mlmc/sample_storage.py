@@ -86,11 +86,12 @@ class SampleStorage(metaclass=ABCMeta):
         :return: int
         """
 
-    # @staticmethod
-    # def determine_chunk_size(data):
-    #     print("data ", data)
-    #     print("data.shape ", data.shape)
-    #     exit()
+    def set_chunk_size(self, chunk_size):
+        """
+        Set the chunk size that is used to load collected samples
+        :param chunk_size: int, number of bytes in decimal
+        """
+        self._chunk_size = chunk_size
 
 
 class Memory(SampleStorage):
@@ -200,11 +201,9 @@ class Memory(SampleStorage):
     def sample_pairs(self):
         """
         Sample results split to numpy arrays
-        :param i_chunk: identifier of chunk
         :return: List[Array[M, N, 2]]
         """
         levels_results = list(np.empty(len(np.max(self._results.keys()))))
-        #SampleStorage.determine_chunk_size(levels_results[0])
 
         for level_id in self.get_level_ids():
             results = self.sample_pairs_level(level_id)
@@ -214,15 +213,14 @@ class Memory(SampleStorage):
 
     def sample_pairs_level(self, level_id, i_chunk=0):
         """
-
-        :param level_id:
-        :param i_chunk:
-        :return:
+        Get samples for given level, chunks does not make sense in Memory storage so all data are retrieved at once
+        :param level_id: int
+        :param i_chunk: identifier of chunk
+        :return: np.ndarray
         """
         if i_chunk != 0:
             return None
-
-        return self._results[int(level_id)].transpose((2, 0, 1))
+        return self._results[int(level_id)].transpose((2, 0, 1))  # [M, N, 2]
 
     def save_n_ops(self, n_ops):
         """

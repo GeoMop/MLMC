@@ -73,8 +73,9 @@ def estimate_mean(quantity):
     sums = None
     sums_power = None
     i_chunk = 0
+    chunk = []
 
-    while True:
+    while chunk is not None:
         level_ids = quantity.level_ids()
         if i_chunk == 0:
             # initialization
@@ -102,17 +103,15 @@ def estimate_mean(quantity):
                 sums[level_id] += np.sum(chunk[:, :, 0] - chunk[:, :, 1], axis=1)
                 sums_power[level_id] += np.sum((chunk[:, :, 0] - chunk[:, :, 1])**2, axis=1)
 
-        if chunk is None:
-            break
         i_chunk += 1
 
     mean = np.zeros_like(sums[0])
-    mean_power = np.zeros_like(sums[0])
+    mean_square = np.zeros_like(sums[0])
     for s, sp, n in zip(sums, sums_power, n_samples):
         mean += s / n
-        mean_power += sp / n
+        mean_square += sp / n
 
-    return quantity._make_value(mean=mean, var=mean_power - mean**2)
+    return quantity._create_quantity_mean(mean=mean, var=mean_square - mean ** 2)
 
 
 def moment(quantity, moments_fn, i=0):
@@ -258,7 +257,7 @@ class Quantity:
         else:
             return None
 
-    def _make_value(self, mean: np.ndarray, var: np.ndarray):
+    def _create_quantity_mean(self, mean: np.ndarray, var: np.ndarray):
         """
         Crate a new quantity with the same structure but containing fixed data vector.
         Primary usage is to organise computed means and variances.
