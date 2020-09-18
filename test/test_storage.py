@@ -102,7 +102,7 @@ def test_hdf_append():
     format_quant = add_samples(storage, n_levels)
     results = np.array(storage.sample_pairs())
 
-    storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5".format()), append=True)
+    storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5".format()))
     loaded_results = np.array(storage.sample_pairs())
 
     assert len(results) == n_levels

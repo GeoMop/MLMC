@@ -382,8 +382,6 @@ class QuantityTests(unittest.TestCase):
 
         # Create sample storages
         sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_test.hdf5"))
-        sample_storage.set_chunk_size(1024)  # bytes
-
         # Create sampling pools
         sampling_pool = OneProcessPool()
         # sampling_pool_dir = OneProcessPool(work_dir=work_dir)
@@ -423,6 +421,8 @@ class QuantityTests(unittest.TestCase):
         q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
                                        sim_steps=step_range)
         means, vars = q_estimator.estimate_moments(moments_fn)
+
+        sampler.sample_storage.set_chunk_size(1024)
         root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
 
         # Moments values are at the bottom

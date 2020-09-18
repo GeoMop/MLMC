@@ -19,6 +19,7 @@ class SampleStorageHDF(SampleStorage):
         # HDF5 interface
         self._hdf_object = hdf.HDF5(file_path=file_path, load_from_file=load_from_file)
         self._level_groups = []
+        self._chunk_size = None
         # 'Load' level groups
         if load_from_file:
             # Create level group for each level
@@ -138,9 +139,10 @@ class SampleStorageHDF(SampleStorage):
                             " In other cases, call save_global_data() directly")
 
         levels_results = list(np.empty(len(self._level_groups)))
+        self._chunk_size = None  # return all samples no chunks
 
         for level in self._level_groups:
-            results = self.sample_pairs_level(level_id=level.level_id, use_chunks=False)
+            results = self.sample_pairs_level(level_id=level.level_id)
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue
@@ -149,15 +151,14 @@ class SampleStorageHDF(SampleStorage):
 
         return levels_results
 
-    def sample_pairs_level(self, level_id, i_chunk=0, use_chunks=True):
+    def sample_pairs_level(self, level_id, i_chunk=0):
         """
         Get result for particular level and chunk
         :param level_id: int, level id
         :param i_chunk: int, chunk identifier
-        :param use_chunks: bool, if False retrieve all samples
         :return: np.ndarray
         """
-        sample_pairs = self._level_groups[int(level_id)].collected(i_chunk, use_chunks, chunk_size=self._chunk_size)
+        sample_pairs = self._level_groups[int(level_id)].collected(i_chunk, chunk_size=self._chunk_size)
         # Chunk is empty
         if len(sample_pairs) == 0:
             return None
