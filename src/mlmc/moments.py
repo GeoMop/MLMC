@@ -1,4 +1,4 @@
-import autograd.numpy as np
+import numpy as np
 import numpy
 import numpy.ma as ma
 from scipy.interpolate import BSpline
@@ -89,6 +89,16 @@ class Moments:
             size = self.size
         return self._eval_all_der(value, size, degree)
 
+    def eval_diff(self, value, size=None):
+        if size is None:
+            size = self.size
+        return self._eval_diff(value, size)
+
+    def eval_diff2(self, value, size=None):
+        if size is None:
+            size = self.size
+        return self._eval_diff2(value, size)
+
 
 class Monomial(Moments):
     def __init__(self, size, domain=(0, 1), log=False, safe_eval=True):
@@ -144,6 +154,11 @@ class Legendre(Moments):
 
     def __init__(self, size, domain, log=False, safe_eval=True):
         self.ref_domain = (-1, 1)
+        self.diff_mat = np.zeros((size, size))
+        for n in range(size - 1):
+            self.diff_mat[n, n + 1::2] = 2 * n + 1
+        self.diff2_mat = self.diff_mat @ self.diff_mat
+
         super().__init__(size, domain, log, safe_eval)
 
     def _eval_value(self, x, size):
@@ -178,6 +193,16 @@ class Legendre(Moments):
 
         return eval_values
 
+    def _eval_diff(self, value, size):
+        t = self.transform(np.atleast_1d(value))
+        P_n = np.polynomial.legendre.legvander(t, deg=size - 1)
+        return P_n @ self.diff_mat
+
+    def _eval_diff2(self, value, size):
+        t = self.transform(np.atleast_1d(value))
+        P_n = np.polynomial.legendre.legvander(t, deg=size - 1)
+        return P_n @ self.diff2_mat
+
 import pandas as pd
 class BivariateMoments:
 
@@ -198,63 +223,37 @@ class BivariateMoments:
             for j in range(self.size):
                 results[i, j] = np.squeeze(self.moment_x(x))[i] * np.squeeze(self.moment_y(y))[j]
 
-        # print("results ")
-        # print(pd.DataFrame(results))
-
         return results
 
     def eval_all(self, value):
-        print("EVAL_ALL value ", value)
-        print("value type ", type(value))
-
         if not isinstance(value[0], (list, tuple, np.ndarray)):
             return self.eval_value(value)
 
         value = np.array(value)
-        print("value ", value)
-        print("value.shape ", value.shape)
 
         x = value[0, :]
         y = value[1, :]
-        print("x", x)
-        print("y", y)
 
         results = np.empty((len(value[0]), self.size, self.size))
-        print("results ", results)
 
-        print("results shape ", results.shape)
         for i in range(self.size):
             for j in range(self.size):
-                # print("fn(x)[:, i] ", fn(x)[:, i])
-                print("fn(x)[:, i]*fn(x)[:, j] ", np.squeeze(self.moment_x(x))[:, i] * np.squeeze(self.moment_y(y))[:, j])
                 results[:, i, j] = np.squeeze(self.moment_x(x))[:, i] * np.squeeze(self.moment_y(y))[:, j]
         return results
 
     def eval_all_der(self, value, degree=1):
-        print("EVAL_ALL DERIVATIVE value ", value)
-        print("value type ", type(value))
-
         if not isinstance(value[0], (list, tuple, np.ndarray)):
             return self.eval_value(value)
 
         value = np.array(value)
-        print("value ", value)
-        print("value.shape ", value.shape)
 
         x = value[0, :]
         y = value[1, :]
-        print("x", x)
-        print("y", y)
 
         results = np.empty((len(value[0]), self.size, self.size))
-        print("results ", results)
 
-        print("results shape ", results.shape)
         for i in range(self.size):
             for j in range(self.size):
-                # print("fn(x)[:, i] ", fn(x)[:, i])
-                print("fn(x)[:, i]*fn(x)[:, j] ", np.squeeze(self.moment_x.eval_all_der(x, degree=degree))[:, i] *
-                      np.squeeze(self.moment_y.eval_all_der(y, degree=degree))[:, j])
                 results[:, i, j] = np.squeeze(self.moment_x.eval_all_der(x, degree=degree))[:, i] *\
                                    np.squeeze(self.moment_y.eval_all_der(y, degree=degree))[:, j]
         return results
@@ -394,7 +393,6 @@ class BivariateMoments:
 class Spline(Moments):
 
     def __init__(self, size, domain, log=False, safe_eval=True):
-        print("domain ", domain)
         self.ref_domain = domain
         self.poly_degree = 3
         self.polynomial = None
@@ -631,6 +629,19 @@ class TransformedMoments(Moments):
         x1 = numpy.matmul(orig_moments, self._transform.T)
 
         return x1[:, :size]
+
+    def _eval_diff(self, value, size):
+        orig_moments = self._origin.eval_diff(value, self._origin.size)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        #x2 = np.linalg.solve(self._inv, orig_moments.T).T
+        return x1[:, :size]
+
+    def _eval_diff2(self, value, size):
+        orig_moments = self._origin.eval_diff2(value, self._origin.size)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        #x2 = np.linalg.solve(self._inv, orig_moments.T).T
+        return x1[:, :size]
+
 
 
 class TransformedMomentsDerivative(Moments):

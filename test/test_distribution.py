@@ -73,6 +73,11 @@ class CutDistribution:
         self.shift = p0
         self.scale = 1 / (p1 - p0)
 
+        if 'dist' in distr.__dict__:
+            self.distr_name = distr.dist.name
+        else:
+            self.distr_name = distr.name
+
     @staticmethod
     def domain_for_quantile(distr, quantile):
         """
@@ -222,7 +227,7 @@ class DistributionDomainCase:
     #
     #     return corr
 
-    def setup_moments(self, moments_data, noise_level, reg_param=0, orth_method=1, regularization=None):
+    def setup_moments(self, moments_data, noise_level, reg_param=0, orth_method=2, regularization=None):
         """
         Setup moments without transformation.
         :param moments_data: config tuple
@@ -280,7 +285,7 @@ class DistributionDomainCase:
 
             self.moments_fn, info, cov_centered = mlmc.simple_distribution.construct_orthogonal_moments(base_moments,
                                                                                                         cov,
-                                                                                                        noise_level,
+                                                                                                        tol=noise_level**2,
                                                                                                         reg_param=reg_param,
                                                                                                         orth_method=orth_method,
                                                                                                         exact_cov=exact_without_reg)
@@ -390,7 +395,7 @@ class DistributionDomainCase:
         result.kl = mlmc.simple_distribution.KL_divergence(self.pdf, distr_obj.density, a, b)
         result.kl_2 = mlmc.simple_distribution.KL_divergence_2(self.pdf, distr_obj.density, a, b)
         result.l2 = mlmc.simple_distribution.L2_distance(self.pdf, distr_obj.density, a, b)
-        result.tv = 0#mlmc.simple_distribution.total_variation_int(distr_obj.density_derivation, a, b)
+        result.tv = mlmc.simple_distribution.total_variation_int(distr_obj.density_derivation, a, b)
         print(result)
         X = np.linspace(self.cut_distr.domain[0], self.cut_distr.domain[1], 10)
         density_vals = distr_obj.density(X)
@@ -531,7 +536,7 @@ class DistributionDomainCase:
         #self.setup_moments(self.moments_data, noise_level=0)
         results = []
         kl_divergences = []
-        n_levels = 1
+        n_levels = 5
         target_vars = [1e-6, 1e-5, 1e-4]
         target_vars = [1e-4]
         distr_accuracy = 1e-8
@@ -541,6 +546,8 @@ class DistributionDomainCase:
 
         log_flag = self.log_flag
         a, b = self.domain
+
+        mlmc_est_list = []
 
         for level in levels:
 
@@ -567,6 +574,8 @@ class DistributionDomainCase:
                 estimator.target_var_adding_samples(target_var, mc_test.moments_fn)
                 mc = mc_test.mc
 
+                mlmc_est_list.append(mc)
+
                 mc_test.mc.update_moments(mc_test.moments_fn)
                 means, vars = estimator.estimate_moments(mc_test.moments_fn)
 
@@ -578,12 +587,12 @@ class DistributionDomainCase:
                 print("exact moments: {}".format(exact_moments))
 
                 #reg_params = [1e-3, 1e-3*2, 1e-3*5, 1e-3*7]#[0, 1e-5, 1e-6, 1e-7]#[0, 1e-1, 1e-3]
-                reg_params = [1e-7]
+                reg_params = [0]#[1e-7]
 
                 for reg_param in reg_params:
 
                     #expected_value = np.mean(means[:, 1])
-                    info = estimator.construct_density(tol=distr_accuracy, reg_param=reg_param,
+                    info, result = estimator.construct_density(tol=distr_accuracy, reg_param=reg_param,
                                                        orth_moments_tol=target_var, exact_pdf=self.pdf)
 
                     original_evals, evals, threshold, L = info
@@ -606,8 +615,27 @@ class DistributionDomainCase:
 
             print("kl divergences ", kl_divergences)
 
+        output_dir = "MLMC_output"
+        cl = mlmc.estimate.CompareLevels(mlmc_est_list,
+                           output_dir=output_dir,
+                           quantity_name="Q [m/s]",
+                           moment_class=Legendre,
+                           log_scale=False,
+                           n_moments=max_mom, )
+
         distr_plot.show(None)
         #self._plot_kl_div(target_vars, kl_divergences)
+
+        sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
+
+        for level in levels:
+            mc = cl[level]
+            print("mc.n_samples ", mc.n_samples)
+            mc.ref_estimates_bootstrap(300, sample_vector=None, log=True)
+            mc.mlmc.update_moments(cl.moments)
+            mc.mlmc.subsample()
+            # cl.plot_var_compare(9)
+            mc.plot_bs_var_log_var()
 
         # fig = plt.figure()
         # ax = fig.add_subplot(1, 1, 1)
@@ -628,6 +656,94 @@ class DistributionDomainCase:
         # distr_plot.reset()
         # #plt.show()
         return results
+
+    def lemma_3_2_numerical_test(self):
+        mom_class, min_mom, max_mom, log_flag = self.moments_data
+        moments_num = [max_mom]
+        noise = 1e-2
+
+        for i_m, n_moments in enumerate(moments_num):
+            ##################################
+            ######         Exact        ######
+            ##################################
+            self.moments_data = (mom_class, n_moments, n_moments, log_flag)
+            # Setup moments.
+            self.setup_moments(self.moments_data, noise_level=0)
+
+            if n_moments > self.moments_fn.size:
+                continue
+            # moments_fn = moment_fn(n_moments, domain, log=log_flag, safe_eval=False )
+            # print(i_m, n_moments, domain, force_decay)
+            moments_data = np.empty((n_moments, 2))
+            moments_data[:, 0] = self.exact_moments[:n_moments]
+            moments_data[:, 1] = 1.0
+
+            result_exact, distr_obj_exact = self.make_approx(mlmc.simple_distribution.SimpleDistribution, 0.0, moments_data, tol=1e-8)
+
+            print("exact result ", result_exact)
+            print("exact distr obj ", distr_obj_exact)
+
+            ##################################
+            ######        Inexact       ######
+            ##################################
+            info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise)
+
+            original_evals, evals, threshold, L = info
+            new_moments = np.matmul(moments_with_noise, L.T)
+            n_moments = len(new_moments)
+
+            moments_data = np.empty((n_moments, 2))
+            moments_data[:, 0] = new_moments
+            moments_data[:, 1] = noise ** 2
+            moments_data[0, 1] = 1.0
+
+            modif_cov, reg_matrix = mlmc.simple_distribution.compute_semiexact_cov_2(self.moments_fn, self.pdf)
+
+            print("modif_cov ", modif_cov)
+
+            diff_norm = np.linalg.norm(modif_cov - np.eye(*modif_cov.shape)) / n_moments
+            ref_moments = np.zeros(n_moments)
+            ref_moments[0] = 1.0
+            mom_err = np.linalg.norm(self.exact_moments[:n_moments] - ref_moments) / np.sqrt(n_moments)
+            print("noise: {:6.2g} error of natural cov: {:6.2g} natural moments: {:6.2g}".format(
+                noise, diff_norm, mom_err))
+
+            # assert mom_err/(noise + 1e-10) < 50  - 59 for five fingers dist
+
+            result_inexact, distr_obj_inexact = self.make_approx(mlmc.simple_distribution.SimpleDistribution, noise,
+                                                 moments_data, tol=1e-8)
+
+            print("inexact results ", result_inexact)
+            print("inexact distr obj ", distr_obj_inexact)
+
+            print("exact distr_obj.multipliers ", distr_obj_exact.multipliers)
+            print("inexact distr_obj.multipliers ", distr_obj_inexact.multipliers)
+
+            multipliers_diff = distr_obj_exact.multipliers[:len(distr_obj_inexact.multipliers)] - distr_obj_inexact.multipliers
+
+
+            print("multipliers diff ", multipliers_diff)
+
+
+
+
+
+
+
+            # D(\rho_{\lambda}||\hat{\rho})
+            kl_div = mlmc.simple_distribution.KL_divergence(distr_obj_exact.density, distr_obj_inexact.density,
+                                                            self.domain[0], self.domain[1])
+
+            print("kl div ", kl_div)
+
+            distr_obj_inexact.multipliers = multipliers_diff
+            exact_moments = mlmc.simple_distribution.compute_exact_moments(self.moments_fn, distr_obj_inexact.density)
+            print("exact moments ", exact_moments)
+            print("sum exact moments ", np.sum(exact_moments))
+
+            exact_density_in_multipliers = distr_obj_exact.density(multipliers_diff)
+            print("exact_density_in_multipliers ", exact_density_in_multipliers)
+            print("sum exact density in multipliers ", np.sum(exact_density_in_multipliers))
 
     def exact_conv(self):
         """
@@ -1569,12 +1685,7 @@ class DistributionDomainCase:
         np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "Y_cdf_exact" + name), self.cut_distr.cdf(X))
         #np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "Y_pdf_log" + name), distr_object.density_log(X))
 
-    def find_regularization_param(self, plot_res=True, noise_level=0.01, work_dir=None, orth_method=4, n_mom=None):
-
-        #noise_level = 1e-2
-
-        #orth_method = 1
-
+    def find_regularization_param(self, plot_res=True, noise_level=0.01, work_dir=None, orth_method=2, n_mom=None):
         if work_dir == None:
             dir_name = "find_reg_param"
             if not os.path.exists(dir_name):
@@ -1664,10 +1775,6 @@ class DistributionDomainCase:
 
         fine_noise = np.mean(fine_noises, axis=0)
 
-        print("fine noise ", fine_noise)
-        print("fine noises var ", np.var(fine_noises, axis=0))
-
-        print("fine noise shape ", fine_noise.shape)
 
         distr_objects = {}
         kl_divs = {}
@@ -1690,11 +1797,6 @@ class DistributionDomainCase:
         noises = np.mean(all_noises, axis=0)
         noises_var = np.var(all_noises, axis=0)
 
-        # print("noises ", noises)
-        # print("noises var ", noises_var)
-        #
-        # print("noises.shape ", noises.shape)
-        #exit()
 
         num_moments = self.moments_fn.size
         used_reg_params = []
@@ -1735,7 +1837,7 @@ class DistributionDomainCase:
             self.moments_fn, info, cov_centered = mlmc.simple_distribution.construct_orthogonal_moments(
                                                                                                     base_moments,
                                                                                                     cov,
-                                                                                                    noise_level,
+                                                                                                    noise_level**2,
                                                                                                     reg_param=reg_param,
                                                                                           orth_method=orth_method)
             self._cov_with_noise = cov
@@ -2137,7 +2239,7 @@ class DistributionDomainCase:
             self.moments_fn, info, cov_centered = mlmc.simple_distribution_total_var.construct_orthogonal_moments(
                 base_moments,
                 cov,
-                noise_level,
+                noise_level**2,
                 reg_param=reg_param,
                 orth_method=orth_method)
             self._cov_with_noise = cov
@@ -2502,7 +2604,7 @@ class DistributionDomainCase:
         base_moments = self.moments_fn
         exact_cov = mlmc.simple_distribution.compute_semiexact_cov(base_moments, self.pdf)
         self.moments_fn, info, _ = mlmc.simple_distribution.construct_orthogonal_moments(base_moments, exact_cov,
-                                                                                         noise_level, orth_method=orth_method)
+                                                                                         noise_level**2, orth_method=orth_method)
         orig_eval, evals, threshold, L = info
         #eye_approx = L @ exact_cov @ L.T
         # test that the decomposition is done well
@@ -2597,7 +2699,7 @@ class DistributionDomainCase:
 
         #noise_levels = [1e-4, 1e-5, 1e-6, 1e-8, 1e-10, 1e-12]
 
-        noise_levels = [1e-1]
+        #noise_levels = [1e-1]
 
         tol_exact_cov = 1e-10
         tol_density = 1e-5
@@ -2608,7 +2710,7 @@ class DistributionDomainCase:
         distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_inexact", cdf_plot=False,
                                        log_x=self.log_flag, error_plot=False)
 
-        dir_name = "KL_div_inexact_for_reg_{}_test".format(orth_method)
+        dir_name = "KL_div_inexact_for_reg_{}_all".format(orth_method)
         if not os.path.exists(dir_name):
             os.mkdir(dir_name)
         else:
@@ -2669,7 +2771,7 @@ class DistributionDomainCase:
             cov = exact_cov + noise
 
             # Change base
-            self.moments_fn, info, _ = mlmc.simple_distribution.construct_orthogonal_moments(base_moments, cov, noise_level,
+            self.moments_fn, info, _ = mlmc.simple_distribution.construct_orthogonal_moments(base_moments, cov, noise_level**2,
                                                                                           orth_method=orth_method)
 
             # Tests
@@ -2705,7 +2807,7 @@ class DistributionDomainCase:
             print("RESULT ", result.success)
 
             kl_div = mlmc.simple_distribution.KL_divergence(distr_obj_exact.density, distr_obj.density, self.domain[0], self.domain[1])
-
+            #total_variation = mlmc.simple_distribution.total_variation_int(distr_obj.density, self.domain[0], self.domain[1])
 
             kl_plot.add_value((noise_level, kl_div))
             kl_plot.add_iteration(x=noise_level, n_iter=result.nit, failed=not result.success)
@@ -2719,18 +2821,20 @@ class DistributionDomainCase:
 
             kl_plot.add_moments_l2_norm((noise_level, np.linalg.norm(diff_orig)**2))
 
-            self._save_kl_data(work_dir, noise_level, kl_div, result.nit, not result.success, np.linalg.norm(diff_orig)**2, threshold)
+            self._save_kl_data(work_dir, noise_level, kl_div, result.nit, not result.success,
+                               np.linalg.norm(diff_orig)**2, threshold, total_variation=result.tv)
 
         kl_plot.show(None)
         distr_plot.show(None)
         distr_plot.reset()
         return results
 
-    def _save_kl_data(self, work_dir, noise_level, kl_div, nit, success, mom_err, threshold, name=""):
+    def _save_kl_data(self, work_dir, noise_level, kl_div, nit, success, mom_err, threshold, total_variation=0, name=""):
         np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "add-value" + name), (noise_level, kl_div))
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "add-iteration"+ name), (noise_level, nit, success))
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "add-moments"+ name), (noise_level, mom_err))
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "threshold"+ name), threshold)
+        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "add-iteration" + name), (noise_level, nit, success))
+        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "add-moments" + name), (noise_level, mom_err))
+        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "threshold" + name), threshold)
+        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "total_variation" + name), total_variation)
 
     def plot_KL_div_inexact_reg_mom(self):
         """
@@ -2983,7 +3087,7 @@ class DistributionDomainCase:
 
         #noise_levels = [5e-2, 1e-2, 5e-3]#, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6]
 
-        noise_levels = [1e-2]
+        noise_levels = [1e-2, 1e-18]
         #noise_levels = [1e-3, 1e-2, 1e-1, 1e1, 1e2, 1e3]
         print("noise levels ", noise_levels)
         #exit()
@@ -3106,14 +3210,9 @@ class DistributionDomainCase:
             #cauchy
             reg_parameters = [2.082e-8] # 1e-2
             # lognorm
-            reg_parameters = [7.118e-6]
+            #reg_parameters = [7.118e-6]
+            reg_parameters = [0]
 
-            # reg_parameters = [1e-10]
-            # reg_parameters = [3e-5]
-            # reg_parameters = [1.5e-5]
-            # #reg_parameters = [6e-7]
-            # #reg_parameters = [7e-6]
-            # #reg_parameters = [7e-9]
 
             dir = self.title + "noise: ".format(noise)
             if not os.path.exists(dir):
@@ -3222,9 +3321,9 @@ class DistributionDomainCase:
                 #distr_plot.show(file=os.path.join(dir, self.pdfname("reg_param_{}_pdf_iexact".format(reg_param))))
             #distr_plot.reset()
 
-            # print("kl ", kl)
-            # print("tv ", tv)
-            # print("l2 ", l2)
+            print("kl ", kl)
+            print("tv ", tv)
+            print("l2 ", l2)
             # print("density ", int_density)
 
         print("FINAL moments ", moments)
@@ -3365,7 +3464,7 @@ class DistributionDomainCase:
                 self.moments_fn, info, cov_centered = mlmc.simple_distribution_total_var.construct_orthogonal_moments(
                     self.moments_fn,
                     cov,
-                    noise,
+                    noise**2,
                     reg_param=reg_param,
                     orth_method=1)
                 original_evals, evals, threshold, L = info
@@ -3445,8 +3544,6 @@ class DistributionDomainCase:
                 print(pd.DataFrame(cov_centered))
 
                 #print("np.linalg.inv(L) ", np.linalg.inv(L))
-
-
 
                 M = np.eye(len(cov_with_noise[0]))
                 M[:, 0] = -cov_with_noise[:, 0]
@@ -3611,7 +3708,7 @@ class DistributionDomainCase:
         :return:
         """
         min_noise = 1e-6
-        max_noise = 0.1
+        max_noise = 1e-2
         results = []
 
         distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="", cdf_plot=False,
@@ -3625,22 +3722,16 @@ class DistributionDomainCase:
         noise_levels = noise_levels[:1]
 
         print("noise levels ", noise_levels)
-        # exit()
-        # print("self moments data ", self.moments_data)
-        # exit()
 
-        orth_method = 4
+        orth_method = 2  # cut eigenvalues
         mom_class, min_mom, max_mom, log_flag = self.moments_data
 
         #moments_num = [5, 10, 15, 20]#, 10, 20, 30]
         moments_num = [35]
         regularization = None
         reg_param = 0
-
         res_mom = []
-
         res_mom_norm = []
-
         norm_coefs = []
 
         for noise in noise_levels:
@@ -3655,7 +3746,7 @@ class DistributionDomainCase:
                     self.moments_data = (mom_class, m, m, log_flag)
                     info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
                                                                   orth_method=orth_method, regularization=regularization,
-                                                                  reg_param=1e-3)
+                                                                  reg_param=reg_param)
 
                     n_moments = len(moments_with_noise)
 
@@ -3693,14 +3784,11 @@ class DistributionDomainCase:
                                                              tol=1e-8, regularization=regularization, reg_param=reg_param)
 
                         distr_plot.add_distribution(distr_obj,
-                                                    label="{} moments, {} threshold, noise: {}, kl: {}".
+                                                    label="moments {}, threshold: {}, noise: {:0.3g}, kl: {:0.3g}".
                                                     format(n_moments, threshold, noise, result.kl))
                         results.append(result)
 
                     else:
-                        print("without covariance")
-
-                        print("moments data ", moments_data)
 
                         # TODO:
                         # Use SimpleDistribution only as soon as it use regularization that improve convergency even without
@@ -3977,23 +4065,24 @@ def test_pdf_approx_exact_moments(moments, distribution):
 
         case = DistributionDomainCase(moments, distribution, quantile)
         #tests = [case.exact_conv, case.inexact_conv]
-        #tests = [case.mlmc_conv]
-        #tests = [case.mc_conv]
+        tests = [case.mlmc_conv]
         #tests = [case.exact_conv]
         # tests = [case.inexact_conv]
-        tests = [case.inexact_conv_test]
+        # tests = [case.lemma_3_2_numerical_test]
+        # tests = [case.inexact_conv_test]
         #tests = [case.plot_KL_div_exact]
         #tests = [case.plot_KL_div_inexact_reg]
         #tests = [case.plot_KL_div_inexact_reg_mom]
-        #tests = [case.plot_KL_div_inexact]
-        #tests = [case.determine_regularization_param]
+        tests = [case.plot_KL_div_inexact]
+        tests = [case.determine_regularization_param]
         # #tests = [case.determine_regularization_param_tv]
         #tests = [case.find_regularization_param]
         #tests = [case.find_regularization_param_tv]
         #tests = [case.compare_orthogonalization]
-        tests = [case.compare_spline_max_ent]
+        #tests = [case.compare_spline_max_ent]
         #tests = [case.mc_find_regularization_param]
-        tests = [case.compare_spline_max_ent_save]
+        #tests = [case.compare_spline_max_ent_save]
+
         for test_fn in tests:
             name = test_fn.__name__
             test_results = test_fn()
@@ -4110,14 +4199,15 @@ def run_distr():
         # (stats.dgamma(1,1), False) # not good
         # (stats.beta(0.5, 0.5), False) # Looks great
         (bd.TwoGaussians(name='two_gaussians'), False),
-        # (bd.FiveFingers(name='five_fingers'), False), # Covariance matrix decomposition failed
-        # (bd.Cauchy(name='cauchy'), False),# pass, check exact
-        # (bd.Discontinuous(name='discontinuous'), False),
-        # # # # # # # # # # # # # # # # # #(bd.Gamma(name='gamma'), False) # pass
-        # # # # # # # # # # # # # # # # # #(stats.norm(loc=1, scale=2), False),
-        #(stats.norm(loc=0, scale=10), False),
-        # (stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
-        # (stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
+        (bd.FiveFingers(name='five_fingers'), False), # Covariance matrix decomposition failed
+        (bd.Cauchy(name='cauchy'), False),# pass, check exact
+        (bd.Discontinuous(name='discontinuous'), False),
+        (bd.Abyss(), False),
+        # # # # # # # # # # # # # # # # # # #(bd.Gamma(name='gamma'), False) # pass
+        # # # # # # # # # # # # # # # # # # #(stats.norm(loc=1, scale=2), False),
+        # #(stats.norm(loc=0, scale=10), False),
+        (stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
+        # # (stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
         # (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
         #(stats.chi2(df=10), False),# Monomial: s1=nan, Fourier: s1= -1.6, Legendre: s1=nan
         #(stats.chi2(df=5), True), # Monomial: s1=-10, Fourier: s1=-1.6, Legendre: OK
@@ -4138,11 +4228,234 @@ def run_distr():
         #(moments.Spline, 10, 10, True),
     ]
 
-    for m in mom:
-        for distr in enumerate(distribution_list):
-            #test_spline_approx(m, distr)
-            #splines_indicator_vs_smooth(m, distr)
-            test_pdf_approx_exact_moments(m, distr)
+    test_kl_estimates(mom[0], distribution_list)
+
+    # for m in mom:
+    #     for distr in enumerate(distribution_list):
+    #         #test_spline_approx(m, distr)
+    #         #splines_indicator_vs_smooth(m, distr)
+    #         test_pdf_approx_exact_moments(m, distr)
+
+
+def test_kl_estimates(moments, distribution_list):
+    shape = (2, 3)
+    fig, axes = plt.subplots(*shape, sharex=True, sharey=True,
+                             figsize=(15, 10))
+    # fig.suptitle("Mu -> Lambda")
+    axes = axes.flatten()
+    for distr, ax in zip(enumerate(distribution_list), axes[:len(distribution_list)]):
+        kl_estimates(distr, moments, ax)
+    plt.tight_layout()
+    # mlmc.plot._show_and_save(fig, "", "mu_to_lambda_lim")
+    mlmc.tool.plot._show_and_save(fig, None, "mu_to_alpha")
+    mlmc.tool.plot._show_and_save(fig, "", "mu_to_alpha")
+
+
+def kl_estimates(distribution, moments, ax):
+    quantile = 0.01
+    idx, distr_cfg = distribution
+
+    case = DistrTestCase(distr_cfg, quantile, moments)
+    orto_moments, moment_data = case.make_orto_moments(0)
+    exact_distr = mlmc.simple_distribution.SimpleDistribution(orto_moments, moment_data,
+                                                            domain=case.distr.domain,
+                                                            force_decay=case.distr.force_decay)
+
+    # true_pdf = case.distr.pdf
+    # a, b = case.distr.domain
+    tolerance = 1e-8
+    min_result = exact_distr.estimate_density_minimize(tol=tolerance)
+    # exact_tol = max(min_result.res_norm, tolerance)
+    exact_mu = case.exact_orto_moments
+    exact_eval_0, exact_eval_max = exact_distr.jacobian_spectrum()[[0, -1]]
+    mu_diffs, l_diffs, eigs, total_vars = [], [], [], []
+    #ratio_distribution = stats.lognorm(s=0.1)
+
+    ratio_distribution = stats.norm(scale=0.01*np.linalg.norm(exact_distr.multipliers[1:]))
+    raw_distr = mlmc.simple_distribution.SimpleDistribution(orto_moments, moment_data,
+                                                            domain=case.distr.domain,
+                                                            force_decay=case.distr.force_decay)
+
+    size = len(exact_distr.multipliers)
+    linf_log_approx_error = np.max(np.log(case.distr.pdf(exact_distr._quad_points))
+                                   - np.log(exact_distr.density(exact_distr._quad_points)))
+    b_factor_estimate = np.exp(linf_log_approx_error)
+    linf_inv_distr = np.max(1/case.distr.pdf(exact_distr._quad_points))
+    Am_factor_estimate = (orto_moments.size + 1) * np.sqrt(linf_inv_distr)
+
+    # max_norm_momemnts = np.max(np.linalg.norm(exact_distr._quad_moments, axis=1))
+    # print("max norm of momments: ", max_norm_momemnts)
+
+    for _ in range(1000):
+        s = 3 * stats.uniform.rvs(size=1)[0]
+        lambda_inex = exact_distr.multipliers + s*ratio_distribution.rvs(size)
+        raw_distr._initialize_params(size)
+        raw_distr.multipliers = lambda_inex
+        raw_distr.set_quadrature(exact_distr)
+        raw_distr.moments = raw_distr.moments_by_quadrature()
+        #m0 = density_integral(raw_distr)
+
+        # if not np.isclose(moments[0], m0):
+        #     continue
+
+        #raw_distr.multipliers[0] += np.log(moments[0])
+        #raw_distr.moments = raw_distr.moments_by_quadrature()
+
+        #assert np.isclose(raw_distr.moments[0],  1.0, atol=1e-5)
+        raw_eval_0, raw_eval_max = raw_distr.jacobian_spectrum()[[0, -1]]
+        #print("evals: ", raw_eval_0, raw_eval_max)
+        lambda_diff = -(exact_distr.multipliers - raw_distr.multipliers)
+        l_diff_norm = np.linalg.norm(lambda_diff[:])
+        mu_diff = exact_mu - raw_distr.moments
+        mu_diff_norm = np.linalg.norm(mu_diff[:])
+        l_diffs.append(l_diff_norm)
+        mu_diffs.append(mu_diff_norm)
+        eigs.append((raw_eval_0, raw_eval_max))
+
+        def distr_diff(x):
+            return exact_distr.density(x) - raw_distr.density(x)
+        total_vars.append(mlmc.simple_distribution.total_variation_int(distr_diff, *case.distr.domain))
+
+        # kl_true_exact = kl(true_pdf, exact_distr.density, exact_distr)
+        # kl_exact_raw = kl(exact_distr.density, raw_distr.density, exact_distr)
+        # kl_true_raw = kl(true_pdf, raw_distr.density, exact_distr)
+        # err = kl_true_exact + kl_exact_raw - kl_true_raw
+        # print("KL(true, exact): {} + KL(exact, raw): {} - KL(true, raw) : {}  =  {}".format(
+        #     kl_true_exact, kl_exact_raw, kl_true_raw, err))
+        # assert np.abs(err) < 10 * exact_tol + exact_tol * kl_true_raw
+
+        #print("lamda diff: {} < mu diff / L0: {} |  {}".format(
+        #    l_diff_norm, mu_diff_norm, l_diff_norm - mu_diff_norm))
+
+        # lambda_dif_mu = lambda_diff @ exact_mu
+        # lambda_dif_mu_dif = np.dot(lambda_diff, mu_diff)
+        # theory_bound = mu_diff @ mu_diff / raw_eval_0
+        # kl_modif = KL_div_modif(exact_distr, raw_distr, exact_distr)
+        # print("KL(rho_e, rho_n):   {} = kl_modif: {} | {}".format(kl_exact_raw, kl_modif, kl_exact_raw - kl_modif))
+        # print("KL(rho_e, rho_n):   {} = (l_e - l_n) . mu_e: {} | {}".format(kl_exact_raw, lambda_dif_mu, kl_exact_raw - lambda_dif_mu))
+        # print("(l_e - l_n) . mu_e: {} < dl . dmu            {} | {}".format(lambda_dif_mu, lambda_dif_mu_dif , lambda_dif_mu - lambda_dif_mu_dif))
+        # print("dl . dmu:           {} < dmu / L0            {} | {}".format(lambda_dif_mu_dif, theory_bound, lambda_dif_mu_dif - theory_bound))
+
+    plot_mu_to_lambda_lim = False
+
+    if plot_mu_to_lambda_lim:
+        Y = np.array(l_diffs) * np.array(np.array(eigs)[:, 0]) / np.array(mu_diffs)
+        ax, lx = plot_scatter(ax, mu_diffs, Y, case.title, ('log', 'linear'), color='red')
+        ax.set_ylabel("$\\alpha_0|\lambda_0 - \lambda_r| / |\mu_0 - \mu_r|$")
+        ax.set_xlabel("$|\mu_0 - \mu_r|$")
+        ax.axhline(y=1.0, color='red', alpha=0.3)
+
+    else:
+        print("l_diffs shape ", np.array(l_diffs).shape)
+        print("mu diffs shape ", np.array(mu_diffs).shape)
+        print("eigs.shape ", np.array(eigs).shape)
+        Y = np.array(l_diffs) * np.array(np.array(eigs)[:, 0]) / np.array(mu_diffs)
+        print("Y.shape ", Y.shape)
+        #Y = np.array(eigs)
+        print("Y[:, 0] ", Y)
+        print("total vars ", total_vars)
+        print("np.array(l_diffs) * np.array(np.array(eigs)[:, 0]).shape ",
+              np.array(l_diffs) * np.array(np.array(eigs)[:, 0]).shape)
+        #ax, lx = plot_scatter(ax, l_diffs, mu_diffs, case.title, ('log', 'log'), color='red')
+        ax, lx = plot_scatter(ax, mu_diffs, np.array(l_diffs) * np.array(np.array(eigs)[:, 0]), case.title, ('log', 'log'), color='red')
+
+        ax, lx = plot_scatter(ax, mu_diffs, total_vars, case.title, ('log', 'log'), color='green')
+        #plot_scatter(ax, mu_diffs, Y[:, 1], case.title, ('log', 'log'), color='blue')
+        ax.set_ylabel("$|\mu_0 - \mu_r|$")
+        ax.set_xlabel("$|\lambda_0 - \lambda_r|$")
+
+        ax.plot(lx, lx, color='red', label="raw $1/\\alpha_0$", alpha=0.3)
+
+        plot_scatter(ax, mu_diffs, l_diffs, case.title, ('log', 'log'), color='blue')
+        shaw_coef = 2 * b_factor_estimate * np.exp(1)
+        shaw_mu_lim = 1 / (4 * np.exp(1) * b_factor_estimate * Am_factor_estimate)
+        ax.plot(lx, lx * shaw_coef, color='blue', label="shaw", alpha=0.3)
+        ax.axvline(x=shaw_mu_lim, color='blue', alpha=0.3)
+        case.eigenvalues_plot.show("")
+
+    def plot_mineig_by_lambda():
+        plt.suptitle(case.title)
+        lx = np.geomspace(1e-10, 0.1, 100)
+        Y = exact_eval_0 * np.ones_like(lx)
+        plt.plot(lx, Y, color='red')
+
+        plt.scatter(l_diffs, eigs, marker='.')
+        #plt.ylim((1e-5, 0.1))
+        plt.xlim((1e-5, 0.1))
+        # #lx = np.linspace(1e-10, 0.1, 100)
+        # plt.plot(lx, lx / raw_eval_0, color='orange')
+        # #plt.plot(lx, lx / raw_eval_max, color='green')
+        plt.xscale('log')
+        # plt.yscale('log')
+        plt.show()
+
+
+def plot_scatter(ax, X, Y, title, xy_scale, **kw):
+    ax.set_title(title)
+    ax.set_xscale(xy_scale[0])
+    ax.set_yscale(xy_scale[1])
+    if xy_scale[0] == 'log':
+        ax.set_xlim((1e-5, 1e1))
+        lx = np.geomspace(1e-5, 0.1, 100)
+    else:
+        #ax.set_xlim((0, 1))
+        pass
+    if xy_scale[1] == 'log':
+        ax.set_ylim((1e-5, 1e-1))
+    else:
+        ax.set_ylim((0, 1.2))
+    ax.scatter(X, Y, marker='.', edgecolors='none', **kw)
+    return ax, lx
+
+
+class DistrTestCase:
+    """
+    Common code for single combination of cut distribution and moments configuration.
+    """
+    def __init__(self, distr_cfg, quantile, moments_cfg):
+        distr, log_flag = distr_cfg
+        self.distr = CutDistribution(distr, quantile)
+
+        print("moments_cfg ", moments_cfg)
+        print("self.distr.domain ", self.distr.domain)
+
+        self.moment_class, self.min_n_moments, self.max_n_moments, self.log_flag = moments_cfg
+        self.moments_fn = self.moment_class(self.max_n_moments, self.distr.domain, log=log_flag, safe_eval=False)
+
+        self.exact_covariance = mlmc.simple_distribution.compute_semiexact_cov(self.moments_fn, self.distr.pdf)
+        self.eigenvalues_plot = mlmc.tool.plot.Eigenvalues(title="Eigenvalues, " + self.title)
+
+    @property
+    def title(self):
+        fn_name = str(self.moment_class.__name__)
+        return "distr: {} moment_fn: {}".format(self.distr.distr_name, fn_name)
+
+    def noise_cov(self, noise):
+        noise_mat = np.random.randn(self.moments_fn.size, self.moments_fn.size)
+        noise_mat = 0.5 * noise * (noise_mat + noise_mat.T)
+        noise_mat[0, 0] = 0
+        return self.exact_covariance + noise_mat
+
+    def make_orto_moments(self, noise):
+        cov = self.noise_cov(noise)
+        orto_moments_fn, info, cov_centered = mlmc.simple_distribution.construct_orthogonal_moments(self.moments_fn, cov, tol=noise)
+        original_evals, evals, threshold, L = info
+
+        print("threshold: ", threshold, " from N: ", self.moments_fn.size)
+        self.eigenvalues_plot.add_values(evals, threshold=evals[threshold], label="{:5.2e}".format(noise))
+        eye_approx = L @ cov @ L.T
+        # test that the decomposition is done well
+        print("np.linalg.norm(eye_approx - np.eye(*eye_approx.shape)) ", np.linalg.norm(eye_approx - np.eye(*eye_approx.shape)))
+
+        assert np.linalg.norm(eye_approx - np.eye(*eye_approx.shape)) < 1e-8
+        # TODO: test deviance from exact covariance in some sense
+        self.exact_orto_moments = mlmc.simple_distribution.compute_semiexact_moments(orto_moments_fn, self.distr.pdf, tol=1e-13)
+
+        tol_density_approx = 0.01
+        moments_data = np.ones((orto_moments_fn.size, 2))
+        moments_data[1:, 0] = 0.0
+        #moments_data[0,1] = 0.01
+        return orto_moments_fn, moments_data
 
 
 def run_mlmc(n_levels, n_moments, cut_distr, log_flag, quantile, moments_fn, target_var, mlmc_file=None):

@@ -172,22 +172,6 @@ class MultivariateNorm(st.rv_continuous):
         return MultivariateNorm.distr.rvs(size)
 
 
-class Rampart(st.rv_continuous):
-    def __init__(self):
-        super().__init__(name="Rampart")
-        self.dist = self
-
-    def _pdf(self, x):
-        return 16.0 / 20 * st.uniform.pdf(x) + \
-               4.5 / 20 * st.uniform.pdf(x, loc=0.3, scale=0.5) - \
-               0.5 / 20 * st.uniform.pdf(x, loc=0.4, scale=0.1)
-
-    def _cdf(self, x):
-        return 16.0 / 20 * st.uniform.cdf(x) + \
-               4.5 / 20 * st.uniform.cdf(x, loc=0.3, scale=0.5) - \
-               0.5 / 20 * st.uniform.cdf(x, loc=0.4, scale=0.1)
-
-
 class Abyss(st.rv_continuous):
     def __init__(self):
         super().__init__(name="Abyss")
@@ -239,36 +223,6 @@ def test_abyss():
     x = np.linspace(-10, 10, size)
     plt.plot(x, ecdf(x), label="ECDF")
     plt.plot(x, ab.cdf(x), 'r--', alpha=0.6, label='rampart cdf')
-
-    plt.legend()
-    plt.show()
-
-
-def test_rampart():
-    r = Rampart()
-
-    assert np.isclose(integrate.quad(r._pdf, -np.inf, np.inf)[0], 1)
-
-    domain = r.ppf([0.001, 0.999])
-    a = np.random.uniform(-5, 20, 1)
-    b = np.random.uniform(-5, 20, 1)
-    assert np.isclose(r.cdf(b) - r.cdf(a), integrate.quad(r.pdf, a, b)[0])
-
-    size = 1000
-    values = r.rvs(size=size)
-    print("values ", values)
-    x = np.linspace(-10, 10, size)
-    plt.plot(x, r.pdf(x), 'r-', alpha=0.6, label='rampart pdf')
-    plt.hist(values, bins=1000, density=True, alpha=0.2)
-    #plt.xlim(-10, 20)
-    plt.legend()
-    plt.show()
-
-    from statsmodels.distributions.empirical_distribution import ECDF
-    ecdf = ECDF(values)
-    x = np.linspace(-10, 10, size)
-    plt.plot(x, ecdf(x), label="ECDF")
-    plt.plot(x, r.cdf(x), 'r--', alpha=0.6, label='rampart cdf')
 
     plt.legend()
     plt.show()

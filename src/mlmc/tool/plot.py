@@ -1363,14 +1363,6 @@ class Variance:
         _show_and_save(self.fig, file, self.title)
 
 
-
-
-
-
-
-
-
-
 class Aux:
     def _scatter_level_moment_data(self, ax, values, i_moments=None, marker='o'):
         """
@@ -1519,7 +1511,6 @@ class Aux:
     #                            y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
     #                            y_lim=(0.1, 20))
 
-
     def plot_means_and_vars(self, moments_mean, moments_var, n_levels, exact_moments):
         """
         Plot means with variance whiskers to given axes.
@@ -1550,7 +1541,6 @@ class Aux:
         plt.legend()
         #plt.show()
         #exit()
-
 
     def plot_var_regression(self, i_moments = None):
         """
@@ -1841,6 +1831,70 @@ class RegParametersPlot():
         # self.fig_iter.show()
         # self.fig_iter.savefig(file)
 
+label_fontsize = 12
+marker_size = 75
+class mu_to_alpha():
+
+    def __init__(self, title, x_label, y_label, x_log=True, y_log=True):
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(15, 10))
+        print("x log ", x_log)
+        if x_log:
+            self.ax.set_xlim((1e-5, 1e1))
+            #lx = np.geomspace(1e-5, 0.1, 100)
+
+        if y_log == 'log':
+            self.ax.set_ylim((1e-2, 1e2))
+        else:
+            self.ax.set_ylim((0, 1.2))
+
+        self.ax.set_xlabel(x_label)
+        self.ax.set_ylabel(y_label)
+        self.ax.axhline(y=1.0, color='red', alpha=0.3)
+
+        self.title = title
+
+    def plot(self, X, Y, color="red", axhline=True):
+        if axhline:
+            self.ax.axhline(y=1.0, color='red', alpha=0.3)
+        self.ax.scatter(X, Y, color=color, marker='.', edgecolors='none')
+
+    def show(self):
+        self.ax.legend()
+
+        file = self.title + ".pdf"
+        self.fig.show()
+        self.fig.savefig(file)
+
+    def add_patch_trun_err(self, legend):
+        from matplotlib.patches import Patch
+        ax = legend.axes
+        from matplotlib.lines import Line2D
+
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(Line2D([0, 1], [0, 1], color="black"))
+        labels.append(r'$D(\rho \Vert \rho_{35})$')
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
+
+    def add_patch(self, legend):
+        from matplotlib.patches import Patch
+        ax = legend.axes
+
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(Patch(facecolor='black'))
+        labels.append("selhání řešiče")
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
+
+
+
+
 
 
 label_fontsize = 12
@@ -2017,7 +2071,6 @@ class KL_divergence:
         if kl_mom_err:
             self.fig_mom_err, self.ax_mom_err = plt.subplots(1, 1, figsize=(12, 10))
 
-
         self.ax_kl.set_title("Kullback-Leibler divergence")
         self.ax_iter.set_title("Optimization iterations")
 
@@ -2044,8 +2097,6 @@ class KL_divergence:
 
         if self.log_y:
             self.ax_kl.set_yscale('log')
-
-
             #self.ax_mom_err.set_yscale('log')
         if log_x:
             self.ax_kl.set_xscale('log')
