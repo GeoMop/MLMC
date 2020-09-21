@@ -6,12 +6,13 @@ class Moments:
     """
     Class for moments of random distribution
     """
-    def __init__(self, size, domain, log=False, safe_eval=True):
+    def __init__(self, size, domain, log=False, safe_eval=True, mean=0):
         assert size > 0
         self.size = size
         self.domain = domain
         self._is_log = log
         self._is_clip = safe_eval
+        self.mean = mean
 
         if log:
             lin_domain = (np.log(domain[0]), np.log(domain[1]))
@@ -41,7 +42,7 @@ class Moments:
         """
         Compare two moment functions. Equal if they returns same values.
         """
-        return  type(self) is type(other) \
+        return type(self) is type(other) \
                 and self.size == other.size \
                 and np.all(self.domain == other.domain) \
                 and self._is_log == other._is_log \
@@ -75,21 +76,44 @@ class Moments:
         return self._eval_all(value, self.size)
 
     def eval(self, i, value):
+        value = self._center(value)
         return self._eval_all(value, i+1)[:, -1]
 
     def eval_fine_coarse(self, i, value):
+        value = self._center(value)
         return self._eval_all(value, i+1)[..., i]
 
     def eval_all(self, value, size=None):
         if size is None:
             size = self.size
+
+        value = self._center(value)
+
         return self._eval_all(value, size)
+
+    def _center(self, value):
+        if not isinstance(self.mean, int):
+
+            if np.all(value[..., 1]) == 0:
+                value[..., 0] = value[..., 0] - self.mean[:, None]
+            else:
+                value[...] = value[...] - self.mean[:, None, None]
+        else:
+            if np.all(value[..., 1]) == 0:
+                value[..., 0] = value[..., 0] - self.mean
+            else:
+                value[...] = value[...] - self.mean
+
+        return value
 
 
 class Monomial(Moments):
-    def __init__(self, size, domain=(0, 1), log=False, safe_eval=True):
-        self.ref_domain = (0, 1)
-        super().__init__(size, domain, log=log, safe_eval=safe_eval)
+    def __init__(self, size, domain=(0, 1), ref_domain=None, log=False, safe_eval=True, mean=0):
+        if ref_domain is not None:
+            self.ref_domain = ref_domain
+        else:
+            self.ref_domain = (0, 1)
+        super().__init__(size, domain, log=log, safe_eval=safe_eval, mean=mean)
 
     def _eval_all(self, value, size):
         # Create array from values and transform values outside the ref domain
@@ -103,9 +127,13 @@ class Monomial(Moments):
 
 
 class Fourier(Moments):
-    def __init__(self, size, domain=(0, 2*np.pi), log=False, safe_eval=True):
-        self.ref_domain = (0, 2*np.pi)
-        super().__init__(size, domain, log=log, safe_eval=safe_eval)
+    def __init__(self, size, domain=(0, 2*np.pi), ref_domain=None, log=False, safe_eval=True, mean=0):
+        if ref_domain is not None:
+            self.ref_domain = ref_domain
+        else:
+            self.ref_domain = (0, 2*np.pi)
+
+        super().__init__(size, domain, log=log, safe_eval=safe_eval, mean=mean)
 
     def _eval_all(self, value, size):
         # Transform values
@@ -138,9 +166,14 @@ class Fourier(Moments):
 
 class Legendre(Moments):
 
-    def __init__(self, size, domain, log=False, safe_eval=True):
-        self.ref_domain = (-1, 1)
-        super().__init__(size, domain, log, safe_eval)
+    def __init__(self, size, domain, ref_domain=None, log=False, safe_eval=True, mean=0):
+        if ref_domain is not None:
+            self.ref_domain = ref_domain
+        else:
+            self.ref_domain = (-1, 1)
+
+        self.mean = mean
+        super().__init__(size, domain, log, safe_eval, mean)
 
     def _eval_all(self, value, size):
         t = self.transform(np.atleast_1d(value))

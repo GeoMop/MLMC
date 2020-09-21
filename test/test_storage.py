@@ -97,12 +97,12 @@ def test_hdf_append():
     if os.path.exists(work_dir):
         shutil.rmtree(work_dir)
     os.makedirs(work_dir)
-    storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5".format()))
+    storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5"))
     n_levels = 4
     format_quant = add_samples(storage, n_levels)
     results = np.array(storage.sample_pairs())
 
-    storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5".format()))
+    storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5"))
     loaded_results = np.array(storage.sample_pairs())
 
     assert len(results) == n_levels

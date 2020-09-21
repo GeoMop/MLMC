@@ -10,7 +10,7 @@ from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc import quantity_concept as q
 from mlmc.quantity_concept import make_root_quantity, estimate_mean, moment, moments, covariance
 from mlmc.sampler import Sampler
-from mlmc.moments import Legendre
+from mlmc.moments import Legendre, Monomial
 from mlmc.quantity_estimate import QuantityEstimate
 from mlmc.sampling_pool import OneProcessPool, ProcessPool
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
@@ -357,13 +357,14 @@ class QuantityTests(unittest.TestCase):
 
         return result_format, sizes
 
-    def _create_sampler(self, step_range):
+    def _create_sampler(self, step_range, clean=False):
         # Set work dir
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
         work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
-        if os.path.exists(work_dir):
-            shutil.rmtree(work_dir)
-        os.makedirs(work_dir)
+        if clean:
+            if os.path.exists(work_dir):
+                shutil.rmtree(work_dir)
+            os.makedirs(work_dir)
 
         # Create simulations
         failed_fraction = 0.1
@@ -374,25 +375,20 @@ class QuantityTests(unittest.TestCase):
         # simulation_config = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
         # simulation_workspace = SynthSimulationWorkspace(simulation_config)
 
-        os.chdir(os.path.dirname(os.path.realpath(__file__)))
-        work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
-        if os.path.exists(work_dir):
-            shutil.rmtree(work_dir)
-        os.makedirs(work_dir)
-
         # Create sample storages
         sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_test.hdf5"))
         # Create sampling pools
         sampling_pool = OneProcessPool()
         # sampling_pool_dir = OneProcessPool(work_dir=work_dir)
 
-        if sampling_pool._output_dir is not None:
-            if os.path.exists(work_dir):
-                shutil.rmtree(work_dir)
-            os.makedirs(work_dir)
-        if simulation_factory.need_workspace:
-            os.chdir(os.path.dirname(os.path.realpath(__file__)))
-            shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
+        if clean:
+            if sampling_pool._output_dir is not None:
+                if os.path.exists(work_dir):
+                    shutil.rmtree(work_dir)
+                os.makedirs(work_dir)
+            if simulation_factory.need_workspace:
+                os.chdir(os.path.dirname(os.path.realpath(__file__)))
+                shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
 
         sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
                           level_parameters=step_range)
@@ -407,14 +403,15 @@ class QuantityTests(unittest.TestCase):
         n_moments = 3
         step_range = [[0.1], [0.001]]
 
-        sampler, simulation_factory = self._create_sampler(step_range)
+        clean = True
+        sampler, simulation_factory = self._create_sampler(step_range, clean=clean)
 
         distr = stats.norm()
         true_domain = distr.ppf([0.0001, 0.9999])
-        moments_fn = Legendre(n_moments, true_domain)
-        # moments_fn = Monomial(n_moments, true_domain)
+        #moments_fn = Legendre(n_moments, true_domain)
+        moments_fn = Monomial(n_moments, true_domain)
 
-        sampler.set_initial_n_samples([5, 5])
+        sampler.set_initial_n_samples([10, 10])
         sampler.schedule_samples()
         sampler.ask_sampling_pool_for_samples()
 
@@ -422,8 +419,9 @@ class QuantityTests(unittest.TestCase):
                                        sim_steps=step_range)
         means, vars = q_estimator.estimate_moments(moments_fn)
 
-        sampler.sample_storage.set_chunk_size(1024)
+        sampler.sample_storage.set_chunk_size(124)
         root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
+        root_quantity_mean = estimate_mean(root_quantity)
 
         # Moments values are at the bottom
         moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
@@ -445,6 +443,18 @@ class QuantityTests(unittest.TestCase):
         second_moment = moments_mean[1]
         third_moment = moments_mean[2]
         assert np.allclose(means, [first_moment()[0], second_moment()[0], third_moment()[0]])
+
+        # Central moments
+        central_moments_fn = Monomial(n_moments, domain=true_domain, ref_domain=true_domain, mean=root_quantity_mean())
+        central_moments_quantity = moments(root_quantity, moments_fn=central_moments_fn, mom_at_bottom=True)
+        central_moments_mean = estimate_mean(central_moments_quantity)
+        length_mean = central_moments_mean['length']
+        time_mean = length_mean[1]
+        location_mean = time_mean['10']
+        central_value_mean = location_mean[0]
+
+        assert np.isclose(central_value_mean()[0, 0], 1)
+        assert np.isclose(central_value_mean()[0, 1], 0)
 
         # Covariance
         cov = q_estimator.estimate_covariance(moments_fn)

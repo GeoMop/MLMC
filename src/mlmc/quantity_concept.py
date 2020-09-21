@@ -73,15 +73,16 @@ def estimate_mean(quantity):
     sums = None
     sums_power = None
     i_chunk = 0
-    chunk = []
+    level_chunks_none = np.zeros(1)
 
-    while chunk is not None:
+    while not np.alltrue(level_chunks_none):
         level_ids = quantity.level_ids()
         if i_chunk == 0:
             # initialization
             n_levels = len(level_ids)
             n_samples = [0] * n_levels
 
+        level_chunks_none = np.zeros(n_levels)
         for level_id in level_ids:
             # Chunk of samples for given level id
             chunk = quantity.samples(level_id, i_chunk)
@@ -102,6 +103,8 @@ def estimate_mean(quantity):
                 assert(chunk.shape[0] == quantity_vec_size)
                 sums[level_id] += np.sum(chunk[:, :, 0] - chunk[:, :, 1], axis=1)
                 sums_power[level_id] += np.sum((chunk[:, :, 0] - chunk[:, :, 1])**2, axis=1)
+            else:
+                level_chunks_none[level_id] = True
 
         i_chunk += 1
 
@@ -150,7 +153,7 @@ def moments(quantity, moments_fn, mom_at_bottom=True):
     # Create quantity type that has moments on the surface
     else:
         moments_qtype = ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
-    return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
+    return Quantity(quantity_type=moments_qtype, input_quantities=custom_copy([quantity]), operation=eval_moments)
 
 
 def covariance(quantity, moments_fn, cov_at_bottom=True):
@@ -280,7 +283,7 @@ class Quantity:
         :return: Quantity
         """
         assert all(np.allclose(q.storage_id(), quantities[0].storage_id()) for q in quantities), \
-            "All quantities must be from same storage"
+             "All quantities must be from same storage"
 
         assert all(q.size() == quantities[0].size() for q in quantities), "Quantity must have same structure"
         return Quantity(quantities[0].qtype, operation=operation, input_quantities=quantities)
@@ -312,6 +315,19 @@ class Quantity:
         def add_op(x, y):
             return x + y
         return self._reduction_op([self, other], add_op)
+
+    def __sub__(self, other):
+        def sub_op(x, y):
+            return x + y
+        return self._reduction_op([self, other], sub_op)
+
+    def __mul__(self, other):
+        if isinstance(other, (float, int)):
+            return self.__const_mult(other)
+
+        def mult_op(x, y):
+            return x * y
+        return self._reduction_op([self, other], mult_op)
 
     def __mul__(self, other):
         if isinstance(other, (float, int)):
@@ -676,6 +692,8 @@ class ArrayType(QType):
 
 class TimeSeriesType(QType):
     def __init__(self, times, qtype, start=0):
+        if isinstance(times, np.ndarray):
+            times = times.tolist()
         self._times = times
         self._qtype = qtype
         self.start = start

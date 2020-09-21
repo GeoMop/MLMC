@@ -20,11 +20,13 @@ class SampleStorageHDF(SampleStorage):
         self._hdf_object = hdf.HDF5(file_path=file_path, load_from_file=load_from_file)
         self._level_groups = []
         self._chunk_size = None
+
         # 'Load' level groups
         if load_from_file:
             # Create level group for each level
-            for i_level in range(len(self._hdf_object.level_parameters)):
-                self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
+            if len(self._level_groups) != len(self._hdf_object.level_parameters):
+                for i_level in range(len(self._hdf_object.level_parameters)):
+                    self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
 
     def _hdf_result_format(self, locations, times):
         """
@@ -61,8 +63,9 @@ class SampleStorageHDF(SampleStorage):
         self._hdf_object.create_file_structure(level_parameters)
 
         # Create group for each level
-        for i_level in range(len(level_parameters)):
-            self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
+        if len(self._level_groups) != len(level_parameters):
+            for i_level in range(len(level_parameters)):
+                self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
 
         # Save result format (QuantitySpec)
         self.save_result_format(result_format, res_dtype)
@@ -146,7 +149,6 @@ class SampleStorageHDF(SampleStorage):
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue
-
             levels_results[int(level.level_id)] = results
 
         return levels_results
