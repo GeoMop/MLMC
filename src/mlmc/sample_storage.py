@@ -7,6 +7,10 @@ from mlmc.sim.simulation import QuantitySpec
 
 class SampleStorage(metaclass=ABCMeta):
 
+    def __init__(self):
+        self._chunk_size = None
+        # Size of retrieved data, int - number of bytes in decimal
+
     @abstractmethod
     def save_samples(self, successful_samples, failed_samples):
         """
@@ -86,10 +90,14 @@ class SampleStorage(metaclass=ABCMeta):
         :return: int
         """
 
-    def set_chunk_size(self, chunk_size):
+    @property
+    def chunk_size(self):
+        return self._chunk_size
+
+    @chunk_size.setter
+    def chunk_size(self, chunk_size):
         """
         Set the chunk size that is used to load collected samples
-        :param chunk_size: int, number of bytes in decimal
         """
         self._chunk_size = chunk_size
 

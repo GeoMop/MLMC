@@ -312,7 +312,7 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose((sin_means()[sizes[0]:sizes[0]+sizes[1]]).tolist(), sin_means_length().tolist())
 
     def fill_sample_storage(self, sample_storage, chunk_size=512000000):
-        sample_storage.set_chunk_size(chunk_size)  # bytes in decimal
+        sample_storage.chunk_size = chunk_size  # bytes in decimal
         np.random.seed(123)
         n_levels = 3
         res_length = 3
@@ -419,7 +419,7 @@ class QuantityTests(unittest.TestCase):
                                        sim_steps=step_range)
         means, vars = q_estimator.estimate_moments(moments_fn)
 
-        sampler.sample_storage.set_chunk_size(124)
+        sampler.sample_storage.chunk_size = 124
         root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
         root_quantity_mean = estimate_mean(root_quantity)
 

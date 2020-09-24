@@ -50,6 +50,10 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
     :param q_specs: same as result format in simulation class
     :return: Quantity
     """
+    # Set chunk size as the case may be
+    if storage.chunk_size is None:
+        storage.chunk_size = 512000  # bytes in decimal
+
     dict_types = []
     for q_spec in q_specs:
         scalar_type = ScalarType(float)
@@ -64,7 +68,10 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
 
 def estimate_mean(quantity):
     """
-    MLMC mean estimator
+    MLMC mean estimator.
+    The MLMC method is used to compute the mean estimate to the Quantity dependent on the collected samples.
+    The squared error of the estimate (the estimator variance) is estimated using the central limit theorem.
+    Data is processed by chunks, so that it also supports big data processing
     :param quantity: Quantity
     :return: QuantityMean which holds both mean and variance
     """
@@ -73,7 +80,7 @@ def estimate_mean(quantity):
     sums = None
     sums_power = None
     i_chunk = 0
-    level_chunks_none = np.zeros(1)
+    level_chunks_none = np.zeros(1)  # if ones than all level chunks are empty (None)
 
     while not np.alltrue(level_chunks_none):
         level_ids = quantity.level_ids()
