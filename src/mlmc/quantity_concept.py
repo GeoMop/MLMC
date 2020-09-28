@@ -9,36 +9,21 @@ from typing import List, Tuple
 from mlmc.sample_storage import SampleStorage
 from mlmc.sim.simulation import QuantitySpec
 
-this_module = sys.modules[__name__]
 
-
-def make_method(method):
+def _method(ufunc, *args, **kwargs):
     """
-    Numpy method wrapper
-    :param method: numpy method
-    :return: inner method
+    To process input quantities to perform numpy method
+    :param args: args
+    :return: Quantity
     """
-    def _method(*args):
-        """
-        To process input quantities to perform numpy method
-        :param args: args
-        :return: Quantity
-        """
-        if all(isinstance(quantity, Quantity) for quantity in args):
-            assert all(isinstance(quantity.qtype.base_qtype(), BoolType) for quantity in args) or\
-                   all(isinstance(quantity.qtype.base_qtype(), ScalarType) for quantity in args), \
-                "All quantities must have same base type either ScalarType or BoolType"
+    if all(isinstance(quantity, Quantity) for quantity in args):
+        assert all(isinstance(quantity.qtype.base_qtype(), BoolType) for quantity in args) or\
+               all(isinstance(quantity.qtype.base_qtype(), ScalarType) for quantity in args), \
+            "All quantities must have same base type either ScalarType or BoolType"
 
-            return Quantity(quantity_type=args[0].qtype, input_quantities=custom_copy(list(args)), operation=method)
-        else:
-            raise Exception("All parameters must be quantities")
-    return _method
-
-
-# Numpy methods assigned to this module, this methods work with quantities
-for method in [np.sin, np.cos, np.add, np.maximum, np.logical_and, np.logical_or]:
-    _method = make_method(method)
-    setattr(this_module, method.__name__, _method)
+        return Quantity(quantity_type=args[0].qtype, input_quantities=custom_copy(list(args)), operation=ufunc)
+    else:
+        raise Exception("All parameters must be quantities")
 
 
 def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
@@ -66,6 +51,18 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
     return Quantity(quantity_type=dict_type, input_quantities=[QuantityStorage(storage, dict_type)])
 
 
+def remove_nan_samples(chunk):
+    """
+    Mask out samples that contain NaN in either fine or coarse part of the result
+    :param chunk: np.ndarray [M, chunk_size, 2]
+    :return: np.ndarray
+    """
+    # Fine and coarse moments mask
+    mask = np.any(np.isnan(chunk), axis=0)
+    m = ~mask.any(axis=1)
+    return chunk[:, m]
+
+
 def estimate_mean(quantity):
     """
     MLMC mean estimator.
@@ -75,10 +72,12 @@ def estimate_mean(quantity):
     :param quantity: Quantity
     :return: QuantityMean which holds both mean and variance
     """
+    Quantity.samples.cache_clear()  # clear cache
+
     quantity_vec_size = quantity.size()
     n_samples = None
     sums = None
-    sums_power = None
+    sums_of_squares = None
     i_chunk = 0
     level_chunks_none = np.zeros(1)  # if ones than all level chunks are empty (None)
 
@@ -99,29 +98,31 @@ def estimate_mean(quantity):
                     # Set variables for level sums and sums of powers
                     if i_chunk == 0:
                         sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-                        sums_power = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+                        sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
 
                     # Coarse result for level 0, there is issue for moments processing (not know about level)
                     chunk[..., 1] = 0
 
+                chunk = remove_nan_samples(chunk)
                 # level_chunk is Numpy Array with shape [M, chunk_size, 2]
                 n_samples[level_id] += chunk.shape[1]
 
                 assert(chunk.shape[0] == quantity_vec_size)
                 sums[level_id] += np.sum(chunk[:, :, 0] - chunk[:, :, 1], axis=1)
-                sums_power[level_id] += np.sum((chunk[:, :, 0] - chunk[:, :, 1])**2, axis=1)
+                sums_of_squares[level_id] += np.sum((chunk[:, :, 0] - chunk[:, :, 1])**2, axis=1)
             else:
                 level_chunks_none[level_id] = True
 
         i_chunk += 1
 
     mean = np.zeros_like(sums[0])
-    mean_square = np.zeros_like(sums[0])
-    for s, sp, n in zip(sums, sums_power, n_samples):
-        mean += s / n
-        mean_square += sp / n
+    var = np.zeros_like(sums[0])
 
-    return quantity._create_quantity_mean(mean=mean, var=mean_square - mean ** 2)
+    for s, sp, n in zip(sums, sums_of_squares, n_samples):
+        mean += s / n
+        var += (sp - (s**2/n)) / ((n-1)*n)
+
+    return quantity.create_quantity_mean(mean=mean, var=var)
 
 
 def moment(quantity, moments_fn, i=0):
@@ -197,6 +198,7 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
 
 
 class Quantity:
+
     def __init__(self, quantity_type, input_quantities=None, operation=None):
         """
         Quantity class represents real quantity and also provides operation that can be performed with stored values.
@@ -267,7 +269,7 @@ class Quantity:
         else:
             return None
 
-    def _create_quantity_mean(self, mean: np.ndarray, var: np.ndarray):
+    def create_quantity_mean(self, mean: np.ndarray, var: np.ndarray):
         """
         Crate a new quantity with the same structure but containing fixed data vector.
         Primary usage is to organise computed means and variances.
@@ -308,7 +310,7 @@ class Quantity:
         # More conditions leads to default AND
         if len(args) > 1:
             for m in args[1:]:
-                masks = logical_and(masks, m)  # method from this module
+                masks = np.logical_and(masks, m)  # method from this module
 
         def op(x, level_id, i_chunk):
             mask = masks.samples(i_chunk, level_id)
@@ -317,6 +319,9 @@ class Quantity:
             return x
 
         return Quantity(quantity_type=self.qtype, input_quantities=[self], operation=op)
+
+    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
+        return _method(ufunc, *args, **kwargs)
 
     def __add__(self, other):
         def add_op(x, y):

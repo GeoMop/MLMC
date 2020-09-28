@@ -9,6 +9,7 @@ from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc import quantity_concept as q
 from mlmc.quantity_concept import make_root_quantity, estimate_mean, moment, moments, covariance
+from mlmc.quantity_concept import Quantity, QuantityStorage, DictType
 from mlmc.sampler import Sampler
 from mlmc.moments import Legendre, Monomial
 from mlmc.quantity_estimate import QuantityEstimate
@@ -54,6 +55,13 @@ class QuantityTests(unittest.TestCase):
         depth = root_quantity['depth']
         means_depth = estimate_mean(depth)
         assert np.allclose((means()[:sizes[0]]).tolist(), means_depth().tolist())
+
+        # dict_types = [("length_1", length.qtype), ("length_2", length.qtype)]
+        # dict_type = DictType(dict_types)
+        # lengths = np.concatenate(length, length)
+        # new_q = Quantity(quantity_type=dict_type, input_quantities=[lengths])
+        # new_q_mean = estimate_mean(new_q)
+        # assert np.allclose(new_q_mean(), np.concatenate(means_length(), means_length()))
 
         # Interpolation in time
         locations = length.time_interpolation(2.5)
@@ -202,7 +210,7 @@ class QuantityTests(unittest.TestCase):
         self.assertRaises(ValueError, estimate_mean, new_quantity)
 
         # bound root quantity result - select the ones which meet conditions
-        mask = q.logical_and(0 < root_quantity, root_quantity < 10)
+        mask = np.logical_and(0 < root_quantity, root_quantity < 10)
         q_bounded = root_quantity.select(mask)
         mean_q_bounded = estimate_mean(q_bounded)
 
@@ -294,20 +302,20 @@ class QuantityTests(unittest.TestCase):
 
         root_quantity_means = estimate_mean(root_quantity)
 
-        sin_root_quantity = q.sin(root_quantity)
+        sin_root_quantity = np.sin(root_quantity)
         sin_means = estimate_mean(sin_root_quantity)
         assert len(sin_means()) == np.sum(sizes)
 
-        add_root_quantity = q.add(root_quantity, root_quantity)  # Add arguments element-wise.
+        add_root_quantity = np.add(root_quantity, root_quantity)  # Add arguments element-wise.
         add_root_quantity_means = estimate_mean(add_root_quantity)
         assert np.allclose(add_root_quantity_means().tolist(), (root_quantity_means() * 2).tolist())
 
-        max_root_quantity = q.maximum(root_quantity, root_quantity)  # Element-wise maximum of array elements.
+        max_root_quantity = np.maximum(root_quantity, root_quantity)  # Element-wise maximum of array elements.
         max_root_quantity_means = estimate_mean(max_root_quantity)
         assert np.allclose(max_root_quantity_means(), root_quantity_means())
 
         length = root_quantity['length']
-        sin_length = q.sin(length)
+        sin_length = np.sin(length)
         sin_means_length = estimate_mean(sin_length)
         assert np.allclose((sin_means()[sizes[0]:sizes[0]+sizes[1]]).tolist(), sin_means_length().tolist())
 
@@ -411,7 +419,7 @@ class QuantityTests(unittest.TestCase):
         #moments_fn = Legendre(n_moments, true_domain)
         moments_fn = Monomial(n_moments, true_domain)
 
-        sampler.set_initial_n_samples([10, 10])
+        sampler.set_initial_n_samples([100, 100])
         sampler.schedule_samples()
         sampler.ask_sampling_pool_for_samples()
 
@@ -419,7 +427,7 @@ class QuantityTests(unittest.TestCase):
                                        sim_steps=step_range)
         means, vars = q_estimator.estimate_moments(moments_fn)
 
-        sampler.sample_storage.chunk_size = 124
+        sampler.sample_storage.chunk_size = 1024
         root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
         root_quantity_mean = estimate_mean(root_quantity)
 
@@ -430,7 +438,9 @@ class QuantityTests(unittest.TestCase):
         time_mean = length_mean[1]
         location_mean = time_mean['10']
         value_mean = location_mean[0]
-        assert np.allclose(value_mean(), means)
+
+        assert np.allclose(value_mean(), means, atol=1e-4)
+        assert np.allclose(value_mean.var(), vars, atol=1e-4)
 
         new_moments = moments_quantity + moments_quantity
         new_moments_mean = estimate_mean(new_moments)
@@ -442,7 +452,7 @@ class QuantityTests(unittest.TestCase):
         first_moment = moments_mean[0]
         second_moment = moments_mean[1]
         third_moment = moments_mean[2]
-        assert np.allclose(means, [first_moment()[0], second_moment()[0], third_moment()[0]])
+        assert np.allclose(means, [first_moment()[0], second_moment()[0], third_moment()[0]], atol=1e-4)
 
         # Central moments
         central_moments_fn = Monomial(n_moments, domain=true_domain, ref_domain=true_domain, mean=root_quantity_mean())
@@ -453,8 +463,8 @@ class QuantityTests(unittest.TestCase):
         location_mean = time_mean['10']
         central_value_mean = location_mean[0]
 
-        assert np.isclose(central_value_mean()[0, 0], 1)
-        assert np.isclose(central_value_mean()[0, 1], 0)
+        assert np.isclose(central_value_mean()[0, 0], 1, atol=1e-10)
+        assert np.isclose(central_value_mean()[0, 1], 0, atol=1e-2)
 
         # Covariance
         cov = q_estimator.estimate_covariance(moments_fn)

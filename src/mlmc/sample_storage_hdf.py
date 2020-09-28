@@ -233,3 +233,6 @@ class SampleStorageHDF(SampleStorage):
 
     def get_level_ids(self):
         return [int(level.level_id) for level in self._level_groups]
+
+    def get_level_parameters(self):
+        return self._hdf_object.level_parameters

@@ -191,6 +191,7 @@ class QuantityEstimate:
             l_vars, ns = self.estimate_diff_var(moments_fn, level_result, zero_level)
             vars.append(l_vars)
             n_samples.append(ns)
+
         means = np.sum(np.array(means), axis=0)
         n_samples = np.array(n_samples, dtype=int)
         vars = np.sum(np.array(vars) / n_samples[:, None], axis=0)
@@ -201,14 +202,15 @@ class QuantityEstimate:
         """
         Estimate moments variance
         :param moments_fn: Moments evaluation function
-        :return: tuple (variance vector, length of moments)
+        :return: variance vector, number of samples
         """
-
         mom_fine, mom_coarse = self.evaluate_moments(moments_fn, level_results, zero_level)
+
         assert len(mom_fine) == len(mom_coarse)
         assert len(mom_fine) >= 2
         var_vec = np.var(mom_fine - mom_coarse, axis=0, ddof=1)
-        ns = level_results.shape[1]
+
+        ns = level_results.shape[0]
         return var_vec, ns
 
     def estimate_diff_mean(self, moments_fn, level_result, zero_level=False):
