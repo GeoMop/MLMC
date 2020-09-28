@@ -1,15 +1,15 @@
 import os
 import sys
 import numpy as np
-
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.tool.flow_mc import FlowSim
-from mlmc.moments import Legendre
+from mlmc.moments import Legendre, Monomial
 from mlmc.tool.process_base import ProcessBase
 from mlmc.quantity_estimate import QuantityEstimate
+from mlmc.quantity_concept import make_root_quantity, estimate_mean, moment, moments, covariance
 
 
 class ProcessSimple:
@@ -39,10 +39,49 @@ class ProcessSimple:
 
         if args.command == 'run':
             self.run()
+        elif args.command == "process":
+            self.process()
         else:
             self.append = True  # Use 'collect' command (see base_process.Process) to add samples
             self.clean = False
             self.run(renew=True) if args.command == 'renew' else self.run()
+
+    def process(self):
+        sample_storage = SampleStorageHDF(file_path=os.path.join(self.work_dir, "mlmc_{}.hdf5".format(self.n_levels)))
+        sample_storage.chunk_size = 1024
+        result_format = sample_storage.load_result_format()
+        root_quantity = make_root_quantity(sample_storage, result_format)
+
+        # conductivity = root_quantity['conductivity']
+        # time = conductivity[1]  # times: [1]
+        # location = time['0']  # locations: ['0']
+        # values = location[0, 0]  # result shape: (1, 1)
+
+        means = estimate_mean(root_quantity)
+        # @TODO: How to estimate true_domain?
+        true_domain = list(QuantityEstimate.estimate_domain(sample_storage, quantile=0.01))
+
+        n_moments = 10
+        #moments_fn = Legendre(n_moments, true_domain)
+        moments_fn = Monomial(n_moments, true_domain)
+
+        moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
+        moments_mean = estimate_mean(moments_quantity)
+
+        conductivity_mean = moments_mean['conductivity']
+        time_mean = conductivity_mean[1]  # times: [1]
+        location_mean = time_mean['0']  # locations: ['0']
+        values_mean = location_mean[0, 0]  # result shape: (1, 1)
+        value_mean = values_mean[0]
+        assert value_mean() == 1
+
+        true_domain = [-10, 10]  # keep all values on the original domain
+        central_moments_fn = Monomial(n_moments, true_domain, ref_domain=true_domain, mean=means())
+        central_moments_quantity = moments(root_quantity, moments_fn=central_moments_fn, mom_at_bottom=True)
+        central_moments_mean = estimate_mean(central_moments_quantity)
+
+        print("central moments mean ", central_moments_mean())
+        print("moments mean ", moments_mean())
 
     def run(self, renew=False):
         """
@@ -61,7 +100,7 @@ class ProcessSimple:
         # Create sampler (mlmc.Sampler instance) - crucial class which actually schedule samples
         sampler = self.setup_config(clean=True)
         # Schedule samples
-        self.generate_jobs(sampler, n_samples=[5, 5], renew=renew)
+        self.generate_jobs(sampler, n_samples=[10, 10], renew=renew)
 
         self.all_collect(sampler)  # Check if all samples are finished
         self.calculate_moments(sampler)  # Simple moment check
@@ -92,7 +131,8 @@ class ProcessSimple:
         # Create HDF sample storage
         sample_storage = SampleStorageHDF(
             file_path=os.path.join(self.work_dir, "mlmc_{}.hdf5".format(self.n_levels)),
-            append=self.append)
+            #append=self.append
+        )
 
         # Create sampler, it manages sample scheduling and so on
         sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
@@ -200,19 +240,13 @@ class ProcessSimple:
 
         q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
                                        sim_steps=self.level_parameters)
-
-        print("collected samples ", sampler._n_scheduled_samples)
         means, vars = q_estimator.estimate_moments(moments_fn)
-        print("means ", means)
-        print("vars ", vars)
-
         # The first moment is in any case 1 and its variance is 0
         assert means[0] == 1
         # assert np.isclose(means[1], 0, atol=1e-2)
         assert vars[0] == 0
 
-    def set_moments(self, sample_storage):
-        n_moments = 5
+    def set_moments(self, sample_storage, n_moments=5):
         true_domain = QuantityEstimate.estimate_domain(sample_storage, quantile=0.01)
         return Legendre(n_moments, true_domain)
     

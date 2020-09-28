@@ -36,7 +36,7 @@ class ProcessBase:
         import argparse
         parser = argparse.ArgumentParser()
 
-        parser.add_argument('command', choices=['run', 'collect', 'renew'],
+        parser.add_argument('command', choices=['run', 'collect', 'renew', 'process'],
                             help='run - create new execution,'
                                  'collect - keep collected, append existing HDF file'
                                  'renew - renew failed samples, run new samples with failed sample ids (which determine random seed)')
