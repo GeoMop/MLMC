@@ -1,8 +1,8 @@
-import sys
 import abc
 import numpy as np
 import copy
 import operator
+from inspect import signature
 from memoization import cached
 from scipy import interpolate
 from typing import List, Tuple
@@ -10,18 +10,42 @@ from mlmc.sample_storage import SampleStorage
 from mlmc.sim.simulation import QuantitySpec
 
 
-def _method(ufunc, *args, **kwargs):
+# def _process_input_params(args):
+#     new_args = []
+#     for arg in args:
+#         if isinstance(arg, Quantity):
+#             new_args.append(arg)
+#         if isinstance(arg, (list, np.ndarray)):
+#             array = np.array(arg)
+#             scalar_type = ScalarType(float)
+#             array_type = ArrayType(array.shape, scalar_type)
+#             storage = QuantityStorage()
+#             q = Quantity()
+#
+#             # @TODO: make ArrayType quantity - in consequence of that It makes me rework QuantityStorage,
+#             #  so that it would accept array, int, ... as type of SampleStorage. Usage of Memory() seems to be overkill
+#
+#     return tuple(new_args)
+
+
+def _method(ufunc, method, *args, **kwargs):
     """
     To process input quantities to perform numpy method
     :param args: args
     :return: Quantity
     """
+    def _aux_method(*input_quantities_chunks):
+        if len(input_quantities_chunks) == 1:
+            return getattr(ufunc, method)(input_quantities_chunks[0], **kwargs)
+        else:
+            return getattr(ufunc, method)(*input_quantities_chunks, **kwargs)
+
     if all(isinstance(quantity, Quantity) for quantity in args):
         assert all(isinstance(quantity.qtype.base_qtype(), BoolType) for quantity in args) or\
                all(isinstance(quantity.qtype.base_qtype(), ScalarType) for quantity in args), \
             "All quantities must have same base type either ScalarType or BoolType"
 
-        return Quantity(quantity_type=args[0].qtype, input_quantities=custom_copy(list(args)), operation=ufunc)
+        return Quantity(quantity_type=args[0].qtype, input_quantities=list(args), operation=_aux_method)
     else:
         raise Exception("All parameters must be quantities")
 
@@ -60,7 +84,7 @@ def remove_nan_samples(chunk):
     # Fine and coarse moments mask
     mask = np.any(np.isnan(chunk), axis=0)
     m = ~mask.any(axis=1)
-    return chunk[:, m]
+    return chunk[..., m, :]
 
 
 def estimate_mean(quantity):
@@ -72,7 +96,7 @@ def estimate_mean(quantity):
     :param quantity: Quantity
     :return: QuantityMean which holds both mean and variance
     """
-    Quantity.samples.cache_clear()  # clear cache
+    Quantity.samples.cache_clear()
 
     quantity_vec_size = quantity.size()
     n_samples = None
@@ -134,7 +158,7 @@ def moment(quantity, moments_fn, i=0):
     :return: Quantity
     """
     def eval_moment(x):
-        return moments_fn.eval_fine_coarse(i, value=x)
+        return moments_fn.eval_single_moment(i, value=x)
     return Quantity(quantity_type=quantity.qtype, input_quantities=[quantity], operation=eval_moment)
 
 
@@ -161,7 +185,7 @@ def moments(quantity, moments_fn, mom_at_bottom=True):
     # Create quantity type that has moments on the surface
     else:
         moments_qtype = ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
-    return Quantity(quantity_type=moments_qtype, input_quantities=custom_copy([quantity]), operation=eval_moments)
+    return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
 
 
 def covariance(quantity, moments_fn, cov_at_bottom=True):
@@ -238,7 +262,7 @@ class Quantity:
         :param i_chunk: int
         :return: tuple
         """
-        return (level_id, i_chunk, id(self), *[id(q) for q in self._input_quantities], id(self._operation)) # parentheses needed due to py36, py37
+        return (level_id, i_chunk, id(self))  # redundant parentheses needed due to py36, py37
 
     @cached(custom_key_maker=get_cache_key)
     def samples(self, level_id, i_chunk):
@@ -249,6 +273,9 @@ class Quantity:
         :param i_chunk: int
         :return: np.ndarray
         """
+        assert all(np.allclose(q.storage_id(), self._input_quantities[0].storage_id()) for q in self._input_quantities), \
+            "All quantities must be from same storage"
+
         chunks_quantity_level = [q.samples(level_id, i_chunk) for q in self._input_quantities]
 
         is_valid = (ch is not None for ch in chunks_quantity_level)
@@ -258,14 +285,14 @@ class Quantity:
             if self._operation is None:
                 return chunks_quantity_level[0]
 
-            try:  # numpy function does not have __code__
-                # We need to pass level id and chunk id to select operation
-                if all(par in self._operation.__code__.co_varnames for par in ['level_id', 'i_chunk']):
-                    return self._operation(*chunks_quantity_level, level_id=level_id, i_chunk=i_chunk)
-            except:
-                pass
-
-            return self._operation(*chunks_quantity_level)
+            additional_params = {}
+            if self._operation is not None:
+                sig_params = signature(self._operation).parameters
+                if 'level_id' in sig_params:
+                    additional_params['level_id'] = level_id
+                if 'i_chunk' in sig_params:
+                    additional_params['i_chunk'] = i_chunk
+            return self._operation(*chunks_quantity_level, **additional_params)
         else:
             return None
 
@@ -291,9 +318,6 @@ class Quantity:
         :param operation: function which is run with given quantities
         :return: Quantity
         """
-        assert all(np.allclose(q.storage_id(), quantities[0].storage_id()) for q in quantities), \
-             "All quantities must be from same storage"
-
         assert all(q.size() == quantities[0].size() for q in quantities), "Quantity must have same structure"
         return Quantity(quantities[0].qtype, operation=operation, input_quantities=quantities)
 
@@ -313,7 +337,7 @@ class Quantity:
                 masks = np.logical_and(masks, m)  # method from this module
 
         def op(x, level_id, i_chunk):
-            mask = masks.samples(i_chunk, level_id)
+            mask = masks.samples(level_id, i_chunk)
             if mask is not None:
                 return x[..., mask, :]  # [...sample size, cut number of samples, 2]
             return x
@@ -321,7 +345,7 @@ class Quantity:
         return Quantity(quantity_type=self.qtype, input_quantities=[self], operation=op)
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs):
-        return _method(ufunc, *args, **kwargs)
+        return _method(ufunc, method, *args, **kwargs)
 
     def __add__(self, other):
         def add_op(x, y):
@@ -359,18 +383,20 @@ class Quantity:
             return c * x
         return self._reduction_op([self], cmult_op)
 
-    def _process_mask(self, x, y, operator):
+    @staticmethod
+    def _process_mask(x, y, operator, level_id):
         """
         Create samples mask
+        All values for sample must meet given condition, if any value doesn't meet the condition,
+        whole sample is eliminated
         :param x: Quantity
         :param y: Quantity or int, float
         :param operator: operator module function
+        :param level_id: int, level identifier
         :return: np.ndarray of bools
         """
-        # all values for sample must meet given condition,
-        # if any value doesn't meet the condition, whole sample is eliminated
-
-        # It is most likely zero level, so use just fine samples
+        # Zero level - use just fine samples
+        #if level_id == 0:
         if np.all((x[..., 1] == 0)):
             if isinstance(y, int) or isinstance(y, float):
                 mask = operator(x[..., 0], y)  # y is int or float
@@ -403,33 +429,33 @@ class Quantity:
             return Quantity(quantity_type=new_qtype, input_quantities=[self, other], operation=op)
 
     def __lt__(self, other):
-        def lt_op(x, y=other):
-            return self._process_mask(x, y, operator.lt)
+        def lt_op(x, y=other, level_id=0):
+            return Quantity._process_mask(x, y, operator.lt, level_id)
         return self._mask_quantity(other, lt_op)
 
     def __le__(self, other):
-        def le_op(x, y=other):
-            return self._process_mask(x, y, operator.le)
+        def le_op(x, y=other, level_id=0):
+            return self._process_mask(x, y, operator.le, level_id)
         return self._mask_quantity(other, le_op)
 
     def __gt__(self, other):
-        def gt_op(x, y=other):
-            return self._process_mask(x, y, operator.gt)
+        def gt_op(x, y=other, level_id=0):
+            return self._process_mask(x, y, operator.gt, level_id)
         return self._mask_quantity(other, gt_op)
 
     def __ge__(self, other):
-        def ge_op(x, y=other):
-            return self._process_mask(x, y, operator.ge)
+        def ge_op(x, y=other, level_id=0):
+            return self._process_mask(x, y, operator.ge, level_id)
         return self._mask_quantity(other, ge_op)
 
     def __eq__(self, other):
-        def eq_op(x, y=other):
-            return self._process_mask(x, y, operator.eq)
+        def eq_op(x, y=other, level_id=0):
+            return self._process_mask(x, y, operator.eq, level_id)
         return self._mask_quantity(other, eq_op)
 
     def __ne__(self, other):
-        def ne_op(x, y=other):
-            return self._process_mask(x, y, operator.ne)
+        def ne_op(x, y=other, level_id=0):
+            return self._process_mask(x, y, operator.ne, level_id)
         return self._mask_quantity(other, ne_op)
 
     def sampling(self, size):
@@ -485,8 +511,7 @@ class Quantity:
         raise Exception("This class is not iterable")
 
     def __copy__(self):
-        return Quantity(quantity_type=self.qtype, input_quantities=custom_copy(self._input_quantities),
-                        operation=self._operation)
+        return Quantity(quantity_type=self.qtype, input_quantities=self._input_quantities, operation=self._operation)
 
     def time_interpolation(self, value):
         """
@@ -500,7 +525,7 @@ class Quantity:
             f = interpolate.interp1d(self.qtype._times, y, axis=0)
             return f(value)
 
-        return Quantity(quantity_type=self.qtype._qtype, input_quantities=custom_copy([self]), operation=interp)
+        return Quantity(quantity_type=self.qtype._qtype, input_quantities=[self], operation=interp)
 
     def level_ids(self):
         """
@@ -796,9 +821,4 @@ class DictType(QType):
             size += qt.size()
 
         q_type.start = size
-
         return q_type
-
-
-def custom_copy(quantities):
-    return[copy.copy(quantity) for quantity in quantities]

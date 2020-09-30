@@ -79,7 +79,13 @@ class Moments:
         value = self._center(value)
         return self._eval_all(value, i+1)[:, -1]
 
-    def eval_fine_coarse(self, i, value):
+    def eval_single_moment(self, i, value):
+        """
+        Be aware this implementation is inefficient for large i
+        :param i: int, order of moment
+        :param value: float
+        :return: np.ndarray
+        """
         value = self._center(value)
         return self._eval_all(value, i+1)[..., i]
 
@@ -93,7 +99,6 @@ class Moments:
 
     def _center(self, value):
         if not isinstance(self.mean, int):
-
             if np.all(value[..., 1]) == 0:
                 value[..., 0] = value[..., 0] - self.mean[:, None]
             else:

@@ -28,6 +28,7 @@ def _prepare_work_dir():
 
 
 class QuantityTests(unittest.TestCase):
+
     def test_basics(self):
         """
         Test basic quantity properties, especially indexing
@@ -54,7 +55,7 @@ class QuantityTests(unittest.TestCase):
 
         depth = root_quantity['depth']
         means_depth = estimate_mean(depth)
-        assert np.allclose((means()[:sizes[0]]).tolist(), means_depth().tolist())
+        assert np.allclose((means()[:sizes[0]]), means_depth())
 
         # dict_types = [("length_1", length.qtype), ("length_2", length.qtype)]
         # dict_type = DictType(dict_types)
@@ -121,7 +122,7 @@ class QuantityTests(unittest.TestCase):
         quantity_add = root_quantity + root_quantity
         means_add = estimate_mean(quantity_add)
         assert np.allclose((means() + means()), means_add())
-        #
+
         length = quantity_add['length']
         means_length = estimate_mean(length)
         assert np.allclose((means_add()[sizes[0]:sizes[0]+sizes[1]]).tolist(), means_length().tolist())
@@ -190,7 +191,7 @@ class QuantityTests(unittest.TestCase):
         all_root_quantity_mean = estimate_mean(all_root_quantity)
         assert np.allclose(root_quantity_mean(), all_root_quantity_mean())
 
-        selected_quantity = root_quantity.select(root_quantity < 5)
+        selected_quantity = root_quantity.select(root_quantity < 0)
         selected_quantity_mean = estimate_mean(selected_quantity)
         assert len(selected_quantity_mean()) == 0
 
@@ -306,9 +307,19 @@ class QuantityTests(unittest.TestCase):
         sin_means = estimate_mean(sin_root_quantity)
         assert len(sin_means()) == np.sum(sizes)
 
+        # round_root_quantity = np.sum(root_quantity)
+        # round_means = estimate_mean(round_root_quantity)
+        # print("round_means ", round_means())
+        # assert len(round_means()) == np.sum(sizes)
+
         add_root_quantity = np.add(root_quantity, root_quantity)  # Add arguments element-wise.
         add_root_quantity_means = estimate_mean(add_root_quantity)
+
         assert np.allclose(add_root_quantity_means().tolist(), (root_quantity_means() * 2).tolist())
+
+        # x = np.random.randn(36, 5, 2)
+        # add_x_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.
+        # add_x_root_quantity_means = estimate_mean(add_x_root_quantity)
 
         max_root_quantity = np.maximum(root_quantity, root_quantity)  # Element-wise maximum of array elements.
         max_root_quantity_means = estimate_mean(max_root_quantity)
@@ -419,14 +430,13 @@ class QuantityTests(unittest.TestCase):
         #moments_fn = Legendre(n_moments, true_domain)
         moments_fn = Monomial(n_moments, true_domain)
 
-        sampler.set_initial_n_samples([100, 100])
+        sampler.set_initial_n_samples([50, 50])
         sampler.schedule_samples()
         sampler.ask_sampling_pool_for_samples()
 
         q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
                                        sim_steps=step_range)
         means, vars = q_estimator.estimate_moments(moments_fn)
-
         sampler.sample_storage.chunk_size = 1024
         root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
         root_quantity_mean = estimate_mean(root_quantity)
