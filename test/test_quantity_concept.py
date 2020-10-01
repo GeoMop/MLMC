@@ -57,13 +57,6 @@ class QuantityTests(unittest.TestCase):
         means_depth = estimate_mean(depth)
         assert np.allclose((means()[:sizes[0]]), means_depth())
 
-        # dict_types = [("length_1", length.qtype), ("length_2", length.qtype)]
-        # dict_type = DictType(dict_types)
-        # lengths = np.concatenate(length, length)
-        # new_q = Quantity(quantity_type=dict_type, input_quantities=[lengths])
-        # new_q_mean = estimate_mean(new_q)
-        # assert np.allclose(new_q_mean(), np.concatenate(means_length(), means_length()))
-
         # Interpolation in time
         locations = length.time_interpolation(2.5)
         mean_interp_value = estimate_mean(locations)
@@ -135,6 +128,30 @@ class QuantityTests(unittest.TestCase):
         const_mult_quantity = const * root_quantity
         const_mult_mean = estimate_mean(const_mult_quantity)
         assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
+
+        # Concatenate quantities
+        dict_types = [("length", length.qtype), ("depth", depth.qtype)]
+        dict_type = DictType(dict_types)
+        quantity_concat = Quantity.concatenate([length, depth], qtype=dict_type)
+        new_q_mean = estimate_mean(quantity_concat)
+        assert np.allclose(new_q_mean(), np.concatenate((means_length(), means_depth())))
+
+        length = quantity_concat['length']
+        locations = length.time_interpolation(2.5)
+        mean_interp_value = estimate_mean(locations)
+        position = locations['10']
+        mean_position_1 = estimate_mean(position)
+        assert np.allclose(mean_interp_value()[:len(mean_interp_value()) // 2], mean_position_1())
+        values = position[:, 2]
+        values_mean = estimate_mean(values)
+        assert len(values_mean()) == 2
+        y = position[1, 2]
+        y_mean = estimate_mean(y)
+        assert len(y_mean()) == 1
+
+        depth = quantity_concat['depth']
+        means_depth = estimate_mean(depth)
+        assert np.allclose((means()[:sizes[0]]), means_depth())
 
     def test_binary_operations(self):
         """
@@ -309,7 +326,6 @@ class QuantityTests(unittest.TestCase):
 
         # round_root_quantity = np.sum(root_quantity)
         # round_means = estimate_mean(round_root_quantity)
-        # print("round_means ", round_means())
         # assert len(round_means()) == np.sum(sizes)
 
         add_root_quantity = np.add(root_quantity, root_quantity)  # Add arguments element-wise.

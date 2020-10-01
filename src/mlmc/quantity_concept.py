@@ -1,4 +1,5 @@
 import abc
+import sys
 import numpy as np
 import copy
 import operator
@@ -8,25 +9,6 @@ from scipy import interpolate
 from typing import List, Tuple
 from mlmc.sample_storage import SampleStorage
 from mlmc.sim.simulation import QuantitySpec
-
-
-# def _process_input_params(args):
-#     new_args = []
-#     for arg in args:
-#         if isinstance(arg, Quantity):
-#             new_args.append(arg)
-#         if isinstance(arg, (list, np.ndarray)):
-#             array = np.array(arg)
-#             scalar_type = ScalarType(float)
-#             array_type = ArrayType(array.shape, scalar_type)
-#             storage = QuantityStorage()
-#             q = Quantity()
-#
-#             # @TODO: make ArrayType quantity - in consequence of that It makes me rework QuantityStorage,
-#             #  so that it would accept array, int, ... as type of SampleStorage. Usage of Memory() seems to be overkill
-#
-#     return tuple(new_args)
-
 
 def _method(ufunc, method, *args, **kwargs):
     """
@@ -97,7 +79,6 @@ def estimate_mean(quantity):
     :return: QuantityMean which holds both mean and variance
     """
     Quantity.samples.cache_clear()
-
     quantity_vec_size = quantity.size()
     n_samples = None
     sums = None
@@ -286,12 +267,15 @@ class Quantity:
                 return chunks_quantity_level[0]
 
             additional_params = {}
-            if self._operation is not None:
-                sig_params = signature(self._operation).parameters
-                if 'level_id' in sig_params:
-                    additional_params['level_id'] = level_id
-                if 'i_chunk' in sig_params:
-                    additional_params['i_chunk'] = i_chunk
+            try:
+                if self._operation is not None:
+                    sig_params = signature(self._operation).parameters
+                    if 'level_id' in sig_params:
+                        additional_params['level_id'] = level_id
+                    if 'i_chunk' in sig_params:
+                        additional_params['i_chunk'] = i_chunk
+            except:
+                pass
             return self._operation(*chunks_quantity_level, **additional_params)
         else:
             return None
@@ -396,8 +380,8 @@ class Quantity:
         :return: np.ndarray of bools
         """
         # Zero level - use just fine samples
-        #if level_id == 0:
-        if np.all((x[..., 1] == 0)):
+        if level_id == 0:
+        #if np.all((x[..., 1] == 0)):
             if isinstance(y, int) or isinstance(y, float):
                 mask = operator(x[..., 0], y)  # y is int or float
             else:
@@ -534,6 +518,20 @@ class Quantity:
         :return: List[int]
         """
         return self._input_quantities[0].level_ids()
+
+    @staticmethod
+    def concatenate(quantities, qtype, axis=0):
+        """
+        Concatenate level_chunks
+        :param quantities: list of quantities
+        :param qtype: QType
+        :param axis: int
+        :return: Quantity
+        """
+        def op_concatenate(*chunks):
+            y = np.concatenate(tuple(chunks), axis=axis)
+            return y
+        return Quantity(qtype, input_quantities=[*quantities], operation=op_concatenate)
 
 
 class QuantityMean:
