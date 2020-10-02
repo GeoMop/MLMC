@@ -1,5 +1,4 @@
 import abc
-import sys
 import numpy as np
 import copy
 import operator
@@ -9,6 +8,7 @@ from scipy import interpolate
 from typing import List, Tuple
 from mlmc.sample_storage import SampleStorage
 from mlmc.sim.simulation import QuantitySpec
+
 
 def _method(ufunc, method, *args, **kwargs):
     """
@@ -29,7 +29,7 @@ def _method(ufunc, method, *args, **kwargs):
 
         return Quantity(quantity_type=args[0].qtype, input_quantities=list(args), operation=_aux_method)
     else:
-        raise Exception("All parameters must be quantities")
+        raise ValueError("All args parameters must be quantities")
 
 
 def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
@@ -39,7 +39,7 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
     Quantity type is created based on the q_spec parameter
     :param storage: SampleStorage
     :param q_specs: same as result format in simulation class
-    :return: Quantity
+    :return: QuantityStorage
     """
     # Set chunk size as the case may be
     if storage.chunk_size is None:
@@ -54,7 +54,7 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
         dict_types.append((q_spec.name, ts_type))
     dict_type = DictType(dict_types)
 
-    return Quantity(quantity_type=dict_type, input_quantities=[QuantityStorage(storage, dict_type)])
+    return QuantityStorage(storage, dict_type)
 
 
 def remove_nan_samples(chunk):
@@ -254,8 +254,8 @@ class Quantity:
         :param i_chunk: int
         :return: np.ndarray
         """
-        assert all(np.allclose(q.storage_id(), self._input_quantities[0].storage_id()) for q in self._input_quantities), \
-            "All quantities must be from same storage"
+        if not all(np.allclose(q.storage_id(), self._input_quantities[0].storage_id()) for q in self._input_quantities):
+            raise Exception("Not all input quantities come from the same quantity storage")
 
         chunks_quantity_level = [q.samples(level_id, i_chunk) for q in self._input_quantities]
 
@@ -302,7 +302,7 @@ class Quantity:
         :param operation: function which is run with given quantities
         :return: Quantity
         """
-        assert all(q.size() == quantities[0].size() for q in quantities), "Quantity must have same structure"
+        assert all(q.size() == quantities[0].size() for q in quantities), "Quantities don't have have the same size"
         return Quantity(quantities[0].qtype, operation=operation, input_quantities=quantities)
 
     def select(self, *args):
@@ -311,9 +311,13 @@ class Quantity:
         :param args: Quantity
         :return: Quantity
         """
+        # args always has len() at least 1
         masks = args[0]
-        assert all(isinstance(quantity.qtype.base_qtype(), BoolType) for quantity in args), \
-            "All mask quantities must have base type BoolType"
+
+        for quantity in args:
+            if not isinstance(quantity.qtype.base_qtype(), BoolType):
+                raise Exception("Quantity: {} doesn't have BoolType, instead it has QType: {}"
+                                .format(quantity, quantity.qtype.base_qtype()))
 
         # More conditions leads to default AND
         if len(args) > 1:
@@ -381,7 +385,6 @@ class Quantity:
         """
         # Zero level - use just fine samples
         if level_id == 0:
-        #if np.all((x[..., 1] == 0)):
             if isinstance(y, int) or isinstance(y, float):
                 mask = operator(x[..., 0], y)  # y is int or float
             else:
@@ -403,13 +406,19 @@ class Quantity:
         new_qtype.replace_scalar(bool_type)
 
         if isinstance(other, (float, int)):
-            assert isinstance(self.qtype.base_qtype(), ScalarType), "Quantities with base type ScalarType " \
-                                                                    "are the only ones that support comparison "
+            if not isinstance(self.qtype.base_qtype(), ScalarType):
+                raise TypeError("Quantity has base qtype {}. "
+                                "Quantities with base qtype ScalarType are the only ones that support comparison".
+                                format(self.qtype.base_qtype()))
+
             return Quantity(quantity_type=new_qtype, input_quantities=[self], operation=op)
         elif isinstance(other, Quantity):
-            assert self.qtype.size() == other.qtype.size(), "Both quantities must have same structure"
-            assert isinstance(self.qtype.base_qtype(), ScalarType) and isinstance(other.qtype.base_qtype(), ScalarType), \
-                "Quantities with base type ScalarType are the only ones that support comparison "
+            if self.qtype.size() != other.qtype.size():
+                raise Exception("Quantities don't have have the same size")
+            if not isinstance(self.qtype.base_qtype(), ScalarType) or not isinstance(other.qtype.base_qtype(), ScalarType):
+                raise TypeError("Quantity has base qtype {}. "
+                                "Quantities with base qtype ScalarType are the only ones that support comparison".
+                                format(self.qtype.base_qtype()))
             return Quantity(quantity_type=new_qtype, input_quantities=[self, other], operation=op)
 
     def __lt__(self, other):
@@ -463,33 +472,10 @@ class Quantity:
         """
         new_qtype = self.qtype[key]  # New quantity type
 
-        reshape_shape = None
-        # ArrayType might be accessed directly regardless of qtype start and size
-        if isinstance(self.qtype, ArrayType):
-            slice_key = key
-            reshape_shape = self.qtype._shape
-        # Other accessible quantity types use start and size
-        else:
-            start = new_qtype.start
-            end = new_qtype.start + new_qtype.size()
-            slice_key = slice(start, end)
+        def _make_getitem_op(y):
+            return self.qtype._make_getitem_op(y, new_qtype=new_qtype, key=key)
 
-        def getitem_op(y):
-            # Reshape M to original shape to allow access
-            if reshape_shape is not None:
-                y = y.reshape((*reshape_shape, y.shape[-2], y.shape[-1]))
-            y_get_item = y[slice_key]  # indexing
-
-            # Keep dims [M, N, 2]
-            if len(y_get_item.shape) == 2:
-                y_get_item = y_get_item[np.newaxis, :]
-            elif len(y_get_item.shape) > 2:
-                y_get_item = y_get_item.reshape((np.prod(y_get_item.shape[:-2]), y_get_item.shape[-2],
-                                                 y_get_item.shape[-1]))
-
-            return y_get_item
-
-        return Quantity(quantity_type=new_qtype, input_quantities=[self], operation=getitem_op)
+        return Quantity(quantity_type=new_qtype, input_quantities=[self], operation=_make_getitem_op)
 
     def __iter__(self):
         raise Exception("This class is not iterable")
@@ -678,6 +664,33 @@ class QType(metaclass=abc.ABCMeta):
         else:
             self._qtype.replace_scalar(new_qtype)
 
+    def _keep_dims(self, chunk):
+        """
+        Always keep chunk dimensions to be [M, chunk size, 2]
+        :param chunk: list
+        :return: list
+        """
+        # Keep dims [M, chunk size, 2]
+        if len(chunk.shape) == 2:
+            chunk = chunk[np.newaxis, :]
+        elif len(chunk.shape) > 2:
+            chunk = chunk.reshape((np.prod(chunk.shape[:-2]), chunk.shape[-2], chunk.shape[-1]))
+
+        return chunk
+
+    def _make_getitem_op(self, chunk, new_qtype, key=None):
+        """
+        Operation
+        :param chunk: level chunk, list with shape [M, chunk size, 2]
+        :param new_qtype: QType
+        :param key: parent QType's key, needed for ArrayType
+        :return: list
+        """
+        start = new_qtype.start
+        end = new_qtype.start + new_qtype.size()
+        slice_key = slice(start, end)
+        return self._keep_dims(chunk[slice_key])
+
 
 class ScalarType(QType):
     def __init__(self, qtype=float):
@@ -722,7 +735,21 @@ class ArrayType(QType):
         # Result is single array item
         else:
             q_type = copy.deepcopy(self._qtype)
+
         return q_type
+
+    def _make_getitem_op(self, chunk, new_qtype, key=None):
+        """
+        Operation
+        :param chunk: list [M, chunk size, 2]
+        :param new_qtype: QType
+        :param key: Qtype key
+        :return:
+        """
+        # Reshape M to original shape to allow access
+        if self._shape is not None:
+            chunk = chunk.reshape((*self._shape, chunk.shape[-2], chunk.shape[-1]))
+        return self._keep_dims(chunk[key])
 
 
 class TimeSeriesType(QType):
@@ -779,15 +806,18 @@ class FieldType(QType):
 
 class DictType(QType):
     def __init__(self, args: List[Tuple[str, QType]]):
-        self._dict = dict(args)
+        self._dict = dict(args)  # Be aware we it is ordered dictionary
         self.start = 0
 
         self._check_base_type()
 
     def _check_base_type(self):
         qtypes = list(self._dict.values())
-        assert all(isinstance(qtype.base_qtype(), type(qtypes[0].base_qtype())) for qtype in qtypes[1:]), \
-            "All QTypes must have same base QType, either SacalarType or BoolType"
+        for qtype in qtypes[1:]:
+            if not isinstance(qtype.base_qtype(), type(qtypes[0].base_qtype())):
+                raise TypeError("qtype {} has base QType {}, expecting {}. "
+                                "All QTypes must have same base QType, either SacalarType or BoolType".
+                                format(qtype, qtype.base_qtype(), qtypes[0].base_qtype()))
 
     def base_qtype(self):
         return list(self._dict.values())[0].base_qtype()

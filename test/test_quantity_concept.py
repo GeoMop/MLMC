@@ -130,14 +130,16 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
 
         # Concatenate quantities
-        dict_types = [("length", length.qtype), ("depth", depth.qtype)]
+        dict_types = [("depth", depth.qtype), ("length", length.qtype)]
         dict_type = DictType(dict_types)
-        quantity_concat = Quantity.concatenate([length, depth], qtype=dict_type)
-        new_q_mean = estimate_mean(quantity_concat)
-        assert np.allclose(new_q_mean(), np.concatenate((means_length(), means_depth())))
+        quantity_concat = Quantity.concatenate([depth, length], qtype=dict_type)
+        quantity_concat_mean = estimate_mean(quantity_concat)
+        assert np.allclose(quantity_concat_mean(), np.concatenate((means_depth(), means_length())))
 
-        length = quantity_concat['length']
-        locations = length.time_interpolation(2.5)
+        length_concat = quantity_concat['length']
+        means_length_concat = estimate_mean(length_concat)
+        assert np.allclose(means_length_concat(), means_length())
+        locations = length_concat.time_interpolation(2.5)
         mean_interp_value = estimate_mean(locations)
         position = locations['10']
         mean_position_1 = estimate_mean(position)
@@ -150,8 +152,9 @@ class QuantityTests(unittest.TestCase):
         assert len(y_mean()) == 1
 
         depth = quantity_concat['depth']
-        means_depth = estimate_mean(depth)
-        assert np.allclose((means()[:sizes[0]]), means_depth())
+        means_depth_concat = estimate_mean(depth)
+
+        assert np.allclose((means()[:sizes[0]]), means_depth_concat())
 
     def test_binary_operations(self):
         """
