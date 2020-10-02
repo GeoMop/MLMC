@@ -219,15 +219,21 @@ class Memory(SampleStorage):
 
         return levels_results
 
-    def sample_pairs_level(self, level_id, i_chunk=0):
+    def sample_pairs_level(self, level_id, i_chunk=0, n_samples=None):
         """
         Get samples for given level, chunks does not make sense in Memory storage so all data are retrieved at once
         :param level_id: int
         :param i_chunk: identifier of chunk
+        :param n_samples: number of retrieved samples
         :return: np.ndarray
         """
         if i_chunk != 0:
             return None
+        if n_samples is not None:
+            results = self._results[int(level_id)]
+            n_samples = n_samples if n_samples < results.shape[0] else results.shape[0] - 1
+
+            return results[:n_samples, ...].transpose((2, 0, 1))  # [M, N, 2]
         return self._results[int(level_id)].transpose((2, 0, 1))  # [M, N, 2]
 
     def save_n_ops(self, n_ops):

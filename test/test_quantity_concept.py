@@ -327,9 +327,9 @@ class QuantityTests(unittest.TestCase):
         sin_means = estimate_mean(sin_root_quantity)
         assert len(sin_means()) == np.sum(sizes)
 
-        # round_root_quantity = np.sum(root_quantity)
-        # round_means = estimate_mean(round_root_quantity)
-        # assert len(round_means()) == np.sum(sizes)
+        round_root_quantity = np.sum(root_quantity, axis=0, keepdims=True)
+        round_means = estimate_mean(round_root_quantity)
+        assert len(round_means()) == 1
 
         add_root_quantity = np.add(root_quantity, root_quantity)  # Add arguments element-wise.
         add_root_quantity_means = estimate_mean(add_root_quantity)
@@ -456,6 +456,7 @@ class QuantityTests(unittest.TestCase):
         q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
                                        sim_steps=step_range)
         means, vars = q_estimator.estimate_moments(moments_fn)
+
         sampler.sample_storage.chunk_size = 1024
         root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
         root_quantity_mean = estimate_mean(root_quantity)

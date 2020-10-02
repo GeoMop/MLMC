@@ -10,12 +10,37 @@ from mlmc.sample_storage import SampleStorage
 from mlmc.sim.simulation import QuantitySpec
 
 
+def _determine_qtype(quantities, method):
+    """
+    Determine QType from evaluation with given method and first few samples from storage
+    :param quantities: list of Quantities
+    :param method: ufunc function
+    :return: QType
+    """
+    chunks_quantity_level = [q.samples(level_id=0, i_chunk=0, n_samples=10) for q in quantities]
+    result = method(*chunks_quantity_level)
+
+    if all(isinstance(quantity.qtype.base_qtype(), BoolType) for quantity in quantities):
+        base_qtype = BoolType()
+    else:
+        base_qtype = ScalarType()
+
+    if isinstance(result, (int, float)) and not isinstance(result, bool):
+        qtype = base_qtype
+    elif isinstance(result, (list, np.ndarray)):
+        result = np.array(result)
+        qtype = ArrayType(shape=result.shape[0], qtype=base_qtype)  # @TODO: BoolType is also possible
+
+    return qtype
+
+
 def _method(ufunc, method, *args, **kwargs):
     """
     To process input quantities to perform numpy method
     :param args: args
     :return: Quantity
     """
+
     def _aux_method(*input_quantities_chunks):
         if len(input_quantities_chunks) == 1:
             return getattr(ufunc, method)(input_quantities_chunks[0], **kwargs)
@@ -27,7 +52,9 @@ def _method(ufunc, method, *args, **kwargs):
                all(isinstance(quantity.qtype.base_qtype(), ScalarType) for quantity in args), \
             "All quantities must have same base type either ScalarType or BoolType"
 
-        return Quantity(quantity_type=args[0].qtype, input_quantities=list(args), operation=_aux_method)
+        qtype = _determine_qtype(args, _aux_method)
+
+        return Quantity(quantity_type=qtype, input_quantities=list(args), operation=_aux_method)
     else:
         raise ValueError("All args parameters must be quantities")
 
@@ -236,7 +263,7 @@ class Quantity:
         """
         return self.qtype.size()
 
-    def get_cache_key(self, level_id, i_chunk):
+    def get_cache_key(self, level_id, i_chunk, n_samples=None):
         """
         Create cache key
         :param level_id: int
@@ -246,7 +273,7 @@ class Quantity:
         return (level_id, i_chunk, id(self))  # redundant parentheses needed due to py36, py37
 
     @cached(custom_key_maker=get_cache_key)
-    def samples(self, level_id, i_chunk):
+    def samples(self, level_id, i_chunk, n_samples=None):
         """
         Yields list of sample chunks for individual levels.
         Possibly calls underlying quantities.
@@ -617,14 +644,15 @@ class QuantityStorage(Quantity):
         """
         return id(self)
 
-    def samples(self, level_id, i_chunk):
+    def samples(self, level_id, i_chunk, n_samples=np.inf):
         """
         Get results for given level id and chunk id
         :param level_id: int
         :param i_chunk: int
+        :param n_samples: int, number of retrieved samples
         :return: Array[M, chunk size, 2]
         """
-        level_chunk = self._storage.sample_pairs_level(level_id, i_chunk)  # Array[M, chunk size, 2]
+        level_chunk = self._storage.sample_pairs_level(level_id, i_chunk, n_samples=n_samples)  # Array[M, chunk size, 2]
         if level_chunk is not None:
             assert self.qtype.size() == level_chunk.shape[0]
             # Select values from given interval self.start:self.end

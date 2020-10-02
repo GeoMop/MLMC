@@ -13,6 +13,7 @@ class SampleStorageHDF(SampleStorage):
         HDF5 storage, provide method to interact with storage
         :param file_path: absolute path to hdf file (which not exists at the moment)
         """
+        super().__init__()
         # If file exists load not create new file
         load_from_file = True if os.path.exists(file_path) else False
 
@@ -143,7 +144,7 @@ class SampleStorageHDF(SampleStorage):
         levels_results = list(np.empty(len(self._level_groups)))
 
         for level in self._level_groups:
-            results = self.sample_pairs_level(level_id=level.level_id, all_samples=True) # return all samples no chunks
+            results = self.sample_pairs_level(level_id=level.level_id, n_samples=None)  # return all samples no chunks
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue
@@ -151,18 +152,21 @@ class SampleStorageHDF(SampleStorage):
 
         return levels_results
 
-    def sample_pairs_level(self, level_id, i_chunk=0, all_samples=False):
+    def sample_pairs_level(self, level_id, i_chunk=0, n_samples=np.inf):
         """
         Get result for particular level and chunk
         :param level_id: int, level id
         :param i_chunk: int, chunk identifier
-        :param all_samples: if True return all samples in one go
+        :param n_samples: if None return all samples in one go, otherwise it returns the greater of n_samples and self.chunk_size
         :return: np.ndarray
         """
-        if all_samples:
+        chunk_size = self.chunk_size
+
+        if n_samples is None:
             chunk_size = None
-        else:
-            chunk_size = self.chunk_size
+        elif n_samples < self.chunk_size:
+            chunk_size = n_samples
+
         sample_pairs = self._level_groups[int(level_id)].collected(i_chunk, chunk_size=chunk_size)
         # Chunk is empty
         if len(sample_pairs) == 0:
