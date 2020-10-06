@@ -151,6 +151,10 @@ class QuantityTests(unittest.TestCase):
         y_mean = estimate_mean(y)
         assert len(y_mean()) == 1
 
+        y_add = np.add(5, y)
+        y_add_mean = estimate_mean(y_add)
+        assert np.allclose(y_add_mean(), y_mean() + 5)
+
         depth = quantity_concat['depth']
         means_depth_concat = estimate_mean(depth)
 
@@ -318,6 +322,7 @@ class QuantityTests(unittest.TestCase):
         """
         work_dir = _prepare_work_dir()
         sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5"))
+        sample_storage = Memory()
         result_format, sizes = self.fill_sample_storage(sample_storage)
         root_quantity = make_root_quantity(sample_storage, result_format)
 
@@ -333,12 +338,23 @@ class QuantityTests(unittest.TestCase):
 
         add_root_quantity = np.add(root_quantity, root_quantity)  # Add arguments element-wise.
         add_root_quantity_means = estimate_mean(add_root_quantity)
-
         assert np.allclose(add_root_quantity_means().tolist(), (root_quantity_means() * 2).tolist())
 
-        # x = np.random.randn(36, 5, 2)
-        # add_x_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.
-        # add_x_root_quantity_means = estimate_mean(add_x_root_quantity)
+        x = np.ones((108, 5, 2))
+        add_one_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.
+        add_one_root_quantity_means = estimate_mean(add_one_root_quantity)
+        assert np.allclose(root_quantity_means() + np.ones((108,)), add_one_root_quantity_means())
+
+        x = np.ones((108, 5, 2))
+        divide_one_root_quantity = np.divide(x, root_quantity)  # Add arguments element-wise.
+        divide_one_root_quantity_means = estimate_mean(divide_one_root_quantity)
+        assert np.all(divide_one_root_quantity_means() < 1)
+
+        # Test broadcasting
+        x = np.ones((108, 1, 2))
+        arctan2_one_root_quantity = np.arctan2(x, root_quantity)  # Add arguments element-wise.
+        arctan2_one_root_quantity_means = estimate_mean(arctan2_one_root_quantity)
+        assert np.all(arctan2_one_root_quantity_means() < 1)
 
         max_root_quantity = np.maximum(root_quantity, root_quantity)  # Element-wise maximum of array elements.
         max_root_quantity_means = estimate_mean(max_root_quantity)
@@ -357,8 +373,7 @@ class QuantityTests(unittest.TestCase):
         result_format = [
             QuantitySpec(name="depth", unit="mm", shape=(2, res_length - 2+1), times=[1, 2, 3], locations=['30', '40']),
             QuantitySpec(name="length", unit="m", shape=(2, res_length - 2+2), times=[1, 2, 3], locations=['10', '20']),
-            QuantitySpec(name="width", unit="mm", shape=(2, res_length - 2+3), times=[1, 2, 3], locations=['30', '40'])
-        ]
+            QuantitySpec(name="width", unit="mm", shape=(2, res_length - 2+3), times=[1, 2, 3], locations=['30', '40'])]
 
         sample_storage.save_global_data(result_format=result_format, level_parameters=np.ones(n_levels))
 

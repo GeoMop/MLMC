@@ -350,18 +350,22 @@ class LevelGroup:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             return scheduled_dset[()]
 
-    def collected(self, i_chunk=0, chunk_size=512000000):
+    def collected(self, i_chunk=0, chunk_size=512000000, n_samples=None):
         """
         Read collected data by chunks,
         number of items in chunk is determined by LevelGroup.chunk_size (number of bytes)
         :param i_chunk: int
         :param chunk_size: int or None, size of chunk, bytes in decimal, If None return all samples without chunks
+        :param n_samples: number of returned samples
         :return: np.ndarray
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             if 'collected_values' not in hdf_file[self.level_group_path]:
                 return None
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
+
+            if n_samples is not None and n_samples < np.inf:
+                return dataset[:n_samples]
 
             if chunk_size is not None:
                 if self._items_in_chunk is None:
@@ -371,6 +375,9 @@ class LevelGroup:
                 return dataset[i_chunk * self._items_in_chunk: (i_chunk + 1) * self._items_in_chunk]
 
             return dataset[()]
+
+    def get_items_in_chunk(self):
+        return self._items_in_chunk
 
     def get_finished_ids(self):
         """

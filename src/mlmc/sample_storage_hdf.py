@@ -164,10 +164,8 @@ class SampleStorageHDF(SampleStorage):
 
         if n_samples is None:
             chunk_size = None
-        elif n_samples < self.chunk_size:
-            chunk_size = n_samples
 
-        sample_pairs = self._level_groups[int(level_id)].collected(i_chunk, chunk_size=chunk_size)
+        sample_pairs = self._level_groups[int(level_id)].collected(i_chunk, chunk_size=chunk_size, n_samples=n_samples)
         # Chunk is empty
         if len(sample_pairs) == 0:
             return None
@@ -240,3 +238,6 @@ class SampleStorageHDF(SampleStorage):
 
     def get_level_parameters(self):
         return self._hdf_object.level_parameters
+
+    def get_items_in_chunk(self, level_id):
+        return self._level_groups[level_id].get_items_in_chunk()

@@ -231,7 +231,7 @@ class Memory(SampleStorage):
             return None
         if n_samples is not None:
             results = self._results[int(level_id)]
-            n_samples = n_samples if n_samples < results.shape[0] else results.shape[0] - 1
+            n_samples = n_samples if n_samples < results.shape[0] else results.shape[0]
 
             return results[:n_samples, ...].transpose((2, 0, 1))  # [M, N, 2]
         return self._results[int(level_id)].transpose((2, 0, 1))  # [M, N, 2]
@@ -269,3 +269,5 @@ class Memory(SampleStorage):
     def get_level_ids(self):
         return list(self._results.keys())
 
+    def get_items_in_chunk(self, level_id):
+        return len(self._results[level_id])
