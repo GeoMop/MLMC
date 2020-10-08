@@ -509,6 +509,8 @@ class GSToolsSpatialCorrelatedField(RandomFieldBase):
         self.model = model
         self.mode_no = mode_no
         self.srf = gstools.SRF(model, mode_no=mode_no)
+        self.mu = self.srf.mean
+        self.sigma = np.sqrt(model.var)
         self.dim = model.dim
         self.log = log
 

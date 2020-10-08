@@ -454,10 +454,20 @@ class QuantityTests(unittest.TestCase):
         """
         np.random.seed(1234)
         n_moments = 3
-        step_range = [[0.1], [0.001]]
+        step_range = [0.1, 0.001]
+        n_levels = 2
+
+        assert step_range[0] > step_range[1]
+        level_parameters = []
+        for i_level in range(n_levels):
+            if n_levels == 1:
+                level_param = 1
+            else:
+                level_param = i_level / (n_levels - 1)
+            level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
 
         clean = True
-        sampler, simulation_factory = self._create_sampler(step_range, clean=clean)
+        sampler, simulation_factory = self._create_sampler(level_parameters, clean=clean)
 
         distr = stats.norm()
         true_domain = distr.ppf([0.0001, 0.9999])
