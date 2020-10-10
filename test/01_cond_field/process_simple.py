@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import gstools
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
@@ -8,8 +9,10 @@ from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.tool.flow_mc import FlowSim
 from mlmc.moments import Legendre, Monomial
 from mlmc.tool.process_base import ProcessBase
+from mlmc.random import correlated_field as cf
 from mlmc.quantity_estimate import QuantityEstimate
 from mlmc.quantity_concept import make_root_quantity, estimate_mean, moment, moments, covariance
+import mlmc.estimator as new_estimator
 
 
 class ProcessSimple:
@@ -29,11 +32,21 @@ class ProcessSimple:
         self.n_levels = 2
         # Number of MLMC levels
 
-        step_range = [1, 0.01]
+        step_range = [0.055, 0.0035]
+        # step   - elements
+        # 0.1    - 262
+        # 0.08   - 478
+        # 0.06   - 816
+        # 0.055  - 996
+        # 0.005  - 106056
+        # 0.004  - 165404
+        # 0.0035 - 217208
+
         # step_range [simulation step at the coarsest level, simulation step at the finest level]
 
         # Determine level parameters at each level (In this case, simulation step at each level) are set automatically
         self.level_parameters = ProcessSimple.determine_level_parameters(self.n_levels, step_range)
+
         # Determine number of samples at each level
         self.n_samples = ProcessSimple.determine_n_samples(self.n_levels)
 
@@ -100,8 +113,8 @@ class ProcessSimple:
         # Create sampler (mlmc.Sampler instance) - crucial class which actually schedule samples
         sampler = self.setup_config(clean=True)
         # Schedule samples
-        self.generate_jobs(sampler, n_samples=[10, 10], renew=renew)
-
+        #self.generate_jobs(sampler, n_samples=None, renew=renew, target_var=1e-5)
+        self.generate_jobs(sampler, n_samples=[500, 500], renew=renew, target_var=1e-5)
         self.all_collect(sampler)  # Check if all samples are finished
         self.calculate_moments(sampler)  # Simple moment check
 
@@ -122,6 +135,7 @@ class ProcessSimple:
             'env': dict(flow123d=self.flow123d, gmsh=self.gmsh, gmsh_version=1),  # The Environment.
             'yaml_file': os.path.join(self.work_dir, '01_conductivity.yaml'),
             'geo_file': os.path.join(self.work_dir, 'square_1x1.geo'),
+            'fields_params': dict(model='TPLgauss'),
             'field_template': "!FieldElementwise {mesh_data_file: \"$INPUT_DIR$/%s\", field_name: %s}"
         }
 
@@ -179,9 +193,9 @@ class ProcessSimple:
             n_cores=1,
             n_nodes=1,
             select_flags=['cgroups=cpuacct'],
-            mem='1Gb',
-            queue='charon_2h',
-            pbs_name='MLMC_test',
+            mem='4Gb',
+            queue='charon',
+            pbs_name='flow123d',
             walltime='1:00:00',
             optional_pbs_requests=[],  # e.g. ['#PBS -m ae', ...]
             home_dir='/storage/liberec3-tul/home/martin_spetlik/',
@@ -200,7 +214,7 @@ class ProcessSimple:
 
         return sampling_pool
 
-    def generate_jobs(self, sampler, n_samples=None, renew=False):
+    def generate_jobs(self, sampler, n_samples=None, renew=False, target_var=None):
         """
         Generate level samples
         :param n_samples: None or list, number of samples for each level
@@ -214,8 +228,42 @@ class ProcessSimple:
         else:
             if n_samples is not None:
                 sampler.set_initial_n_samples(n_samples)
+            else:
+                sampler.set_initial_n_samples()
             sampler.schedule_samples()
             sampler.ask_sampling_pool_for_samples(sleep=self.sample_sleep, timeout=self.sample_timeout)
+
+            if target_var is not None:
+                self.all_collect(sampler)
+
+                moments_fn = self.set_moments(sampler.sample_storage)
+
+                q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
+                                               sim_steps=self.level_parameters)
+                target_var = 1e-5
+                sleep = 0
+                add_coef = 0.1
+
+                # @TODO: test
+                # New estimation according to already finished samples
+                variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+                print("variances ", variances)
+                print("n_ops ", n_ops)
+                n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                                   n_levels=sampler.n_levels)
+
+                print("n_estimated ", n_estimated)
+                exit()
+
+                # Loop until number of estimated samples is greater than the number of scheduled samples
+                while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
+                    print("n_estimated ", n_estimated)
+                    # New estimation according to already finished samples
+                    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+                    n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                                       n_levels=sampler.n_levels)
+
+                print("collected samples ", sampler._n_scheduled_samples)
 
     def all_collect(self, sampler):
         """

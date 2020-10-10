@@ -12,7 +12,7 @@ mlmc=/storage/liberec3-tul/home/martin_spetlik/MLMC_new_design
 cat >$pbs_script <<EOF
 #!/bin/bash
 #PBS -S /bin/bash
-#PBS -l select=1:ncpus=1:cgroups=cpuacct:mem=128mb
+#PBS -l select=1:ncpus=1:cgroups=cpuacct:mem=2Gb
 #PBS -q charon_2h
 #PBS -N MLMC
 #PBS -j oe
