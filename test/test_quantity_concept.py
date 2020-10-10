@@ -454,7 +454,7 @@ class QuantityTests(unittest.TestCase):
         """
         np.random.seed(1234)
         n_moments = 3
-        step_range = [0.1, 0.001]
+        step_range = [0.5, 0.01]
         n_levels = 2
 
         assert step_range[0] > step_range[1]
@@ -479,7 +479,7 @@ class QuantityTests(unittest.TestCase):
         sampler.ask_sampling_pool_for_samples()
 
         q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
-                                       sim_steps=step_range)
+                                       sim_steps=level_parameters)
         means, vars = q_estimator.estimate_moments(moments_fn)
 
         sampler.sample_storage.chunk_size = 1024
