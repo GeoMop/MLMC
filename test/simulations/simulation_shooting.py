@@ -1,4 +1,4 @@
-import src.mlmc.simulation as simulation
+import mlmc.sim.simulation as simulation
 import random as rn
 import numpy as np
 import mlmc.sample

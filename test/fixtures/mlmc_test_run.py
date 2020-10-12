@@ -2,13 +2,14 @@ import os.path
 import numpy as np
 from mlmc.mlmc import MLMC
 from mlmc import moments
-import mlmc.plot
-import mlmc.estimate
+import mlmc.tool.plot
+import mlmc.archive.estimate
 from test.fixtures.synth_simulation import SimulationTest
 
 
-class TestMLMC:
-    def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None, quantile=None):
+class MLMCTest:
+    def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None, quantile=None,
+                 moments_class=moments.Legendre, mlmc_file=None, domain=None):
         """
         Create TestMLMC object instance
         :param n_levels: number of levels
@@ -20,8 +21,11 @@ class TestMLMC:
         """
         # Not work for one level method
         print("\n")
-        print("L: {} R: {} distr: {} sim: {}".format(n_levels, n_moments, distr.dist.__class__.__name__, sim_method))
 
+        print("L: {} R: {} distr: {} sim: {}".format(n_levels, n_moments, distr.dist.__class__.__name__ if 'dist' in distr.__dict__ else '',
+                                                     sim_method))
+
+        self.mlmc_file = mlmc_file
         self.distr = distr
         self.n_levels = n_levels
         self.n_moments = n_moments
@@ -40,13 +44,30 @@ class TestMLMC:
         self.mc, self.sims = self.make_simulation_mc(step_range, sim_method)
         self.estimator = mlmc.estimate.Estimate(self.mc)
 
-        # reference variance
-        if quantile is not None:
-            true_domain = distr.ppf([quantile, 1 - quantile])
+        if domain is not None:
+            true_domain = domain
         else:
-            true_domain = distr.ppf([0.0001, 0.9999])
 
-        self.moments_fn = moments.Legendre(n_moments, true_domain, is_log)
+            # reference variance
+            # if 'domain' in distr.__dict__:
+            #     true_domain = distr.domain
+            if quantile is not None:
+                if quantile == 0:
+                    X = distr.rvs(size=1000)
+                    true_domain = (np.min(X), np.max(X))
+
+                    if hasattr(distr, "domain"):
+                        true_domain = distr.domain
+                    else:
+                        X = distr.rvs(size=1000)
+                        true_domain = (np.min(X), np.max(X))
+                else:
+                    true_domain = distr.ppf([quantile, 1 - quantile])
+            else:
+                true_domain = distr.ppf([0.0001, 0.9999])
+
+        self.true_domain = true_domain
+        self.moments_fn = moments_class(n_moments, true_domain, is_log)
 
         # Exact means and vars estimation from distribution
         sample_size = 10000
@@ -62,7 +83,7 @@ class TestMLMC:
         if have_nan or rel_error > 1 / np.sqrt(sample_size):
             # bad match, probably bad domain, use MC estimates instead
             # TODO: still getting NaNs constantly, need to determine inversion of Simultaion._sample_fn and
-            # map the true domain for which the moments fn are constructed into integration domain so that
+            # map the true idomain for which the moments fn are constructed into integration domain so that
             # integration domain mapped by _sample_fn is subset of true_domain.
             means, vars = self.estimator.estimate_diff_var(self.sims, self.distr, self.moments_fn, sample_size)
             self.ref_means = np.sum(np.array(means), axis=0)
@@ -71,6 +92,9 @@ class TestMLMC:
         self.ref_level_means = np.array(means)
         self.ref_vars = np.sum(np.array(vars) / sample_size, axis=0)
         self.ref_mc_diff_vars = None
+
+    def set_moments_fn(self, moments_class):
+        self.moments_fn = moments_class(self.n_moments, self.true_domain, self.is_log)
 
     def make_simulation_mc(self, step_range, sim_method=None):
         """
@@ -85,8 +109,12 @@ class TestMLMC:
         mlmc_options = {'output_dir': os.path.dirname(os.path.realpath(__file__)),
                         'keep_collected': True,
                         'regen_failed': False}
+
         mc = MLMC(self.n_levels, simulation_factory, step_range, mlmc_options)
-        mc.create_new_execution()
+        if self.mlmc_file is not None:
+            mc.load_from_file(self.mlmc_file)
+        else:
+            mc.create_new_execution()
 
         sims = [level.fine_simulation for level in mc.levels]
         return mc, sims
@@ -184,9 +212,9 @@ class TestMLMC:
             means, vars = self.estimator.ref_estimates_bootstrap(n_samples, moments_fn=self.moments_fn)
             diff_vars, n_samples = self.estimator.estimate_diff_vars(self.moments_fn)
             # Remove first moment
-            means = means[1:]
-            vars = vars[1:]
-            diff_vars = diff_vars[:, 1:]
+            means = np.squeeze(means)[1:]
+            vars = np.squeeze(vars)[1:]
+            diff_vars = diff_vars[:, :, 1:]
 
             self.all_vars.append(vars)
             self.all_means.append(means)
