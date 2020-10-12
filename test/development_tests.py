@@ -40,7 +40,7 @@ def sampler_hdf_test():
     sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
                       level_parameters=step_range)
 
-    true_domain = distr.ppf([0.0001, 0.9999])
+    true_domain = distr.ppf([0.01, 0.99])
     moments_fn = Legendre(n_moments, true_domain)
     # moments_fn = Monomial(n_moments, true_domain)
 
