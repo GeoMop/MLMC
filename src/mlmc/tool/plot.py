@@ -2032,8 +2032,6 @@ class KL_div_mom_err():
         legend._set_loc(legend._loc)
         legend.set_title(legend.get_title().get_text())
 
-
-
     def add_patch(self, legend):
         from matplotlib.patches import Patch
         ax = legend.axes
@@ -2156,7 +2154,6 @@ class KL_divergence:
         if len(values) == 3:
             self._iterations = values[2]
 
-
     def _plot_values(self):
         if self.log_y:
             # plot only positive values
@@ -2170,14 +2167,10 @@ class KL_divergence:
 
         color = self.colormap(self.i_plot)  # 'C{}'.format(self.i_plot)
 
-        print("self x ", self._x)
-        print("self y ", self._y)
 
         if self._mom_err_y:
             self.ax_kl.plot(self._mom_err_x, self._mom_err_y, ls='solid', color="red", marker="v", label=r'$|\mu - \hat{\mu}|^2$')
 
-            print("len self._x ", len(self._x))
-            print("len self._y ", len(self._y))
             self.ax_kl.plot(self._x[:len(self._y)], self._y[:len(self._x)], ls='solid', color=color, marker='o', label="KL div")
         else:
             self.ax_kl.plot(self._x, self._y, ls='solid', color=color, marker='o')

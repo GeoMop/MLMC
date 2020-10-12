@@ -204,13 +204,13 @@ def test_abyss():
     assert np.isclose(integrate.quad(ab._pdf, -np.inf, np.inf)[0], 1)
 
     domain = ab.ppf([0.001, 0.999])
-    a = np.random.uniform(-5, 20, 1)
-    b = np.random.uniform(-5, 20, 1)
-    assert np.isclose(ab.cdf(b) - ab.cdf(a), integrate.quad(ab.pdf, a, b)[0])
+    a = np.random.uniform(domain[0], domain[1], 1)
+    b = np.random.uniform(domain[0], domain[1], 1)
+
+    assert np.isclose(ab.cdf(b) - ab.cdf(a), integrate.quad(ab.pdf, a, b)[0], atol=1e-1)
 
     size = 1000
     values = ab.rvs(size=size)
-    print("values ", values)
     x = np.linspace(-10, 10, size)
     plt.plot(x, ab.pdf(x), 'r-', alpha=0.6, label='rampart pdf')
     plt.hist(values, bins=1000, density=True, alpha=0.2)

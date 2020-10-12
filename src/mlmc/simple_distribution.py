@@ -14,7 +14,7 @@ import pandas as pd
 import numdifftools as nd
 
 EXACT_QUAD_LIMIT = 1000
-GAUSS_DEGREE = 150
+GAUSS_DEGREE = 100
 HUBER_MU = 0.001
 
 
@@ -353,6 +353,7 @@ class SimpleDistribution:
         self._quad_weights = other_distr._quad_weights
         self._quad_moments = other_distr._quad_moments
         self._quad_moments_diffs = other_distr._quad_moments_diffs
+        self._quad_moments_2nd_der = other_distr._quad_moments_2nd_der
         self._fixed_quad = True
 
     def eval_moments(self, x):
@@ -420,17 +421,18 @@ class SimpleDistribution:
         else:
             y, abserr, info = result
             message =""
+
         pt, w = numpy.polynomial.legendre.leggauss(self._gauss_degree)
         K = info['last']
         #print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
         a = info['alist'][:K, None]
         b = info['blist'][:K, None]
+
         points = (pt[None, :] + 1) / 2 * (b - a) + a
         weights = w[None, :] * (b - a) / 2
         self._quad_points = points.flatten()
         self._quad_weights = weights.flatten()
 
-        #print("quad points ", self._quad_points)
         self._quad_moments = self.eval_moments(self._quad_points)
         self._quad_moments_diffs = self.moments_fn.eval_diff(self._quad_points)
         self._quad_moments_2nd_der = self.eval_moments_der(self._quad_points, degree=2)
@@ -560,7 +562,6 @@ class SimpleDistribution:
         :param multipliers: current multipliers
         :return: float
         """
-        print("CALCULATE FUNCTIONAL")
         self.multipliers = multipliers
         self._update_quadrature(multipliers, True)
         q_density = self._density_in_quads(multipliers)
@@ -585,9 +586,12 @@ class SimpleDistribution:
 
         return fun
 
-    def moments_by_quadrature(self):
+    def moments_by_quadrature(self, der=1):
         q_density = self._density_in_quads(self.multipliers)
-        q_gradient = self._quad_moments.T * q_density
+        if der == 2:
+            q_gradient = self._quad_moments_2nd_der.T * q_density
+        else:
+            q_gradient = self._quad_moments.T * q_density
         return np.dot(q_gradient, self._quad_weights) / self._moment_errs
 
     # def derivative(self, f, a, method='central', h=0.01):
@@ -626,7 +630,6 @@ class SimpleDistribution:
         Gradient of th functional
         :return: array, shape (n_moments,)
         """
-        print("CALCULATE GRADIENT")
         self._update_quadrature(multipliers)
         q_density = self._density_in_quads(multipliers)
         q_gradient = self._quad_moments.T * q_density
@@ -721,7 +724,6 @@ class SimpleDistribution:
         """
         :return: jacobian matrix, symmetric, (n_moments, n_moments)
         """
-        print("CALCULATE JACOBIAN")
         # jacobian_matrix_hess = hessian(self._calculate_functional)(multipliers)
         # print(pd.DataFrame(jacobian_matrix_hess))
         jacobian_matrix = self._calc_jac()
@@ -1289,11 +1291,44 @@ def L2_distance(prior_density, posterior_density, a, b):
     return np.sqrt(integrate.quad(integrand, a, b))[0]
 
 
+def reg_term_distr_diff(distr_1, distr_2):
+    """
+    L2 norm
+    :param prior_density:
+    :param posterior_density:
+    :param a:
+    :param b:
+    :return:
+    """
+
+    return np.sum(distr_1._quad_weights * (np.dot(distr_1._quad_moments_2nd_der - distr_2._quad_moments_2nd_der,
+                                                  distr_1.multipliers - distr_2.multipliers) ** 2))
+
+
+
 def total_variation_int(func, a, b):
     def integrand(x):
         return huber_l1_norm(func, x)
 
     return integrate.quad(integrand, a, b)[0]
+
+
+def total_variation_distr_diff(distr_1, distr_2):
+    def distr_diff(x):
+        return distr_1.density_derivation(x) - distr_2.density_derivation(x)
+
+    def integrand(x):
+        return huber_l1_norm(distr_diff, x)
+    return np.sum(distr_1._quad_weights * integrand(distr_1._quad_points))
+
+
+def TV_distr_diff(distr_1, distr_2):
+    def distr_diff(x):
+        return distr_1.density(x) - distr_2.density(x)
+
+    def integrand(x):
+        return huber_l1_norm(distr_diff, x)
+    return 0.5 * np.sum(distr_1._quad_weights * integrand(distr_1._quad_points))
 
 
 # def total_variation_int(func, a, b):
