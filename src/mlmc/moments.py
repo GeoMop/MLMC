@@ -249,7 +249,7 @@ class Legendre(Moments):
         P_n = np.polynomial.legendre.legvander(t, deg=size - 1)
         return P_n @ self.diff2_mat
 
-import pandas as pd
+
 class BivariateMoments:
 
     def __init__(self, moment_x, moment_y):

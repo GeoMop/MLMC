@@ -12,7 +12,7 @@ import gstools
 from mlmc.level_simulation import LevelSimulation
 from mlmc.tool import gmsh_io
 from mlmc.sim.simulation import Simulation
-from mlmc.sim.simulation import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec
 from mlmc.random import correlated_field as cf
 
 

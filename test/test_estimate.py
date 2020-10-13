@@ -71,10 +71,6 @@ def estimate_covariance(estimator):
     cov = estimator.estimate_covariance(moments_fn, estimator.mlmc.levels)
     assert np.allclose(cov, cov.T, atol=1e-6)
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/MS_distr_spline
 @pytest.mark.skip
 def test_target_var_adding_samples():
     """

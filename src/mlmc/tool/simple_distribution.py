@@ -1,15 +1,11 @@
-import autograd.numpy as np
-import numpy
+import numpy as np
 import scipy as sc
 import scipy.integrate as integrate
 import mlmc.moments
-from autograd import elementwise_grad as egrad
-from autograd import hessian
 import mlmc.tool.plot
 from abc import ABC, abstractmethod
-
 from numpy import testing
-import pandas as pd
+#import pandas as pd
 
 EXACT_QUAD_LIMIT = 1000
 GAUSS_DEGREE = 100

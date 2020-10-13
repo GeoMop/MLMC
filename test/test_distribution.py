@@ -44,7 +44,7 @@ import mlmc.tool.simple_distribution
 from mlmc import moments
 import test.benchmark_distributions as bd
 import mlmc.tool.plot as plot
-from test.fixtures.mlmc_test_run import MLMCTest
+#from test.fixtures.mlmc_test_run import MLMCTest
 import mlmc.spline_approx as spline_approx
 from mlmc.moments import Legendre
 import pandas as pd
@@ -3568,7 +3568,7 @@ distribution_list = [
     ]
 
 
-#@pytest.mark.skip
+@pytest.mark.skip
 @pytest.mark.parametrize("moments", [
     # moments_class, min and max number of moments, use_covariance flag
     #(moments.Monomial, 3, 10),
@@ -3682,7 +3682,7 @@ def test_pdf_approx_exact_moments(moments, distribution):
 #     fig.savefig('compare_distributions.pdf')
 #     plt.show()
 
-
+@pytest.mark.skip
 def test_total_variation():
     function = lambda x: np.sin(x)
     lower_bound, higher_bound = 0, 2 * np.pi
@@ -3775,7 +3775,7 @@ def run_distr():
             #splines_indicator_vs_smooth(m, distr)
             test_pdf_approx_exact_moments(m, distr)
 
-
+@pytest.mark.skip
 def test_gauss_degree(moments, distr, plot_requirements, degrees=[100]):
     shape = (2, 3)
     fig, axes = plt.subplots(*shape, sharex=True, sharey=True, figsize=(15, 10))
@@ -3790,7 +3790,7 @@ def test_gauss_degree(moments, distr, plot_requirements, degrees=[100]):
     mlmc.tool.plot._show_and_save(fig, None, "mu_to_alpha")
     mlmc.tool.plot._show_and_save(fig, "", "mu_to_alpha")
 
-
+@pytest.mark.skip
 def test_kl_estimates(moments, distribution_list, plot_requirements):
     shape = (2, 3)
     fig, axes = plt.subplots(*shape, sharex=True, sharey=True,
@@ -4444,7 +4444,7 @@ def _test_polynomial_degrees(cut_distr, distr_obj, moments_fn,  X, n_samples, ac
 
     exit()
 
-
+@pytest.mark.skip
 def test_spline_approx(m, distr):
     np.random.seed(1234)
     quantiles = np.array([0.001])

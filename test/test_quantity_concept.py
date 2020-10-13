@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 import random
 from scipy import stats
-from mlmc.sim.simulation import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc import quantity_concept as q
@@ -425,6 +425,7 @@ class QuantityTests(unittest.TestCase):
         distr = stats.norm()
         simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
         simulation_factory = SynthSimulationForTests(simulation_config)
+
         # shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
         # simulation_config = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
         # simulation_workspace = SynthSimulationWorkspace(simulation_config)

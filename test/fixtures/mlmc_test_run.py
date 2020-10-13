@@ -1,10 +1,10 @@
 import os.path
 import numpy as np
-from mlmc.mlmc import MLMC
+#from mlmc.mlmc import MLMC
 from mlmc import moments
 import mlmc.tool.plot
 import mlmc.archive.estimate
-from test.fixtures.synth_simulation import SimulationTest
+from mlmc.sim.synth_simulation import SynthSimulation
 
 
 class MLMCTest:

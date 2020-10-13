@@ -1,10 +1,7 @@
 """
 Test class monomials
 """
-import os, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
+import pytest
 import numpy as np
 import mlmc.moments
 import mlmc.tool.distribution
@@ -74,6 +71,7 @@ def test_legendre():
     assert np.allclose(np.array(ref).T, moments)
 
 
+@pytest.mark.skip
 def test_spline():
     size = 10
     moments_fn = mlmc.moments.Spline(size, (-1.0, 1.0), smoothing_factor=1)
@@ -293,4 +291,4 @@ def test_transform():
 
 test_legendre()
 
-test_spline()
+#test_spline()

@@ -41,8 +41,7 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import mlmc.estimate
-import mlmc.distribution
+import mlmc.archive.estimate
 import mlmc.bivariate_simple_distr
 from mlmc import moments
 import test.benchmark_distributions as bd
@@ -528,7 +527,7 @@ distribution_list = [
     ]
 
 
-#@pytest.mark.skip
+@pytest.mark.skip
 @pytest.mark.parametrize("moments", [
     # moments_class, min and max number of moments, use_covariance flag
     #(moments.Monomial, 3, 10),
@@ -630,7 +629,7 @@ def test_pdf_approx_exact_moments(moments, distribution):
 #     fig.savefig('compare_distributions.pdf')
 #     plt.show()
 
-
+@pytest.mark.skip
 def test_total_variation():
     function = lambda x: np.sin(x)
     lower_bound, higher_bound = 0, 2 * np.pi

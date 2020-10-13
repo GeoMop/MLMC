@@ -7,7 +7,7 @@ from memoization import cached
 from scipy import interpolate
 from typing import List, Tuple
 from mlmc.sample_storage import SampleStorage
-from mlmc.sim.simulation import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec
 
 
 def _get_quantity_info(args_quantities, get_quantity_storage=False):
