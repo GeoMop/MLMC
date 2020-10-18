@@ -7,9 +7,9 @@ from scipy import stats
 from mlmc.sim.simulation import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc import quantity_concept as q
-from mlmc.quantity_concept import make_root_quantity, estimate_mean, moment, moments, covariance
-from mlmc.quantity_concept import Quantity, QuantityStorage, DictType
+from mlmc import quantity as q
+from mlmc.quantity import make_root_quantity, estimate_mean, moment, moments, covariance
+from mlmc.quantity import Quantity, QuantityStorage, DictType
 from mlmc.sampler import Sampler
 from mlmc.moments import Legendre, Monomial
 from mlmc.quantity_estimate import QuantityEstimate
