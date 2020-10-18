@@ -201,7 +201,7 @@ class FlowSim(Simulation):
         config['fields_params'] = self._fields_params
 
         # Auxiliary parameter which I use to determine task_size (should be from 0 to 1, if task_size is above 1 then pbs job is scheduled)
-        job_weight = 2000000  # 4000000 - 20 min, 2000000 - cca 10 min
+        job_weight = 17000000  # 4000000 - 20 min, 2000000 - cca 10 min
 
         return LevelSimulation(config_dict=config,
                                task_size=len(fine_mesh_data['points'])/job_weight,
