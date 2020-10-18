@@ -251,6 +251,7 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
         moments = moments_fn.eval_all(x)
         mom_fine = moments[..., 0, :]
         mom_coarse = moments[..., 1, :]
+
         cov_fine = np.einsum('...i,...j', mom_fine, mom_fine)
         cov_coarse = np.einsum('...i,...j', mom_coarse, mom_coarse)
 
@@ -989,7 +990,7 @@ class DictType(QType):
         return list(self._dict.values())[0].base_qtype()
 
     def size(self) -> int:
-        return int(np.sum(q_type.size() for _, q_type in self._dict.items()))
+        return int(sum(q_type.size() for _, q_type in self._dict.items()))
 
     def get_qtypes(self):
         return self._dict.values()

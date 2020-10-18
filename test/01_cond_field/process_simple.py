@@ -12,8 +12,9 @@ from mlmc.moments import Legendre, Monomial
 from mlmc.tool.process_base import ProcessBase
 from mlmc.random import correlated_field as cf
 from mlmc.quantity_estimate import QuantityEstimate
-from mlmc.quantity_concept import make_root_quantity, estimate_mean, moment, moments, covariance
+from mlmc.quantity import make_root_quantity, estimate_mean, moment, moments, covariance
 import mlmc.estimator as new_estimator
+import mlmc.tool.simple_distribution
 
 
 class ProcessSimple:
@@ -30,10 +31,11 @@ class ProcessSimple:
         # 'Debug' mode is on - keep sample directories
         self.use_pbs = True
         # Use PBS sampling pool
-        self.n_levels = 2
+        self.n_levels = 1
+        self.n_moments = 5
         # Number of MLMC levels
 
-        step_range = [0.055, 0.0035]
+        step_range = [1, 0.005]
         # step   - elements
         # 0.1    - 262
         # 0.08   - 478
@@ -75,9 +77,8 @@ class ProcessSimple:
         # @TODO: How to estimate true_domain?
         true_domain = list(QuantityEstimate.estimate_domain(sample_storage, quantile=0.01))
 
-        n_moments = 10
         #moments_fn = Legendre(n_moments, true_domain)
-        moments_fn = Monomial(n_moments, true_domain)
+        moments_fn = Monomial(self.n_moments, true_domain)
 
         moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
         moments_mean = estimate_mean(moments_quantity)
@@ -90,12 +91,56 @@ class ProcessSimple:
         assert value_mean() == 1
 
         true_domain = [-10, 10]  # keep all values on the original domain
-        central_moments_fn = Monomial(n_moments, true_domain, ref_domain=true_domain, mean=means())
+        central_moments_fn = Monomial(self.n_moments, true_domain, ref_domain=true_domain, mean=means())
         central_moments_quantity = moments(root_quantity, moments_fn=central_moments_fn, mom_at_bottom=True)
         central_moments_mean = estimate_mean(central_moments_quantity)
 
         print("central moments mean ", central_moments_mean())
         print("moments mean ", moments_mean())
+
+        self.construct_density(root_quantity, moments_fn)
+
+    def construct_density(self, quantity, moments_fn, tol=1.95, reg_param=0.01):
+        """
+        Construct approximation of the density using given moment functions.
+        Args:
+            moments_fn: Moments object, determines also domain and n_moments.
+            tol: Tolerance of the fitting problem, with account for variances in moments.
+                 Default value 1.95 corresponds to the two tail confidency 0.95.
+            reg_param: Regularization parameter.
+        """
+        cov = estimate_mean(covariance(quantity, moments_fn))
+
+        conductivity_cov = cov['conductivity']
+        time_cov = conductivity_cov[1]  # times: [1]
+        location_cov = time_cov['0']  # locations: ['0']
+        values_cov = location_cov[0, 0]  # result shape: (1, 1)
+        cov = values_cov()
+
+        moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(moments_fn, cov, tol=0.0001)
+        print("n levels: ", self.n_levels, "size: ", moments_obj.size)
+        #est_moments, est_vars = self.estimate_moments(moments_obj)
+        moments_mean = estimate_mean(moments(quantity, moments_obj))
+        est_moments = moments_mean.mean()
+        est_vars = moments_mean.var()
+
+        print("est moments ", est_moments)
+        print("est vars ", est_vars)
+        #est_moments = np.zeros(moments_obj.size)
+        #est_moments[0] = 1.0
+        est_vars = np.ones(moments_obj.size)
+        min_var, max_var = np.min(est_vars[1:]), np.max(est_vars[1:])
+        print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
+        moments_data = np.stack((est_moments, est_vars), axis=1)
+        distr_obj = mlmc.tool.simple_distribution.SimpleDistribution(moments_obj, moments_data, domain=moments_obj.domain)
+        distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
+
+        self._distribution = distr_obj
+
+        distr_plot = mlmc.tool.plot.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
+        distr_plot.add_distribution(distr_obj, label="#{}".format(self.n_moments))
+        distr_plot.show(None)#file="{} levels, {} moments_pdf".format(self.n_levels, self.n_moments))
+        distr_plot.reset()
 
     def run(self, renew=False):
         """
