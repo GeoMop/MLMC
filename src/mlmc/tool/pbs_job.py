@@ -95,8 +95,7 @@ class PbsJob:
         """
         with open(os.path.join(output_dir, PbsJob.CLASS_FILE), "r") as reader:
             line = reader.readline().split(';')
-
-            return line[0], line[1], bool(line[2])
+            return line[0], line[1], True if line[2] == 'True' else False
 
     @staticmethod
     def command_params():
