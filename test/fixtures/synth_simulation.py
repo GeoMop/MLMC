@@ -6,16 +6,17 @@ TODO:
 """
 import sys
 import os
-from random import randint
+import random as rnd
+import datetime
 import numpy as np
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, src_path + '/../src/')
-import mlmc.simulation
+import mlmc.sim.simulation
 import mlmc.sample
 
 
-class SimulationTest(mlmc.simulation.Simulation):
+class SimulationTest(mlmc.sim.simulation.Simulation):
     # Artificial simulation. Just random parameter + numerical error."""
     def __init__(self, step, level_id, config):
         """
@@ -26,12 +27,17 @@ class SimulationTest(mlmc.simulation.Simulation):
         """
         super().__init__()
         self.config = config
-        self.nan_fraction = config.get('nan_fraction', 0.0)
+        self.nan_fraction = config.get('nan_fraction', 0.05)
         self.n_nans = 0
         self.step = step
         self._result_dict = {}
         self._coarse_simulation = None
         self.coarse_sim_set = False
+
+        #self.result_additional_data_struct = [["value", "time"], [np.float, np.float]]
+        #self.result_additional_data_struct = [["value"], [np.float]]
+        self.result_additional_data_struct = [["value", "time", "position", "quantity", "unit"], [np.float, np.float, "S20", "S20", "S20"]]
+        self.result_additional_data = None
 
     def _sample_fn(self, x, h):
         """
@@ -64,7 +70,7 @@ class SimulationTest(mlmc.simulation.Simulation):
 
         if self.n_nans / (1e-10 + len(self._result_dict)) < self.nan_fraction:
             self.n_nans += 1
-            y = np.nan
+            y = np.inf
 
         self._result_dict[tag] = float(y)
 
@@ -84,6 +90,28 @@ class SimulationTest(mlmc.simulation.Simulation):
         self.coarse_sim_set = True
 
     def _extract_result(self, sample):
-        # sample time, not implemented in this simulation
-        time = np.random.random()
-        return self._result_dict[sample.directory], time
+        """
+        Extract simulation result
+        :param sample: Sample instance
+        :return: list of tuples
+        """
+        value = self._result_dict[sample.directory]
+        quantities = ["quantity_1", "quantity_1", "quantity_3"]
+        unit_dict = {"quantity_1": "unit_1", "quantity_2": "unit_2", "quantity_3": "unit_3"}
+        result_values = []
+        for i in range(3):
+            time, position = self.generate_random_data()
+            quantity = quantities[i]
+            unit = unit_dict[quantity]
+            result_values.append((value+i, i, position, quantity, unit))
+
+        return result_values
+
+    def generate_random_data(self):
+        time = round(np.random.random(), 5)
+        positions = ["frac_1", "frac_2", "frac_3", "frac_4", "frac_5", "frac_6", "frac_7", "frac_8", "frac_9"]
+        position = rnd.choice(positions)
+        # time = datetime.datetime.now()
+
+        return time, position
+

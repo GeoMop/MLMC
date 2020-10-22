@@ -1,14 +1,20 @@
 import os.path
 import numpy as np
-from mlmc.mlmc import MLMC
+from mlmc.sampler import Sampler
+from mlmc.sampling_pool import OneProcessPool
+from mlmc.sample_storage import Memory
+from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc import moments
-import mlmc.plot
-import mlmc.estimate
-from test.fixtures.synth_simulation import SimulationTest
+import mlmc.tool.plot
+import mlmc.estimator
+import mlmc.archive.estimate
+from mlmc.sim.synth_simulation import SynthSimulation
+from mlmc.quantity_estimate import QuantityEstimate
 
 
-class TestMLMC:
-    def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None, quantile=None):
+class MLMCTest:
+    def __init__(self, n_levels, n_moments, distr, is_log=False, sim_method=None, quantile=None,
+                 moments_class=moments.Legendre, mlmc_file=None, domain=None):
         """
         Create TestMLMC object instance
         :param n_levels: number of levels
@@ -20,76 +26,108 @@ class TestMLMC:
         """
         # Not work for one level method
         print("\n")
-        print("L: {} R: {} distr: {} sim: {}".format(n_levels, n_moments, distr.dist.__class__.__name__, sim_method))
 
+        print("L: {} R: {} distr: {} sim: {}".format(n_levels, n_moments, distr.dist.__class__.__name__ if 'dist' in distr.__dict__ else '',
+                                                     sim_method))
+
+        self.mlmc_file = mlmc_file
         self.distr = distr
         self.n_levels = n_levels
         self.n_moments = n_moments
         self.is_log = is_log
 
         # print("var: ", distr.var())
-        step_range = (0.8, 0.01)
+        step_range = [0.8, 0.01]
 
-        if self.n_levels == 1:
-            self.steps = step_range[1]
-        else:
-            coef = (step_range[1]/step_range[0])**(1.0/(self.n_levels - 1))
-            self.steps = step_range[0] * coef**np.arange(self.n_levels)
+        level_parameters = mlmc.estimator.calc_level_params(step_range, n_levels)
+
+        # if self.n_levels == 1:
+        #     self.steps = step_range[1]
+        # else:
+        #     coef = (step_range[1]/step_range[0])**(1.0/(self.n_levels - 1))
+        #     self.steps = step_range[0] * coef**np.arange(self.n_levels)
 
         # All levels simulations objects and MLMC object
-        self.mc, self.sims = self.make_simulation_mc(step_range, sim_method)
-        self.estimator = mlmc.estimate.Estimate(self.mc)
+        self.sampler = self.create_sampler(level_parameters, sim_method)
 
-        # reference variance
-        if quantile is not None:
-            true_domain = distr.ppf([quantile, 1 - quantile])
+        if domain is not None:
+            true_domain = domain
         else:
-            true_domain = distr.ppf([0.0001, 0.9999])
 
-        self.moments_fn = moments.Legendre(n_moments, true_domain, is_log)
+            # reference variance
+            # if 'domain' in distr.__dict__:
+            #     true_domain = distr.domain
+            if quantile is not None:
+                if quantile == 0:
+                    X = distr.rvs(size=1000)
+                    true_domain = (np.min(X), np.max(X))
+
+                    if hasattr(distr, "domain"):
+                        true_domain = distr.domain
+                    else:
+                        X = distr.rvs(size=1000)
+                        true_domain = (np.min(X), np.max(X))
+                else:
+                    true_domain = distr.ppf([quantile, 1 - quantile])
+            else:
+                true_domain = distr.ppf([0.0001, 0.9999])
+
+        self.true_domain = true_domain
+        self.moments_fn = moments_class(n_moments, true_domain, log=is_log)
+
+        self.estimator = QuantityEstimate(sample_storage=self.sampler.sample_storage, moments_fn=self.moments_fn,
+                                          sim_steps=level_parameters)
 
         # Exact means and vars estimation from distribution
         sample_size = 10000
         # Prefer to use numerical quadrature to get moments,
         # but check if it is precise enough and possibly switch back to MC estimates
 
-        means, vars = self.estimator.direct_estimate_diff_var(self.sims, self.distr, self.moments_fn)
-        have_nan = np.any(np.isnan(means)) or np.any(np.isnan(vars))
-        self.ref_means = np.sum(np.array(means), axis=0)
-        self.exact_means = self.estimator.estimate_exact_mean(self.distr, self.moments_fn, 5 * sample_size)
-        rel_error = np.linalg.norm(self.exact_means - self.ref_means) / np.linalg.norm(self.exact_means)
+        # means, vars = self.estimator.direct_estimate_diff_var(self.sims, self.distr, self.moments_fn)
+        # have_nan = np.any(np.isnan(means)) or np.any(np.isnan(vars))
+        # self.ref_means = np.sum(np.array(means), axis=0)
+        # self.exact_means = self.estimator.estimate_exact_mean(self.distr, self.moments_fn, 5 * sample_size)
+        # rel_error = np.linalg.norm(self.exact_means - self.ref_means) / np.linalg.norm(self.exact_means)
+        #
+        # if have_nan or rel_error > 1 / np.sqrt(sample_size):
+        #     # bad match, probably bad domain, use MC estimates instead
+        #     # TODO: still getting NaNs constantly, need to determine inversion of Simultaion._sample_fn and
+        #     # map the true idomain for which the moments fn are constructed into integration domain so that
+        #     # integration domain mapped by _sample_fn is subset of true_domain.
+        #     means, vars = self.estimator.estimate_diff_var(self.sims, self.distr, self.moments_fn, sample_size)
+        #     self.ref_means = np.sum(np.array(means), axis=0)
+        #
+        # self.ref_level_vars = np.array(vars)
+        # self.ref_level_means = np.array(means)
+        # self.ref_vars = np.sum(np.array(vars) / sample_size, axis=0)
+        # self.ref_mc_diff_vars = None
 
-        if have_nan or rel_error > 1 / np.sqrt(sample_size):
-            # bad match, probably bad domain, use MC estimates instead
-            # TODO: still getting NaNs constantly, need to determine inversion of Simultaion._sample_fn and
-            # map the true domain for which the moments fn are constructed into integration domain so that
-            # integration domain mapped by _sample_fn is subset of true_domain.
-            means, vars = self.estimator.estimate_diff_var(self.sims, self.distr, self.moments_fn, sample_size)
-            self.ref_means = np.sum(np.array(means), axis=0)
+    def set_moments_fn(self, moments_class):
+        self.moments_fn = moments_class(self.n_moments, self.true_domain, self.is_log)
 
-        self.ref_level_vars = np.array(vars)
-        self.ref_level_means = np.array(means)
-        self.ref_vars = np.sum(np.array(vars) / sample_size, axis=0)
-        self.ref_mc_diff_vars = None
-
-    def make_simulation_mc(self, step_range, sim_method=None):
+    def create_sampler(self, level_parameters, sim_method=None):
         """
-        Used by constructor to create mlmc and simulation objects for given exact distribution.
-        :param step_range: simulation steps, tuple
+        Create sampler with HDF storage
+        :param level_parameters: simulation params for each level
         :param sim_method: simulation method name
-        :return: mlmc.MLMC instance, list of level fine simulations
+        :return: mlmc.sampler.Sampler
         """
         simulation_config = dict(distr=self.distr, complexity=2, nan_fraction=0, sim_method=sim_method)
-        simulation_factory = SimulationTest.factory(step_range, config=simulation_config)
+        simulation_factory = SynthSimulation(simulation_config)
+        output_dir = os.path.dirname(os.path.realpath(__file__))
 
-        mlmc_options = {'output_dir': os.path.dirname(os.path.realpath(__file__)),
-                        'keep_collected': True,
-                        'regen_failed': False}
-        mc = MLMC(self.n_levels, simulation_factory, step_range, mlmc_options)
-        mc.create_new_execution()
+        # Create sample storages
+        sample_storage = SampleStorageHDF(file_path=os.path.join(output_dir, "mlmc_test.hdf5"))
+        # Create sampling pools
+        sampling_pool = OneProcessPool()
+        # sampling_pool_dir = OneProcessPool(work_dir=work_dir)
+        sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
+                          level_parameters=level_parameters)
 
-        sims = [level.fine_simulation for level in mc.levels]
-        return mc, sims
+        sampler.set_initial_n_samples([50, 50])
+        sampler.schedule_samples()
+        sampler.ask_sampling_pool_for_samples()
+        return sampler
 
     def generate_samples(self, n_samples, variance=None):
         """
@@ -184,9 +222,9 @@ class TestMLMC:
             means, vars = self.estimator.ref_estimates_bootstrap(n_samples, moments_fn=self.moments_fn)
             diff_vars, n_samples = self.estimator.estimate_diff_vars(self.moments_fn)
             # Remove first moment
-            means = means[1:]
-            vars = vars[1:]
-            diff_vars = diff_vars[:, 1:]
+            means = np.squeeze(means)[1:]
+            vars = np.squeeze(vars)[1:]
+            diff_vars = diff_vars[:, :, 1:]
 
             self.all_vars.append(vars)
             self.all_means.append(means)
