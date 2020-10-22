@@ -16,7 +16,7 @@ from mlmc.quantity_estimate import QuantityEstimate
 from mlmc.sampling_pool import OneProcessPool, ProcessPool
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
 from test.synth_sim_for_tests import SynthSimulationForTests
-import mlmc.estimator as new_estimator
+import mlmc.estimator
 
 
 def _prepare_work_dir():
@@ -459,14 +459,7 @@ class QuantityTests(unittest.TestCase):
         step_range = [0.5, 0.01]
         n_levels = 2
 
-        assert step_range[0] > step_range[1]
-        level_parameters = []
-        for i_level in range(n_levels):
-            if n_levels == 1:
-                level_param = 1
-            else:
-                level_param = i_level / (n_levels - 1)
-            level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
+        level_parameters = mlmc.estimator.calc_level_params(step_range, n_levels)
 
         clean = True
         sampler, simulation_factory = self._create_sampler(level_parameters, clean=clean)
@@ -489,14 +482,14 @@ class QuantityTests(unittest.TestCase):
         # @TODO: test
         # New estimation according to already finished samples
         variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-        n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+        n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                            n_levels=sampler.n_levels)
 
         # Loop until number of estimated samples is greater than the number of scheduled samples
         while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
             # New estimation according to already finished samples
             variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-            n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+            n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                                n_levels=sampler.n_levels)
 
         means, vars = q_estimator.estimate_moments(moments_fn)

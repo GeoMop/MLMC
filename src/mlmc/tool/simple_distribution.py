@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 import scipy as sc
 import scipy.integrate as integrate
@@ -5,7 +6,7 @@ import mlmc.moments
 import mlmc.tool.plot
 from abc import ABC, abstractmethod
 from numpy import testing
-#import pandas as pd
+import pandas as pd
 
 EXACT_QUAD_LIMIT = 1000
 GAUSS_DEGREE = 100
@@ -1369,7 +1370,7 @@ def huber_l1_norm(func, x):
     r = func(x)
 
     mu = HUBER_MU
-    y = mu * (numpy.sqrt(1+(r**2/mu**2)) - 1)
+    y = mu * (np.sqrt(1+(r**2/mu**2)) - 1)
 
     return y
 
@@ -1381,7 +1382,7 @@ def huber_norm(func, x):
         r = func(value)
         mu = HUBER_MU
 
-        y = mu * (numpy.sqrt(1+(r**2/mu**2)) - 1)
+        y = mu * (np.sqrt(1+(r**2/mu**2)) - 1)
 
         result.append(y)
 
@@ -1390,7 +1391,7 @@ def huber_norm(func, x):
 
 
 def total_variation_vec(func, a, b):
-    x = numpy.linspace(a, b, 1000)
+    x = np.linspace(a, b, 1000)
     x1 = x[1:]
     x2 = x[:-1]
 

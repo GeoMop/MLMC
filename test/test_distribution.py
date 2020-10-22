@@ -44,7 +44,7 @@ import mlmc.tool.simple_distribution
 from mlmc import moments
 import test.benchmark_distributions as bd
 import mlmc.tool.plot as plot
-#from test.fixtures.mlmc_test_run import MLMCTest
+from test.fixtures.mlmc_test_run import MLMCTest
 import mlmc.spline_approx as spline_approx
 from mlmc.moments import Legendre
 import pandas as pd
@@ -403,7 +403,7 @@ class DistributionDomainCase:
         log_flag = self.log_flag
         a, b = self.domain
 
-        mlmc_est_list = []
+        sampler_est_list = []
 
         for level in levels:
 
@@ -418,19 +418,42 @@ class DistributionDomainCase:
 
                 mc_test = MLMCTest(level, max_mom, self.cut_distr.distr, log_flag, "_sample_fn", moments_class=mom_class)
                 # number of samples on each level
-                mc_test.mc.set_initial_n_samples()
-                mc_test.mc.refill_samples()
-                mc_test.mc.wait_for_simulations()
-                mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (0, "=")})
-                estimator = mlmc.archive.estimate.Estimate(mc_test.mc, mc_test.moments_fn)
+                mc_test.sampler.set_initial_n_samples()
+                mc_test.sampler.schedule_samples()
+                mc_test.sampler.ask_sampling_pool_for_samples()
+                #mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (0, "=")})
 
-                estimator.target_var_adding_samples(target_var, mc_test.moments_fn)
-                mc = mc_test.mc
+                target_var = 1e-2
+                sleep = 0
+                add_coef = 0.1
 
-                mlmc_est_list.append(mc)
+                # @TODO: test
+                # New estimation according to already finished samples
+                variances, n_ops = mc_test.estimator.estimate_diff_vars_regression(mc_test.sampler._n_scheduled_samples)
+                n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                                   n_levels=mc_test.sampler.n_levels)
 
-                mc_test.mc.update_moments(mc_test.moments_fn)
-                means, vars = estimator.estimate_moments(mc_test.moments_fn)
+                # Loop until number of estimated samples is greater than the number of scheduled samples
+                while not mc_test.sampler.process_adding_samples(n_estimated, sleep, add_coef):
+                    # New estimation according to already finished samples
+                    variances, n_ops = mc_test.estimator.estimate_diff_vars_regression(mc_test.sampler._n_scheduled_samples)
+                    n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                                       n_levels=mc_test.sampler.n_levels)
+
+
+
+                # estimator = mlmc.archive.estimate.Estimate(mc_test.mc, mc_test.moments_fn)
+                #
+                # estimator.target_var_adding_samples(target_var, mc_test.moments_fn)
+                # mc = mc_test.mc
+
+                sampler_est_list.append(mc_test.sampler)
+
+                #mc_test.mc.update_moments(mc_test.moments_fn)
+                means, vars = mc_test.estimator.estimate_moments(mc_test.moments_fn)
+
+                print("means ", means)
+                print("vars ", vars)
 
                 exact_moments = mlmc.tool.simple_distribution.compute_exact_moments(mc_test.moments_fn, self.pdf)
 
@@ -3601,7 +3624,7 @@ def test_pdf_approx_exact_moments(moments, distribution):
         #tests = [case.plot_KL_div_inexact_reg]
         #tests = [case.plot_KL_div_inexact_reg_mom]
         #tests = [case.plot_KL_div_inexact]
-        tests = [case.determine_regularization_param]
+        #tests = [case.determine_regularization_param]
         # #tests = [case.determine_regularization_param_tv]
         #tests = [case.find_regularization_param]
         #tests = [case.find_regularization_param_tv]
