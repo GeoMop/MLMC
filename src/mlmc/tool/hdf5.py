@@ -210,8 +210,12 @@ class LevelGroup:
         # Level identifier
         self.level_group_path = hdf_group_path
         # HDF Group object (h5py.Group)
-        self._items_in_chunk = None
+        self._n_items_in_chunk = None
         # Collected items in one chunk
+        self._chunks_info = {}
+        # Basic info about chunks, use in quantity subsampling
+        self._collected_n_items = None
+        # Number of samples in collected dataset
 
         # Set group attribute 'level_id'
         with h5py.File(self.file_name, 'a') as hdf_file:
@@ -368,16 +372,35 @@ class LevelGroup:
                 return dataset[:n_samples]
 
             if chunk_size is not None:
-                if self._items_in_chunk is None:
+                if self.n_items_in_chunk is None:
                     first_item = dataset[0]
                     item_byte_size = first_item.size * first_item.itemsize
-                    self._items_in_chunk = int(np.ceil(chunk_size / item_byte_size))
-                return dataset[i_chunk * self._items_in_chunk: (i_chunk + 1) * self._items_in_chunk]
+                    self.n_items_in_chunk = int(np.ceil(chunk_size / item_byte_size))
+                self._chunks_info[i_chunk] = [i_chunk * self._n_items_in_chunk, (i_chunk + 1) * self._n_items_in_chunk]
+                return dataset[i_chunk * self._n_items_in_chunk: (i_chunk + 1) * self._n_items_in_chunk]
 
             return dataset[()]
 
-    def get_items_in_chunk(self):
-        return self._items_in_chunk
+    def get_chunks_info(self, i_chunk):
+        """
+        The start and end index of a chunk from a whole dataset point of view
+        :param i_chunk: id of chunk
+        :return: List[int, int]
+        """
+        return self._chunks_info[i_chunk]
+
+    def collected_n_items(self):
+        """
+        Number of collected samples
+        :return: int
+        """
+        if self._collected_n_items is None:
+            with h5py.File(self.file_name, 'r') as hdf_file:
+                if 'collected_values' not in hdf_file[self.level_group_path]:
+                    return None
+                dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
+                self._collected_n_items = len(dataset[()])
+        return self._collected_n_items
 
     def get_finished_ids(self):
         """
@@ -440,3 +463,16 @@ class LevelGroup:
             if 'n_ops_estimate' not in hdf_file[self.level_group_path].attrs:
                 hdf_file[self.level_group_path].attrs['n_ops_estimate'] = 0
             hdf_file[self.level_group_path].attrs['n_ops_estimate'] += n_ops_estimate
+
+    @property
+    def n_items_in_chunk(self):
+        """
+        Number of items in chunk
+        :return:
+        """
+        return self._n_items_in_chunk
+
+    @n_items_in_chunk.setter
+    def n_items_in_chunk(self, n_items):
+        if self._n_items_in_chunk is None:
+            self._n_items_in_chunk = n_items

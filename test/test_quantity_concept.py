@@ -3,6 +3,7 @@ import shutil
 import unittest
 import numpy as np
 import random
+import pytest
 from scipy import stats
 from mlmc.sim.simulation import QuantitySpec
 from mlmc.sample_storage import Memory
@@ -411,7 +412,7 @@ class QuantityTests(unittest.TestCase):
 
         return result_format, sizes
 
-    def _create_sampler(self, step_range, clean=False):
+    def _create_sampler(self, step_range, clean=False, memory=False):
         # Set work dir
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
         work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
@@ -430,7 +431,10 @@ class QuantityTests(unittest.TestCase):
         # simulation_workspace = SynthSimulationWorkspace(simulation_config)
 
         # Create sample storages
-        sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_test.hdf5"))
+        if memory:
+            sample_storage = Memory()
+        else:
+            sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_test.hdf5"))
         # Create sampling pools
         sampling_pool = OneProcessPool()
         # sampling_pool_dir = OneProcessPool(work_dir=work_dir)
@@ -557,6 +561,56 @@ class QuantityTests(unittest.TestCase):
         location_mean = time_mean['10']
         value_mean = location_mean[0]
         assert len(value_mean()) == 1
+
+    @pytest.mark.parametrize("memory", [False, True])
+    def test_bootstrap(self, memory=False):
+        np.random.seed(1234)
+        n_moments = 3
+        step_range = [0.5, 0.01]
+        n_levels = 5
+
+        assert step_range[0] > step_range[1]
+        level_parameters = []
+        for i_level in range(n_levels):
+            if n_levels == 1:
+                level_param = 1
+            else:
+                level_param = i_level / (n_levels - 1)
+            level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
+
+        clean = True
+        sampler, simulation_factory = self._create_sampler(level_parameters, clean=clean, memory=memory)
+
+        distr = stats.norm()
+        true_domain = distr.ppf([0.0001, 0.9999])
+        # moments_fn = Legendre(n_moments, true_domain)
+        moments_fn = Monomial(n_moments, true_domain)
+
+        sampler.set_initial_n_samples([100, 80, 50, 30, 10])
+        sampler.schedule_samples()
+        sampler.ask_sampling_pool_for_samples()
+
+        sampler.sample_storage.chunk_size = 1024
+        root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
+        root_quantity_subsamples = root_quantity.subsample(sample_vec=[10, 8, 5, 3, 2])
+        root_quantity_subsamples_select = root_quantity.select(root_quantity_subsamples)
+
+        # Moments values are at the bottom
+        moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
+        moments_mean = estimate_mean(moments_quantity)
+        length_mean = moments_mean['length']
+        time_mean = length_mean[1]
+        location_mean = time_mean['10']
+        value_mean = location_mean[0]
+
+        # Moments values are at the bottom
+        moments_quantity = moments(root_quantity_subsamples_select, moments_fn=moments_fn, mom_at_bottom=True)
+        moments_mean = estimate_mean(moments_quantity)
+        length_mean = moments_mean['length']
+        time_mean = length_mean[1]
+        location_mean = time_mean['10']
+        value_mean_select = location_mean[0]
+        assert np.all(np.array(value_mean.var()[1:]) < np.array(value_mean_select.var()[1:]))
 
 
 if __name__ == '__main__':

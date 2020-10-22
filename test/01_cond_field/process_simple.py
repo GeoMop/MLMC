@@ -31,8 +31,8 @@ class ProcessSimple:
         # 'Debug' mode is on - keep sample directories
         self.use_pbs = True
         # Use PBS sampling pool
-        self.n_levels = 1
-        self.n_moments = 5
+        self.n_levels = 6
+        self.n_moments = 25
         # Number of MLMC levels
 
         step_range = [1, 0.005]
@@ -68,7 +68,7 @@ class ProcessSimple:
         result_format = sample_storage.load_result_format()
         root_quantity = make_root_quantity(sample_storage, result_format)
 
-        # conductivity = root_quantity['conductivity']
+        # conductivity = quantity['conductivity']
         # time = conductivity[1]  # times: [1]
         # location = time['0']  # locations: ['0']
         # values = location[0, 0]  # result shape: (1, 1)
@@ -98,7 +98,33 @@ class ProcessSimple:
         print("central moments mean ", central_moments_mean())
         print("moments mean ", moments_mean())
 
+
+        self.process_target_var(root_quantity, moments_fn, sample_storage)
+
         self.construct_density(root_quantity, moments_fn)
+
+    def process_target_var(self, quantity, moments_fn, sample_storage):
+        n0, nL = 100, 3
+        n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), self.n_levels))).astype(int)
+
+        root_quantity_init_samples = quantity.select(quantity.subsample(sample_vec=n_samples))
+
+        moments_quantity = moments(root_quantity_init_samples, moments_fn=moments_fn, mom_at_bottom=True)
+        moments_mean = estimate_mean(moments_quantity)
+
+        conductivity_mean = moments_mean['conductivity']
+        time_mean = conductivity_mean[1]  # times: [1]
+        location_mean = time_mean['0']  # locations: ['0']
+        values_mean = location_mean[0, 0]  # result shape: (1, 1)
+
+        print("value mean ", values_mean())
+        print("value var ", values_mean.var())
+
+        estimator = new_estimator.Estimate(sample_storage, moments_fn)
+
+        estimator.est_bootstrap(quantity)
+
+        exit()
 
     def construct_density(self, quantity, moments_fn, tol=1.95, reg_param=0.01):
         """
@@ -119,6 +145,7 @@ class ProcessSimple:
 
         moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(moments_fn, cov, tol=0.0001)
         print("n levels: ", self.n_levels, "size: ", moments_obj.size)
+
         #est_moments, est_vars = self.estimate_moments(moments_obj)
         moments_mean = estimate_mean(moments(quantity, moments_obj))
         est_moments = moments_mean.mean()
@@ -139,7 +166,8 @@ class ProcessSimple:
 
         distr_plot = mlmc.tool.plot.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
         distr_plot.add_distribution(distr_obj, label="#{}".format(self.n_moments))
-        distr_plot.show(None)#file="{} levels, {} moments_pdf".format(self.n_levels, self.n_moments))
+        distr_plot.show(None)
+        distr_plot.show(file=os.path.join(self.work_dir, "pdf_cdf_{}_moments".format(self.n_moments)))
         distr_plot.reset()
 
     def run(self, renew=False):
