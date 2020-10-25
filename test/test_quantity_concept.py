@@ -517,7 +517,7 @@ class QuantityTests(unittest.TestCase):
         value_mean = location_mean[0]
 
         assert np.allclose(value_mean(), means, atol=1e-4)
-        assert np.allclose(value_mean.var(), vars, atol=1e-4)
+        assert np.allclose(value_mean.var, vars, atol=1e-4)
 
         new_moments = moments_quantity + moments_quantity
         new_moments_mean = estimate_mean(new_moments)
@@ -610,7 +610,7 @@ class QuantityTests(unittest.TestCase):
         time_mean = length_mean[1]
         location_mean = time_mean['10']
         value_mean_select = location_mean[0]
-        assert np.all(np.array(value_mean.var()[1:]) < np.array(value_mean_select.var()[1:]))
+        assert np.all(np.array(value_mean.var[1:]) < np.array(value_mean_select.var[1:]))
 
 
 if __name__ == '__main__':

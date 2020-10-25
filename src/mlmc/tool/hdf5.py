@@ -375,7 +375,8 @@ class LevelGroup:
                 if self.n_items_in_chunk is None:
                     first_item = dataset[0]
                     item_byte_size = first_item.size * first_item.itemsize
-                    self.n_items_in_chunk = int(np.ceil(chunk_size / item_byte_size))
+                    self.n_items_in_chunk = int(np.ceil(chunk_size / item_byte_size)) \
+                        if int(np.ceil(chunk_size / item_byte_size)) < len(dataset[()]) else len(dataset[()])
                 self._chunks_info[i_chunk] = [i_chunk * self._n_items_in_chunk, (i_chunk + 1) * self._n_items_in_chunk]
                 return dataset[i_chunk * self._n_items_in_chunk: (i_chunk + 1) * self._n_items_in_chunk]
 

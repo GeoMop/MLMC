@@ -90,6 +90,13 @@ class SampleStorage(metaclass=ABCMeta):
         :return: int
         """
 
+    @abstractmethod
+    def get_n_levels(self):
+        """
+        Get number of levels
+        :return: int
+        """
+
     @property
     def chunk_size(self):
         return self._chunk_size
@@ -295,3 +302,10 @@ class Memory(SampleStorage):
         for level in self._results:
             n_collected[int(level.level_id)] = level.collected_n_items()
         return n_collected
+
+    def get_n_levels(self):
+        """
+        Get number of levels
+        :return: int
+        """
+        return len(self._results)

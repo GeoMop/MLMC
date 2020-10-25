@@ -197,13 +197,19 @@ def estimate_mean(quantity, level_means=False):
 
     for s, sp, n in zip(sums, sums_of_squares, n_samples):
         mean += s / n
-        var += (sp - (s ** 2 / n)) / ((n - 1) * n)
+        if n > 1:
+            var += (sp - (s ** 2 / n)) / ((n - 1) * n)
+        else:
+            var += (sp - (s ** 2))
 
         if level_means:
             l_means.append(s / n)
-            l_vars.append((sp - (s ** 2 / n)) / ((n - 1) * n))
+            if n > 1:
+                l_vars.append((sp - (s ** 2 / n)) / (n-1))
+            else:
+                l_vars.append((sp - (s ** 2)))
 
-    return quantity.create_quantity_mean(mean=mean, var=var, l_means=l_means, l_vars=l_vars)
+    return quantity.create_quantity_mean(mean=mean, var=var, l_means=l_means, l_vars=l_vars, n_samples=n_samples)
 
 
 def moment(quantity, moments_fn, i=0):
@@ -369,7 +375,7 @@ class Quantity:
         else:
             return None
 
-    def create_quantity_mean(self, mean: np.ndarray, var: np.ndarray, l_means:np.ndarray, l_vars:np.ndarray):
+    def create_quantity_mean(self, mean: np.ndarray, var: np.ndarray, l_means:np.ndarray, l_vars:np.ndarray, n_samples=None):
         """
         Crate a new quantity with the same structure but containing fixed data vector.
         Primary usage is to organise computed means and variances.
@@ -383,7 +389,7 @@ class Quantity:
         if np.isnan(mean).all():
             mean = []
             var = []
-        return QuantityMean(self.qtype, mean, var, l_means=l_means, l_vars=l_vars)
+        return QuantityMean(self.qtype, mean, var, l_means=l_means, l_vars=l_vars, n_samples=n_samples)
 
     def _reduction_op(self, quantities, operation):
         """
@@ -561,18 +567,20 @@ class Quantity:
         :param sample_vec: list of number of samples at each level
         :return: np.ndarray
         """
-        self._sample_vec = sample_vec
-        np.random.seed(np.prod(sample_vec))
         quantity_storage = self.get_quantity_storage()
         n_collected = quantity_storage.n_collected()
+
+        rnd_indices = {}
+        for level_id in self.get_quantity_storage().level_ids():
+            rnd_indices[level_id] = np.sort(np.random.choice(n_collected[level_id], size=sample_vec[level_id]))
 
         def mask_gen(x, level_id, i_chunk, *args):
             chunks_info = quantity_storage.get_chunks_info(level_id, i_chunk)  # start and end index in collected values
             chunk_indices = list(range(*chunks_info))
-            indices = np.intersect1d(np.sort(np.random.choice(n_collected[level_id], size=sample_vec[level_id])), chunk_indices)
-
-            final_indices = np.where(np.isin(np.array(chunk_indices), np.array(indices)))
+            indices = np.intersect1d(rnd_indices[level_id], chunk_indices)
+            final_indices = np.where(np.isin(chunk_indices, indices))[0]
             mask = np.zeros(x.shape[1], bool)
+
             mask[final_indices] = True
             return mask
         return self._mask_quantity(0, mask_gen)
@@ -706,7 +714,7 @@ class QuantityConst(Quantity):
 
 class QuantityMean:
 
-    def __init__(self, quantity_type, mean, var, l_means=[], l_vars=[]):
+    def __init__(self, quantity_type, mean, var, l_means=[], l_vars=[], n_samples=None):
         """
         QuantityMean represents result of estimate_mean method
         :param quantity_type: QType
@@ -716,27 +724,36 @@ class QuantityMean:
         self.qtype = quantity_type
         self._mean = mean
         self._var = var
-        self._l_means = l_means
-        self._l_vars = l_vars
+        self._l_means = np.array(l_means)
+        self._l_vars = np.array(l_vars)
+        self._n_samples = n_samples
 
     def __call__(self):
         """
         Return mean
         :return:
         """
-        return self.mean()
+        return self.mean
 
+    @property
     def mean(self):
         return self._mean
 
+    @property
     def var(self):
         return self._var
 
+    @property
     def l_means(self):
         return self._l_means
 
+    @property
     def l_vars(self):
         return self._l_vars
+
+    @property
+    def n_samples(self):
+        return self._n_samples
 
     def __getitem__(self, key):
         """
@@ -764,21 +781,48 @@ class QuantityMean:
 
         mean = self._mean
         var = self._var
+        l_means = self._l_means
+        l_vars = self._l_vars
 
         if reshape_shape is not None:
             if newshape is not None:  # reshape [Mr] to e.g. [..., R, R, M]
                 mean = mean.reshape((*reshape_shape, *newshape))
                 var = var.reshape((*reshape_shape, *newshape))
+                l_means = l_means.reshape((l_means.shape[0], *reshape_shape, *newshape))
+                l_vars = l_vars.reshape((l_vars.shape[0], *reshape_shape, *newshape))
             elif (np.prod(mean.shape) // np.prod(reshape_shape)) > 1:
                 mean = mean.reshape(*reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape))
                 var = var.reshape(*reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape))
+                l_means = l_means.reshape((l_means.shape[0], *reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape)))
+                l_vars = l_vars.reshape((l_vars.shape[0], *reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape)))
             else:
                 mean = mean.reshape(*reshape_shape)
                 var = var.reshape(*reshape_shape)
+                l_means = l_means.reshape((l_means.shape[0], *reshape_shape))
+                l_vars = l_vars.reshape((l_vars.shape[0], *reshape_shape))
+
 
         mean_get_item = mean[slice_key]
         var_get_item = var[slice_key]
-        return QuantityMean(quantity_type=new_qtype, mean=mean_get_item, var=var_get_item)
+
+        # Handle level means and variances
+        if len(l_means) > 0:
+            if isinstance(slice_key, slice):
+                l_means = l_means[:, slice_key]
+                l_vars = l_vars[:, slice_key]
+            else:
+                if isinstance(slice_key, int):
+                    slice_key = [slice_key]
+
+                if len(l_means.shape) - (len(slice_key) +1) > 0:
+                    l_means = l_means[(slice(0, l_means.shape[0]), *slice_key, slice(0, l_means.shape[-1]))]
+                    l_vars = l_vars[(slice(0, l_vars.shape[0]), *slice_key, slice(0, l_vars.shape[-1]))]
+                else:
+                    l_means = l_means[(slice(0, l_means.shape[0]), *slice_key)]
+                    l_vars = l_vars[(slice(0, l_vars.shape[0]), *slice_key)]
+
+        return QuantityMean(quantity_type=new_qtype, mean=mean_get_item, var=var_get_item,
+                            l_means=l_means, l_vars=l_vars)
 
 
 class QuantityStorage(Quantity):
@@ -861,7 +905,9 @@ class QType(metaclass=abc.ABCMeta):
         :param new_qtype: QType
         :return: None
         """
-        if isinstance(self._qtype, ScalarType):
+        if isinstance(self, ScalarType):
+            self._qtype = new_qtype
+        elif isinstance(self._qtype, ScalarType):
             self._qtype = new_qtype
         else:
             self._qtype.replace_scalar(new_qtype)
@@ -899,6 +945,8 @@ class ScalarType(QType):
         self._qtype = qtype
 
     def base_qtype(self):
+        if isinstance(self._qtype, BoolType):
+            return self._qtype.base_qtype()
         return self
 
     def size(self) -> int:

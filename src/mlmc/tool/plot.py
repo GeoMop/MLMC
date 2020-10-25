@@ -32,6 +32,7 @@ def create_color_bar(range, label, ax = None):
     clb.set_label(label)
     return lambda v: colormap(normalize(v))
 
+
 def moments_subset(n_moments, moments=None):
     """
     Return subset of range(n_moments) for ploting.
@@ -42,12 +43,12 @@ def moments_subset(n_moments, moments=None):
     :return:
     """
     if moments is None:
-        subset =  np.arange(1, n_moments)
+        subset = np.arange(1, n_moments)
     else:
         assert type(moments) is int
-        subset =  np.round(np.geomspace(1, n_moments-1, moments)).astype(int)
+        subset = np.round(np.geomspace(1, n_moments-1, moments)).astype(int)
         # make indices unique by increasing
-        for i in range(1,len(subset)):
+        for i in range(1, len(subset)):
             subset[i] = max(subset[i], subset[i-1]+1)
     return subset
 
@@ -386,9 +387,6 @@ def moments(moments_fn, size=None, title="", file=""):
     _show_and_save(fig, file, title)
 
 
-
-
-
 class VarianceBreakdown:
     """
     Plot total variance average over moments and variances of individual moments,
@@ -399,7 +397,7 @@ class VarianceBreakdown:
         """
         :param moments: Size or type of moments subset, see moments_subset function.
         """
-        self.fig =  plt.figure(figsize=(15, 8))
+        self.fig = plt.figure(figsize=(15, 8))
         self.title = "Variance brakedown"
         self.fig.suptitle(self.title)
         self.ax = self.fig.add_subplot(1, 1, 1)
@@ -412,7 +410,6 @@ class VarianceBreakdown:
     def add_variances(self, level_vars, n_samples, ref_level_vars=None):
         """
         Add plot of variances for single MLMC instance.
-
         :param level_vars: Array (n_levels, n_moments) of level variances.
         :param n_samples: Array (n_levels,) of numberf of samples on levels
         :param ref_level_vars: reference level vars (e.g. from bootstrapping)
@@ -430,7 +427,7 @@ class VarianceBreakdown:
         level_vars = level_vars[:, self.moments_subset]
         n_levels, n_moments = level_vars.shape
 
-        width=0.1
+        width = 0.1
         X = self.x_shift + (width*1.1)*np.arange(n_moments+1)
         self.x_shift = X[-1] + 3*width
         self.X_list.append(X)
@@ -440,9 +437,10 @@ class VarianceBreakdown:
         sum_Y = np.zeros(n_moments+1)
         yerr = None
         total_Y0 = np.sum(np.mean(level_vars[:, :] / n_samples[:, None], axis=1))
+
         for il in reversed(range(n_levels)):
             vars = level_vars[il, :]
-            Y = np.concatenate(( [np.mean(vars)], vars))
+            Y = np.concatenate(([np.mean(vars)], vars))
             Y /= n_samples[il]
 
             if ref_level_vars is not None:
@@ -454,6 +452,7 @@ class VarianceBreakdown:
                 yerr_upper_lim = np.maximum(diff_Y, 0)
                 yerr = np.stack((yerr_lower_lim, yerr_upper_lim), axis=0)
             level_col = plt.cm.tab20(il)
+
             self.ax.bar(X, Y, width, bottom=sum_Y, yerr=yerr,
                         color=level_col)
             level_label = "L{} {:5}".format(il, n_samples[il])
@@ -467,7 +466,6 @@ class VarianceBreakdown:
                 )
 
             sum_Y += Y
-
 
     def show(self, file=""):
         """
@@ -506,7 +504,6 @@ class Variance:
         self.max_step = 0
         self.data = {}
 
-
     def add_level_variances(self, steps, variances):
         """
         Add variances for single MLMC instance.
@@ -528,12 +525,6 @@ class Variance:
             X.extend(steps.tolist())
             Y.extend(vars.tolist())
             self.data[m] = (X, Y)
-
-
-
-
-    # def add_diff_variances(self, step, variances):
-    #     pass
 
     def show(self, file=""):
         step_range = self.max_step / self.min_step
@@ -558,15 +549,41 @@ class Variance:
         _show_and_save(self.fig, file, self.title)
 
 
+class BSplots:
+    def __init__(self, n_samples, bs_n_samples, n_moments):
+        self._bs_n_samples = bs_n_samples
+        self._n_samples = n_samples
+        self._n_moments = n_moments
+
+    def set_moments_color_bar(self, range, label, ax=None):
+        """
+        Create colorbar for a variable with given range and add it to given axes.
+        :param range: single value as high bound or tuple (low bound, high bound)
+        :param label: Label of the colorbar.
+        :param ax:
+        :return: Function to map values to colors. (normalize + cmap)
+        """
+        # Create colorbar
+        colormap = plt.cm.gist_ncar
+        try:
+            min_r, max_r = range
+        except TypeError:
+            min_r, max_r = 0, range
+        normalize = plt.Normalize(vmin=min_r, vmax=max_r)
+        scalar_mappable = plt.cm.ScalarMappable(norm=normalize, cmap=colormap)
+        if type(max_r) is int:
+            cb_values = np.arange(min_r, max_r)
+            # ticks = np.linspace(min_r, int(size / 10) * 10, 9)
+        else:
+            cb_values = np.linspace(min_r, max_r, 100)
+            # ticks = np.linspace(min_r, int(size / 10) * 10, 9)
+        ticks = None
+        scalar_mappable.set_array(cb_values)
+        clb = plt.colorbar(scalar_mappable, ticks=ticks, aspect=50, pad=0.01, ax=ax)
+        clb.set_label(label)
+        return lambda v: colormap(normalize(v))
 
 
-
-
-
-
-
-
-class Aux:
     def _scatter_level_moment_data(self, ax, values, i_moments=None, marker='o'):
         """
         Scatter plot of given table of data for moments and levels.
@@ -580,7 +597,7 @@ class Aux:
         """
         cmap = self._moments_cmap
         if i_moments is None:
-            i_moments = range(1, self.n_moments)
+            i_moments = range(1, self._n_moments)
         values = values[:, i_moments[:]]
         n_levels = values.shape[0]
         n_moments = values.shape[1]
@@ -642,12 +659,12 @@ class Aux:
 
         fig = plt.figure(figsize=(8, 5))
         ax = fig.add_subplot(1, 1, 1)
-        self.set_moments_color_bar(ax)
+        self._moments_cmap = self.set_moments_color_bar(len(variances[0]), "moments")
         self._scatter_level_moment_data(ax, variances, marker='.')
 
         lbls = ['Total'] + ['L{:2d}\n{}\n{}'.format(l + 1, nsbs, ns)
-                            for l, (nsbs, ns) in enumerate(zip(self._bs_n_samples, self.n_samples))]
-        ax.set_xticks(ticks = np.arange(self.n_levels + 1))
+                            for l, (nsbs, ns) in enumerate(zip(self._bs_n_samples, self._n_samples))]
+        ax.set_xticks(ticks=np.arange(len(self._bs_n_samples) + 1)) # number of levels + 1
         ax.set_xticklabels(lbls)
         if log:
             ax.set_yscale('log')
@@ -714,47 +731,39 @@ class Aux:
     #                            y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
     #                            y_lim=(0.1, 20))
 
-
-    def plot_means_and_vars(self, moments_mean, moments_var, n_levels, exact_moments):
+    def plot_means_and_vars(self, moments_mean, moments_var, n_levels, exact_moments=None):
         """
         Plot means with variance whiskers to given axes.
         :param moments_mean: array, moments mean
         :param moments_var: array, moments variance
         :param n_levels: array, number of levels
         :param exact_moments: array, moments from distribution
-        :param ex_moments: array, moments from distribution samples
         :return:
         """
-        colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(moments_mean) + 1)))
-        # print("moments mean ", moments_mean)
-        # print("exact momentss ", exact_moments)
-
-        x = np.arange(0, len(moments_mean[0]))
+        x = np.arange(0, 1)
         x = x - 0.3
         default_x = x
+
+        self._moments_cmap = self.set_moments_color_bar(len(moments_mean), "moments")
 
         for index, means in enumerate(moments_mean):
             if index == int(len(moments_mean) / 2) and exact_moments is not None:
                 plt.plot(default_x, exact_moments, 'ro', label="Exact moments")
             else:
-                x = x + (1 / (len(moments_mean) * 1.5))
-                plt.errorbar(x, means, yerr=moments_var[index], fmt='o', capsize=3, color=next(colors),
-                             label = "%dLMC" % n_levels[index])
-        if ex_moments is not None:
-                plt.plot(default_x - 0.125, ex_moments, 'ko', label="Exact moments")
+                x = x + (1 / ((index+1) * 1.5))
+                plt.errorbar(x, means, yerr=moments_var[index], fmt='o', capsize=3, color=self._moments_cmap(index),
+                             label="%dLMC" % n_levels)
+
         plt.legend()
-        #plt.show()
+        plt.show()
         #exit()
 
-
-    def plot_var_regression(self, i_moments = None):
+    def plot_var_regression(self, q_estimator, n_levels, moments_fn, i_moments = None):
         """
         Plot total and level variances and their regression and errors of regression.
         :param i_moments: List of moment indices to plot. If it is an int M, the range(M) is used.
                        If None, self.moments.size is used.
         """
-        moments_fn = self.moments
-
         fig = plt.figure(figsize=(30, 10))
         ax = fig.add_subplot(1, 2, 1)
         ax_err = fig.add_subplot(1, 2, 2)
@@ -765,19 +774,19 @@ class Aux:
             i_moments = list(range(i_moments))
         i_moments = np.array(i_moments, dtype=int)
 
-        self.set_moments_color_bar(ax=ax)
+        self._moments_cmap = self.set_moments_color_bar(ax=ax)
 
-        est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
-        reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn) #/ self.n_samples[:, None]
+        est_diff_vars, n_samples = q_estimator.estimate_diff_vars(moments_fn)
+        reg_diff_vars = q_estimator.estimate_diff_vars_regression(moments_fn) #/ self.n_samples[:, None]
         ref_diff_vars = self._ref_level_var #/ self.n_samples[:, None]
 
         self._scatter_level_moment_data(ax,  ref_diff_vars, i_moments, marker='o')
         self._scatter_level_moment_data(ax, est_diff_vars, i_moments, marker='d')
         # add regression curves
-        moments_x_step = 0.5 / self.n_moments
+        moments_x_step = 0.5 / self._n_moments
         for m in i_moments:
             color = self._moments_cmap(m)
-            X = np.arange(self.n_levels) + moments_x_step * m
+            X = np.arange(n_levels) + moments_x_step * m
             Y = reg_diff_vars[1:, m]
             ax.plot(X[1:], Y, c=color)
             ax_err.plot(X[:], reg_diff_vars[:, m]/ref_diff_vars[:,m], c=color)

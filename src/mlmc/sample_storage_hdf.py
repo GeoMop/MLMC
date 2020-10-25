@@ -260,3 +260,10 @@ class SampleStorageHDF(SampleStorage):
         for level in self._level_groups:
             n_collected[int(level.level_id)] = level.collected_n_items()
         return n_collected
+
+    def get_n_levels(self):
+        """
+        Get number of levels
+        :return: int
+        """
+        return len(self._level_groups)
