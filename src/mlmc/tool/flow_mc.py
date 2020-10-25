@@ -12,7 +12,7 @@ import gstools
 from mlmc.level_simulation import LevelSimulation
 from mlmc.tool import gmsh_io
 from mlmc.sim.simulation import Simulation
-from mlmc.sim.simulation import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec
 from mlmc.random import correlated_field as cf
 
 
@@ -99,11 +99,11 @@ class FlowSim(Simulation):
 
     """
     Gather data for single flow call (coarse/fine)
-    
+
     Usage:
     mlmc.sampler.Sampler uses instance of FlowSim, it calls once level_instance() for each level step (The level_instance() method
      is called as many times as the number of levels), it takes place in main process
-    
+
     mlmc.tool.pbs_job.PbsJob uses static methods in FlowSim, it calls calculate(). That's where the calculation actually runs,
     it takes place in PBS process
        It also extracts results and passes them back to PbsJob, which handles the rest 
@@ -132,7 +132,7 @@ class FlowSim(Simulation):
         # Random fields instance
         self.time_factor = config.get('time_factor', 1.0)
         # It is used for minimal element from mesh determination (see level_instance method)
-        
+
         self.base_yaml_file = config['yaml_file']
         self.base_geo_file = config['geo_file']
         self.field_template = config.get('field_template',
@@ -145,8 +145,8 @@ class FlowSim(Simulation):
     def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]) -> LevelSimulation:
         """
         Called from mlmc.Sampler, it creates single instance of LevelSimulation (mlmc.)
-        :param fine_level_params: in this version, it is just fine simulation step 
-        :param coarse_level_params: in this version, it is just coarse simulation step 
+        :param fine_level_params: in this version, it is just fine simulation step
+        :param coarse_level_params: in this version, it is just coarse simulation step
         :return: mlmc.LevelSimulation object, this object is serialized in SamplingPoolPbs and deserialized in PbsJob,
          so it allows pass simulation data from main process to PBS process
         """
@@ -195,7 +195,8 @@ class FlowSim(Simulation):
         config["fine"]["common_files_dir"] = common_files_dir
         config["coarse"]["common_files_dir"] = coarse_sim_common_files_dir
 
-        config["fields_used_params"] = self._fields_used_params  # Params for Fields instance, which is createed in PbsJob
+        config[
+            "fields_used_params"] = self._fields_used_params  # Params for Fields instance, which is createed in PbsJob
         config["gmsh"] = self.env['gmsh']
         config["flow123d"] = self.env['flow123d']
         config['fields_params'] = self._fields_params
@@ -204,8 +205,9 @@ class FlowSim(Simulation):
         job_weight = 17000000  # 4000000 - 20 min, 2000000 - cca 10 min
 
         return LevelSimulation(config_dict=config,
-                               task_size=len(fine_mesh_data['points'])/job_weight,
-                               calculate=FlowSim.calculate,  # method which carries out the calculation, will be called from PBS processs
+                               task_size=len(fine_mesh_data['points']) / job_weight,
+                               calculate=FlowSim.calculate,
+                               # method which carries out the calculation, will be called from PBS processs
                                need_sample_workspace=True  # If True, a sample directory is created
                                )
 
@@ -233,7 +235,8 @@ class FlowSim(Simulation):
         coarse_mesh_data = None
         coarse_common_files_dir = None
         if coarse_step != 0:
-            coarse_common_files_dir = config["coarse"]["common_files_dir"]  # Directory with coarse simulation common files
+            coarse_common_files_dir = config["coarse"][
+                "common_files_dir"]  # Directory with coarse simulation common files
             coarse_mesh_data = FlowSim.extract_mesh(os.path.join(coarse_common_files_dir, FlowSim.MESH_FILE))
 
         # Create fields both fine and coarse
@@ -243,7 +246,8 @@ class FlowSim(Simulation):
         np.random.seed(seed)
         # Generate random samples
         fine_input_sample, coarse_input_sample = FlowSim.generate_random_sample(fields, coarse_step=coarse_step,
-                                                                        n_fine_elements=len(fine_mesh_data['points']))
+                                                                                n_fine_elements=len(
+                                                                                    fine_mesh_data['points']))
 
         # Run fine sample
         fields_file = os.path.join(os.getcwd(), FlowSim.FIELDS_FILE)
@@ -299,8 +303,9 @@ class FlowSim(Simulation):
         """
         gmsh_io.GmshIO().write_fields(fields_file, ele_ids, fine_input_sample)
 
-        subprocess.call([flow123d, "--yaml_balance", '-i', os.getcwd(), '-s', "{}/flow_input.yaml".format(common_files_dir),
-                         "-o", os.getcwd(), ">{}/flow.out".format(os.getcwd())])
+        subprocess.call(
+            [flow123d, "--yaml_balance", '-i', os.getcwd(), '-s', "{}/flow_input.yaml".format(common_files_dir),
+             "-o", os.getcwd(), ">{}/flow.out".format(os.getcwd())])
 
         return FlowSim._extract_result(os.getcwd())
 
@@ -316,7 +321,7 @@ class FlowSim(Simulation):
         coarse_input_sample = {}
         if coarse_step != 0:
             coarse_input_sample = {name: values[n_fine_elements:, None] for name, values in
-                                             fields_sample.items()}
+                                   fields_sample.items()}
 
         return fine_input_sample, coarse_input_sample
 
@@ -424,7 +429,7 @@ class FlowSim(Simulation):
                 found = True
 
         # Get flow123d computing time
-        #run_time = FlowSim.get_run_time(sample_dir)
+        # run_time = FlowSim.get_run_time(sample_dir)
 
         if not found:
             raise Exception
@@ -437,7 +442,7 @@ class FlowSim(Simulation):
         :return: List[QuantitySpec, ...]
         """
         spec1 = QuantitySpec(name="conductivity", unit="m", shape=(1, 1), times=[1], locations=['0'])
-        #spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40'])
+        # spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40'])
         return [spec1]
 
     # @staticmethod

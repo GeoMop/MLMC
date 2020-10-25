@@ -26,7 +26,6 @@ class SimulationWater(Simulation):
 
         super(SimulationWater, self).__init__(type_of_random_array)
 
-
     def count_h(self, n):
         self.n_sim_steps = n
         self.h = self.length_of_area / n
@@ -93,7 +92,6 @@ class SimulationWater(Simulation):
         a = []
         b = []
         alfa = self.time_step / self.h
-
 
         # first concentration is 1
         a.append(1)

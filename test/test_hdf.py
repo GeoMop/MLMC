@@ -2,6 +2,7 @@ import os
 import shutil
 import h5py
 import numpy as np
+
 import mlmc.tool.hdf5
 
 
@@ -86,14 +87,16 @@ def load_from_file(hdf_obj, obligatory_attributes):
 
 SCHEDULED_SAMPLES = ['L00_S0000000', 'L00_S0000001', 'L00_S0000002', 'L00_S0000003', 'L00_S0000004']
 
+RESULT_DATA_DTYPE = [("value", np.float), ("time", np.float)]
 
 COLLECTED_SAMPLES = np.array([['L00S0000000', (np.array([10, 20]), np.array([5, 6]))],
                      ['L00S0000001', (np.array([1, 2]), np.array([50, 60]))]])
 
 
+
 def test_level_group():
     """
-    Test mlmc.hdf.LevelGroup methods
+    Test mlmc.tool.hdf.LevelGroup methods
     :return: None
     """
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
@@ -127,7 +130,7 @@ def test_level_group():
 def make_dataset(hdf_level_group, dset_name="test"):
     """
     Test dataset creating
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
+    :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :return: None
     """
     name = hdf_level_group._make_dataset(name=dset_name, shape=(0,), dtype=np.int32, maxshape=(None,), chunks=True)
@@ -140,13 +143,14 @@ def make_dataset(hdf_level_group, dset_name="test"):
 def make_group_datasets(hdf_level_group):
     """
     Test if all necessary dataset were created
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
+    :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :return: None
     """
     # Created datasets
     datasets = [attr_prop['name'] for _, attr_prop in mlmc.tool.hdf5.LevelGroup.COLLECTED_ATTRS.items()]
     datasets.extend([hdf_level_group.scheduled_dset, hdf_level_group.failed_dset])
     hdf_level_group._make_groups_datasets()
+
 
     with h5py.File(hdf_level_group.file_name, "r") as hdf_file:
         assert all(dset in hdf_file[hdf_level_group.level_group_path] for dset in datasets)
@@ -155,7 +159,7 @@ def make_group_datasets(hdf_level_group):
 def append_dataset(hdf_level_group, dset_name='test'):
     """
     Test append dataset
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
+    :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :param dset_name: Name of dataset to use
     :return: None
     """
@@ -175,7 +179,7 @@ def append_dataset(hdf_level_group, dset_name='test'):
 def scheduled(hdf_level_group):
     """
     Test append and read scheduled dataset
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
+    :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :return: None
     """
     hdf_level_group.append_scheduled(SCHEDULED_SAMPLES)
@@ -189,10 +193,11 @@ def scheduled(hdf_level_group):
 def collected(hdf_level_group):
     """
     Test append and read collected dataset
-    :param hdf_level_group: mlmc.hdf.LevelGroup instance
+    :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :return: None
     """
     hdf_level_group.append_successful(COLLECTED_SAMPLES)
+
 
     results = hdf_level_group.collected()
     for col, res in zip(COLLECTED_SAMPLES, results):
@@ -201,7 +206,6 @@ def collected(hdf_level_group):
     with h5py.File(hdf_level_group.file_name, "r") as hdf_file:
         for _, dset_params in mlmc.tool.hdf5.LevelGroup.COLLECTED_ATTRS.items():
             assert len(COLLECTED_SAMPLES) == len(hdf_file[hdf_level_group.level_group_path][dset_params['name']][()])
-
 
 if __name__ == '__main__':
     test_hdf5()

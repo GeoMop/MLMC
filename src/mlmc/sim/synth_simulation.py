@@ -3,7 +3,8 @@ import ruamel.yaml as yaml
 import numpy as np
 from typing import List
 import scipy.stats as stats
-from mlmc.sim.simulation import Simulation, QuantitySpec
+from mlmc.sim.simulation import Simulation
+from mlmc.quantity_spec import QuantitySpec
 from mlmc.level_simulation import LevelSimulation
 
 
