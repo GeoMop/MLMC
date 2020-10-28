@@ -129,6 +129,7 @@ class FlowSim(Simulation):
         # Environment variables, flow123d, gmsh, ...
         self._fields_params = config['fields_params']
         self._fields = create_corr_field(config['fields_params'])
+        self._fields_used_params = None
         # Random fields instance
         self.time_factor = config.get('time_factor', 1.0)
         # It is used for minimal element from mesh determination (see level_instance method)
@@ -162,9 +163,10 @@ class FlowSim(Simulation):
         common_files_dir = os.path.join(self.work_dir, "l_step_{}_common_files".format(fine_step))
         force_mkdir(common_files_dir, force=self.clean)
 
+        self.mesh_file = os.path.join(common_files_dir, self.MESH_FILE)
+
         if self.clean:
             # Prepare mesh
-            self.mesh_file = os.path.join(common_files_dir, self.MESH_FILE)
             geo_file = os.path.join(common_files_dir, self.GEO_FILE)
             shutil.copyfile(self.base_geo_file, geo_file)
             self._make_mesh(geo_file, self.mesh_file, fine_step)  # Common computational mesh for all samples.
@@ -172,8 +174,8 @@ class FlowSim(Simulation):
             # Prepare main input YAML
             yaml_template = os.path.join(common_files_dir, self.YAML_TEMPLATE)
             shutil.copyfile(self.base_yaml_file, yaml_template)
-            self.yaml_file = os.path.join(common_files_dir, self.YAML_FILE)
-            self._substitute_yaml(yaml_template, self.yaml_file)
+            yaml_file = os.path.join(common_files_dir, self.YAML_FILE)
+            self._substitute_yaml(yaml_template, yaml_file)
 
         # Mesh is extracted because we need number of mesh points to determine task_size parameter (see return value)
         fine_mesh_data = self.extract_mesh(self.mesh_file)
