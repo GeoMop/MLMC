@@ -19,7 +19,6 @@ class QuantityEstimate:
     @property
     def levels_results(self):
         new_level_results = QuantityEstimate.get_level_results(self._sample_storage)
-
         return new_level_results
 
     @staticmethod

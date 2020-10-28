@@ -2,7 +2,7 @@ import os
 import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.sim.simulation import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec
 import mlmc.tool.hdf5 as hdf
 
 
@@ -240,4 +240,30 @@ class SampleStorageHDF(SampleStorage):
         return self._hdf_object.level_parameters
 
     def get_items_in_chunk(self, level_id):
-        return self._level_groups[level_id].get_items_in_chunk()
+        return self._level_groups[level_id].n_items_in_chunk
+
+    def get_chunks_info(self, level_id, i_chunk):
+        """
+        The start and end index of a chunk from a whole dataset point of view
+        :param level_id: level id
+        :param i_chunk: chunk id
+        :return: List[int, int]
+        """
+        return self._level_groups[level_id].get_chunks_info(i_chunk)
+
+    def get_n_collected(self):
+        """
+        Get number of collected samples at each level
+        :return: List
+        """
+        n_collected = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_collected[int(level.level_id)] = level.collected_n_items()
+        return n_collected
+
+    def get_n_levels(self):
+        """
+        Get number of levels
+        :return: int
+        """
+        return len(self._level_groups)

@@ -2,7 +2,7 @@ import numpy as np
 from abc import ABCMeta
 from abc import abstractmethod
 from typing import List, Dict
-from mlmc.sim.simulation import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec
 
 
 class SampleStorage(metaclass=ABCMeta):
@@ -85,6 +85,13 @@ class SampleStorage(metaclass=ABCMeta):
 
     @abstractmethod
     def get_level_ids(self):
+        """
+        Get number of levels
+        :return: int
+        """
+
+    @abstractmethod
+    def get_n_levels(self):
         """
         Get number of levels
         :return: int
@@ -269,5 +276,36 @@ class Memory(SampleStorage):
     def get_level_ids(self):
         return list(self._results.keys())
 
+    def get_chunks_info(self, level_id, i_chunk):
+        """
+        The start and end index of a chunk from a whole dataset point of view
+        :param level_id: level id
+        :param i_chunk: chunk id
+        :return: List[int, int]
+        """
+        return [0, len(self._results[level_id])-1]
+
     def get_items_in_chunk(self, level_id):
+        """
+        Number of items in one chunk
+        :param level_id: level id
+        :return: int
+        """
         return len(self._results[level_id])
+
+    def get_n_collected(self):
+        """
+        Number of collected samples at each level
+        :return: List
+        """
+        n_collected = list(np.zeros(len(self._results)))
+        for level in self._results:
+            n_collected[int(level.level_id)] = level.collected_n_items()
+        return n_collected
+
+    def get_n_levels(self):
+        """
+        Get number of levels
+        :return: int
+        """
+        return len(self._results)
