@@ -126,7 +126,7 @@ class Process:
         # sampler.schedule_samples()
         # sampler.ask_sampling_pool_for_samples()
         #
-        # storage = sampler.sample_storage
+        # storage = sampler._sample_storage
         # results = storage.sample_pairs()
 
 

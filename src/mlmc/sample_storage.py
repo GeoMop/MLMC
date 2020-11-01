@@ -97,6 +97,20 @@ class SampleStorage(metaclass=ABCMeta):
         :return: int
         """
 
+    @abstractmethod
+    def get_level_parameters(self):
+        """
+        Get level parameters
+        :return: list
+        """
+
+    @abstractmethod
+    def get_n_collected(self):
+        """
+        Get number of collected results at each evel
+        :return: list
+        """
+
     @property
     def chunk_size(self):
         return self._chunk_size
@@ -119,6 +133,8 @@ class Memory(SampleStorage):
         self._result_specification = []
         self._n_ops = {}
         self._n_finished = {}
+        self._level_parameters = []
+        super().__init__()
 
     def save_samples(self, successful_samples, failed_samples):
         """
@@ -131,6 +147,7 @@ class Memory(SampleStorage):
 
     def save_global_data(self, result_format, level_parameters=None):
         self.save_result_format(result_format)
+        self._level_parameters = level_parameters
 
     def _save_successful(self, samples):
         """
@@ -309,3 +326,6 @@ class Memory(SampleStorage):
         :return: int
         """
         return len(self._results)
+
+    def get_level_parameters(self):
+        return self._level_parameters

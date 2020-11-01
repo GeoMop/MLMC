@@ -5,7 +5,7 @@ import mlmc.moments
 import mlmc.tool.plot
 from abc import ABC, abstractmethod
 from numpy import testing
-#import pandas as pd
+import pandas as pd
 
 
 EXACT_QUAD_LIMIT = 1000
@@ -1704,42 +1704,15 @@ def print_cumul(eval):
 def _cut_eigenvalues(cov_center, tol):
     print("CUT eigenvalues")
 
+    print("tol ", tol)
+
     eval, evec = np.linalg.eigh(cov_center)
 
     print("original evec ")
     print(pd.DataFrame(evec))
 
-    #eval = np.abs(eval)
-
-    #print_cumul(eval)
-
     original_eval = eval
     print("original eval ", eval)
-    # print("cut eigenvalues tol ", tol)
-
-    # eig_pairs = [(np.abs(eval[i]), evec[:, i]) for i in range(len(eval))]
-    #
-    # # Sort the (eigenvalue, eigenvector) tuples from high to low
-    # eig_pairs.sort(key=lambda x: x[0], reverse=True)
-
-    # for pair in eig_pairs:
-    #     print("pair ", pair)
-    #
-    # for pair in eig_pairs[:10]:
-    #     print("pair[] ", pair)
-    #
-    # exit()
-
-    # Visually confirm that the list is correctly sorted by decreasing eigenvalues
-    # print('Eigenvalues in descending order:')
-    # for i in eig_pairs:
-    #     print(i[0])
-    #
-    # print("sorted(eval, reverse=True) ", sorted(eval, reverse=True))
-
-    # print("EVAL SORTED ", sorted(eval, reverse=True))
-    # print("EVAL EIG PAIR ", np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
-    # cum_var_exp = print_cumul(np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
 
     if tol is None:
         # treshold by statistical test of same slopes of linear models
@@ -1749,69 +1722,12 @@ def _cut_eigenvalues(cov_center, tol):
         # threshold given by eigenvalue magnitude
         threshold = np.argmax(eval > tol)
 
-    # print("[eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-5]]",
-    #       [eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-5]])
-
-    #threshold = 30
-    # print("threshold ", threshold)
-    # print("eval ", eval)
-
-    #print("eig pairs ", eig_pairs[:])
-
-    #threshold_above = len(original_eval) - np.argmax(eval > 1)
-
-    #print("threshold above ", threshold_above)
-
-    # threshold = np.argmax(cum_var_exp > 110)
-    # if threshold == 0:
-    #     threshold = len(cum_var_exp)
-    #
-    # print("max eval index: {}, threshold: {}".format(len(eval) - 1, threshold))
-
-    # matrix_w = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-30]]))
-    #
-    # print("matrix_w.shape ", matrix_w.shape)
-    # print("matrix_w ")
-    # print(pd.DataFrame(matrix_w))
-
-    # matrix_w = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
-    #
-    # new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
-    #
-    # threshold -= 1
-
-    # print("matrix_w.shape final ", matrix_w.shape)
-    # print("matrix_w final ")
-    # print(pd.DataFrame(matrix_w))
-
-    # add the |smallest eigenvalue - tol(^2??)| + eigenvalues[:-1]
-
-    #threshold = 0
-    # print("threshold ", threshold)
-    # print("eval ", eval)
-
-    #treshold, _ = self.detect_treshold(eval, log=True, window=8)
-
-    # tresold by MSE of eigenvalues
-    #treshold = self.detect_treshold_mse(eval, std_evals)
-
-    # treshold
-
-    #self.lsq_reconstruct(cov_center, fixed_eval, evec, treshold)
-
     # cut eigen values under treshold
     new_eval = eval[threshold:]
     new_evec = evec[:, threshold:]
 
     eval = np.flip(new_eval, axis=0)
     evec = np.flip(new_evec, axis=1)
-
-    print_cumul(eval)
-
-    # for ev in evec:
-    #     print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-    #     #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-    # print('Everything ok!')
 
     return eval, evec, threshold, original_eval
 
@@ -2710,7 +2626,7 @@ def _add_to_eigenvalues(cov_center, tol, moments):
     return eval, evec, original_eval
 
 
-def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_method=1, exact_cov=None):
+def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_method=2, exact_cov=None):
     """
     For given moments find the basis orthogonal with respect to the covariance matrix, estimated from samples.
     :param moments: moments object
@@ -2725,6 +2641,10 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     M = np.eye(moments.size)
     M[:, 0] = -cov[:, 0]
     cov_center = M @ cov @ M.T
+
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print("cov center ")
+        print(pd.DataFrame(cov_center))
 
     projection_matrix = None
 
@@ -2769,34 +2689,10 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     else:
         raise Exception("No eigenvalues method")
 
-    #original_eval, _ = np.linalg.eigh(cov_center)
-
-    # Compute eigen value errors.
-    #evec_flipped = np.flip(evec, axis=1)
-    #L = (evec_flipped.T @ M)
-    #rot_moments = mlmc.moments.TransformedMoments(moments, L)
-    #std_evals = eigenvalue_error(rot_moments)
-
     if projection_matrix is not None:
         icov_sqrt_t = projection_matrix
     else:
-        # print("evec flipped ", evec_flipped)
-        # print("eval flipped ", eval_flipped)
-        #
-        # print("evec_flipped * (1 / np.sqrt(eval_flipped))[None, :]")
-        # print(pd.DataFrame(evec_flipped * (1 / np.sqrt(eval_flipped))[None, :]))
-
         icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
-
-        # print("icov_sqrt_t")
-        # print(pd.DataFrame(icov_sqrt_t))
-
-        # try:
-        #     eval, evec = np.linalg.eigh(icov_sqrt_t)
-        #     cum_var_exp = print_cumul(sorted(eval, reverse=True))
-        #     print("ICOV CUM ", cum_var_exp)
-        # except:
-        #     pass
 
     R_nm, Q_mm = sc.linalg.rq(icov_sqrt_t, mode='full')
 
@@ -2805,62 +2701,7 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     if L_mn[0, 0] < 0:
         L_mn = -L_mn
 
-    # if exact_cov is not None:
-    #     print("H")
-    #     print(pd.DataFrame(exact_cov))
-    #
-    #     cov_eval, cov_evec = np.linalg.eigh(cov)
-    #     exact_cov_eval, exact_cov_evec = np.linalg.eigh(exact_cov)
-    #
-    #     cov_evec = np.flip(cov_evec, axis=1)
-    #     exact_cov_evec = np.flip(exact_cov_evec, axis=1)
-    #
-    #     #print("cov evec ", cov_evec)
-    #     #
-    #     #print("exact_cov_evec ", exact_cov_evec)
-    #
-    #     #print("np.dot(cov_evec, exact_cov_evec) ", np.dot(cov_evec[-1], exact_cov_evec[-1]))
-    #     print("einsum('ij,ij->i', cov_evec, exact_cov_evec) ", np.einsum('ij,ij->i', cov_evec, exact_cov_evec))
-    #     #print("np.dot(cov_evec, exact_cov_evec) ", np.sum(np.dot(cov_evec, exact_cov_evec), axis=0))
-    #     #exit()
-    #
-    #     print("Hn")
-    #     print(pd.DataFrame(cov))
-    #
-    #     print("inv(L) @ inv(L.T)")
-    #     print(pd.DataFrame(np.linalg.pinv(L_mn) @ np.linalg.pinv(L_mn.T)))
-    #
-    #     # print("inv(L) @ cov @ inv(L.T)")
-    #     # print(pd.DataFrame(np.linalg.pinv(L_mn) @ cov @ np.linalg.pinv(L_mn.T)))
-    #
-    #     # print("M @ inv(L) @ cov @ inv(L.T) @ M")
-    #     # print(pd.DataFrame(np.linalg.inv(M) @ np.linalg.pinv(L_mn) @ cov @ np.linalg.pinv(L_mn.T) @ np.linalg.inv(M)))
-    #
-    #     print("Cov centered")
-    #     print(pd.DataFrame(cov_center))
-
-
     ortogonal_moments = mlmc.moments.TransformedMoments(moments, L_mn)
-
-    #mlmc.tool.plot.moments(ortogonal_moments, size=ortogonal_moments.size, title=str(reg_param), file=None)
-    #exit()
-
-    #ortogonal_moments = mlmc.moments.TransformedMoments(moments, cov_sqrt_t.T)
-
-    #################################
-    # cov = self.mlmc.estimate_covariance(ortogonal_moments)
-    # M = np.eye(ortogonal_moments.size)
-    # M[:, 0] = -cov[:, 0]
-    # cov_center = M @ cov @ M.T
-    # eval, evec = np.linalg.eigh(cov_center)
-    #
-    # # Compute eigen value errors.
-    # evec_flipped = np.flip(evec, axis=1)
-    # L = (evec_flipped.T @ M)
-    # rot_moments = mlmc.moments.TransformedMoments(moments, L)
-    # std_evals = self.eigenvalue_error(rot_moments)
-    #
-    # self.plot_values(eval, log=True, treshold=treshold)
     info = (original_eval, eval_flipped, threshold, L_mn)
     return ortogonal_moments, info, cov_center
 
