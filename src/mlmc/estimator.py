@@ -28,30 +28,6 @@ def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_op
     return np.max(n_samples_estimate_safe, axis=1).astype(int)
 
 
-def construct_density(quantity, moments_fn, tol=1.95, reg_param=0.01, orth_moments_tol=1e-4, exact_pdf=None):
-    """
-    Construct approximation of the density using given moment functions.
-    """
-    cov = estimate_mean(covariance(quantity, moments_fn))()
-    moments_obj, info, cov_centered = mlmc.tool.simple_distribution.construct_orthogonal_moments(moments_fn, cov, tol=orth_moments_tol)
-
-    moments_mean = estimate_mean(moments(quantity, moments_obj), level_means=True)
-    est_moments = moments_mean.mean
-    est_vars = moments_mean.var
-
-    # if exact_pdf is not None:
-    #     exact_moments = mlmc.tool.simple_distribution.compute_exact_moments(moments_obj, exact_pdf)
-
-    est_vars = np.ones(moments_obj.size)
-    min_var, max_var = np.min(est_vars[1:]), np.max(est_vars[1:])
-    print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
-    moments_data = np.stack((est_moments, est_vars), axis=1)
-    distr_obj = mlmc.tool.simple_distribution.SimpleDistribution(moments_obj, moments_data, domain=moments_obj.domain)
-    result = distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
-
-    return distr_obj, info, result, moments_obj
-
-
 def calc_level_params(step_range, n_levels):
     assert step_range[0] > step_range[1]
     level_parameters = []
@@ -93,8 +69,8 @@ class Estimate:
 
     def estimate_moments(self, moments_fn=None):
         """
-        Use collected samples to estimate moments_fn and variance of this estimate.
-        :param moments_fn: Vector moment function, gives vector of moments_fn for given sample or sample vector.
+        Use collected samples to estimate moments and variance of this estimate.
+        :param moments_fn: moments function
         :return: estimate_of_moment_means, estimate_of_variance_of_estimate ; arrays of length n_moments
         """
         if moments_fn is None:
@@ -102,6 +78,18 @@ class Estimate:
 
         moments_mean = estimate_mean(moments(self._quantity, moments_fn))
         return moments_mean.mean, moments_mean.var
+
+    def estimate_covariance(self, moments_fn=None):
+        """
+        Use collected samples to estimate covariance matrix and variance of this estimate.
+        :param moments_fn: moments function
+        :return: estimate_of_moment_means, estimate_of_variance_of_estimate ; arrays of length n_moments
+        """
+        if moments_fn is None:
+            moments_fn = self._moments_fn
+
+        cov_mean = estimate_mean(covariance(self._quantity, moments_fn))
+        return cov_mean.mean, cov_mean.var
 
     def estimate_diff_vars_regression(self, n_created_samples, moments_fn=None, raw_vars=None):
         """
@@ -255,6 +243,7 @@ class Estimate:
         self.var_bs_var = np.var(bs_var, axis=0, ddof=1)
         self.var_bs_l_means = np.var(bs_l_means, axis=0, ddof=1)
         self.var_bs_l_vars = np.var(bs_l_vars, axis=0, ddof=1)
+
         self._bs_level_mean_variance = self.var_bs_l_means * np.array(self._sample_storage.get_n_collected())[:, None]
 
     def bs_target_var_n_estimated(self, target_var, sample_vec=None):
@@ -292,8 +281,12 @@ class Estimate:
         sample_vec = determine_sample_vec(n_collected_samples=self._sample_storage.get_n_collected(),
                                           n_levels=self._sample_storage.get_n_levels(),
                                           sample_vector=sample_vec)
+
+        moments_quantity = moments(self._quantity, moments_fn=self._moments_fn, mom_at_bottom=False)
+        q_mean = estimate_mean(moments_quantity, level_means=True)
+
         bs_plot = plot.BSplots(bs_n_samples=sample_vec, n_samples=self._sample_storage.get_n_collected(),
-                               n_moments=self._moments_fn.size)
+                               n_moments=self._moments_fn.size, ref_level_var=q_mean.l_vars)
 
         bs_plot.plot_means_and_vars(self.mean_bs_mean[1:], self.mean_bs_var[1:], n_levels=self._sample_storage.get_n_levels())
 
@@ -307,3 +300,57 @@ class Estimate:
 
     def plot_var_var(self, nl):
         self[nl].plot_bootstrap_var_var(self._moments_fn)
+
+    @staticmethod
+    def estimate_domain(quantity, sample_storage, quantile=None):
+        """
+        Estimate moments domain from MLMC samples.
+        :param quantity: mlmc.quantity.Quantity instance, represents the real quantity
+        :param sample_storage: mlmc.sample_storage.SampleStorage instance, provides all the samples
+        :param quantile: float in interval (0, 1), None means whole sample range
+        :return: lower_bound, upper_bound
+        """
+        ranges = []
+        if quantile is None:
+            quantile = 0.01
+
+        for level_id in range(sample_storage.get_n_levels()):
+            fine_samples = quantity.samples(level_id=level_id,
+                                                  n_samples=sample_storage.get_n_collected()[0])[..., 0]
+
+            fine_samples = np.squeeze(fine_samples)
+            ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
+
+        ranges = np.array(ranges)
+        return np.min(ranges[:, 0]), np.max(ranges[:, 1])
+
+    def construct_density(self, tol=1e-8, reg_param=0.0, orth_moments_tol=1e-4, exact_pdf=None):
+        """
+        Construct approximation of the density using given moment functions.
+        """
+        cov = estimate_mean(covariance(self._quantity, self._moments_fn))()
+        moments_obj, info, cov_centered = mlmc.tool.simple_distribution.construct_orthogonal_moments(self._moments_fn,
+                                                                                                     cov,
+                                                                                                     tol=orth_moments_tol)
+
+        moments_mean = estimate_mean(moments(self._quantity, moments_obj), level_means=True)
+        est_moments = moments_mean.mean
+        est_vars = moments_mean.var
+
+        # if exact_pdf is not None:
+        #     exact_moments = mlmc.tool.simple_distribution.compute_exact_moments(moments_obj, exact_pdf)
+
+        est_vars = np.ones(moments_obj.size)
+        min_var, max_var = np.min(est_vars[1:]), np.max(est_vars[1:])
+        print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
+        moments_data = np.stack((est_moments, est_vars), axis=1)
+        print("moments data ", moments_data)
+        distr_obj = mlmc.tool.simple_distribution.SimpleDistribution(moments_obj, moments_data,
+                                                                     domain=moments_obj.domain)
+        result = distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
+
+        return distr_obj, info, result, moments_obj
+
+    def get_level_samples(self, level_id):
+        return self._quantity.samples(level_id=level_id, n_samples=self._sample_storage.get_n_collected()[level_id])
+
