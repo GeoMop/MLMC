@@ -8,8 +8,9 @@ from mlmc.moments import Legendre
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
-from mlmc.quantity_estimate import QuantityEstimate
+from mlmc.estimator import Estimate
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
+import mlmc.quantity
 
 
 @pytest.mark.pbs
@@ -61,7 +62,14 @@ def test_sampler_pbs():
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
+    quantity = mlmc.quantity.make_root_quantity(storage=sample_storage,
+                                                q_specs=sample_storage.load_result_format())
+    length = quantity['length']
+    time = length[1]
+    location = time['10']
+    value_quantity = location[0]
+
+    estimator = Estimate(quantity=value_quantity, sample_storage=sample_storage, moments_fn=moments_fn)
 
     # target_var = 1e-3
     # sleep = 0
@@ -80,7 +88,7 @@ def test_sampler_pbs():
     #                                                                        n_levels=sampler.n_levels)
 
     #print("collected samples ", sampler._n_created_samples)
-    means, vars = q_estimator.estimate_moments(moments_fn)
+    means, vars = estimator.estimate_moments(moments_fn)
 
     print("means ", means)
     print("vars ", vars)

@@ -1,17 +1,13 @@
 import os.path
 import numpy as np
-from typing import List
 from mlmc.sampler import Sampler
 from mlmc.sampling_pool import OneProcessPool
-from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc import moments
 import mlmc.tool.plot
 import mlmc.estimator
 import mlmc.archive.estimate
 from mlmc.sim.synth_simulation import SynthSimulation
-from mlmc.quantity_estimate import QuantityEstimate
-from mlmc.quantity_spec import QuantitySpec
 
 
 class MLMCTest:

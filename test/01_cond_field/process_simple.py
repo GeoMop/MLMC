@@ -11,7 +11,7 @@ from mlmc.tool.flow_mc import FlowSim
 from mlmc.moments import Legendre, Monomial
 from mlmc.tool.process_base import ProcessBase
 from mlmc.random import correlated_field as cf
-from mlmc.quantity_estimate import QuantityEstimate
+#from mlmc.quantity_estimate import QuantityEstimate
 from mlmc.quantity import make_root_quantity, estimate_mean, moment, moments, covariance
 from mlmc import estimator
 import mlmc.tool.simple_distribution
@@ -68,13 +68,21 @@ class ProcessSimple:
         result_format = sample_storage.load_result_format()
         root_quantity = make_root_quantity(sample_storage, result_format)
 
+        conductivity = root_quantity['conductivity']
+        time = conductivity[1]  # times: [1]
+        location = time['0']  # locations: ['0']
+        q_value = location[0, 0]
+
         # @TODO: How to estimate true_domain?
-        true_domain = QuantityEstimate.estimate_domain(sample_storage, quantile=0.01)
+        quantile = 0.001
+        true_domain = mlmc.estimator.Estimate.estimate_domain(q_value, sample_storage, quantile=quantile)
         moments_fn = Legendre(self.n_moments, true_domain)
+
+        estimator = mlmc.estimator.Estimate(quantity=q_value, sample_storage=sample_storage, moments_fn=moments_fn)
+        means, vars = estimator.estimate_moments(moments_fn)
 
         moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
         moments_mean = estimate_mean(moments_quantity, level_means=True)
-
         conductivity_mean = moments_mean['conductivity']
         time_mean = conductivity_mean[1]  # times: [1]
         location_mean = time_mean['0']  # locations: ['0']
@@ -87,34 +95,18 @@ class ProcessSimple:
         # central_moments_quantity = moments(root_quantity, moments_fn=central_moments, mom_at_bottom=True)
         # central_moments_mean = estimate_mean(central_moments_quantity)
 
-        q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn,
-                                       sim_steps=self.level_parameters)
-        means, vars = q_estimator.estimate_moments(moments_fn)
+        #self.process_target_var(estimator)
+        self.construct_density(estimator, tol=1e-8)
 
-        #self.process_target_var(root_quantity, moments_fn, sample_storage)
-
-        self.construct_density(root_quantity, moments_fn, sample_storage)
-
-    def process_target_var(self, quantity, moments_fn, sample_storage):
+    def process_target_var(self, estimator):
         n0, nL = 100, 3
         n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), self.n_levels))).astype(int)
-        root_quantity_init_samples = quantity.select(quantity.subsample(sample_vec=n_samples))
-
-        conductivity = quantity['conductivity']
-        time = conductivity[1]  # times: [1]
-        location = time['0']  # locations: ['0']
-        q_value = location[0, 0]
-
-        moments_quantity = moments(q_value, moments_fn=moments_fn, mom_at_bottom=False)
-        moments_mean = estimate_mean(moments_quantity)
-        estimator = mlmc.estimator.Estimate(q_value, sample_storage, moments_fn)
 
         n_estimated = estimator.bs_target_var_n_estimated(target_var=1e-5, sample_vec=n_samples)  # number of estimated sampels for given target variance
         estimator.plot_variances(sample_vec=n_estimated)
-
         estimator.plot_bs_var_log(sample_vec=n_estimated)
 
-    def construct_density(self, quantity, moments_fn, sample_storage, tol=1.95, reg_param=0.0):
+    def construct_density(self, estimator, tol=1.95, reg_param=0.0):
         """
         Construct approximation of the density using given moment functions.
         :param quantity: mlmc.quanitity.Quantity instance, quantity for which the density is reconstructed
@@ -125,22 +117,20 @@ class ProcessSimple:
         :param reg_param: regularization parameter
         :return: None
         """
-        conductivity = quantity['conductivity']
-        time = conductivity[1]  # times: [1]
-        location = time['0']  # locations: ['0']
-        quantity_val = location[0, 0]  # result shape: (1, 1)
-        distr_obj, result, _, _ = estimator.construct_density(quantity_val, moments_fn, tol=tol, reg_param=reg_param)
-
-        distr_plot = mlmc.tool.plot.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
-
-        if self.n_levels == 1:
-            samples = quantity_val.samples(level_id=0, n_samples=sample_storage.get_n_collected()[0])[..., 0]
-            distr_plot.add_raw_samples(np.squeeze(samples))
+        distr_obj, result, _, _ = estimator.construct_density(tol=tol, reg_param=reg_param)
+        #distr_plot = mlmc.tool.plot.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
+        distr_plot = mlmc.tool.plot.ArticleDistribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
 
         distr_plot.add_distribution(distr_obj, label="#{}".format(self.n_moments))
+
+        if self.n_levels == 1:
+            samples = estimator.get_level_samples(level_id=0)[..., 0]
+            distr_plot.add_raw_samples(np.squeeze(samples))
+
         distr_plot.show(None)
         distr_plot.show(file=os.path.join(self.work_dir, "pdf_cdf_{}_moments".format(self.n_moments)))
         distr_plot.reset()
+
 
     def run(self, renew=False):
         """

@@ -11,7 +11,6 @@ from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
 from mlmc.moments import Legendre
-from mlmc.quantity_estimate import QuantityEstimate
 from mlmc.quantity import make_root_quantity
 import mlmc.estimator
 
@@ -96,8 +95,6 @@ def test_mlmc(test_case):
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
-    #
     target_var = 1e-4
     sleep = 0
     add_coef = 0.1
