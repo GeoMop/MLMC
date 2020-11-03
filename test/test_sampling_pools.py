@@ -84,7 +84,7 @@ def test_sampling_pools(sampling_pool, simulation_factory):
     location = time['10']
     value_quantity = location[0]
 
-    estimator = Estimate(quantity=value_quantity, sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
+    estimator = Estimate(quantity=value_quantity, sample_storage=sample_storage, moments_fn=moments_fn)
     means, vars = estimator.estimate_moments(moments_fn)
 
     assert means[0] == 1
