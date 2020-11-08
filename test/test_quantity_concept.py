@@ -320,8 +320,6 @@ class QuantityTests(unittest.TestCase):
         """
         Test numpy functions
         """
-        work_dir = _prepare_work_dir()
-        sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5"))
         sample_storage = Memory()
         result_format, sizes = self.fill_sample_storage(sample_storage)
         root_quantity = make_root_quantity(sample_storage, result_format)
@@ -341,17 +339,23 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose(add_root_quantity_means().tolist(), (root_quantity_means() * 2).tolist())
 
         x = np.ones((108, 5, 2))
+        self.assertRaises(ValueError, np.add, x, root_quantity)
+
+        x = np.ones(108)
         add_one_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.
         add_one_root_quantity_means = estimate_mean(add_one_root_quantity)
         assert np.allclose(root_quantity_means() + np.ones((108,)), add_one_root_quantity_means())
 
         x = np.ones((108, 5, 2))
+        self.assertRaises(ValueError, np.divide, x, root_quantity)
+
+        x = np.ones(108)
         divide_one_root_quantity = np.divide(x, root_quantity)  # Add arguments element-wise.
         divide_one_root_quantity_means = estimate_mean(divide_one_root_quantity)
         assert np.all(divide_one_root_quantity_means() < 1)
 
         # Test broadcasting
-        x = np.ones((108, 1, 2))
+        x = np.ones(108)
         arctan2_one_root_quantity = np.arctan2(x, root_quantity)  # Add arguments element-wise.
         arctan2_one_root_quantity_means = estimate_mean(arctan2_one_root_quantity)
         assert np.all(arctan2_one_root_quantity_means() < 1)
@@ -380,7 +384,7 @@ class QuantityTests(unittest.TestCase):
         successful_samples = {}
         failed_samples = {}
         n_ops = {}
-        n_successful = 5
+        n_successful = 15
         sizes = []
         for l_id in range(n_levels):
             sizes = []

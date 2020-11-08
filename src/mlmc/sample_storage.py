@@ -228,7 +228,7 @@ class Memory(SampleStorage):
         :return: np.ndarray
         """
         if i_chunk != 0:
-            return None
+            raise StopIteration
         if n_samples is not None:
             results = self._results[int(level_id)]
             n_samples = n_samples if n_samples < results.shape[0] else results.shape[0]
