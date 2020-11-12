@@ -181,20 +181,18 @@ class Abyss(st.rv_continuous):
         self.renorm = 2 * st.norm.cdf(-self.width) + self.z * 2 * self.width
         self.renorm = 1 / self.renorm
 
-        # X = np.linspace(-5, 5, 500)
-        # plt.plot(X, self.cdf(X))
-        # plt.show()
-
     def _pdf(self, x):
         y = np.where(np.logical_and(-self.width < x, x < self.width),
-                      self.z * st.uniform.pdf( 0.5 * (x / self.width + 1) ),
+                      self.z,
                       st.norm.pdf(x))
         return self.renorm * y
 
     def _cdf(self, x):
-        y = np.where(np.logical_and(-self.width < x, x < self.width),
-                      0.5 + self.renorm * self.z * x,
-                      st.norm.cdf(x))
+        y = np.where(x < -self.width,
+                     self.renorm * st.norm.cdf(x),
+                     np.where(x < self.width,
+                              0.5 + self.renorm * self.z * 2 * self.width * x,
+                              1 - self.renorm * st.norm.cdf(-x)))
         return y
 
 
@@ -212,9 +210,8 @@ def test_abyss():
     size = 1000
     values = ab.rvs(size=size)
     x = np.linspace(-10, 10, size)
-    plt.plot(x, ab.pdf(x), 'r-', alpha=0.6, label='rampart pdf')
+    plt.plot(x, ab.pdf(x), 'r-', alpha=0.6, label='abyss pdf')
     plt.hist(values, bins=1000, density=True, alpha=0.2)
-    #plt.xlim(-10, 20)
     plt.legend()
     plt.show()
 
@@ -222,7 +219,7 @@ def test_abyss():
     ecdf = ECDF(values)
     x = np.linspace(-10, 10, size)
     plt.plot(x, ecdf(x), label="ECDF")
-    plt.plot(x, ab.cdf(x), 'r--', alpha=0.6, label='rampart cdf')
+    plt.plot(x, ab.cdf(x), 'r--', alpha=0.6, label='abyss cdf')
 
     plt.legend()
     plt.show()

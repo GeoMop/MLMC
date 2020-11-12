@@ -4,12 +4,14 @@ import numpy as np
 from scipy import stats
 import pytest
 import ruamel.yaml as yaml
+import mlmc.quantity
 from test.synth_sim_for_tests import SynthSimulationWorkspaceForTests
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
 from mlmc.moments import Legendre
-from mlmc.quantity_estimate import QuantityEstimate
+from mlmc.estimator import Estimate
+
 
 np.random.seed(1234)
 ref_means = [1., -0.03814235, -0.42411443, 0.05103307, 0.2123083]
@@ -75,8 +77,15 @@ def test_sampling_pools(sampling_pool, simulation_factory):
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
-    means, vars = q_estimator.estimate_moments(moments_fn)
+    quantity = mlmc.quantity.make_root_quantity(storage=sample_storage,
+                                                q_specs=sample_storage.load_result_format())
+    length = quantity['length']
+    time = length[1]
+    location = time['10']
+    value_quantity = location[0]
+
+    estimator = Estimate(quantity=value_quantity, sample_storage=sample_storage, moments_fn=moments_fn)
+    means, vars = estimator.estimate_moments(moments_fn)
 
     assert means[0] == 1
     assert vars[0] == 0

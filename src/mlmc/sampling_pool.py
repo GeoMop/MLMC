@@ -4,7 +4,6 @@ import shutil
 import queue
 import time
 import hashlib
-import copy
 import numpy as np
 from typing import List
 import traceback
@@ -15,6 +14,9 @@ from mlmc.level_simulation import LevelSimulation
 
 
 class SamplingPool(ABC):
+
+    FAILED_DIR = 'failed'
+    SEVERAL_SUCCESSFUL_DIR = 'several_successful'
 
     def __init__(self, work_dir=None, debug=False):
         """
@@ -27,23 +29,20 @@ class SamplingPool(ABC):
             self._output_dir = os.path.join(work_dir, "output")
         self._debug = debug
 
-        self._prepare_output_dir()
-        self._prepare_failed_dir()
+        self._create_dir()  # prepare output dir
+        self._create_dir(SamplingPool.FAILED_DIR)  # prepare failed dir
+        self._create_dir(SamplingPool.SEVERAL_SUCCESSFUL_DIR)  # prepare several successful dir
 
-    def _prepare_output_dir(self):
+    def _create_dir(self, directory=""):
         """
         Create output directory, in 'debug' mode not remove existing output_dir
         :return: None
         """
         if self._output_dir is not None:
-            if os.path.exists(self._output_dir) and not self._debug:
-                shutil.rmtree(self._output_dir)
-
-    def _prepare_failed_dir(self):
-        if self._output_dir is not None:
-            failed_dir = os.path.join(self._output_dir, "failed")
-            if os.path.exists(failed_dir):
-                shutil.rmtree(failed_dir)
+            directory = os.path.join(self._output_dir, directory)
+            if os.path.exists(directory) and not self._debug:
+                shutil.rmtree(directory)
+            os.makedirs(directory, mode=0o775, exist_ok=True)
 
     @abstractmethod
     def schedule_sample(self, sample_id, level_sim: LevelSimulation):
@@ -158,33 +157,22 @@ class SamplingPool(ABC):
             os.chdir(sample_dir)
 
     @staticmethod
-    def _create_failed(work_dir):
-        """
-        Create directory for all failed samples
-        :return: None
-        """
-        failed_dir = os.path.join(work_dir, "failed")
-        if not os.path.isdir(failed_dir):
-            os.makedirs(failed_dir, mode=0o775, exist_ok=True)
-
-        return failed_dir
-
-    @staticmethod
-    def move_failed_dir(sample_id, sample_workspace, work_dir):
+    def move_dir(sample_id, sample_workspace, work_dir, dest_dir):
         """
         Move failed sample dir to failed directory
         :param sample_id: str
         :param sample_workspace: bool, simulation needs workspace
         :param work_dir: str
+        :param dest_dir: destination
         :return: None
         """
         if sample_workspace and work_dir is not None:
-            failed_dir = SamplingPool._create_failed(work_dir)
-            sample_dir = SamplingPool.change_to_sample_directory(work_dir, sample_id)
-            if os.path.exists(os.path.join(failed_dir, sample_id)):
-                shutil.rmtree(os.path.join(failed_dir, sample_id), ignore_errors=True)
-            shutil.copytree(sample_dir, os.path.join(failed_dir, sample_id))
-            shutil.rmtree(sample_dir, ignore_errors=True)
+            if int(sample_id[-1:]) < 5:
+                destination_dir = os.path.join(work_dir, dest_dir)
+                sample_dir = SamplingPool.change_to_sample_directory(work_dir, sample_id)
+                if os.path.exists(os.path.join(destination_dir, sample_id)):
+                    shutil.rmtree(os.path.join(destination_dir, sample_id), ignore_errors=True)
+                shutil.copytree(sample_dir, os.path.join(destination_dir, sample_id))
 
     @staticmethod
     def remove_sample_dir(sample_id, sample_workspace, work_dir):
@@ -242,7 +230,9 @@ class OneProcessPool(SamplingPool):
                 SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
         else:
             self._failed_queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, err_msg))
-            SamplingPool.move_failed_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
+            SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
+                                  dest_dir=SamplingPool.FAILED_DIR)
+            SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
 
     def _save_running_time(self, level_id, running_time):
         """

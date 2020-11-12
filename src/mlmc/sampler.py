@@ -187,7 +187,7 @@ class Sampler:
         self.sample_storage.save_samples(successful_samples, failed_samples)
         self.sample_storage.save_n_ops(n_ops)
 
-    def process_adding_samples(self, n_estimated, sleep, add_coef=0.1):
+    def process_adding_samples(self, n_estimated, sleep=0, add_coef=0.1):
         """
         Process adding samples
         Note: n_estimated are wrong if n_ops is similar through all levels

@@ -161,10 +161,8 @@ class SampleStorageHDF(SampleStorage):
         :return: np.ndarray
         """
         chunk_size = self.chunk_size
-
         if n_samples is None:
             chunk_size = None
-
         sample_pairs = self._level_groups[int(level_id)].collected(i_chunk, chunk_size=chunk_size, n_samples=n_samples)
         # Chunk is empty
         if len(sample_pairs) == 0:
@@ -237,7 +235,7 @@ class SampleStorageHDF(SampleStorage):
         return [int(level.level_id) for level in self._level_groups]
 
     def get_level_parameters(self):
-        return self._hdf_object.level_parameters
+        return self._hdf_object.load_level_parameters()
 
     def get_items_in_chunk(self, level_id):
         return self._level_groups[level_id].n_items_in_chunk

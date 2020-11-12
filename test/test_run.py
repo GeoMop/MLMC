@@ -11,7 +11,7 @@ from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
 from mlmc.moments import Legendre
-from mlmc.quantity_estimate import QuantityEstimate
+from mlmc.quantity import make_root_quantity
 import mlmc.estimator
 
 # Set work dir
@@ -88,37 +88,45 @@ def test_mlmc(test_case):
 
     true_domain = distr.ppf([0.0001, 0.9999])
     moments_fn = Legendre(n_moments, true_domain)
-    # moments_fn = Monomial(n_moments, true_domain)
+    # _moments_fn = Monomial(n_moments, true_domain)
 
     sampler.set_initial_n_samples([10, 10])
     # sampler.set_initial_n_samples([10000])
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=step_range)
-    #
-    # target_var = 1e-4
-    # sleep = 0
-    # add_coef = 0.1
-    #
-    # # @TODO: test
-    # # New estimation according to already finished samples
-    # variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-    # n_estimated = mlmc.new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-    #                                                                    n_levels=sampler.n_levels)
-    #
-    # # Loop until number of estimated samples is greater than the number of scheduled samples
-    # while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
-    #     # New estimation according to already finished samples
-    #     variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-    #     n_estimated = mlmc.new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-    #                                                                        n_levels=sampler.n_levels)
+    target_var = 1e-4
+    sleep = 0
+    add_coef = 0.1
 
-    print("collected samples ", sampler._n_scheduled_samples)
-    means, vars = q_estimator.estimate_moments(moments_fn)
+    quantity = make_root_quantity(sample_storage, q_specs=simulation_factory.result_format())
 
-    print("means ", means)
-    print("vars ", vars)
+    length = quantity['length']
+    time = length[1]
+    location = time['10']
+    value_quantity = location[0]
+
+    estimator = mlmc.estimator.Estimate(value_quantity, sample_storage, moments_fn)
+
+    # New estimation according to already finished samples
+    variances, n_ops = estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+    n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                       n_levels=sampler.n_levels)
+
+    # Loop until number of estimated samples is greater than the number of scheduled samples
+    while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
+        # New estimation according to already finished samples
+        variances, n_ops = estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+        n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                           n_levels=sampler.n_levels)
+
+    means, vars = estimator.estimate_moments(moments_fn)
     assert means[0] == 1
     assert vars[0] == 0
+
+
+if __name__ == "__main__":
+    test_mlmc((simulation, storage_memory, sampling_pool_single_process))
+    #multiproces_sampler_test()
+    #threads_sampler_test()
 

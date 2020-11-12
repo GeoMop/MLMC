@@ -70,14 +70,17 @@ def moments_subset(n_moments, moments=None):
     :return:
     """
     if moments is None:
-        subset = np.arange(1, n_moments)
+        final_subset = np.arange(1, n_moments)
     else:
         assert type(moments) is int
         subset = np.round(np.geomspace(1, n_moments-1, moments)).astype(int)
         # make indices unique by increasing
+        final_subset = []
         for i in range(1, len(subset)):
-            subset[i] = max(subset[i], subset[i-1]+1)
-    return subset
+            if max(subset[i], subset[i-1]+1) < n_moments:
+                final_subset.append(max(subset[i], subset[i-1]+1))
+
+    return final_subset
 
 
 def _show_and_save(fig, file, title):
@@ -191,7 +194,7 @@ class SimpleDistribution:
         domain = (np.min(samples), np.max(samples))
         self.adjust_domain(domain)
         N = len(samples)
-        bins = self._grid(0.5 * np.sqrt(N))
+        bins = self._grid(int(0.5 * np.sqrt(N)))
         self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
 
         # Ecdf
@@ -299,8 +302,6 @@ class SimpleDistribution:
             ax = legend.axes
 
             handles, labels = ax.get_legend_handles_labels()
-
-            print("handles ", handles)
 
             #handles[-1] = FancyBboxPatch([0, 1], width=0.05, height=1, boxstyle='square',color="black")
             handles[-1] = RegularPolygon([0, 1], numVertices=4, radius=0.5, color="black")
@@ -504,8 +505,8 @@ class Distribution:
         self.adjust_domain(domain)
         N = len(samples)
         print("N samples ", N)
-        # bins = self._grid(0.5 * np.sqrt(N))
-        # self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
+        bins = self._grid(int(0.5 * np.sqrt(N)))
+        self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
 
         # Ecdf
         X = np.sort(samples)
@@ -762,7 +763,6 @@ class Distribution:
         Plot exact PDF and CDF.
         :return:
         """
-        print("self exact distr ", self._exact_distr)
         if self._exact_distr is None:
             return
 
@@ -773,9 +773,6 @@ class Distribution:
         # if self._log_density:
         #     Y = np.log(Y)
         self.ax_pdf.set_ylim([np.min(Y) - (np.max(Y) - np.min(Y)) * 0.1, np.max(Y) + (np.max(Y) - np.min(Y)) * 0.1])
-
-
-
         self.ax_pdf.plot(X, Y, c='black', label="exact", linestyle=":")
 
         if self.ax_log_density is not None:
@@ -791,7 +788,6 @@ class Distribution:
         """
         if domain is None:
             domain = self._domain
-        print("domain ", domain)
         if self._log_x:
             X = np.geomspace(domain[0], domain[1], size)
         else:
@@ -1257,7 +1253,7 @@ class VarianceBreakdown:
         """
         Add plot of variances for single MLMC instance.
         :param level_vars: Array (n_levels, n_moments) of level variances.
-        :param n_samples: Array (n_levels,) of numberf of samples on levels
+        :param n_samples: Array (n_levels,) number of samples on levels
         :param ref_level_vars: reference level vars (e.g. from bootstrapping)
         :return:
         """
@@ -1458,7 +1454,6 @@ class BSplots:
     def plot_bootstrap_variance_compare(self):
         """
         Plot fraction (MLMC var est) / (BS var set) for the total variance and level variances.
-        :param moments_fn:
         :return:
         """
         moments_fn = self.moments
@@ -1603,11 +1598,11 @@ class BSplots:
         plt.show()
         #exit()
 
-    def plot_var_regression(self, q_estimator, n_levels, moments_fn, i_moments = None):
+    def plot_var_regression(self, estimator, n_levels, moments_fn, i_moments=None):
         """
         Plot total and level variances and their regression and errors of regression.
         :param i_moments: List of moment indices to plot. If it is an int M, the range(M) is used.
-                       If None, self.moments.size is used.
+                       If None, self.moments_fn.size is used.
         """
         fig = plt.figure(figsize=(30, 10))
         ax = fig.add_subplot(1, 2, 1)
@@ -1621,8 +1616,8 @@ class BSplots:
 
         self._moments_cmap = self.set_moments_color_bar(ax=ax)
 
-        est_diff_vars, n_samples = q_estimator.estimate_diff_vars(moments_fn)
-        reg_diff_vars = q_estimator.estimate_diff_vars_regression(moments_fn) #/ self.n_samples[:, None]
+        est_diff_vars, n_samples = estimator.estimate_diff_vars(moments_fn)
+        reg_diff_vars = estimator.estimate_diff_vars_regression(moments_fn) #/ self.n_samples[:, None]
         ref_diff_vars = self._ref_level_var #/ self.n_samples[:, None]
 
         self._scatter_level_moment_data(ax,  ref_diff_vars, i_moments, marker='o')
