@@ -53,10 +53,9 @@ class SamplingPoolPBS(SamplingPool):
     LEVEL_SIM_CONFIG = "level_{}_simulation_config"  # Serialized level simulation
     JOB = "{}_job.sh"  # Pbs process file
 
-    def __init__(self, work_dir, clean=False, debug=False):
+    def __init__(self, work_dir, debug=False):
         """
         :param work_dir: Path to working directory
-        :param clean: bool, if True delete output dir
         :param debug: bool, if True keep sample directories
                       it is the strongest parameter so it overshadows 'clean' param
         """
@@ -78,37 +77,15 @@ class SamplingPoolPBS(SamplingPool):
         # List of pbs job ids which should run
         self._unfinished_sample_ids = set()
         # List of sample id which are not collected - collection attempts are done in the get_finished()
-        self._clean = False if debug else clean
-        # If true then remove output dir
         self._debug = debug
         # If true then keep sample directories
         self._output_dir = None
         self._jobs_dir = None
-        self._create_output_dir()
-        self._create_job_dir()
 
+        super().__init__()
+        self._create_dir(directory=SamplingPoolPBS.JOBS_DIR)
         self._job_count = self._get_job_count()
         # Current number of jobs - sort of jobID
-
-    def _create_output_dir(self):
-        """
-        Create output dir in working directory, remove existing one
-        :return: None
-        """
-        self._output_dir = os.path.join(self._work_dir, SamplingPoolPBS.OUTPUT_DIR)
-
-        if self._clean and os.path.isdir(self._output_dir):
-            shutil.rmtree(self._output_dir)
-
-        os.makedirs(self._output_dir, mode=0o775, exist_ok=True)
-
-    def _create_job_dir(self):
-        """
-        Create job directory - contains all necessary job files
-        :return: None
-        """
-        self._jobs_dir = os.path.join(self._output_dir, SamplingPoolPBS.JOBS_DIR)
-        os.makedirs(self._jobs_dir, mode=0o775, exist_ok=True)
 
     def _get_job_count(self):
         """
