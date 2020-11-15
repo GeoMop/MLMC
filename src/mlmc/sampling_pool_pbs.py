@@ -79,11 +79,8 @@ class SamplingPoolPBS(SamplingPool):
         # List of sample id which are not collected - collection attempts are done in the get_finished()
         self._debug = debug
         # If true then keep sample directories
-        self._output_dir = None
-        self._jobs_dir = None
-
-        super().__init__()
-        self._create_dir(directory=SamplingPoolPBS.JOBS_DIR)
+        super().__init__(self._work_dir, self._debug)
+        self._jobs_dir = self._create_dir(directory=SamplingPoolPBS.JOBS_DIR)
         self._job_count = self._get_job_count()
         # Current number of jobs - sort of jobID
 

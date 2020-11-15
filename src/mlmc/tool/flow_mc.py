@@ -16,13 +16,12 @@ from mlmc.quantity_spec import QuantitySpec
 from mlmc.random import correlated_field as cf
 
 
-def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True):
+def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1):
     """
     Create random fields
     :return:
     """
     len_scale = corr_length * 2 * np.pi
-    # Random points gauss model
 
     if model == 'fourier':
         return cf.Fields([
@@ -31,15 +30,15 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True):
         ])
 
     if model == 'exp':
-        model = gstools.Exponential(dim=dim, len_scale=len_scale)
+        model = gstools.Exponential(dim=dim, var=sigma**2, len_scale=len_scale)
     elif model == 'TPLgauss':
-        model = gstools.TPLGaussian(dim=dim, len_scale=len_scale)
+        model = gstools.TPLGaussian(dim=dim, var=sigma**2, len_scale=len_scale)
     elif model == 'TPLexp':
-        model = gstools.TPLExponential(dim=dim, len_scale=len_scale)
+        model = gstools.TPLExponential(dim=dim, var=sigma**2, len_scale=len_scale)
     elif model == 'TPLStable':
-        model = gstools.TPLStable(dim=dim, len_scale=len_scale)
+        model = gstools.TPLStable(dim=dim, var=sigma**2, len_scale=len_scale)
     else:
-        model = gstools.Gaussian(dim=dim, len_scale=len_scale)
+        model = gstools.Gaussian(dim=dim, var=sigma**2, len_scale=len_scale)
 
     return cf.Fields([
         cf.Field('conductivity', cf.GSToolsSpatialCorrelatedField(model, log=log)),
