@@ -42,6 +42,7 @@ class SamplingPool(ABC):
             if os.path.exists(directory) and not self._debug:
                 shutil.rmtree(directory)
             os.makedirs(directory, mode=0o775, exist_ok=True)
+            return directory
 
     @abstractmethod
     def schedule_sample(self, sample_id, level_sim: LevelSimulation):
@@ -166,7 +167,7 @@ class SamplingPool(ABC):
         :return: None
         """
         if sample_workspace and work_dir is not None:
-            if int(sample_id[-1:]) < 5:
+            if int(sample_id[-7:]) < 5:
                 destination_dir = os.path.join(work_dir, dest_dir)
                 sample_dir = SamplingPool.change_to_sample_directory(work_dir, sample_id)
                 if os.path.exists(os.path.join(destination_dir, sample_id)):

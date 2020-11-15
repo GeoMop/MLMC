@@ -173,7 +173,7 @@ class PbsJob:
                 success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
                 SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
-                                      dest_dir=SamplingPool.SEVERAL_SUCCESSFUL_DIR)
+                                      dest_dir=os.path.join(self._output_dir, SamplingPool.SEVERAL_SUCCESSFUL_DIR))
                 if not self._debug:
                     SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
 
