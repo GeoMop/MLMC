@@ -31,7 +31,7 @@ class ProcessSimple:
         # 'Debug' mode is on - keep sample directories
         self.use_pbs = True
         # Use PBS sampling pool
-        self.n_levels = 1
+        self.n_levels = 7
         self.n_moments = 25
         # Number of MLMC levels
 
@@ -97,6 +97,10 @@ class ProcessSimple:
 
         #self.process_target_var(estimator)
         self.construct_density(estimator, tol=1e-8)
+        self.data_plots(estimator)
+
+    def data_plots(self, estimator):
+        estimator.fine_coarse_violinplot()
 
     def process_target_var(self, estimator):
         n0, nL = 100, 3
