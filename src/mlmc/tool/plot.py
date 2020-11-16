@@ -1,6 +1,33 @@
 import numpy as np
 import scipy.stats as st
 from scipy import interpolate
+import seaborn
+import matplotlib as mpl
+# font = {'family': 'normal',
+#         'weight': 'bold',
+#         'size': 22}
+#
+# matplotlib.rc('font', **font)
+
+# mpl.use("pgf")
+# pgf_with_pdflatex = {
+#     "pgf.texsystem": "pdflatex",
+#     "pgf.preamble": [
+#         r"\usepackage[utf8]{inputenc}",
+#         r"\usepackage[T1]{fontenc}",
+#         ##r"\usepackage{cmbright}",
+#     ],
+# }
+# mpl.rcParams.update(pgf_with_pdflatex)
+
+
+
+# mpl.rcParams['xtick.labelsize']=12
+# mpl.rcParams['ytick.labelsize']=12
+
+import matplotlib
+matplotlib.rcParams.update({'font.size': 22})
+from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 
 
@@ -281,6 +308,151 @@ class Distribution:
         else:
             X = np.linspace(domain[0], domain[1], size)
         return X
+
+
+class ArticleDistribution(Distribution):
+    """
+    mlmc.plot.Distribution
+
+    Class for plotting distribution approximation: PDF and CDF (optional)
+    Provides methods to: add more plots, add exact PDF, add ECDF/histogram from single level MC
+    """
+    def __init__(self, exact_distr=None, title="", quantity_name="X", legend_title="",
+                 log_density=False, cdf_plot=True, log_x=False, error_plot='l2', reg_plot=False, multipliers_plot=True):
+        """
+        Plot configuration
+        :param exact_distr:  Optional exact domain (for adding to plot and computing error)
+        :param title: Figure title.
+        :param quantity_name: Quantity for X axis label.
+        :param log_density: Plot logarithm of density value.
+        :param cdf_plot: Plot CDF as well (default)
+        :param log_x: Use logarithmic scale for X axis.
+        :param error_plot: None, 'diff', 'kl. Plot error of pdf using either difference or
+        integrand of KL divergence: exact_pdf * log(exact_pdf / approx_pdf).
+        Simple difference is used for CDF for both options.
+        """
+        self._exact_distr = exact_distr
+        self._log_density = log_density
+        self._log_x = log_x
+        self._error_plot = error_plot
+        self._domain = None
+        self._title = title
+        self._legend_title = legend_title
+        self.plot_matrix = []
+        self.i_plot = 0
+
+        self.ax_cdf = None
+        self.ax_log_density = None
+        self.x_lim = None
+
+        self.pdf_color = "brown"
+        self.cdf_color = "blue"
+
+        self.reg_plot = reg_plot
+
+        self.fig, self.ax_cdf = plt.subplots(1, 1, figsize=(22, 10))
+        self.fig_cdf = None
+        self.ax_pdf = self.ax_cdf.twinx()
+
+        #self.fig.suptitle(title, y=0.99)
+        x_axis_label = quantity_name
+
+        # PDF axes
+        self.ax_pdf.set_ylabel("PDF", color=self.pdf_color)
+        #self.ax_pdf.set_ylabel("probability density")
+        self.ax_pdf.set_xlabel(x_axis_label)
+        self.ax_pdf.tick_params(axis='y', labelcolor=self.pdf_color)
+        if self._log_x:
+            self.ax_pdf.set_xscale('log')
+            x_axis_label = "log " + x_axis_label
+        # if self._log_density:
+        #     self.ax_pdf.set_yscale('log')
+
+        if cdf_plot:
+            # CDF axes
+            #self.ax_cdf.set_title("CDF approximations")
+            self.ax_cdf.set_ylabel("CDF", color=self.cdf_color)
+            self.ax_cdf.tick_params(axis='y', labelcolor=self.cdf_color)
+            self.ax_cdf.set_xlabel(x_axis_label)
+            if self._log_x:
+                self.ax_cdf.set_xscale('log')
+
+        self.x_lim = [0, 5]
+
+        self.ax_pdf.set_xlim(*self.x_lim)
+        self.ax_cdf.set_xlim(*self.x_lim)
+
+        """adjust ax2 ylimit so that v2 in ax2 is aligned to v1 in ax1"""
+        _, y1 = self.ax_pdf.transData.transform((0, 0))
+        _, y2 = self.ax_cdf.transData.transform((0, 0))
+        inv = self.ax_cdf.transData.inverted()
+        _, dy = inv.transform((0, 0)) - inv.transform((0, y1 - y2))
+        miny, maxy = self.ax_cdf.get_ylim()
+        self.ax_cdf.set_ylim(miny + dy, maxy + dy)
+
+    def add_raw_samples(self, samples):
+        """
+        Add histogram and ecdf for raw samples.
+        :param samples:
+        """
+        # Histogram
+        domain = (np.min(samples), np.max(samples))
+        self.adjust_domain(domain)
+        if self.x_lim is not None:
+            self._domain = self.x_lim
+        N = len(samples)
+        print("N samples ", N)
+        bins = self._grid(int(0.5 * np.sqrt(N)))
+        self.ax_pdf.hist(samples, density=True, color='red', bins=bins, alpha=0.3)
+
+        # Ecdf
+        X = np.sort(samples)
+        Y = (np.arange(len(X)) + 0.5) / float(len(X))
+        X, Y = make_monotone(X, Y)
+        if self.ax_cdf is not None:
+            self.ax_cdf.plot(X, Y, ':', color='midnightblue', label="ecdf")
+
+        # PDF approx as derivative of Bspline CDF approx
+        size_8 = int(N / 8)
+        w = np.ones_like(X)
+        w[:size_8] = 1 / (Y[:size_8])
+        w[N - size_8:] = 1 / (1 - Y[N - size_8:])
+        spl = interpolate.UnivariateSpline(X, Y, w, k=3, s=1)
+        sX = np.linspace(domain[0], domain[1], 1000)
+        # if self._reg_param == 0:
+        #     self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4, label="derivative of Bspline CDF")
+
+    def add_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0):
+        """
+        Add plot for distribution 'distr_object' with given label.
+        :param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain
+        :param label: string label for legend
+        :return:
+        """
+        self._reg_param = reg_param
+
+        # if label is None:
+        #     label = "size {}".format(distr_object.moments_fn.size)
+        domain = distr_object.domain
+        self.adjust_domain(domain)
+        d_size = domain[1] - domain[0]
+        slack = 0  # 0.05
+        extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
+        X = self._grid(1000, domain=domain)
+
+        line_styles = ['-', ':', '-.', '--']
+        plots = []
+
+        Y_pdf = distr_object.density(X)
+        self.ax_pdf.plot(X, Y_pdf, color=self.pdf_color)
+
+        Y_cdf = distr_object.cdf(X)
+
+        if self.ax_cdf is not None:
+            self.ax_cdf.plot(X, Y_cdf, color=self.cdf_color)
+            #self._plot_borders(self.ax_cdf, self.cdf_color, domain)
+
+        self.i_plot += 1
 
 
 class Eigenvalues:
@@ -811,9 +983,6 @@ class BSplots:
 
 
 
-
-
-
 class Aux:
     def _scatter_level_moment_data(self, ax, values, i_moments=None, marker='o'):
         """
@@ -866,8 +1035,8 @@ class Aux:
         self._scatter_level_moment_data(ax, fraction, marker='o')
 
         #ax.legend(loc=6)
-        lbls = ['Total'] + [ 'L{:2d}'.format(l+1) for l in range(self.n_levels)]
-        ax.set_xticks(ticks = np.arange(self.n_levels + 1))
+        lbls = ['Total'] + ['L{:2d}'.format(l+1) for l in range(self.n_levels)]
+        ax.set_xticks(ticks=np.arange(self.n_levels + 1))
         ax.set_xticklabels(lbls)
         ax.set_yscale('log')
         ax.set_ylim((0.3, 3))
@@ -991,8 +1160,7 @@ class Aux:
         if ex_moments is not None:
                 plt.plot(default_x - 0.125, ex_moments, 'ko', label="Exact moments")
         plt.legend()
-        #plt.show()
-        #exit()
+        plt.show()
 
 
     def plot_var_regression(self, i_moments = None):
@@ -1013,10 +1181,9 @@ class Aux:
             i_moments = list(range(i_moments))
         i_moments = np.array(i_moments, dtype=int)
 
-        self.set_moments_color_bar(ax=ax)
-
-        est_diff_vars, n_samples = self.mlmc.estimate_diff_vars(moments_fn)
-        reg_diff_vars = self.mlmc.estimate_diff_vars_regression(moments_fn) #/ self.n_samples[:, None]
+        self._moments_cmap = self.set_moments_color_bar(range=moments_fn.size, label="moments", ax=ax)
+        est_diff_vars, n_samples = estimator.estimate_diff_vars(moments_fn)
+        reg_diff_vars, _ = estimator.estimate_diff_vars_regression(moments_fn) #/ self.n_samples[:, None]
         ref_diff_vars = self._ref_level_var #/ self.n_samples[:, None]
 
         self._scatter_level_moment_data(ax,  ref_diff_vars, i_moments, marker='o')
@@ -1290,3 +1457,101 @@ def plot_error(arr, ax, label):
 #         x = np.random.normal(i, 0.04, size=len(y))
 #         plot(x, y, 'r.', alpha=0.2)
 
+
+class ViolinPlotter(seaborn.categorical._ViolinPlotter):
+    def draw_quartiles(self, ax, data, support, density, center, split=False):
+        q25, q50, q75 = np.percentile(data, [25, 50, 75])
+        mean = np.mean(data)
+
+        self.draw_to_density(ax, center, mean, support, density, split,
+                             linewidth=self.linewidth)
+
+        self.draw_to_density(ax, center, q25, support, density, split,
+                             linewidth=self.linewidth,
+                             dashes=[self.linewidth * 1.5] * 2)
+        self.draw_to_density(ax, center, q50, support, density, split,
+                             linewidth=self.linewidth,
+                             dashes=[self.linewidth * 3] * 2)
+        self.draw_to_density(ax, center, q75, support, density, split,
+                             linewidth=self.linewidth,
+                             dashes=[self.linewidth * 1.5] * 2)
+
+
+def violinplot(
+    *,
+    x=None, y=None,
+    hue=None, data=None,
+    order=None, hue_order=None,
+    bw="scott", cut=2, scale="area", scale_hue=True, gridsize=100,
+    width=.8, inner="box", split=False, dodge=True, orient=None,
+    linewidth=None, color=None, palette=None, saturation=.75,
+    ax=None, **kwargs,):
+
+    plotter = ViolinPlotter(x, y, hue, data, order, hue_order,
+                             bw, cut, scale, scale_hue, gridsize,
+                             width, inner, split, dodge, orient, linewidth,
+                             color, palette, saturation)
+
+    if ax is None:
+        ax = plt.gca()
+
+    plotter.plot(ax)
+    return ax
+
+
+def fine_coarse_violinplot(data_frame):
+    fig, axes = plt.subplots(1, 1, figsize=(22, 10))
+
+    # mean with confidence interval
+    # sns.pointplot(x='level', y='samples', hue='type', data=data_frame, estimator=np.mean,
+    #               palette="Set2", join=False, ax=axes)
+
+    # line is not suitable for our purpose
+    # sns.lineplot(x="level", y="samples", hue="type",# err_style="band", ci='sd'
+    #              estimator=np.median, data=data_frame, ax=axes)
+
+    violinplot(x="level", y="samples", hue='type', data=data_frame, palette="Set2",
+                           split=True, scale="area", inner="quartile", ax=axes)
+
+    axes.set_yscale('log')
+    axes.set_ylabel('')
+    axes.set_xlabel('')
+    axes.legend([], [], frameon=False)
+
+    _show_and_save(fig, "violinplot", "violinplot")
+    _show_and_save(fig, None, "violinplot")
+
+
+def plot_pbs_flow_job_time():
+    from mlmc.sample_storage_hdf import SampleStorageHDF
+    import os
+    import mlmc.tool.flow_mc
+    work_dir = "/home/martin/Documents/flow123d_results/flow_experiments/Exponential/corr_length_0_1/sigma_1/L50"
+    sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_50.hdf5"))
+    sample_storage.chunk_size = 1e8
+    result_format = sample_storage.load_result_format()
+    level_params = sample_storage.get_level_parameters()
+    n_ops = sample_storage.get_n_ops()
+    index = [2, 3, 4, 5, 7, 8]
+    level_params = np.delete(level_params, index)
+    n_ops = np.delete(n_ops, index)
+
+    n_elements = []
+    for level_param in level_params:
+        mesh_file = os.path.join(os.path.join(work_dir, "l_step_{}_common_files".format(level_param)), "mesh.msh")
+        param_dict = mlmc.tool.flow_mc.FlowSim.extract_mesh(mesh_file)
+        n_elements.append(len(param_dict['ele_ids']))
+
+
+    fig = plt.figure(figsize=(15, 8))
+    ax = fig.add_subplot(1, 1, 1)
+    ax.set_xscale('log')
+    lbls = ['{}'.format(nl) for nl in n_elements]
+    ax.set_xticklabels(lbls)
+    #ax.set_yscale('log')
+    ax.plot(1/(level_params**2), n_ops)
+    _show_and_save(fig, "flow_time", "flow_time")
+
+
+if __name__ == "__main__":
+    plot_pbs_flow_job_time()

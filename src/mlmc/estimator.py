@@ -301,6 +301,27 @@ class Estimate:
     def plot_var_var(self, nl):
         self[nl].plot_bootstrap_var_var(self._moments_fn)
 
+    def fine_coarse_violinplot(self):
+        import pandas as pd
+        label_n_spaces = 5
+        n_levels = self._sample_storage.get_n_levels()
+        for level_id in range(n_levels):
+            samples = np.squeeze(self._quantity.samples(level_id=level_id, n_samples=None), axis=0)
+            if level_id == 0:
+                label = "{} F{} {} C".format(level_id, ' ' * label_n_spaces, level_id + 1)
+                data = {'samples': samples[:, 0], 'type': 'fine', 'level': label}
+                dframe = pd.DataFrame(data)
+            else:
+
+                data = {'samples': samples[:, 1], 'type': 'coarse', 'level': label}
+                dframe = pd.concat([dframe, pd.DataFrame(data)], axis=0)
+
+                if level_id + 1 < n_levels:
+                    label = "{} F{} {} C".format(level_id, ' ' * label_n_spaces, level_id + 1)
+                    data = {'samples': samples[:, 0], 'type': 'fine', 'level': label}
+                    dframe = pd.concat([dframe, pd.DataFrame(data)], axis=0)
+        plot.fine_coarse_violinplot(dframe)
+
     @staticmethod
     def estimate_domain(quantity, sample_storage, quantile=None):
         """
