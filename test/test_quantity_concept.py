@@ -9,7 +9,7 @@ from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc import quantity_concept as q
 from mlmc.quantity_concept import make_root_quantity, estimate_mean, moment, moments, covariance
-from mlmc.quantity_concept import Quantity, QuantityStorage, DictType
+from mlmc.quantity_concept import Quantity, QuantityStorage, DictType, QuantityConst, ScalarType
 from mlmc.sampler import Sampler
 from mlmc.moments import Legendre, Monomial
 from mlmc.quantity_estimate import QuantityEstimate
@@ -124,11 +124,6 @@ class QuantityTests(unittest.TestCase):
         means_width = estimate_mean(width)
         assert np.allclose((means_add()[sizes[0] + sizes[1]:sizes[0] + sizes[1] + sizes[2]]).tolist(), means_width().tolist())
 
-        const = 5
-        const_mult_quantity = const * root_quantity
-        const_mult_mean = estimate_mean(const_mult_quantity)
-        assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
-
         # Concatenate quantities
         dict_types = [("depth", depth.qtype), ("length", length.qtype)]
         dict_type = DictType(dict_types)
@@ -167,39 +162,86 @@ class QuantityTests(unittest.TestCase):
         sample_storage = Memory()
         result_format, sizes = self.fill_sample_storage(sample_storage)
         root_quantity = make_root_quantity(sample_storage, result_format)
+        const = 5
 
         means = estimate_mean(root_quantity)
         self.assertEqual(len(means()), np.sum(sizes))
 
+        # Addition
         quantity_add = root_quantity + root_quantity
         means_add = estimate_mean(quantity_add)
         assert np.allclose((means() + means()), means_add())
 
-        quantity_add = root_quantity + root_quantity * 2
-        means_add = estimate_mean(quantity_add)
-        assert np.allclose((means() + means() * 2), means_add())
-
-        quantity_add_mult = root_quantity + root_quantity * root_quantity
-        means_add = estimate_mean(quantity_add_mult)
+        quantity_add_const = root_quantity + const
+        means_add_const = estimate_mean(quantity_add_const)
+        means_add_const()
 
         quantity_add = root_quantity + root_quantity + root_quantity
         means_add = estimate_mean(quantity_add)
         assert np.allclose((means() + means() + means()), means_add())
 
+        # Subtraction
+        quantity_sub_const = root_quantity - const
+        means_sub_const = estimate_mean(quantity_sub_const)
+        means_sub_const()
+
+        # Multiplication
+        const_mult_quantity = root_quantity * const
+        const_mult_mean = estimate_mean(const_mult_quantity)
+        assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
+
+        # True division
+        const_div_quantity = root_quantity / const
+        const_div_mean = estimate_mean(const_div_quantity)
+        assert np.allclose((means()/const).tolist(), const_div_mean().tolist())
+
+        # Mod
+        const_mod_quantity = root_quantity % const
+        const_mod_mean = estimate_mean(const_mod_quantity)
+        assert np.allclose((means() % const).tolist(), const_mod_mean().tolist())
+
+        # Further tests
         length = quantity_add['length']
         means_length = estimate_mean(length)
-        assert np.allclose((means_add()[sizes[0]:sizes[0]+sizes[1]]).tolist(), means_length().tolist())
+        assert np.allclose(means_add()[sizes[0]:sizes[0] + sizes[1]], means_length())
 
         width = quantity_add['width']
         means_width = estimate_mean(width)
-        assert np.allclose((means_add()[sizes[0] + sizes[1]:sizes[0] + sizes[1] + sizes[2]]).tolist(), means_width().tolist())
+        assert np.allclose(means_add()[sizes[0] + sizes[1]:sizes[0] + sizes[1] + sizes[2]], means_width())
 
-        const = 5
-        const_mult_quantity = const * root_quantity
-        const_mult_mean = estimate_mean(const_mult_quantity)
-        means = estimate_mean(root_quantity)
+        quantity_add = root_quantity + root_quantity * const
+        means_add = estimate_mean(quantity_add)
+        assert np.allclose((means() + means() * const), means_add())
 
-        assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
+        quantity_add_mult = root_quantity + root_quantity * root_quantity
+        means_add = estimate_mean(quantity_add_mult)
+
+        # #### right operators ####
+        # # Addition
+        # const_add_quantity = const + root_quantity
+        # const_add_means = estimate_mean(const_add_quantity)
+        # assert np.allclose(means_add_const(), const_add_means())
+        #
+        # # Subtraction
+        # const_sub_quantity = const - root_quantity
+        # const_sub_means = estimate_mean(const_sub_quantity)
+        # assert np.allclose(means_sub_const(), -const_sub_means())
+        #
+        # # Multiplication
+        # const_mult_quantity = const * root_quantity
+        # const_mult_mean = estimate_mean(const_mult_quantity)
+        # means = estimate_mean(root_quantity)
+        # assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
+
+        # # True division
+        # const_div_quantity =  const / root_quantity
+        # const_div_mean = estimate_mean(const_div_quantity)
+        # assert np.allclose((const / means()).tolist(), const_div_mean().tolist())
+        #
+        # # Mod
+        # const_mod_quantity = const % root_quantity
+        # const_mod_mean = estimate_mean(const_mod_quantity)
+        # assert np.allclose((const % means()).tolist(), const_mod_mean().tolist())
 
     def test_condition(self):
         """
@@ -231,8 +273,8 @@ class QuantityTests(unittest.TestCase):
         root_quantity_comp_mean = estimate_mean(root_quantity_comp)
         assert len(root_quantity_comp_mean()) == 0
 
-        new_quantity = selected_quantity + root_quantity
-        self.assertRaises(ValueError, estimate_mean, new_quantity)
+        #new_quantity = selected_quantity + root_quantity
+        #self.assertRaises(AssertionError, (selected_quantity + root_quantity))
 
         # bound root quantity result - select the ones which meet conditions
         mask = np.logical_and(0 < root_quantity, root_quantity < 10)
@@ -326,6 +368,11 @@ class QuantityTests(unittest.TestCase):
 
         root_quantity_means = estimate_mean(root_quantity)
 
+        #@TODO: should failed
+        # q_and = np.logical_and(True, root_quantity)
+        # q_and_mean = estimate_mean(q_and)
+        # print("q and mean ", q_and_mean())
+
         sin_root_quantity = np.sin(root_quantity)
         sin_means = estimate_mean(sin_root_quantity)
         assert len(sin_means()) == np.sum(sizes)
@@ -368,6 +415,12 @@ class QuantityTests(unittest.TestCase):
         sin_length = np.sin(length)
         sin_means_length = estimate_mean(sin_length)
         assert np.allclose((sin_means()[sizes[0]:sizes[0]+sizes[1]]).tolist(), sin_means_length().tolist())
+
+    # def test_quantity_const(self):
+    #     x = QuantityConst(ScalarType(), 5)
+    #     y = QuantityConst(ScalarType(), 10)
+    #     z = x + y
+    #     estimate_mean(z)
 
     def fill_sample_storage(self, sample_storage, chunk_size=512000000):
         sample_storage.chunk_size = chunk_size  # bytes in decimal
@@ -460,7 +513,7 @@ class QuantityTests(unittest.TestCase):
         n_moments = 3
         step_range = [[0.1], [0.001]]
 
-        clean = True
+        clean = False
         sampler, simulation_factory = self._create_sampler(step_range, clean=clean)
 
         distr = stats.norm()
