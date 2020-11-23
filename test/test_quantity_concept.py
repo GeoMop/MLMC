@@ -125,13 +125,11 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose((means_add()[sizes[0] + sizes[1]:sizes[0] + sizes[1] + sizes[2]]).tolist(), means_width().tolist())
 
         # Concatenate quantities
-        dict_types = [("depth", depth.qtype), ("length", length.qtype)]
-        dict_type = DictType(dict_types)
-        quantity_concat = Quantity.concatenate([depth, length], qtype=dict_type)
-        quantity_concat_mean = estimate_mean(quantity_concat)
-        assert np.allclose(quantity_concat_mean(), np.concatenate((means_depth(), means_length())))
+        quantity_dict = Quantity.QDict([("depth", depth), ("length", length)])
+        quantity_dict_mean = estimate_mean(quantity_dict)
+        assert np.allclose(quantity_dict_mean(), np.concatenate((means_depth(), means_length())))
 
-        length_concat = quantity_concat['length']
+        length_concat = quantity_dict['length']
         means_length_concat = estimate_mean(length_concat)
         assert np.allclose(means_length_concat(), means_length())
         locations = length_concat.time_interpolation(2.5)
@@ -145,15 +143,20 @@ class QuantityTests(unittest.TestCase):
         y = position[1, 2]
         y_mean = estimate_mean(y)
         assert len(y_mean()) == 1
-
         y_add = np.add(5, y)
         y_add_mean = estimate_mean(y_add)
         assert np.allclose(y_add_mean(), y_mean() + 5)
-
-        depth = quantity_concat['depth']
+        depth = quantity_dict['depth']
         means_depth_concat = estimate_mean(depth)
-
         assert np.allclose((means()[:sizes[0]]), means_depth_concat())
+
+        quantity_timeseries = Quantity.QTimeSeries([(0, locations), (1, locations)])
+        quantity_timeseries_mean = estimate_mean(quantity_timeseries)
+        assert np.allclose(quantity_timeseries_mean(), np.concatenate((mean_interp_value(), mean_interp_value())))
+
+        quantity_field = Quantity.QField([("f1", length), ("f2", length)])
+        quantity_field_mean = estimate_mean(quantity_field)
+        assert np.allclose(quantity_field_mean(), np.concatenate((means_length(), means_length())))
 
     def test_binary_operations(self):
         """

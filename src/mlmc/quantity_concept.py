@@ -502,22 +502,15 @@ class Quantity:
 
         return Quantity(quantity_type=new_qtype, input_quantities=[self], operation=_make_getitem_op)
 
-    def time_interpolation(self, value):
-        """
-        Interpolation in time
-        :param value: point where to interpolate
-        :return: Quantity
-        """
-        def interp(y):
-            split_indeces = np.arange(1, len(self.qtype._times)) * self.qtype._qtype.size()
-            y = np.split(y, split_indeces, axis=-3)
-            f = interpolate.interp1d(self.qtype._times, y, axis=0)
-            return f(value)
+    def __getattr__(self, name):
+        static_fun = getattr(self.qtype, name)  # We support only static function call forwarding
 
-        return Quantity(quantity_type=self.qtype._qtype, input_quantities=[self], operation=interp)
+        def apply_on_quantity(*attr, **d_attr):
+            return static_fun(self, *attr, **d_attr)
+        return apply_on_quantity
 
     @staticmethod
-    def concatenate(quantities, qtype, axis=0):
+    def _concatenate(quantities, qtype, axis=0):
         """
         Concatenate level_chunks
         :param quantities: list of quantities
@@ -588,7 +581,33 @@ class Quantity:
             raise ValueError("Values {} are not flat, bool or array (list)".format(value))
         return quantity
 
-    #@TODO: static methods for quantity creation from other quantities
+    # @staticmethod
+    # def QArray(quantities):
+    #     array_type = ArrayType
+    #     return Quantity._concatenate(quantities, qtype=array_type)
+
+    @staticmethod
+    def QDict(key_quantity):
+        dict_type = DictType([(key, quantity.qtype) for key, quantity in key_quantity])
+        return Quantity._concatenate(np.array(key_quantity)[:, 1], qtype=dict_type)
+
+    @staticmethod
+    def QTimeSeries(time_quantity):
+        qtype = time_quantity[0][1].qtype
+        for _, quantity in time_quantity[:1]:
+            if qtype != quantity.qtype:
+                raise ValueError("Quantities don't have same QType")
+        times = np.array(time_quantity)[:, 0]
+        return Quantity._concatenate(np.array(time_quantity)[:, 1], qtype=TimeSeriesType(times=times, qtype=qtype))
+
+    @staticmethod
+    def QField(key_quantity):
+        qtype = key_quantity[0][1].qtype
+        for _, quantity in key_quantity[:1]:
+            if qtype != quantity.qtype:
+                raise ValueError("Quantities don't have same QType")
+        field_type = FieldType([(key, quantity.qtype) for key, quantity in key_quantity])
+        return Quantity._concatenate(np.array(key_quantity)[:, 1], qtype=field_type)
 
 
 class QuantityConst(Quantity):
@@ -889,6 +908,22 @@ class TimeSeriesType(QType):
         position = self._times.index(key)
         q_type.start = position * q_type.size()
         return q_type
+
+    @staticmethod
+    def time_interpolation(quantity, value):
+        """
+        Interpolation in time
+        :param quantity: Quantity instance
+        :param value: point where to interpolate
+        :return: Quantity
+        """
+        def interp(y):
+            split_indeces = np.arange(1, len(quantity.qtype._times)) * quantity.qtype._qtype.size()
+            y = np.split(y, split_indeces, axis=-3)
+            f = interpolate.interp1d(quantity.qtype._times, y, axis=0)
+            return f(value)
+
+        return Quantity(quantity_type=quantity.qtype._qtype, input_quantities=[quantity], operation=interp)
 
 
 class FieldType(QType):
