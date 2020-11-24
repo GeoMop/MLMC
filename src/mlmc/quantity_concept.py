@@ -529,7 +529,7 @@ class Quantity:
         Get quantities base Qtype
         :param args_quantities: list of quantities and other passed arguments,
          we expect at least one of the arguments is Quantity
-        :return: base QType
+        :return: base QType, ScalarType if any quantity has that base type, otherwise BoolType
         """
         # Either all quantities are BoolType or it is considered to be ScalarType
         for quantity in args_quantities:
@@ -628,13 +628,12 @@ class QuantityConst(Quantity):
 
     def _process_value(self, value):
         """
-        @TODO: add comment
+        Reshape value if array, otherwise create array first
         :param value: quantity value
+        :return: value with shape [M, 1, 1] which suitable for further broadcasting
         """
         if isinstance(value, (int, float, bool)):
-            arr = np.empty(1)
-            arr[:] = value
-            value = arr
+            value = np.array([value])
         return value[:, np.newaxis, np.newaxis]
 
     def get_cache_key(self, level_id, i_chunk, n_samples=np.inf):
@@ -771,8 +770,7 @@ class QuantityStorage(Quantity):
         :return: Array[M, chunk size, 2]
         """
         level_chunk = self._storage.sample_pairs_level(level_id, i_chunk, n_samples=n_samples)  # Array[M, chunk size, 2]
-        if level_chunk is not None:
-            assert self.qtype.size() == level_chunk.shape[0]
+        assert self.qtype.size() == level_chunk.shape[0]
         return level_chunk
 
 
@@ -900,12 +898,12 @@ class TimeSeriesType(QType):
         return len(self._times) * self._qtype.size()
 
     def __getitem__(self, key):
-        if key not in self._times:
-            raise KeyError("Item " + str(key) + " was not found in TimeSeries" +
-                           ". Available items: " + str(list(self._times)))
-
         q_type = copy.deepcopy(self._qtype)
-        position = self._times.index(key)
+        try:
+            position = self._times.index(key)
+        except KeyError:
+            print("Item " + str(key) + " was not found in TimeSeries" + ". Available items: " + str(list(self._times)))
+
         q_type.start = position * q_type.size()
         return q_type
 
@@ -941,12 +939,13 @@ class FieldType(QType):
         return len(self._dict.keys()) * self._qtype.size()
 
     def __getitem__(self, key):
-        if key not in self._dict:
-            raise KeyError("Key " + str(key) + " was not found in FieldType" +
-                           ". Available keys: " + str(list(self._dict.keys())))
-
         q_type = copy.deepcopy(self._qtype)
-        position = list(self._dict.keys()).index(key)
+        try:
+            position = list(self._dict.keys()).index(key)
+        except KeyError:
+            print("Key " + str(key) + " was not found in FieldType" +
+                  ". Available keys: " + str(list(self._dict.keys())[:5]) + "...")
+
         q_type.start = position * q_type.size()
         return q_type
 
@@ -960,25 +959,22 @@ class DictType(QType):
     def __init__(self, args: List[Tuple[str, QType]]):
         self._dict = dict(args)  # Be aware we it is ordered dictionary
         self.start = 0
-
         self._check_base_type()
 
     def _check_base_type(self):
         qtypes = list(self._dict.values())
+        qtype_0_base_type = qtypes[0].base_qtype()
         for qtype in qtypes[1:]:
-            if not isinstance(qtype.base_qtype(), type(qtypes[0].base_qtype())):
+            if not isinstance(qtype.base_qtype(), type(qtype_0_base_type)):
                 raise TypeError("qtype {} has base QType {}, expecting {}. "
                                 "All QTypes must have same base QType, either SacalarType or BoolType".
-                                format(qtype, qtype.base_qtype(), qtypes[0].base_qtype()))
+                                format(qtype, qtype.base_qtype(), qtype_0_base_type))
 
     def base_qtype(self):
         return list(self._dict.values())[0].base_qtype()
 
     def size(self) -> int:
         return int(np.sum(q_type.size() for _, q_type in self._dict.items()))
-
-    def get_qtypes(self):
-        return self._dict.values()
 
     def replace_scalar(self, new_qtype):
         for key, qtype in self._dict.items():
@@ -988,11 +984,11 @@ class DictType(QType):
                 qtype.replace_scalar(new_qtype)
 
     def __getitem__(self, key):
-        if key not in self._dict:
-            raise KeyError("Key " + str(key) + " was not found in DictType" +
-                           ". Available keys: " + str(list(self._dict.keys())))
-
-        q_type = self._dict[key]
+        try:
+            q_type = self._dict[key]
+        except KeyError:
+            print("Key " + str(key) + " was not found in DictType" +
+                  ". Available keys: " + str(list(self._dict.keys())[:5]) + "...")
 
         size = 0
         for k, qt in self._dict.items():

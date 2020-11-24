@@ -67,6 +67,15 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose(mean_interp_value()[:len(mean_interp_value())//2], mean_position_1())
 
         # Array indexing tests
+        # @TODO: uncomment to debug QuantityMean.__getitem__
+        # values = position
+        # values_mean = estimate_mean(values)
+        # print(values_mean[1:2]())
+        #
+        # values = position
+        # values_mean = estimate_mean(values)
+        # print(values_mean[1]())
+
         values = position[:, 2]
         values_mean = estimate_mean(values)
         assert len(values_mean()) == 2
@@ -516,7 +525,7 @@ class QuantityTests(unittest.TestCase):
         n_moments = 3
         step_range = [[0.1], [0.001]]
 
-        clean = False
+        clean = True
         sampler, simulation_factory = self._create_sampler(step_range, clean=clean)
 
         distr = stats.norm()
