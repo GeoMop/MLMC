@@ -159,6 +159,11 @@ class QuantityTests(unittest.TestCase):
         means_depth_concat = estimate_mean(depth)
         assert np.allclose((means()[:sizes[0]]), means_depth_concat())
 
+        quantity_array = Quantity.QArray([[length, length], [length, length]])
+        quantity_array_mean = estimate_mean(quantity_array)
+        assert np.allclose(quantity_array_mean(), np.concatenate((means_length(), means_length(),
+                                                                  means_length(), means_length())))
+
         quantity_timeseries = Quantity.QTimeSeries([(0, locations), (1, locations)])
         quantity_timeseries_mean = estimate_mean(quantity_timeseries)
         assert np.allclose(quantity_timeseries_mean(), np.concatenate((mean_interp_value(), mean_interp_value())))

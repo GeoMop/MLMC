@@ -581,10 +581,13 @@ class Quantity:
             raise ValueError("Values {} are not flat, bool or array (list)".format(value))
         return quantity
 
-    # @staticmethod
-    # def QArray(quantities):
-    #     array_type = ArrayType
-    #     return Quantity._concatenate(quantities, qtype=array_type)
+    @staticmethod
+    def QArray(quantities):
+        flat_quantities = np.array(quantities).flatten()
+        qtype = Quantity._check_same_qtype(flat_quantities)
+        print("np.array(quantities).shape ", np.array(quantities).shape)
+        array_type = ArrayType(np.array(quantities).shape, qtype)
+        return Quantity._concatenate(flat_quantities, qtype=array_type)
 
     @staticmethod
     def QDict(key_quantity):
@@ -593,21 +596,23 @@ class Quantity:
 
     @staticmethod
     def QTimeSeries(time_quantity):
-        qtype = time_quantity[0][1].qtype
-        for _, quantity in time_quantity[:1]:
-            if qtype != quantity.qtype:
-                raise ValueError("Quantities don't have same QType")
+        qtype = Quantity._check_same_qtype(np.array(time_quantity)[:, 1])
         times = np.array(time_quantity)[:, 0]
         return Quantity._concatenate(np.array(time_quantity)[:, 1], qtype=TimeSeriesType(times=times, qtype=qtype))
 
     @staticmethod
     def QField(key_quantity):
-        qtype = key_quantity[0][1].qtype
-        for _, quantity in key_quantity[:1]:
-            if qtype != quantity.qtype:
-                raise ValueError("Quantities don't have same QType")
+        Quantity._check_same_qtype(np.array(key_quantity)[:, 1])
         field_type = FieldType([(key, quantity.qtype) for key, quantity in key_quantity])
         return Quantity._concatenate(np.array(key_quantity)[:, 1], qtype=field_type)
+
+    @staticmethod
+    def _check_same_qtype(quantities):
+        qtype = quantities[0].qtype
+        for quantity in quantities[1:]:
+            if qtype != quantity.qtype:
+                raise ValueError("Quantities don't have same QType")
+        return qtype
 
 
 class QuantityConst(Quantity):
