@@ -192,7 +192,6 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
     # Create quantity type that has covariance matrices on the surface
     else:
         moments_qtype = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
-
     return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_cov)
 
 
@@ -411,18 +410,15 @@ class Quantity:
         Create samples mask
         All values for sample must meet given condition, if any value doesn't meet the condition,
         whole sample is eliminated
-        :param x: Quantity
-        :param y: Quantity or int, float
+        :param x: Quantity chunk
+        :param y: Quantity chunk or int, float
         :param operator: operator module function
         :param level_id: int, level identifier
         :return: np.ndarray of bools
         """
         # Zero level - use just fine samples
         if level_id == 0:
-            if isinstance(y, int) or isinstance(y, float):
-                mask = operator(x[..., 0], y)  # y is int or float
-            else:
-                mask = operator(x[..., 0], y[..., 0])  # y is from other quantity
+            mask = operator(x[..., 0], y[..., 0])  # y is from other quantity
             return mask.all(axis=tuple(range(mask.ndim - 1)))
 
         mask = operator(x, y)
@@ -447,32 +443,32 @@ class Quantity:
         return Quantity(quantity_type=new_qtype, input_quantities=[self, other], operation=op)
 
     def __lt__(self, other):
-        def lt_op(x, y=other, level_id=0):
+        def lt_op(x, y, level_id=0):
             return Quantity._process_mask(x, y, operator.lt, level_id)
         return self._mask_quantity(other, lt_op)
 
     def __le__(self, other):
-        def le_op(x, y=other, level_id=0):
+        def le_op(x, y, level_id=0):
             return self._process_mask(x, y, operator.le, level_id)
         return self._mask_quantity(other, le_op)
 
     def __gt__(self, other):
-        def gt_op(x, y=other, level_id=0):
+        def gt_op(x, y, level_id=0):
             return self._process_mask(x, y, operator.gt, level_id)
         return self._mask_quantity(other, gt_op)
 
     def __ge__(self, other):
-        def ge_op(x, y=other, level_id=0):
+        def ge_op(x, y, level_id=0):
             return self._process_mask(x, y, operator.ge, level_id)
         return self._mask_quantity(other, ge_op)
 
     def __eq__(self, other):
-        def eq_op(x, y=other, level_id=0):
+        def eq_op(x, y, level_id=0):
             return self._process_mask(x, y, operator.eq, level_id)
         return self._mask_quantity(other, eq_op)
 
     def __ne__(self, other):
-        def ne_op(x, y=other, level_id=0):
+        def ne_op(x, y, level_id=0):
             return self._process_mask(x, y, operator.ne, level_id)
         return self._mask_quantity(other, ne_op)
 
@@ -585,7 +581,6 @@ class Quantity:
     def QArray(quantities):
         flat_quantities = np.array(quantities).flatten()
         qtype = Quantity._check_same_qtype(flat_quantities)
-        print("np.array(quantities).shape ", np.array(quantities).shape)
         array_type = ArrayType(np.array(quantities).shape, qtype)
         return Quantity._concatenate(flat_quantities, qtype=array_type)
 
@@ -886,8 +881,8 @@ class ArrayType(QType):
         :return:
         """
         # Reshape M to original shape to allow access
-        if self._shape is not None:
-            chunk = chunk.reshape((*self._shape, chunk.shape[-2], chunk.shape[-1]))
+        assert self._shape is not None
+        chunk = chunk.reshape((*self._shape, chunk.shape[-2], chunk.shape[-1]))
         return self._keep_dims(chunk[key])
 
 
