@@ -233,32 +233,31 @@ class QuantityTests(unittest.TestCase):
         quantity_add_mult = root_quantity + root_quantity * root_quantity
         means_add = estimate_mean(quantity_add_mult)
 
-        # #### right operators ####
-        # # Addition
-        # const_add_quantity = const + root_quantity
-        # const_add_means = estimate_mean(const_add_quantity)
-        # assert np.allclose(means_add_const(), const_add_means())
-        #
-        # # Subtraction
-        # const_sub_quantity = const - root_quantity
-        # const_sub_means = estimate_mean(const_sub_quantity)
-        # assert np.allclose(means_sub_const(), -const_sub_means())
-        #
-        # # Multiplication
-        # const_mult_quantity = const * root_quantity
-        # const_mult_mean = estimate_mean(const_mult_quantity)
-        # means = estimate_mean(root_quantity)
-        # assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
+        #### right operators ####
+        # Addition
+        const_add_quantity = const + root_quantity
+        const_add_means = estimate_mean(const_add_quantity)
+        assert np.allclose(means_add_const(), const_add_means())
 
-        # # True division
-        # const_div_quantity =  const / root_quantity
-        # const_div_mean = estimate_mean(const_div_quantity)
-        # assert np.allclose((const / means()).tolist(), const_div_mean().tolist())
-        #
-        # # Mod
-        # const_mod_quantity = const % root_quantity
-        # const_mod_mean = estimate_mean(const_mod_quantity)
-        # assert np.allclose((const % means()).tolist(), const_mod_mean().tolist())
+        # Subtraction
+        const_sub_quantity = const - root_quantity
+        const_sub_means = estimate_mean(const_sub_quantity)
+        assert np.allclose(means_sub_const(), -const_sub_means())
+
+        # Multiplication
+        const_mult_quantity = const * root_quantity
+        const_mult_mean = estimate_mean(const_mult_quantity)
+        assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
+
+        # True division
+        const_div_quantity = const / root_quantity
+        const_div_mean = estimate_mean(const_div_quantity)()
+        #assert np.allclose((const / means()).tolist(), const_div_mean().tolist())
+
+        # Mod
+        const_mod_quantity = const % root_quantity
+        const_mod_mean = estimate_mean(const_mod_quantity)()
+        #assert np.allclose((const % means()).tolist(), const_mod_mean().tolist())
 
     def test_condition(self):
         """

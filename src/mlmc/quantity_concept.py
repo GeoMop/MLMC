@@ -91,7 +91,6 @@ def estimate_mean(quantity):
             # Chunk of samples for given level id
             try:
                 chunk = quantity.samples(level_id, i_chunk)
-
                 if level_id == 0:
                     # Set variables for level sums and sums of powers
                     if i_chunk == 0:
@@ -186,7 +185,7 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
 
     # Create quantity type which has covariance matrices at the bottom
     if cov_at_bottom:
-        moments_array_type = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=ScalarType())
+        moments_array_type = ArrayType(shape=(moments_fn.size, moments_fn.size,), qtype=ScalarType())
         moments_qtype = copy.deepcopy(quantity.qtype)
         moments_qtype.replace_scalar(moments_array_type)
     # Create quantity type that has covariance matrices on the surface
@@ -324,7 +323,9 @@ class Quantity:
         :param operation: function which is run with given quantities
         :return: Quantity
         """
-        return Quantity(quantities[0].qtype, operation=operation, input_quantities=quantities)
+        for quantity in quantities:
+            if not isinstance(quantity, QuantityConst):
+                return Quantity(quantity.qtype, operation=operation, input_quantities=quantities)
 
     def select(self, *args):
         """
@@ -432,7 +433,7 @@ class Quantity:
         :return: Quantity
         """
         bool_type = BoolType()
-        new_qtype = copy.deepcopy(self.qtype)
+        new_qtype = self.qtype
         new_qtype.replace_scalar(bool_type)
         other = Quantity.wrap(other)
 
@@ -491,10 +492,13 @@ class Quantity:
         :param key: str, int, tuple
         :return: Quantity
         """
-        new_qtype = self.qtype[key]  # New quantity type
+        new_qtype, start = self.qtype[key]  # New quantity type
+
+        if not isinstance(self.qtype, ArrayType):
+            key = slice(start, start + new_qtype.size())
 
         def _make_getitem_op(y):
-            return self.qtype._make_getitem_op(y, new_qtype=new_qtype, key=key)
+            return self.qtype._make_getitem_op(y, key=key)
 
         return Quantity(quantity_type=new_qtype, input_quantities=[self], operation=_make_getitem_op)
 
@@ -695,7 +699,7 @@ class QuantityMean:
         :param key: str, int, tuple
         :return: np.ndarray
         """
-        new_qtype = self.qtype[key]  # New quantity type
+        new_qtype, start = self.qtype[key]  # New quantity type
         reshape_shape = None
         newshape = None
         # ArrayType might be accessed directly regardless of qtype start and size
@@ -709,8 +713,7 @@ class QuantityMean:
                  newshape = new_qtype._shape
         # Other accessible quantity types uses start and size
         else:
-            start = new_qtype.start
-            end = new_qtype.start + new_qtype.size()
+            end = start + new_qtype.size()
             slice_key = slice(start, end)
 
         mean = self._mean
@@ -812,18 +815,14 @@ class QType(metaclass=abc.ABCMeta):
             raise ValueError("Chunk shape not supported")
         return chunk
 
-    def _make_getitem_op(self, chunk, new_qtype, key=None):
+    def _make_getitem_op(self, chunk, key):
         """
         Operation
         :param chunk: level chunk, list with shape [M, chunk size, 2]
-        :param new_qtype: QType
         :param key: parent QType's key, needed for ArrayType
         :return: list
         """
-        start = new_qtype.start
-        end = new_qtype.start + new_qtype.size()
-        slice_key = slice(start, end)
-        return self._keep_dims(chunk[slice_key])
+        return self._keep_dims(chunk[key])
 
 
 class ScalarType(QType):
@@ -842,10 +841,9 @@ class BoolType(ScalarType):
 
 
 class ArrayType(QType):
-    def __init__(self, shape, qtype: QType, start=0):
+    def __init__(self, shape, qtype: QType):
         self._shape = shape
         self._qtype = qtype
-        self.start = start
 
     def size(self) -> int:
         return np.prod(self._shape) * self._qtype.size()
@@ -865,19 +863,18 @@ class ArrayType(QType):
 
         # Result is also array
         if len(new_shape) > 0:
-            q_type = ArrayType(new_shape, qtype=copy.deepcopy(self._qtype))
+            q_type = ArrayType(new_shape, qtype=self._qtype)
         # Result is single array item
         else:
-            q_type = copy.deepcopy(self._qtype)
+            q_type = self._qtype
 
-        return q_type
+        return q_type, 0
 
-    def _make_getitem_op(self, chunk, new_qtype, key=None):
+    def _make_getitem_op(self, chunk, key):
         """
         Operation
         :param chunk: list [M, chunk size, 2]
-        :param new_qtype: QType
-        :param key: Qtype key
+        :param key: slice
         :return:
         """
         # Reshape M to original shape to allow access
@@ -887,25 +884,22 @@ class ArrayType(QType):
 
 
 class TimeSeriesType(QType):
-    def __init__(self, times, qtype, start=0):
+    def __init__(self, times, qtype):
         if isinstance(times, np.ndarray):
             times = times.tolist()
         self._times = times
         self._qtype = qtype
-        self.start = start
 
     def size(self) -> int:
         return len(self._times) * self._qtype.size()
 
     def __getitem__(self, key):
-        q_type = copy.deepcopy(self._qtype)
+        q_type = self._qtype
         try:
             position = self._times.index(key)
         except KeyError:
             print("Item " + str(key) + " was not found in TimeSeries" + ". Available items: " + str(list(self._times)))
-
-        q_type.start = position * q_type.size()
-        return q_type
+        return q_type, position * q_type.size()
 
     @staticmethod
     def time_interpolation(quantity, value):
@@ -925,29 +919,26 @@ class TimeSeriesType(QType):
 
 
 class FieldType(QType):
-    def __init__(self, args: List[Tuple[str, QType]], start=0):
+    def __init__(self, args: List[Tuple[str, QType]]):
         """
         QType must have same structure
         :param args:
         """
         self._dict = dict(args)
         self._qtype = args[0][1]
-        self.start = start
         assert all(q_type.size() == self._qtype.size() for _, q_type in args)
 
     def size(self) -> int:
         return len(self._dict.keys()) * self._qtype.size()
 
     def __getitem__(self, key):
-        q_type = copy.deepcopy(self._qtype)
+        q_type = self._qtype
         try:
             position = list(self._dict.keys()).index(key)
         except KeyError:
             print("Key " + str(key) + " was not found in FieldType" +
                   ". Available keys: " + str(list(self._dict.keys())[:5]) + "...")
-
-        q_type.start = position * q_type.size()
-        return q_type
+        return q_type, position * q_type.size()
 
     def __copy__(self):
         new = type(self)([(k, v) for k, v in self._dict.items()])
@@ -958,7 +949,6 @@ class FieldType(QType):
 class DictType(QType):
     def __init__(self, args: List[Tuple[str, QType]]):
         self._dict = dict(args)  # Be aware we it is ordered dictionary
-        self.start = 0
         self._check_base_type()
 
     def _check_base_type(self):
@@ -989,12 +979,9 @@ class DictType(QType):
         except KeyError:
             print("Key " + str(key) + " was not found in DictType" +
                   ". Available keys: " + str(list(self._dict.keys())[:5]) + "...")
-
-        size = 0
+        start = 0
         for k, qt in self._dict.items():
             if k == key:
                 break
-            size += qt.size()
-
-        q_type.start = size
-        return q_type
+            start += qt.size()
+        return q_type, start
