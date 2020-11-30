@@ -43,7 +43,6 @@ class HDF5:
                                 mashape: (None, 1)
                                 chunks: True
     """
-
     def __init__(self, file_path, load_from_file=False):
         """
         Create HDF5 class instance
@@ -205,14 +204,14 @@ class LevelGroup:
         :param level_id: Unambiguous identifier of mlmc.Level object
         :param loaded_from_file: bool, create new file or loaded existing groups
         """
-        # HDF file name
         self.file_name = file_name
-        # mlmc.Level identifier
+        # HDF file name
         self.level_id = level_id
-        # HDF Group object (h5py.Group)
+        # Level identifier
         self.level_group_path = hdf_group_path
-        # Structure of sample format
-        self._sample_dtype = None
+        # HDF Group object (h5py.Group)
+        self._items_in_chunk = None
+        # Collected items in one chunk
 
         # Set group attribute 'level_id'
         with h5py.File(self.file_name, 'a') as hdf_file:
@@ -351,18 +350,34 @@ class LevelGroup:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             return scheduled_dset[()]
 
-    def collected(self):
+    def collected(self, i_chunk=0, chunk_size=512000000, n_samples=None):
         """
-        Read all level datasets with collected data, create fine and coarse samples as Sample() instances
-        :return: all dataset values, TODO: generator in future
+        Read collected data by chunks,
+        number of items in chunk is determined by LevelGroup.chunk_size (number of bytes)
+        :param i_chunk: int
+        :param chunk_size: int or None, size of chunk, bytes in decimal, If None return all samples without chunks
+        :param n_samples: number of returned samples
+        :return: np.ndarray
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             if 'collected_values' not in hdf_file[self.level_group_path]:
                 return None
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
-            values = dataset[()]
 
-            return values
+            if n_samples is not None and n_samples < np.inf:
+                return dataset[:n_samples]
+
+            if chunk_size is not None:
+                if self._items_in_chunk is None:
+                    first_item = dataset[0]
+                    item_byte_size = first_item.size * first_item.itemsize
+                    self._items_in_chunk = int(np.ceil(chunk_size / item_byte_size))
+                return dataset[i_chunk * self._items_in_chunk: (i_chunk + 1) * self._items_in_chunk]
+
+            return dataset[()]
+
+    def get_items_in_chunk(self):
+        return self._items_in_chunk
 
     def get_finished_ids(self):
         """

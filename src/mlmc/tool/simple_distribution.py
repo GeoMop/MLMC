@@ -18,10 +18,6 @@ class SimpleDistribution:
         :param domain: Explicit domain fo reconstruction. None = use domain of moments.
         :param force_decay: Flag for each domain side to enforce decay of the PDF approximation.
         """
-
-        # Family of moments basis functions.
-        self.moments_basis = moments_obj
-
         # Moment evaluation function with bounded number of moments and their domain.
         self.moments_fn = None
 

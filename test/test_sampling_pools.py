@@ -1,6 +1,5 @@
 import os
 import shutil
-import copy
 import numpy as np
 from scipy import stats
 import pytest
@@ -59,11 +58,10 @@ def test_sampling_pools(sampling_pool, simulation_factory):
     if os.path.exists(work_dir):
         shutil.rmtree(work_dir)
     os.makedirs(work_dir)
+
     if simulation_factory.need_workspace:
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
         shutil.copyfile('synth_sim_config_test.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
-
-    print("os.path.join(work_dir, 'synth_sim_config.yaml') ", os.path.join(work_dir, 'synth_sim_config.yaml'))
 
     sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_{}.hdf5".format(len(step_range))))
     # Plan and compute samples
@@ -87,3 +85,4 @@ def test_sampling_pools(sampling_pool, simulation_factory):
 
     if sampling_pool._debug:
         assert 'output' in next(os.walk(work_dir))[1]
+

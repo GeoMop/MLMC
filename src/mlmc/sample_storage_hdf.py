@@ -6,31 +6,27 @@ from mlmc.sim.simulation import QuantitySpec
 import mlmc.tool.hdf5 as hdf
 
 
-# Starts from scratch
 class SampleStorageHDF(SampleStorage):
 
-    def __init__(self, file_path, append=False):
+    def __init__(self, file_path):
         """
         HDF5 storage, provide method to interact with storage
         :param file_path: absolute path to hdf file (which not exists at the moment)
-        :param append: append to existing hdf5
         """
+        super().__init__()
         # If file exists load not create new file
-        load_from_file = False
-        if os.path.exists(file_path):
-            if append:
-                load_from_file = True
-            else:
-                raise FileExistsError("HDF file {} already exists, use --clean to delete it".format(file_path))
+        load_from_file = True if os.path.exists(file_path) else False
 
         # HDF5 interface
         self._hdf_object = hdf.HDF5(file_path=file_path, load_from_file=load_from_file)
         self._level_groups = []
+
         # 'Load' level groups
         if load_from_file:
             # Create level group for each level
-            for i_level in range(len(self._hdf_object.level_parameters)):
-                self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
+            if len(self._level_groups) != len(self._hdf_object.level_parameters):
+                for i_level in range(len(self._hdf_object.level_parameters)):
+                    self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
 
     def _hdf_result_format(self, locations, times):
         """
@@ -67,8 +63,9 @@ class SampleStorageHDF(SampleStorage):
         self._hdf_object.create_file_structure(level_parameters)
 
         # Create group for each level
-        for i_level in range(len(level_parameters)):
-            self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
+        if len(self._level_groups) != len(level_parameters):
+            for i_level in range(len(level_parameters)):
+                self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
 
         # Save result format (QuantitySpec)
         self.save_result_format(result_format, res_dtype)
@@ -145,15 +142,34 @@ class SampleStorageHDF(SampleStorage):
                             " In other cases, call save_global_data() directly")
 
         levels_results = list(np.empty(len(self._level_groups)))
+
         for level in self._level_groups:
-            results = level.collected()
+            results = self.sample_pairs_level(level_id=level.level_id, n_samples=None)  # return all samples no chunks
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue
-
-            levels_results[int(level.level_id)] = results.transpose((2, 0, 1))
+            levels_results[int(level.level_id)] = results
 
         return levels_results
+
+    def sample_pairs_level(self, level_id, i_chunk=0, n_samples=np.inf):
+        """
+        Get result for particular level and chunk
+        :param level_id: int, level id
+        :param i_chunk: int, chunk identifier
+        :param n_samples: if None return all samples in one go, otherwise it returns the greater of n_samples and self.chunk_size
+        :return: np.ndarray
+        """
+        chunk_size = self.chunk_size
+
+        if n_samples is None:
+            chunk_size = None
+
+        sample_pairs = self._level_groups[int(level_id)].collected(i_chunk, chunk_size=chunk_size, n_samples=n_samples)
+        # Chunk is empty
+        if len(sample_pairs) == 0:
+            raise StopIteration
+        return sample_pairs.transpose((2, 0, 1))  # [M, chunk size, 2]
 
     def n_finished(self):
         """
@@ -216,3 +232,12 @@ class SampleStorageHDF(SampleStorage):
             n_ops[int(level.level_id)] = level.n_ops_estimate
 
         return n_ops
+
+    def get_level_ids(self):
+        return [int(level.level_id) for level in self._level_groups]
+
+    def get_level_parameters(self):
+        return self._hdf_object.level_parameters
+
+    def get_items_in_chunk(self, level_id):
+        return self._level_groups[level_id].get_items_in_chunk()

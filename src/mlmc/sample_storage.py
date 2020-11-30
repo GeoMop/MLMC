@@ -7,6 +7,10 @@ from mlmc.sim.simulation import QuantitySpec
 
 class SampleStorage(metaclass=ABCMeta):
 
+    def __init__(self):
+        self._chunk_size = None
+        # Size of retrieved data, int - number of bytes in decimal
+
     @abstractmethod
     def save_samples(self, successful_samples, failed_samples):
         """
@@ -78,6 +82,24 @@ class SampleStorage(metaclass=ABCMeta):
         Get unfinished sample's ids
         :return: list
         """
+
+    @abstractmethod
+    def get_level_ids(self):
+        """
+        Get number of levels
+        :return: int
+        """
+
+    @property
+    def chunk_size(self):
+        return self._chunk_size
+
+    @chunk_size.setter
+    def chunk_size(self, chunk_size):
+        """
+        Set the chunk size that is used to load collected samples
+        """
+        self._chunk_size = chunk_size
 
 
 class Memory(SampleStorage):
@@ -190,10 +212,29 @@ class Memory(SampleStorage):
         :return: List[Array[M, N, 2]]
         """
         levels_results = list(np.empty(len(np.max(self._results.keys()))))
-        for level_id, results in self._results.items():
-            levels_results[level_id] = results.transpose((2, 0, 1))
+
+        for level_id in self.get_level_ids():
+            results = self.sample_pairs_level(level_id)
+            levels_results[level_id] = results
 
         return levels_results
+
+    def sample_pairs_level(self, level_id, i_chunk=0, n_samples=None):
+        """
+        Get samples for given level, chunks does not make sense in Memory storage so all data are retrieved at once
+        :param level_id: int
+        :param i_chunk: identifier of chunk
+        :param n_samples: number of retrieved samples
+        :return: np.ndarray
+        """
+        if i_chunk != 0:
+            raise StopIteration
+        if n_samples is not None:
+            results = self._results[int(level_id)]
+            n_samples = n_samples if n_samples < results.shape[0] else results.shape[0]
+
+            return results[:n_samples, ...].transpose((2, 0, 1))  # [M, N, 2]
+        return self._results[int(level_id)].transpose((2, 0, 1))  # [M, N, 2]
 
     def save_n_ops(self, n_ops):
         """
@@ -224,3 +265,9 @@ class Memory(SampleStorage):
         :return:
         """
         return []
+
+    def get_level_ids(self):
+        return list(self._results.keys())
+
+    def get_items_in_chunk(self, level_id):
+        return len(self._results[level_id])
