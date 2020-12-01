@@ -252,7 +252,7 @@ class Memory(SampleStorage):
         :return: np.ndarray
         """
         if i_chunk != 0:
-            return None
+            raise StopIteration
         if n_samples is not None:
             results = self._results[int(level_id)]
             n_samples = n_samples if n_samples < results.shape[0] else results.shape[0]
@@ -302,7 +302,7 @@ class Memory(SampleStorage):
         """
         return [0, len(self._results[level_id])-1]
 
-    def get_items_in_chunk(self, level_id):
+    def level_chunk_n_samples(self, level_id):
         """
         Number of items in one chunk
         :param level_id: level id
