@@ -9,27 +9,10 @@ from typing import List, Tuple
 from mlmc.sample_storage import SampleStorage
 from mlmc.sim.simulation import QuantitySpec
 
-
-def _get_quantity_info(args_quantities, get_quantity_storage=False):
-    """
-    Get basic information about quantities - base QType, QuantityStorage
-    :param args_quantities: list of quantities and other pass argmuents, we expect at least one of the arguments is Quantity
-    :param get_quantity_storage: bool, if True return also quantity storage
-    :return: base QType, QuantityStorage
-    """
-    q_storage = None
-    # Either all quantities are BoolType or it is considered to be ScalarType
-    for quantity in args_quantities:
-        if isinstance(quantity, Quantity):
-            if get_quantity_storage:
-                q_storage = quantity.get_quantity_storage()
-            if type(quantity.qtype.base_qtype()) == ScalarType:
-                return ScalarType(), q_storage
-
-    return BoolType(), q_storage
+CHUNK_SIZE = 512000  # bytes in decimal
 
 
-def _determine_qtype(quantities, method):
+def _result_qtype(method, quantities):
     """
     Determine QType from evaluation with given method and first few samples from storage
     :param quantities: list of Quantities
@@ -37,69 +20,9 @@ def _determine_qtype(quantities, method):
     :return: QType
     """
     chunks_quantity_level = [q.samples(level_id=0, i_chunk=0, n_samples=10) for q in quantities]
-    result = method(*chunks_quantity_level)
-
-    base_qtype_val, _ = _get_quantity_info(quantities)
-
-    if isinstance(result, (int, float, bool)):
-        qtype = base_qtype_val
-    elif isinstance(result, (list, np.ndarray)):
-        result = np.array(result)
-        qtype = ArrayType(shape=result.shape[0], qtype=base_qtype_val)
-
+    result = np.array(method(*chunks_quantity_level))  # numpy array of [M, <=10, 2]
+    qtype = ArrayType(shape=result.shape[0], qtype=Quantity._get_base_qtype(quantities))
     return qtype
-
-
-def _create_quantity(values, base_qtype, quantity_storage):
-    """
-    Convert flat, bool or array (list) to Quantity
-    :param values: flat, bool, array (list)
-    :param base_qtype: QType
-    :return: Quantity
-    """
-    if isinstance(values, (int, float, bool)):
-        quantity = QuantityConst(quantity_type=base_qtype, values=values, input_quantities=[quantity_storage])
-    elif isinstance(values, (list, np.ndarray)):
-        values = np.array(values)
-        qtype = ArrayType(shape=values.shape[0], qtype=base_qtype)
-        quantity = QuantityConst(quantity_type=qtype, values=values, input_quantities=[quantity_storage])
-    else:
-        raise ValueError("Values {} are not flat, bool or array (list)".format(values))
-    return quantity
-
-
-def _method(ufunc, method, *args, **kwargs):
-    """
-    Process input parameters to perform numpy ufunc.
-    Get base QType of passed quantities, QuantitiStorage instance, ...
-    Determine the resulting QType from the first few samples
-    :param ufunc: ufunc object that was called
-    :param method: string, indicating which Ufunc method was called
-    :param args: tuple of the input arguments to the ufunc
-    :param kwargs: dictionary containing the optional input arguments of the ufunc
-    :return: Quantity
-    """
-    def _demo_method(*input_quantities_chunks):
-        if len(input_quantities_chunks) == 1:
-            return getattr(ufunc, method)(input_quantities_chunks[0], **kwargs)
-        else:
-            return getattr(ufunc, method)(*input_quantities_chunks, **kwargs)
-
-    base_qtype, quantity_storage = _get_quantity_info(args, get_quantity_storage=True)
-
-    quantities = []
-    for arg in args:
-        if not isinstance(arg, Quantity):
-            quantities.append(_create_quantity(arg, base_qtype=base_qtype, quantity_storage=quantity_storage))
-        else:
-            quantities.append(arg)
-
-    # Check if all quantities come from same storage
-    if not all(np.allclose(q.storage_id(), quantities[0].storage_id()) for q in quantities[1:]):
-        raise Exception("Not all input quantities come from the same quantity storage")
-
-    result_qtype = _determine_qtype(quantities, _demo_method)
-    return Quantity(quantity_type=result_qtype, input_quantities=list(quantities), operation=_demo_method)
 
 
 def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
@@ -113,7 +36,7 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
     """
     # Set chunk size as the case may be
     if storage.chunk_size is None:
-        storage.chunk_size = 512000  # bytes in decimal
+        storage.chunk_size = CHUNK_SIZE
 
     dict_types = []
     for q_spec in q_specs:
@@ -127,7 +50,7 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
     return QuantityStorage(storage, dict_type)
 
 
-def remove_nan_samples(chunk):
+def mask_nan_samples(chunk):
     """
     Mask out samples that contain NaN in either fine or coarse part of the result
     :param chunk: np.ndarray [M, chunk_size, 2]
@@ -154,10 +77,10 @@ def estimate_mean(quantity):
     sums = None
     sums_of_squares = None
     i_chunk = 0
-    level_chunks_none = np.zeros(1)  # if ones than all level chunks are empty (None)
+    level_chunks_none = np.zeros(1)  # if ones then the iteration through the chunks was terminated at each level
 
     while not np.alltrue(level_chunks_none):
-        level_ids = quantity.level_ids()
+        level_ids = quantity.get_quantity_storage().level_ids()
         if i_chunk == 0:
             # initialization
             n_levels = len(level_ids)
@@ -166,9 +89,8 @@ def estimate_mean(quantity):
         level_chunks_none = np.zeros(n_levels)
         for level_id in level_ids:
             # Chunk of samples for given level id
-            chunk = quantity.samples(level_id, i_chunk)
-
-            if chunk is not None:
+            try:
+                chunk = quantity.samples(level_id, i_chunk)
                 if level_id == 0:
                     # Set variables for level sums and sums of powers
                     if i_chunk == 0:
@@ -178,14 +100,15 @@ def estimate_mean(quantity):
                     # Coarse result for level 0, there is issue for moments processing (not know about level)
                     chunk[..., 1] = 0
 
-                chunk = remove_nan_samples(chunk)
+                chunk = mask_nan_samples(chunk)
                 # level_chunk is Numpy Array with shape [M, chunk_size, 2]
                 n_samples[level_id] += chunk.shape[1]
 
                 assert(chunk.shape[0] == quantity_vec_size)
-                sums[level_id] += np.sum(chunk[:, :, 0] - chunk[:, :, 1], axis=1)
-                sums_of_squares[level_id] += np.sum((chunk[:, :, 0] - chunk[:, :, 1])**2, axis=1)
-            else:
+                chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
+                sums[level_id] += np.sum(chunk_diff, axis=1)
+                sums_of_squares[level_id] += np.sum(chunk_diff**2, axis=1)
+            except StopIteration:
                 level_chunks_none[level_id] = True
 
         i_chunk += 1
@@ -263,44 +186,88 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
 
     # Create quantity type which has covariance matrices at the bottom
     if cov_at_bottom:
-        moments_array_type = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=ScalarType())
+        moments_array_type = ArrayType(shape=(moments_fn.size, moments_fn.size,), qtype=ScalarType())
         moments_qtype = copy.deepcopy(quantity.qtype)
         moments_qtype.replace_scalar(moments_array_type)
     # Create quantity type that has covariance matrices on the surface
     else:
         moments_qtype = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
-
     return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_cov)
 
-class Quantity:
 
-    def __init__(self, quantity_type, input_quantities=None, operation=None):
+class Quantity:
+    def __init__(self, quantity_type, operation, input_quantities=[]):
         """
         Quantity class represents real quantity and also provides operation that can be performed with stored values.
         Each Quantity has Qtype which describes its structure.
         :param quantity_type: QType instance
-        :param input_quantities: List[Quantity]
         :param operation: function
+        :param input_quantities: List[Quantity]
         """
         self.qtype = quantity_type
         self._operation = operation
         self._input_quantities = input_quantities
         # List of quantities on which the 'self' depends, their number have to match number of arguments
         # to the operation.
+        self._storage = self.get_quantity_storage()
+        # QuantityStorage instance
+        self._selection_id = None
+        # Identifier of selection, should be set in select() method
+        self._check_selection_ids()
+        self._op_additional_params()
 
-    def storage_id(self):
+    def get_quantity_storage(self):
+        """
+        Get QuantityStorage instance
+        :return: None, QuantityStorage
+        """
+        if len(self._input_quantities) == 0:
+            return None
+        for in_quantity in self._input_quantities:
+            storage = in_quantity.get_quantity_storage()
+            if storage is not None:
+                self._storage = storage
+                return storage
+        return None
+
+    def _check_selection_ids(self):
+        """
+        Make sure the all input quantities come from the same QuantityStorage
+        """
+        # All input quantities are QuantityConst instances
+        if self._storage is None:
+            return
+        # Check selection ids otherwise
+        for input_quantity in self._input_quantities:
+            sel_id = input_quantity.selection_id()
+            if sel_id is None:
+                continue
+            if sel_id != self.selection_id():
+                raise AssertionError("Not all input quantities come from the same quantity storage")
+
+    def _op_additional_params(self):
+        """
+        Handle operation additional params
+        There are level_id a i_chunk params used in the sampling method and during the selection procedure
+        """
+        self._additional_params = {}
+        sig_params = signature(self._operation).parameters
+        if 'level_id' in sig_params:
+            self._additional_params['level_id'] = 0
+        if 'i_chunk' in sig_params:
+            self._additional_params['i_chunk'] = 0
+
+    def selection_id(self):
         """
         Get storage ids of all input quantities
         :return: List[int]
         """
-        st_ids = []
-        for input_quantity in self._input_quantities:
-            st_id = input_quantity.storage_id()
-            st_ids.extend(st_id if type(st_id) == list else [st_id])
-        return st_ids
-
-    def get_quantity_storage(self):
-        return self._input_quantities[0].get_quantity_storage()
+        if self._selection_id is not None:
+            return id(self)
+        else:
+            if self._storage is None:
+                self._storage = self.get_quantity_storage()
+            return id(self._storage)
 
     def size(self) -> int:
         """
@@ -327,31 +294,13 @@ class Quantity:
         :param i_chunk: int
         :return: np.ndarray
         """
-        if not all(np.allclose(q.storage_id(), self._input_quantities[0].storage_id()) for q in self._input_quantities):
-            raise Exception("Not all input quantities come from the same quantity storage")
-
         chunks_quantity_level = [q.samples(level_id, i_chunk) for q in self._input_quantities]
-
-        is_valid = (ch is not None for ch in chunks_quantity_level)
-        if any(is_valid):
-            assert (all(is_valid))
-            # Operation not set return first quantity samples - used in make_root_quantity
-            if self._operation is None:
-                return chunks_quantity_level[0]
-
-            additional_params = {}
-            try:
-                if self._operation is not None:
-                    sig_params = signature(self._operation).parameters
-                    if 'level_id' in sig_params:
-                        additional_params['level_id'] = level_id
-                    if 'i_chunk' in sig_params:
-                        additional_params['i_chunk'] = i_chunk
-            except:
-                pass
-            return self._operation(*chunks_quantity_level, **additional_params)
-        else:
-            return None
+        if not self._additional_params:  # dictionary is empty
+            if 'level_id' in self._additional_params:
+                self._additional_params['level_id'] = level_id
+            if 'i_chunk' in self._additional_params:
+                self._additional_params['i_chunk'] = i_chunk
+        return self._operation(*chunks_quantity_level, **self._additional_params)
 
     def create_quantity_mean(self, mean: np.ndarray, var: np.ndarray):
         """
@@ -375,8 +324,9 @@ class Quantity:
         :param operation: function which is run with given quantities
         :return: Quantity
         """
-        assert all(q.size() == quantities[0].size() for q in quantities), "Quantities don't have have the same size"
-        return Quantity(quantities[0].qtype, operation=operation, input_quantities=quantities)
+        for quantity in quantities:
+            if not isinstance(quantity, QuantityConst):
+                return Quantity(quantity.qtype, operation=operation, input_quantities=quantities)
 
     def select(self, *args):
         """
@@ -397,52 +347,64 @@ class Quantity:
             for m in args[1:]:
                 masks = np.logical_and(masks, m)  # method from this module
 
-        def op(x, level_id, i_chunk):
-            mask = masks.samples(level_id, i_chunk)
-            if mask is not None:
-                return x[..., mask, :]  # [...sample size, cut number of samples, 2]
-            return x
-
-        return Quantity(quantity_type=self.qtype, input_quantities=[self], operation=op)
+        def op(x, mask):
+            return x[..., mask, :]  # [...sample size, cut number of samples, 2]
+        q = Quantity(quantity_type=self.qtype, input_quantities=[self, masks], operation=op)
+        q._selection_id = id(q)
+        return q
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs):
-        return _method(ufunc, method, *args, **kwargs)
+        return Quantity._method(ufunc, method, *args, **kwargs)
 
     def __add__(self, other):
-        def add_op(x, y):
-            return x + y
-        return self._reduction_op([self, other], add_op)
+        return self._reduction_op([self, Quantity.wrap(other)], Quantity.add_op)
 
     def __sub__(self, other):
-        def sub_op(x, y):
-            return x + y
-        return self._reduction_op([self, other], sub_op)
+        return self._reduction_op([self, Quantity.wrap(other)], Quantity.sub_op)
 
     def __mul__(self, other):
-        if isinstance(other, (float, int)):
-            return self.__const_mult(other)
+        return self._reduction_op([self, Quantity.wrap(other)], Quantity.mult_op)
 
-        def mult_op(x, y):
-            return x * y
-        return self._reduction_op([self, other], mult_op)
+    def __truediv__(self, other):
+        return self._reduction_op([self, Quantity.wrap(other)], Quantity.truediv_op)
 
-    def __mul__(self, other):
-        if isinstance(other, (float, int)):
-            return self.__const_mult(other)
+    def __mod__(self, other):
+        return self._reduction_op([self, Quantity.wrap(other)], Quantity.mod_op)
 
-        def mult_op(x, y):
-            return x * y
-        return self._reduction_op([self, other], mult_op)
+    def __radd__(self, other):
+        return self._reduction_op([Quantity.wrap(other), self], Quantity.add_op)
+
+    def __rsub__(self, other):
+        return self._reduction_op([Quantity.wrap(other), self], Quantity.sub_op)
 
     def __rmul__(self, other):
-        if isinstance(other, (float, int)):
-            return self.__const_mult(other)
-        assert False
+        return self._reduction_op([Quantity.wrap(other), self], Quantity.mult_op)
 
-    def __const_mult(self, other):
-        def cmult_op(x, c=other):
-            return c * x
-        return self._reduction_op([self], cmult_op)
+    def __rtruediv__(self, other):
+        return self._reduction_op([Quantity.wrap(other), self], Quantity.truediv_op)
+
+    def __rmod__(self, other):
+        return self._reduction_op([Quantity.wrap(other), self], Quantity.mod_op)
+
+    @staticmethod
+    def add_op(x, y):
+        return x + y
+
+    @staticmethod
+    def sub_op(x, y):
+        return x - y
+
+    @staticmethod
+    def mult_op(x, y):
+        return x * y
+
+    @staticmethod
+    def truediv_op(x, y):
+        return x / y
+
+    @staticmethod
+    def mod_op(x, y):
+        return x % y
 
     @staticmethod
     def _process_mask(x, y, operator, level_id):
@@ -450,18 +412,15 @@ class Quantity:
         Create samples mask
         All values for sample must meet given condition, if any value doesn't meet the condition,
         whole sample is eliminated
-        :param x: Quantity
-        :param y: Quantity or int, float
+        :param x: Quantity chunk
+        :param y: Quantity chunk or int, float
         :param operator: operator module function
         :param level_id: int, level identifier
         :return: np.ndarray of bools
         """
         # Zero level - use just fine samples
         if level_id == 0:
-            if isinstance(y, int) or isinstance(y, float):
-                mask = operator(x[..., 0], y)  # y is int or float
-            else:
-                mask = operator(x[..., 0], y[..., 0])  # y is from other quantity
+            mask = operator(x[..., 0], y[..., 0])  # y is from other quantity
             return mask.all(axis=tuple(range(mask.ndim - 1)))
 
         mask = operator(x, y)
@@ -475,52 +434,43 @@ class Quantity:
         :return: Quantity
         """
         bool_type = BoolType()
-        new_qtype = copy.deepcopy(self.qtype)
+        new_qtype = self.qtype
         new_qtype.replace_scalar(bool_type)
+        other = Quantity.wrap(other)
 
-        if isinstance(other, (float, int)):
-            if not isinstance(self.qtype.base_qtype(), ScalarType):
-                raise TypeError("Quantity has base qtype {}. "
-                                "Quantities with base qtype ScalarType are the only ones that support comparison".
-                                format(self.qtype.base_qtype()))
-
-            return Quantity(quantity_type=new_qtype, input_quantities=[self], operation=op)
-        elif isinstance(other, Quantity):
-            if self.qtype.size() != other.qtype.size():
-                raise Exception("Quantities don't have have the same size")
-            if not isinstance(self.qtype.base_qtype(), ScalarType) or not isinstance(other.qtype.base_qtype(), ScalarType):
-                raise TypeError("Quantity has base qtype {}. "
-                                "Quantities with base qtype ScalarType are the only ones that support comparison".
-                                format(self.qtype.base_qtype()))
-            return Quantity(quantity_type=new_qtype, input_quantities=[self, other], operation=op)
+        if not isinstance(self.qtype.base_qtype(), ScalarType) or not isinstance(other.qtype.base_qtype(), ScalarType):
+            raise TypeError("Quantity has base qtype {}. "
+                            "Quantities with base qtype ScalarType are the only ones that support comparison".
+                            format(self.qtype.base_qtype()))
+        return Quantity(quantity_type=new_qtype, input_quantities=[self, other], operation=op)
 
     def __lt__(self, other):
-        def lt_op(x, y=other, level_id=0):
+        def lt_op(x, y, level_id=0):
             return Quantity._process_mask(x, y, operator.lt, level_id)
         return self._mask_quantity(other, lt_op)
 
     def __le__(self, other):
-        def le_op(x, y=other, level_id=0):
+        def le_op(x, y, level_id=0):
             return self._process_mask(x, y, operator.le, level_id)
         return self._mask_quantity(other, le_op)
 
     def __gt__(self, other):
-        def gt_op(x, y=other, level_id=0):
+        def gt_op(x, y, level_id=0):
             return self._process_mask(x, y, operator.gt, level_id)
         return self._mask_quantity(other, gt_op)
 
     def __ge__(self, other):
-        def ge_op(x, y=other, level_id=0):
+        def ge_op(x, y, level_id=0):
             return self._process_mask(x, y, operator.ge, level_id)
         return self._mask_quantity(other, ge_op)
 
     def __eq__(self, other):
-        def eq_op(x, y=other, level_id=0):
+        def eq_op(x, y, level_id=0):
             return self._process_mask(x, y, operator.eq, level_id)
         return self._mask_quantity(other, eq_op)
 
     def __ne__(self, other):
-        def ne_op(x, y=other, level_id=0):
+        def ne_op(x, y, level_id=0):
             return self._process_mask(x, y, operator.ne, level_id)
         return self._mask_quantity(other, ne_op)
 
@@ -543,43 +493,25 @@ class Quantity:
         :param key: str, int, tuple
         :return: Quantity
         """
-        new_qtype = self.qtype[key]  # New quantity type
+        new_qtype, start = self.qtype[key]  # New quantity type
+
+        if not isinstance(self.qtype, ArrayType):
+            key = slice(start, start + new_qtype.size())
 
         def _make_getitem_op(y):
-            return self.qtype._make_getitem_op(y, new_qtype=new_qtype, key=key)
+            return self.qtype._make_getitem_op(y, key=key)
 
         return Quantity(quantity_type=new_qtype, input_quantities=[self], operation=_make_getitem_op)
 
-    def __iter__(self):
-        raise Exception("This class is not iterable")
+    def __getattr__(self, name):
+        static_fun = getattr(self.qtype, name)  # We support only static function call forwarding
 
-    def __copy__(self):
-        return Quantity(quantity_type=self.qtype, input_quantities=self._input_quantities, operation=self._operation)
-
-    def time_interpolation(self, value):
-        """
-        Interpolation in time
-        :param value: point where to interpolate
-        :return: Quantity
-        """
-        def interp(y):
-            split_indeces = np.arange(1, len(self.qtype._times)) * self.qtype._qtype.size()
-            y = np.split(y, split_indeces, axis=-3)
-            f = interpolate.interp1d(self.qtype._times, y, axis=0)
-            return f(value)
-
-        return Quantity(quantity_type=self.qtype._qtype, input_quantities=[self], operation=interp)
-
-    def level_ids(self):
-        """
-        List of level ids, all input quantities must be from the same storage,
-        so getting level IDs from one of them should be completely fine
-        :return: List[int]
-        """
-        return self._input_quantities[0].level_ids()
+        def apply_on_quantity(*attr, **d_attr):
+            return static_fun(self, *attr, **d_attr)
+        return apply_on_quantity
 
     @staticmethod
-    def concatenate(quantities, qtype, axis=0):
+    def _concatenate(quantities, qtype, axis=0):
         """
         Concatenate level_chunks
         :param quantities: list of quantities
@@ -592,22 +524,122 @@ class Quantity:
             return y
         return Quantity(qtype, input_quantities=[*quantities], operation=op_concatenate)
 
+    @staticmethod
+    def _get_base_qtype(args_quantities):
+        """
+        Get quantities base Qtype
+        :param args_quantities: list of quantities and other passed arguments,
+         we expect at least one of the arguments is Quantity
+        :return: base QType, ScalarType if any quantity has that base type, otherwise BoolType
+        """
+        # Either all quantities are BoolType or it is considered to be ScalarType
+        for quantity in args_quantities:
+            if isinstance(quantity, Quantity):
+                if type(quantity.qtype.base_qtype()) == ScalarType:
+                    return ScalarType()
+        return BoolType()
+
+    @staticmethod
+    def _method(ufunc, method, *args, **kwargs):
+        """
+        Process input parameters to perform numpy ufunc.
+        Get base QType of passed quantities, QuantityStorage instance, ...
+        Determine the resulting QType from the first few samples
+        :param ufunc: ufunc object that was called
+        :param method: string, indicating which Ufunc method was called
+        :param args: tuple of the input arguments to the ufunc
+        :param kwargs: dictionary containing the optional input arguments of the ufunc
+        :return: Quantity
+        """
+        def _ufunc_call(*input_quantities_chunks):
+            return getattr(ufunc, method)(*input_quantities_chunks, **kwargs)
+
+        quantities = []
+        for arg in args:
+            quantities.append(Quantity.wrap(arg))
+
+        result_qtype = _result_qtype(_ufunc_call, quantities)
+        return Quantity(quantity_type=result_qtype, input_quantities=list(quantities), operation=_ufunc_call)
+
+    @staticmethod
+    def wrap(value):
+        """
+        Convert flat, bool or array (list) to Quantity
+        :param value: flat, bool, array (list) or Quantity
+        :return: Quantity
+        """
+        if isinstance(value, Quantity):
+            return value
+        elif isinstance(value, (int, float)):
+            quantity = QuantityConst(quantity_type=ScalarType(), value=value)
+        elif isinstance(value, bool):
+            quantity = QuantityConst(quantity_type=BoolType(), value=value)
+        elif isinstance(value, (list, np.ndarray)):
+            value = np.array(value)
+            qtype = ArrayType(shape=value.shape, qtype=ScalarType())
+            quantity = QuantityConst(quantity_type=qtype, value=value)
+        else:
+            raise ValueError("Values {} are not flat, bool or array (list)".format(value))
+        return quantity
+
+    @staticmethod
+    def QArray(quantities):
+        flat_quantities = np.array(quantities).flatten()
+        qtype = Quantity._check_same_qtype(flat_quantities)
+        array_type = ArrayType(np.array(quantities).shape, qtype)
+        return Quantity._concatenate(flat_quantities, qtype=array_type)
+
+    @staticmethod
+    def QDict(key_quantity):
+        dict_type = DictType([(key, quantity.qtype) for key, quantity in key_quantity])
+        return Quantity._concatenate(np.array(key_quantity)[:, 1], qtype=dict_type)
+
+    @staticmethod
+    def QTimeSeries(time_quantity):
+        qtype = Quantity._check_same_qtype(np.array(time_quantity)[:, 1])
+        times = np.array(time_quantity)[:, 0]
+        return Quantity._concatenate(np.array(time_quantity)[:, 1], qtype=TimeSeriesType(times=times, qtype=qtype))
+
+    @staticmethod
+    def QField(key_quantity):
+        Quantity._check_same_qtype(np.array(key_quantity)[:, 1])
+        field_type = FieldType([(key, quantity.qtype) for key, quantity in key_quantity])
+        return Quantity._concatenate(np.array(key_quantity)[:, 1], qtype=field_type)
+
+    @staticmethod
+    def _check_same_qtype(quantities):
+        qtype = quantities[0].qtype
+        for quantity in quantities[1:]:
+            if qtype != quantity.qtype:
+                raise ValueError("Quantities don't have same QType")
+        return qtype
+
 
 class QuantityConst(Quantity):
-    def __init__(self, quantity_type, values, input_quantities=None, operation=None):
+    def __init__(self, quantity_type, value):
         """
-        Quantity class represents real quantity and also provides operation that can be performed with stored values.
-        Each Quantity has Qtype which describes its structure.
+        QuantityConst class represents constant quantity and also provides operation
+        that can be performed with quantity values.
+        The quantity is constant, meaning that this class stores the data itself
         :param quantity_type: QType instance
-        :param input_quantities: List[Quantity]
-        :param operation: function
+        :param value: quantity value
         """
         self.qtype = quantity_type
-        self._operation = operation
-        self._values = values
-        self._input_quantities = input_quantities
-        # List of quantities on which the 'self' depends, their number have to match number of arguments
-        # to the operation.
+        self._value = self._process_value(value)
+        self._input_quantities = []
+        self._selection_id = None
+        # List of input quantities should be empty,
+        # but we still need this attribute due to storage_id() and level_ids() method
+
+    def _process_value(self, value):
+        """
+        Reshape value if array, otherwise create array first
+        :param value: quantity value
+        :return: value with shape [M, 1, 1] which suitable for further broadcasting
+        """
+        if isinstance(value, (int, float, bool)):
+            value = np.array([value])
+        return value[:, np.newaxis, np.newaxis]
 
     def get_cache_key(self, level_id, i_chunk, n_samples=np.inf):
         """
@@ -616,71 +648,24 @@ class QuantityConst(Quantity):
         :param i_chunk: int
         :return: tuple
         """
-        #@TODO: try to use method from Quantity class
-        return (level_id, i_chunk, id(self), n_samples)  # redundant parentheses needed due to py36, py37
+        return id(self)
+
+    def selection_id(self):
+        """
+        Get storage ids of all input quantities
+        :return: List[int]
+        """
+        return self._selection_id
 
     @cached(custom_key_maker=get_cache_key)
     def samples(self, level_id, i_chunk, n_samples=np.inf):
         """
-        Yields list of sample chunks for individual levels.
-        Possibly calls underlying quantities.
+        Get constant values with an enlarged number of axes
         :param level_id: int
         :param i_chunk: int
         :return: np.ndarray
         """
-        quantity_storage = self._input_quantities[0]  # QuantityConst always contains only QuantityStorage
-
-        if isinstance(self._values, (int, float, bool)):
-            arr = np.empty((1, 1, 2))
-            arr[:] = self._values
-            self._values = arr
-        chunks_quantity_level = [self._values]
-
-        # Get first n samples
-        if n_samples is not None and n_samples < np.inf:
-            return chunks_quantity_level[0][:, :n_samples, :]
-
-        items_in_chunk = quantity_storage._storage.get_items_in_chunk(level_id)
-        if items_in_chunk is None:
-            quantity_storage.samples(level_id, i_chunk, n_samples)
-
-        items_in_chunk = quantity_storage._storage.get_items_in_chunk(level_id)
-
-        if items_in_chunk is None:
-            return None
-
-        level_chunk = self._values[:, i_chunk * items_in_chunk: (i_chunk + 1) * items_in_chunk, :]
-        assert self.qtype.size() == level_chunk.shape[0]
-
-        if level_chunk.shape[1] == 0:
-            return None
-
-        # Select values from given interval self.start:self.end
-        if quantity_storage.start is not None and quantity_storage.end is not None:
-            level_chunk = level_chunk[quantity_storage.start:quantity_storage.end, :, :]
-
-        chunks_quantity_level = [level_chunk]
-
-        is_valid = (ch is not None for ch in chunks_quantity_level)
-        if any(is_valid):
-            assert (all(is_valid))
-            # Operation not set return first quantity samples - used in make_root_quantity
-            if self._operation is None:
-                return chunks_quantity_level[0]
-
-            additional_params = {}
-            try:
-                if self._operation is not None:
-                    sig_params = signature(self._operation).parameters
-                    if 'level_id' in sig_params:
-                        additional_params['level_id'] = level_id
-                    if 'i_chunk' in sig_params:
-                        additional_params['i_chunk'] = i_chunk
-            except:
-                pass
-            return self._operation(*chunks_quantity_level, **additional_params)
-        else:
-            return None
+        return self._value
 
 
 class QuantityMean:
@@ -715,7 +700,7 @@ class QuantityMean:
         :param key: str, int, tuple
         :return: np.ndarray
         """
-        new_qtype = self.qtype[key]  # New quantity type
+        new_qtype, start = self.qtype[key]  # New quantity type
         reshape_shape = None
         newshape = None
         # ArrayType might be accessed directly regardless of qtype start and size
@@ -729,8 +714,7 @@ class QuantityMean:
                  newshape = new_qtype._shape
         # Other accessible quantity types uses start and size
         else:
-            start = new_qtype.start
-            end = new_qtype.start + new_qtype.size()
+            end = start + new_qtype.size()
             slice_key = slice(start, end)
 
         mean = self._mean
@@ -763,8 +747,6 @@ class QuantityStorage(Quantity):
         self.qtype = qtype
         self._input_quantities = []
         self._operation = None
-        self.start = None
-        self.end = None
 
     def level_ids(self):
         """
@@ -773,7 +755,7 @@ class QuantityStorage(Quantity):
         """
         return self._storage.get_level_ids()
 
-    def storage_id(self):
+    def selection_id(self):
         """
         Identity of QuantityStorage instance
         :return: int
@@ -792,17 +774,8 @@ class QuantityStorage(Quantity):
         :return: Array[M, chunk size, 2]
         """
         level_chunk = self._storage.sample_pairs_level(level_id, i_chunk, n_samples=n_samples)  # Array[M, chunk size, 2]
-        if level_chunk is not None:
-            assert self.qtype.size() == level_chunk.shape[0]
-            # Select values from given interval self.start:self.end
-            if self.start is not None and self.end is not None:
-                return level_chunk[self.start:self.end, :, :]
+        assert self.qtype.size() == level_chunk.shape[0]
         return level_chunk
-
-    def __copy__(self):
-        new = type(self)(self._storage, self.qtype)
-        new.__dict__.update(self.__dict__)
-        return new
 
 
 class QType(metaclass=abc.ABCMeta):
@@ -814,11 +787,6 @@ class QType(metaclass=abc.ABCMeta):
 
     def base_qtype(self):
         return self._qtype.base_qtype()
-
-    def __eq__(self, other):
-        if isinstance(other, QType):
-            return self.size() == other.size()
-        return False
 
     def replace_scalar(self, new_qtype):
         """
@@ -833,7 +801,9 @@ class QType(metaclass=abc.ABCMeta):
 
     def _keep_dims(self, chunk):
         """
-        Always keep chunk dimensions to be [M, chunk size, 2]
+        Always keep chunk shape to be [M, chunk size, 2]!
+        For scalar quantities, the input block can have the shape (chunk size, 2)
+        Sometimes we need to 'flatten' first few shape to have desired chunk shape
         :param chunk: list
         :return: list
         """
@@ -842,21 +812,18 @@ class QType(metaclass=abc.ABCMeta):
             chunk = chunk[np.newaxis, :]
         elif len(chunk.shape) > 2:
             chunk = chunk.reshape((np.prod(chunk.shape[:-2]), chunk.shape[-2], chunk.shape[-1]))
-
+        else:
+            raise ValueError("Chunk shape not supported")
         return chunk
 
-    def _make_getitem_op(self, chunk, new_qtype, key=None):
+    def _make_getitem_op(self, chunk, key):
         """
         Operation
         :param chunk: level chunk, list with shape [M, chunk size, 2]
-        :param new_qtype: QType
         :param key: parent QType's key, needed for ArrayType
         :return: list
         """
-        start = new_qtype.start
-        end = new_qtype.start + new_qtype.size()
-        slice_key = slice(start, end)
-        return self._keep_dims(chunk[slice_key])
+        return self._keep_dims(chunk[key])
 
 
 class ScalarType(QType):
@@ -875,10 +842,9 @@ class BoolType(ScalarType):
 
 
 class ArrayType(QType):
-    def __init__(self, shape, qtype: QType, start=0):
+    def __init__(self, shape, qtype: QType):
         self._shape = shape
         self._qtype = qtype
-        self.start = start
 
     def size(self) -> int:
         return np.prod(self._shape) * self._qtype.size()
@@ -898,72 +864,82 @@ class ArrayType(QType):
 
         # Result is also array
         if len(new_shape) > 0:
-            q_type = ArrayType(new_shape, qtype=copy.deepcopy(self._qtype))
+            q_type = ArrayType(new_shape, qtype=self._qtype)
         # Result is single array item
         else:
-            q_type = copy.deepcopy(self._qtype)
+            q_type = self._qtype
 
-        return q_type
+        return q_type, 0
 
-    def _make_getitem_op(self, chunk, new_qtype, key=None):
+    def _make_getitem_op(self, chunk, key):
         """
         Operation
         :param chunk: list [M, chunk size, 2]
-        :param new_qtype: QType
-        :param key: Qtype key
+        :param key: slice
         :return:
         """
         # Reshape M to original shape to allow access
-        if self._shape is not None:
-            chunk = chunk.reshape((*self._shape, chunk.shape[-2], chunk.shape[-1]))
+        assert self._shape is not None
+        chunk = chunk.reshape((*self._shape, chunk.shape[-2], chunk.shape[-1]))
         return self._keep_dims(chunk[key])
 
 
 class TimeSeriesType(QType):
-    def __init__(self, times, qtype, start=0):
+    def __init__(self, times, qtype):
         if isinstance(times, np.ndarray):
             times = times.tolist()
         self._times = times
         self._qtype = qtype
-        self.start = start
 
     def size(self) -> int:
         return len(self._times) * self._qtype.size()
 
     def __getitem__(self, key):
-        if key not in self._times:
-            raise KeyError("Item " + str(key) + " was not found in TimeSeries" +
-                           ". Available items: " + str(list(self._times)))
+        q_type = self._qtype
+        try:
+            position = self._times.index(key)
+        except KeyError:
+            print("Item " + str(key) + " was not found in TimeSeries" + ". Available items: " + str(list(self._times)))
+        return q_type, position * q_type.size()
 
-        q_type = copy.deepcopy(self._qtype)
-        position = self._times.index(key)
-        q_type.start = position * q_type.size()
-        return q_type
+    @staticmethod
+    def time_interpolation(quantity, value):
+        """
+        Interpolation in time
+        :param quantity: Quantity instance
+        :param value: point where to interpolate
+        :return: Quantity
+        """
+        def interp(y):
+            split_indeces = np.arange(1, len(quantity.qtype._times)) * quantity.qtype._qtype.size()
+            y = np.split(y, split_indeces, axis=-3)
+            f = interpolate.interp1d(quantity.qtype._times, y, axis=0)
+            return f(value)
+
+        return Quantity(quantity_type=quantity.qtype._qtype, input_quantities=[quantity], operation=interp)
 
 
 class FieldType(QType):
-    def __init__(self, args: List[Tuple[str, QType]], start=0):
+    def __init__(self, args: List[Tuple[str, QType]]):
         """
         QType must have same structure
         :param args:
         """
         self._dict = dict(args)
         self._qtype = args[0][1]
-        self.start = start
-        assert all(q_type == self._qtype for _, q_type in args)
+        assert all(q_type.size() == self._qtype.size() for _, q_type in args)
 
     def size(self) -> int:
         return len(self._dict.keys()) * self._qtype.size()
 
     def __getitem__(self, key):
-        if key not in self._dict:
-            raise KeyError("Key " + str(key) + " was not found in FieldType" +
-                           ". Available keys: " + str(list(self._dict.keys())))
-
-        q_type = copy.deepcopy(self._qtype)
-        position = list(self._dict.keys()).index(key)
-        q_type.start = position * q_type.size()
-        return q_type
+        q_type = self._qtype
+        try:
+            position = list(self._dict.keys()).index(key)
+        except KeyError:
+            print("Key " + str(key) + " was not found in FieldType" +
+                  ". Available keys: " + str(list(self._dict.keys())[:5]) + "...")
+        return q_type, position * q_type.size()
 
     def __copy__(self):
         new = type(self)([(k, v) for k, v in self._dict.items()])
@@ -974,26 +950,22 @@ class FieldType(QType):
 class DictType(QType):
     def __init__(self, args: List[Tuple[str, QType]]):
         self._dict = dict(args)  # Be aware we it is ordered dictionary
-        self.start = 0
-
         self._check_base_type()
 
     def _check_base_type(self):
         qtypes = list(self._dict.values())
+        qtype_0_base_type = qtypes[0].base_qtype()
         for qtype in qtypes[1:]:
-            if not isinstance(qtype.base_qtype(), type(qtypes[0].base_qtype())):
+            if not isinstance(qtype.base_qtype(), type(qtype_0_base_type)):
                 raise TypeError("qtype {} has base QType {}, expecting {}. "
                                 "All QTypes must have same base QType, either SacalarType or BoolType".
-                                format(qtype, qtype.base_qtype(), qtypes[0].base_qtype()))
+                                format(qtype, qtype.base_qtype(), qtype_0_base_type))
 
     def base_qtype(self):
         return list(self._dict.values())[0].base_qtype()
 
     def size(self) -> int:
-        return int(sum(q_type.size() for _, q_type in self._dict.items()))
-
-    def get_qtypes(self):
-        return self._dict.values()
+        return int(np.sum(q_type.size() for _, q_type in self._dict.items()))
 
     def replace_scalar(self, new_qtype):
         for key, qtype in self._dict.items():
@@ -1003,17 +975,14 @@ class DictType(QType):
                 qtype.replace_scalar(new_qtype)
 
     def __getitem__(self, key):
-        if key not in self._dict:
-            raise KeyError("Key " + str(key) + " was not found in DictType" +
-                           ". Available keys: " + str(list(self._dict.keys())))
-
-        q_type = self._dict[key]
-
-        size = 0
+        try:
+            q_type = self._dict[key]
+        except KeyError:
+            print("Key " + str(key) + " was not found in DictType" +
+                  ". Available keys: " + str(list(self._dict.keys())[:5]) + "...")
+        start = 0
         for k, qt in self._dict.items():
             if k == key:
                 break
-            size += qt.size()
-
-        q_type.start = size
-        return q_type
+            start += qt.size()
+        return q_type, start
