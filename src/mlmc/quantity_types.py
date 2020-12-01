@@ -1,7 +1,8 @@
 import abc
 import numpy as np
-import copy
+from scipy import interpolate
 from typing import List, Tuple
+import mlmc.quantity
 
 
 class QType(metaclass=abc.ABCMeta):
@@ -16,11 +17,6 @@ class QType(metaclass=abc.ABCMeta):
 
     def base_qtype(self):
         return self._qtype.base_qtype()
-
-    def __eq__(self, other):
-        if isinstance(other, QType):
-            return self.size() == other.size()
-        return False
 
     @staticmethod
     def replace_scalar(original_qtype, substitute_qtype):
@@ -54,7 +50,9 @@ class QType(metaclass=abc.ABCMeta):
 
     def _keep_dims(self, chunk):
         """
-        Always keep chunk dimensions to be [M, chunk size, 2]
+        Always keep chunk shape to be [M, chunk size, 2]!
+        For scalar quantities, the input block can have the shape (chunk size, 2)
+        Sometimes we need to 'flatten' first few shape to have desired chunk shape
         :param chunk: list
         :return: list
         """
@@ -63,21 +61,18 @@ class QType(metaclass=abc.ABCMeta):
             chunk = chunk[np.newaxis, :]
         elif len(chunk.shape) > 2:
             chunk = chunk.reshape((np.prod(chunk.shape[:-2]), chunk.shape[-2], chunk.shape[-1]))
-
+        else:
+            raise ValueError("Chunk shape not supported")
         return chunk
 
-    def _make_getitem_op(self, chunk, new_qtype, key=None):
+    def _make_getitem_op(self, chunk, key):
         """
         Operation
         :param chunk: level chunk, list with shape [M, chunk size, 2]
-        :param new_qtype: QType
         :param key: parent QType's key, needed for ArrayType
         :return: list
         """
-        start = new_qtype.start
-        end = new_qtype.start + new_qtype.size()
-        slice_key = slice(start, end)
-        return self._keep_dims(chunk[slice_key])
+        return self._keep_dims(chunk[key])
 
 
 class ScalarType(QType):
@@ -100,10 +95,9 @@ class BoolType(ScalarType):
 
 
 class ArrayType(QType):
-    def __init__(self, shape, qtype: QType, start=0):
+    def __init__(self, shape, qtype: QType):
         self._shape = shape
         self._qtype = qtype
-        self.start = start
 
     def size(self) -> int:
         return np.prod(self._shape) * self._qtype.size()
@@ -123,99 +117,101 @@ class ArrayType(QType):
 
         # Result is also array
         if len(new_shape) > 0:
-            q_type = ArrayType(new_shape, qtype=copy.deepcopy(self._qtype))
+            q_type = ArrayType(new_shape, qtype=self._qtype)
         # Result is single array item
         else:
-            q_type = copy.deepcopy(self._qtype)
+            q_type = self._qtype
+        return q_type, 0
 
-        return q_type
-
-    def _make_getitem_op(self, chunk, new_qtype, key=None):
+    def _make_getitem_op(self, chunk, key):
         """
         Operation
         :param chunk: list [M, chunk size, 2]
-        :param new_qtype: QType
-        :param key: Qtype key
+        :param key: slice
         :return:
         """
         # Reshape M to original shape to allow access
-        if self._shape is not None:
-            chunk = chunk.reshape((*self._shape, chunk.shape[-2], chunk.shape[-1]))
+        assert self._shape is not None
+        chunk = chunk.reshape((*self._shape, chunk.shape[-2], chunk.shape[-1]))
         return self._keep_dims(chunk[key])
 
 
 class TimeSeriesType(QType):
-    def __init__(self, times, qtype, start=0):
+    def __init__(self, times, qtype):
         if isinstance(times, np.ndarray):
             times = times.tolist()
         self._times = times
         self._qtype = qtype
-        self.start = start
 
     def size(self) -> int:
         return len(self._times) * self._qtype.size()
 
     def __getitem__(self, key):
-        if key not in self._times:
-            raise KeyError("Item " + str(key) + " was not found in TimeSeries" +
-                           ". Available items: " + str(list(self._times)))
+        q_type = self._qtype
+        try:
+            position = self._times.index(key)
+        except KeyError:
+            print("Item " + str(key) + " was not found in TimeSeries" + ". Available items: " + str(list(self._times)))
+        return q_type, position * q_type.size()
 
-        q_type = copy.deepcopy(self._qtype)
-        position = self._times.index(key)
-        q_type.start = position * q_type.size()
-        return q_type
+    @staticmethod
+    def time_interpolation(quantity, value):
+        """
+        Interpolation in time
+        :param quantity: Quantity instance
+        :param value: point where to interpolate
+        :return: Quantity
+        """
+        def interp(y):
+            split_indeces = np.arange(1, len(quantity.qtype._times)) * quantity.qtype._qtype.size()
+            y = np.split(y, split_indeces, axis=-3)
+            f = interpolate.interp1d(quantity.qtype._times, y, axis=0)
+            return f(value)
+        return mlmc.quantity.Quantity(quantity_type=quantity.qtype._qtype, input_quantities=[quantity], operation=interp)
 
 
 class FieldType(QType):
-    def __init__(self, args: List[Tuple[str, QType]], start=0):
+    def __init__(self, args: List[Tuple[str, QType]]):
         """
         QType must have same structure
         :param args:
         """
         self._dict = dict(args)
         self._qtype = args[0][1]
-        self.start = start
-        assert all(q_type == self._qtype for _, q_type in args)
+        assert all(q_type.size() == self._qtype.size() for _, q_type in args)
 
     def size(self) -> int:
         return len(self._dict.keys()) * self._qtype.size()
 
     def __getitem__(self, key):
-        if key not in self._dict:
-            raise KeyError("Key " + str(key) + " was not found in FieldType" +
-                           ". Available keys: " + str(list(self._dict.keys())))
-
-        q_type = copy.deepcopy(self._qtype)
-        position = list(self._dict.keys()).index(key)
-        q_type.start = position * q_type.size()
-        return q_type
-
-    def __copy__(self):
-        new = type(self)([(k, v) for k, v in self._dict.items()])
-        new.__dict__.update(self.__dict__)
-        return new
+        q_type = self._qtype
+        try:
+            position = list(self._dict.keys()).index(key)
+        except KeyError:
+            print("Key " + str(key) + " was not found in FieldType" +
+                  ". Available keys: " + str(list(self._dict.keys())[:5]) + "...")
+        return q_type, position * q_type.size()
 
 
 class DictType(QType):
     def __init__(self, args: List[Tuple[str, QType]]):
         self._dict = dict(args)  # Be aware we it is ordered dictionary
-        self.start = 0
-
         self._check_base_type()
 
     def _check_base_type(self):
         qtypes = list(self._dict.values())
+        qtype_0_base_type = qtypes[0].base_qtype()
         for qtype in qtypes[1:]:
-            if not isinstance(qtype.base_qtype(), type(qtypes[0].base_qtype())):
+            if not isinstance(qtype.base_qtype(), type(qtype_0_base_type)):
                 raise TypeError("qtype {} has base QType {}, expecting {}. "
                                 "All QTypes must have same base QType, either SacalarType or BoolType".
-                                format(qtype, qtype.base_qtype(), qtypes[0].base_qtype()))
+                                format(qtype, qtype.base_qtype(), qtype_0_base_type))
 
     def base_qtype(self):
         return list(self._dict.values())[0].base_qtype()
 
     def size(self) -> int:
-        return int(sum(q_type.size() for _, q_type in self._dict.items()))
+        return int(np.sum(q_type.size() for _, q_type in self._dict.items()))
 
     def get_qtypes(self):
         return self._dict.values()
@@ -231,17 +227,14 @@ class DictType(QType):
         return DictType(dict_items)
 
     def __getitem__(self, key):
-        if key not in self._dict:
-            raise KeyError("Key " + str(key) + " was not found in DictType" +
-                           ". Available keys: " + str(list(self._dict.keys())))
-
-        q_type = self._dict[key]
-
-        size = 0
+        try:
+            q_type = self._dict[key]
+        except KeyError:
+            print("Key " + str(key) + " was not found in DictType" +
+                  ". Available keys: " + str(list(self._dict.keys())[:5]) + "...")
+        start = 0
         for k, qt in self._dict.items():
             if k == key:
                 break
-            size += qt.size()
-
-        q_type.start = size
-        return q_type
+            start += qt.size()
+        return q_type, start
