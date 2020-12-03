@@ -194,10 +194,8 @@ class SampleStorageHDF(SampleStorage):
         :return: dict
         """
         failed_samples = {}
-
         for level in self._level_groups:
             failed_samples[str(level.level_id)] = list(level.get_failed_ids())
-
         return failed_samples
 
     def clear_failed(self):

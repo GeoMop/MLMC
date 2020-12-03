@@ -436,7 +436,7 @@ class Quantity:
         :return: QType
         """
         chunks_quantity_level = [q.samples(ChunkSpec(level_id=0, chunk_id=0, n_samples=10)) for q in quantities]
-        result = np.array(method(*chunks_quantity_level))  # numpy array of [M, <=10, 2]
+        result = method(*chunks_quantity_level)  # numpy array of [M, <=10, 2]
         qtype = qt.ArrayType(shape=result.shape[0], qtype=Quantity._get_base_qtype(quantities))
         return qtype
 
@@ -528,10 +528,14 @@ class QuantityMean:
 
     def __init__(self, quantity_type, mean, var, l_means=[], l_vars=[], n_samples=None, n_rm_samples=0):
         """
-        QuantityMean represents result of estimate_mean method
+        QuantityMean represents result of mlmc.quantity_estimate.estimate_mean method
         :param quantity_type: QType
         :param mean: np.ndarray
         :param var: np.ndarray
+        :param l_means: np.ndarray, shape: L, M
+        :param l_vars: np.ndarray, shape: L, M
+        :param n_samples: int, number of samples that were used for means computing
+        :param n_rm_samples: int, number of removed samples in mlmc.quantity_estimate.estimate_mean()
         """
         self.qtype = quantity_type
         self._mean = mean
@@ -543,8 +547,7 @@ class QuantityMean:
 
     def __call__(self):
         """
-        Return mean
-        :return:
+        Return reshaped mean
         """
         return self._reshape(self.mean)
 
