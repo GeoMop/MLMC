@@ -387,6 +387,10 @@ class QuantityTests(unittest.TestCase):
 
         root_quantity_means = estimate_mean(root_quantity)
 
+        max_root_quantity = np.max(root_quantity, axis=0, keepdims=True)
+        max_means = estimate_mean(max_root_quantity)
+        assert len(max_means()) == 1
+
         #@TODO: should failed
         # q_and = np.logical_and(True, root_quantity)
         # q_and_mean = estimate_mean(q_and)

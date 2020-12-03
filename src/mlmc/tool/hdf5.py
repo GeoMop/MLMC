@@ -354,7 +354,7 @@ class LevelGroup:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             return scheduled_dset[()]
 
-    def collected(self, chunk_spec):
+    def collected(self, chunk_spec=None):
         """
         Read collected data by chunks,
         number of items in chunk is determined by LevelGroup.chunk_size (number of bytes)
@@ -366,20 +366,21 @@ class LevelGroup:
                 return None
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
 
-            if chunk_spec.n_samples is not None and chunk_spec.n_samples < np.inf:
-                return dataset[:chunk_spec.n_samples]
+            if chunk_spec is not None:
+                if chunk_spec.n_samples is not None and chunk_spec.n_samples < np.inf:
+                    return dataset[:chunk_spec.n_samples]
 
-            if chunk_spec.chunk_size is not None:
-                if chunk_spec.chunk_size in self._chunk_size_items:
-                    n_items = self._chunk_size_items[chunk_spec.chunk_size]
-                else:
-                    first_item = dataset[0]
-                    item_byte_size = first_item.size * first_item.itemsize
-                    n_items = self._chunk_size_items[chunk_spec.chunk_size] = int(np.ceil(chunk_spec.chunk_size / item_byte_size)) \
-                        if int(np.ceil(chunk_spec.chunk_size / item_byte_size)) < len(dataset[()]) else len(dataset[()])
+                if chunk_spec.chunk_size is not None:
+                    if chunk_spec.chunk_size in self._chunk_size_items:
+                        n_items = self._chunk_size_items[chunk_spec.chunk_size]
+                    else:
+                        first_item = dataset[0]
+                        item_byte_size = first_item.size * first_item.itemsize
+                        n_items = self._chunk_size_items[chunk_spec.chunk_size] = int(np.ceil(chunk_spec.chunk_size / item_byte_size)) \
+                            if int(np.ceil(chunk_spec.chunk_size / item_byte_size)) < len(dataset[()]) else len(dataset[()])
 
-                self._chunks_info[chunk_spec.chunk_id] = [chunk_spec.chunk_id * n_items, (chunk_spec.chunk_id + 1) * n_items]
-                return dataset[chunk_spec.chunk_id * n_items: (chunk_spec.chunk_id + 1) * n_items]
+                    self._chunks_info[chunk_spec.chunk_id] = [chunk_spec.chunk_id * n_items, (chunk_spec.chunk_id + 1) * n_items]
+                    return dataset[chunk_spec.chunk_id * n_items: (chunk_spec.chunk_id + 1) * n_items]
             return dataset[()]
 
     def get_chunks_info(self, i_chunk):

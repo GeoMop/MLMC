@@ -48,7 +48,8 @@ class QType(metaclass=abc.ABCMeta):
             new_qtype = new_qtype._qtype
         return first_qtype
 
-    def _keep_dims(self, chunk):
+    @staticmethod
+    def keep_dims(chunk):
         """
         Always keep chunk shape to be [M, chunk size, 2]!
         For scalar quantities, the input block can have the shape (chunk size, 2)
@@ -72,7 +73,7 @@ class QType(metaclass=abc.ABCMeta):
         :param key: parent QType's key, needed for ArrayType
         :return: list
         """
-        return self._keep_dims(chunk[key])
+        return QType.keep_dims(chunk[key])
 
 
 class ScalarType(QType):
@@ -133,7 +134,7 @@ class ArrayType(QType):
         # Reshape M to original shape to allow access
         assert self._shape is not None
         chunk = chunk.reshape((*self._shape, chunk.shape[-2], chunk.shape[-1]))
-        return self._keep_dims(chunk[key])
+        return QType.keep_dims(chunk[key])
 
 
 class TimeSeriesType(QType):
@@ -208,7 +209,7 @@ class DictType(QType):
                                 format(qtype, qtype.base_qtype(), qtype_0_base_type))
 
     def base_qtype(self):
-        return list(self._dict.values())[0].base_qtype()
+        return next(iter(self._dict.values())).base_qtype()
 
     def size(self) -> int:
         return int(np.sum(q_type.size() for _, q_type in self._dict.items()))

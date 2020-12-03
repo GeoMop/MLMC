@@ -5,9 +5,6 @@ import mlmc.quantity_types as qt
 from mlmc.quantity_spec import ChunkSpec
 
 
-CHUNK_SIZE = 512000  # bytes in decimal
-
-
 def mask_nan_samples(chunk):
     """
     Mask out samples that contain NaN in either fine or coarse part of the result
@@ -167,4 +164,3 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
     else:
         moments_qtype = qt.ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
     return mlmc.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_cov)
-
