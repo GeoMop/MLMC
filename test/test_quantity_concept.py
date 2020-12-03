@@ -11,7 +11,8 @@ from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc import quantity as q
 from mlmc.quantity import make_root_quantity
 from mlmc.quantity_estimate import estimate_mean, moment, moments, covariance
-from mlmc.quantity import Quantity, QuantityStorage, DictType, QuantityConst, ScalarType
+from mlmc.quantity import Quantity, QuantityStorage, QuantityConst
+from mlmc.quantity_types import DictType, ScalarType
 from mlmc.sampler import Sampler
 from mlmc.moments import Legendre, Monomial
 #from mlmc.quantity_estimate import QuantityEstimate
@@ -70,14 +71,14 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose(mean_interp_value()[:len(mean_interp_value())//2], mean_position_1().flatten())
 
         # Array indexing tests
-        # @TODO: uncomment to debug QuantityMean.__getitem__
-        # values = position
-        # values_mean = estimate_mean(values)
-        # print(values_mean[1:2]())
-        #
-        # values = position
-        # values_mean = estimate_mean(values)
-        # print(values_mean[1]())
+        values = position
+        values_mean = estimate_mean(values, level_means=True)
+        assert values_mean[1:2]().shape == (1, 3)
+
+        values = position
+        values_mean = estimate_mean(values)
+        print("values_mean ", values_mean())
+        assert values_mean[1]().shape == (3,)
 
         values = position[:, 2]
         values_mean = estimate_mean(values)
@@ -164,7 +165,7 @@ class QuantityTests(unittest.TestCase):
 
         quantity_array = Quantity.QArray([[length, length], [length, length]])
         quantity_array_mean = estimate_mean(quantity_array)
-        assert np.allclose(quantity_array_mean(), np.concatenate((means_length(), means_length(),
+        assert np.allclose(quantity_array_mean().flatten(), np.concatenate((means_length(), means_length(),
                                                                   means_length(), means_length())))
 
         quantity_timeseries = Quantity.QTimeSeries([(0, locations), (1, locations)])
@@ -402,15 +403,18 @@ class QuantityTests(unittest.TestCase):
 
         add_root_quantity = np.add(root_quantity, root_quantity)  # Add arguments element-wise.
         add_root_quantity_means = estimate_mean(add_root_quantity)
-        assert np.allclose(add_root_quantity_means().tolist(), (root_quantity_means() * 2).tolist())
+        assert np.allclose(add_root_quantity_means().flatten(), (root_quantity_means() * 2))
 
         x = np.ones((108, 5, 2))
+        # add_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.
+        # add_root_quantity_means = estimate_mean(add_root_quantity)
+        # print("add_root_quantity_means ", add_root_quantity_means())
         self.assertRaises(ValueError, np.add, x, root_quantity)
 
         x = np.ones(108)
         add_one_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.
         add_one_root_quantity_means = estimate_mean(add_one_root_quantity)
-        assert np.allclose(root_quantity_means() + np.ones((108,)), add_one_root_quantity_means())
+        assert np.allclose(root_quantity_means() + np.ones((108,)), add_one_root_quantity_means().flatten())
 
         x = np.ones((108, 5, 2))
         self.assertRaises(ValueError, np.divide, x, root_quantity)
@@ -428,18 +432,18 @@ class QuantityTests(unittest.TestCase):
 
         max_root_quantity = np.maximum(root_quantity, root_quantity)  # Element-wise maximum of array elements.
         max_root_quantity_means = estimate_mean(max_root_quantity)
-        assert np.allclose(max_root_quantity_means(), root_quantity_means())
+        assert np.allclose(max_root_quantity_means().flatten(), root_quantity_means())
 
         length = root_quantity['length']
         sin_length = np.sin(length)
         sin_means_length = estimate_mean(sin_length)
         assert np.allclose((sin_means()[sizes[0]:sizes[0]+sizes[1]]).tolist(), sin_means_length().tolist())
 
-    # def test_quantity_const(self):
-    #     x = QuantityConst(ScalarType(), 5)
-    #     y = QuantityConst(ScalarType(), 10)
-    #     z = x + y
-    #     estimate_mean(z)
+    def test_quantity_const(self):
+        x = QuantityConst(ScalarType(), 5)
+        y = QuantityConst(ScalarType(), 10)
+        z = x + y
+        assert isinstance(z, QuantityConst)
 
     def fill_sample_storage(self, sample_storage, chunk_size=512000000):
         sample_storage.chunk_size = chunk_size  # bytes in decimal
@@ -584,9 +588,9 @@ class QuantityTests(unittest.TestCase):
         value_mean = location_mean[0]
 
         print("value_mean() ", value_mean())
-        print("value_mean()[:2] ", value_mean()[0, :2])
+        print("value_mean()[:2] ", value_mean()[:2])
 
-        assert np.allclose(value_mean()[0, :2], [1, 0.5], atol=1e-2)
+        assert np.allclose(value_mean()[:2], [1, 0.5], atol=1e-2)
         assert np.all(value_mean.var < target_var)
 
         new_moments = moments_quantity + moments_quantity
@@ -610,8 +614,8 @@ class QuantityTests(unittest.TestCase):
         location_mean = time_mean['10']
         central_value_mean = location_mean[0]
 
-        assert np.isclose(central_value_mean()[0, 0], 1, atol=1e-10)
-        assert np.isclose(central_value_mean()[0, 1], 0, atol=1e-2)
+        assert np.isclose(central_value_mean()[0], 1, atol=1e-10)
+        assert np.isclose(central_value_mean()[1], 0, atol=1e-2)
 
         # Covariance
         covariance_quantity = covariance(root_quantity, moments_fn=moments_fn, cov_at_bottom=True)

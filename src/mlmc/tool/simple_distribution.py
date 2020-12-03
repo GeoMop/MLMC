@@ -2633,9 +2633,9 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     :return: orthogonal moments object of the same size.
     """
     threshold = 0
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print("cov ")
-        print(pd.DataFrame(cov))
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+    #     print("cov ")
+    #     print(pd.DataFrame(cov))
 
     # centered covariance
     M = np.eye(moments.size)

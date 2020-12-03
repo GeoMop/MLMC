@@ -12,7 +12,8 @@ from mlmc.moments import Legendre, Monomial
 from mlmc.tool.process_base import ProcessBase
 from mlmc.random import correlated_field as cf
 #from mlmc.quantity_estimate import QuantityEstimate
-from mlmc.quantity import make_root_quantity, estimate_mean, moment, moments, covariance
+from mlmc.quantity import make_root_quantity
+from mlmc.quantity_estimate import estimate_mean, moment, moments, covariance
 from mlmc import estimator
 import mlmc.tool.simple_distribution
 
@@ -31,7 +32,7 @@ class ProcessSimple:
         # 'Debug' mode is on - keep sample directories
         self.use_pbs = True
         # Use PBS sampling pool
-        self.n_levels = 7
+        self.n_levels = 1
         self.n_moments = 25
         # Number of MLMC levels
 
@@ -86,8 +87,10 @@ class ProcessSimple:
         conductivity_mean = moments_mean['conductivity']
         time_mean = conductivity_mean[1]  # times: [1]
         location_mean = time_mean['0']  # locations: ['0']
+        print("location_mean().shape ", location_mean().shape)
         values_mean = location_mean[0, 0]  # result shape: (1, 1)
         value_mean = values_mean[0]
+        print("value_mean ", value_mean())
         assert value_mean() == 1
 
         # true_domain = [-10, 10]  # keep all values on the original domain
@@ -130,7 +133,6 @@ class ProcessSimple:
         if self.n_levels == 1:
             samples = estimator.get_level_samples(level_id=0)[..., 0]
             distr_plot.add_raw_samples(np.squeeze(samples))
-
         distr_plot.show(None)
         distr_plot.show(file=os.path.join(self.work_dir, "pdf_cdf_{}_moments".format(self.n_moments)))
         distr_plot.reset()

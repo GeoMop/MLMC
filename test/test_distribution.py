@@ -44,7 +44,7 @@ import mlmc.tool.simple_distribution
 from mlmc import moments
 import test.benchmark_distributions as bd
 import mlmc.tool.plot as plot
-from test.fixtures.mlmc_test_run import MLMCTest
+import test.fixtures.mlmc_test_run
 import mlmc.spline_approx as spline_approx
 from mlmc.moments import Legendre
 from mlmc import estimator
@@ -403,7 +403,7 @@ class DistributionDomainCase:
                                                    log_x=self.log_flag, error_plot=None, reg_plot=False, cdf_plot=False,
                                                    log_density=True)
 
-                mc_test = MLMCTest(level, max_mom, self.cut_distr, log_flag, "_sample_fn", moments_class=mom_class,
+                mc_test = test.fixtures.mlmc_test_run.MLMCTest(level, max_mom, self.cut_distr, log_flag, "_sample_fn", moments_class=mom_class,
                                    domain=self.cut_distr.domain)
 
                 quantity = mlmc.quantity.make_root_quantity(storage=mc_test.sampler.sample_storage,
@@ -646,7 +646,7 @@ class DistributionDomainCase:
         # Run MLMC                         #
         ####################################
         if mlmc_obj is None:
-            mc_test = MLMCTest(n_levels, max_n_moments, self.cut_distr.distr, log, "_sample_fn",
+            mc_test = test.fixtures.mlmc_test_run.MLMCTest(n_levels, max_n_moments, self.cut_distr.distr, log, "_sample_fn",
                                moments_class=moment_class,
                                domain=self.cut_distr.domain)
             # number of samples on each level
@@ -967,7 +967,7 @@ class DistributionDomainCase:
             ####################################
             # Run MLMC                         #
             ####################################
-            mc_test = MLMCTest(n_levels, max_mom, self.cut_distr.distr, log_flag, "_sample_fn", moments_class=mom_class,
+            mc_test = test.fixtures.mlmc_test_run.MLMCTest(n_levels, max_mom, self.cut_distr.distr, log_flag, "_sample_fn", moments_class=mom_class,
                                domain=self.cut_distr.domain)
             # number of samples on each level
             if mom_class.__name__ == "Spline":
@@ -1198,7 +1198,7 @@ class DistributionDomainCase:
         ####################################
         # Run MLMC                         #
         ####################################
-        mc_test = MLMCTest(n_levels, max_mom, self.cut_distr.distr, log_flag, "_sample_fn", moments_class=mom_class,
+        mc_test = test.fixtures.mlmc_test_run.MLMCTest(n_levels, max_mom, self.cut_distr.distr, log_flag, "_sample_fn", moments_class=mom_class,
                            domain=self.cut_distr.domain)
         # number of samples on each level
         if mom_class.__name__ == "Spline":
@@ -4015,7 +4015,7 @@ class DistrTestCase:
 
 
 def run_mlmc(n_levels, n_moments, cut_distr, log_flag, quantile, moments_fn, target_var, mlmc_file=None):
-    mc_test = MLMCTest(n_levels, n_moments, cut_distr, log_flag, sim_method='_sample_fn', quantile=quantile,
+    mc_test = test.fixtures.mlmc_test_run.MLMCTest(n_levels, n_moments, cut_distr, log_flag, sim_method='_sample_fn', quantile=quantile,
                        mlmc_file=mlmc_file)
 
     mc_test.moments_fn = moments_fn

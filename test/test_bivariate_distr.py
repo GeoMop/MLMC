@@ -37,10 +37,6 @@ import pytest
 import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 import mlmc.archive.estimate
 import mlmc.bivariate_simple_distr
 from mlmc import moments
