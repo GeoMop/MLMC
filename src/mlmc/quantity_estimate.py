@@ -2,6 +2,7 @@ import numpy as np
 import copy
 import mlmc.quantity
 import mlmc.quantity_types as qt
+from mlmc.quantity_spec import ChunkSpec
 
 
 CHUNK_SIZE = 512000  # bytes in decimal
@@ -18,13 +19,14 @@ def mask_nan_samples(chunk):
     return chunk[..., ~mask, :], np.count_nonzero(mask)
 
 
-def estimate_mean(quantity, level_means=False):
+def estimate_mean(quantity, chunk_size=512000000, level_means=False):
     """
     MLMC mean estimator.
     The MLMC method is used to compute the mean estimate to the Quantity dependent on the collected samples.
     The squared error of the estimate (the estimator variance) is estimated using the central limit theorem.
     Data is processed by chunks, so that it also supports big data processing
     :param quantity: Quantity
+    :param chunk_size: chunk size in bytes in decimal, determines number of samples in chunk
     :param level_means: bool, if True calculate means and vars at each level
     :return: QuantityMean which holds both mean and variance
     """
@@ -33,13 +35,13 @@ def estimate_mean(quantity, level_means=False):
     n_samples = None
     sums = None
     sums_of_squares = None
-    i_chunk = 0
+    chunk_id = 0
     n_rm_samples = 0
     level_chunks_none = np.zeros(1)  # if ones then the iteration through the chunks was terminated at each level
 
     while not np.alltrue(level_chunks_none):
         level_ids = quantity.get_quantity_storage().level_ids()
-        if i_chunk == 0:
+        if chunk_id == 0:
             # initialization
             n_levels = len(level_ids)
             n_samples = [0] * n_levels
@@ -48,10 +50,10 @@ def estimate_mean(quantity, level_means=False):
         for level_id in level_ids:
             # Chunk of samples for given level id
             try:
-                chunk = quantity.samples(level_id, i_chunk)
+                chunk = quantity.samples(ChunkSpec(level_id, chunk_id, chunk_size=chunk_size))
                 if level_id == 0:
                     # Set variables for level sums and sums of powers
-                    if i_chunk == 0:
+                    if chunk_id == 0:
                         sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
                         sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
                     # Coarse result for level 0, there is issue for moments_fn processing (not know about level)
@@ -67,7 +69,7 @@ def estimate_mean(quantity, level_means=False):
                 sums_of_squares[level_id] += np.sum(chunk_diff**2, axis=1)
             except StopIteration:
                 level_chunks_none[level_id] = True
-        i_chunk += 1
+        chunk_id += 1
 
     mean = np.zeros_like(sums[0])
     var = np.zeros_like(sums[0])

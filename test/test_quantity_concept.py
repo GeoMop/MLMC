@@ -77,7 +77,6 @@ class QuantityTests(unittest.TestCase):
 
         values = position
         values_mean = estimate_mean(values)
-        print("values_mean ", values_mean())
         assert values_mean[1]().shape == (3,)
 
         values = position[:, 2]
@@ -563,8 +562,6 @@ class QuantityTests(unittest.TestCase):
         sleep = 0
         add_coef = 0.1
 
-        print("sampler._n_scheduled_samples ", sampler._n_scheduled_samples)
-
         # New estimation according to already finished samples
         variances, n_ops = estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
         n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
@@ -586,9 +583,6 @@ class QuantityTests(unittest.TestCase):
         time_mean = length_mean[1]
         location_mean = time_mean['10']
         value_mean = location_mean[0]
-
-        print("value_mean() ", value_mean())
-        print("value_mean()[:2] ", value_mean()[:2])
 
         assert np.allclose(value_mean()[:2], [1, 0.5], atol=1e-2)
         assert np.all(value_mean.var < target_var)
