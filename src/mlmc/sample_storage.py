@@ -2,14 +2,10 @@ import numpy as np
 from abc import ABCMeta
 from abc import abstractmethod
 from typing import List, Dict
-from mlmc.quantity_spec import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec, ChunkSpec
 
 
 class SampleStorage(metaclass=ABCMeta):
-
-    def __init__(self):
-        self._chunk_size = None
-        # Size of retrieved data, int - number of bytes in decimal
 
     @abstractmethod
     def save_samples(self, successful_samples, failed_samples):
@@ -110,17 +106,6 @@ class SampleStorage(metaclass=ABCMeta):
         Get number of collected results at each evel
         :return: list
         """
-
-    @property
-    def chunk_size(self):
-        return self._chunk_size
-
-    @chunk_size.setter
-    def chunk_size(self, chunk_size):
-        """
-        Set the chunk size that is used to load collected samples
-        """
-        self._chunk_size = chunk_size
 
 
 class Memory(SampleStorage):
@@ -238,27 +223,25 @@ class Memory(SampleStorage):
         levels_results = list(np.empty(len(np.max(self._results.keys()))))
 
         for level_id in self.get_level_ids():
-            results = self.sample_pairs_level(level_id)
+            results = self.sample_pairs_level(ChunkSpec(level_id))
             levels_results[level_id] = results
 
         return levels_results
 
-    def sample_pairs_level(self, level_id, i_chunk=0, n_samples=None):
+    def sample_pairs_level(self, chunk_spec):
         """
         Get samples for given level, chunks does not make sense in Memory storage so all data are retrieved at once
-        :param level_id: int
-        :param i_chunk: identifier of chunk
-        :param n_samples: number of retrieved samples
+        :param chunk_spec: ChunkSpec instance, contains level_id, chunk_id, possibly n_samples
         :return: np.ndarray
         """
-        if i_chunk != 0:
-            return None
-        if n_samples is not None:
-            results = self._results[int(level_id)]
-            n_samples = n_samples if n_samples < results.shape[0] else results.shape[0]
+        if chunk_spec.chunk_id != 0:
+            raise StopIteration
+        if chunk_spec.n_samples is not None:
+            results = self._results[int(chunk_spec.level_id)]
+            n_samples = chunk_spec.n_samples if chunk_spec.n_samples < results.shape[0] else results.shape[0]
 
             return results[:n_samples, ...].transpose((2, 0, 1))  # [M, N, 2]
-        return self._results[int(level_id)].transpose((2, 0, 1))  # [M, N, 2]
+        return self._results[int(chunk_spec.level_id)].transpose((2, 0, 1))  # [M, N, 2]
 
     def save_n_ops(self, n_ops):
         """
@@ -280,7 +263,6 @@ class Memory(SampleStorage):
         n_ops = list(np.empty(len(np.max(self._n_ops.keys()))))
         for level, time in self._n_ops.items():
             n_ops[level] = time
-
         return n_ops
 
     def unfinished_ids(self):
@@ -302,7 +284,7 @@ class Memory(SampleStorage):
         """
         return [0, len(self._results[level_id])-1]
 
-    def get_items_in_chunk(self, level_id):
+    def level_chunk_n_samples(self, level_id):
         """
         Number of items in one chunk
         :param level_id: level id

@@ -184,6 +184,7 @@ class HDF5:
             else:
                 return []
 
+
 class LevelGroup:
     # Row format for dataset (h5py.Dataset) scheduled
     SCHEDULED_DTYPE = {'names': ['sample_id'],
@@ -213,6 +214,8 @@ class LevelGroup:
         # Collected items in one chunk
         self._chunks_info = {}
         # Basic info about chunks, use in quantity subsampling
+        self._chunk_size_items = {}
+        # Chunk size and corresponding number of items
 
         # Set group attribute 'level_id'
         with h5py.File(self.file_name, 'a') as hdf_file:
@@ -351,13 +354,11 @@ class LevelGroup:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             return scheduled_dset[()]
 
-    def collected(self, i_chunk=0, chunk_size=512000000, n_samples=None):
+    def collected(self, chunk_spec=None):
         """
         Read collected data by chunks,
         number of items in chunk is determined by LevelGroup.chunk_size (number of bytes)
-        :param i_chunk: int
-        :param chunk_size: int or None, size of chunk, bytes in decimal, If None return all samples without chunks
-        :param n_samples: number of returned samples
+        :param chunk_spec: ChunkSpec instance
         :return: np.ndarray
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
@@ -365,18 +366,21 @@ class LevelGroup:
                 return None
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
 
-            if n_samples is not None and n_samples < np.inf:
-                return dataset[:n_samples]
+            if chunk_spec is not None:
+                if chunk_spec.n_samples is not None and chunk_spec.n_samples < np.inf:
+                    return dataset[:chunk_spec.n_samples]
 
-            if chunk_size is not None:
-                if self.n_items_in_chunk is None:
-                    first_item = dataset[0]
-                    item_byte_size = first_item.size * first_item.itemsize
-                    self.n_items_in_chunk = int(np.ceil(chunk_size / item_byte_size)) \
-                        if int(np.ceil(chunk_size / item_byte_size)) < len(dataset[()]) else len(dataset[()])
-                self._chunks_info[i_chunk] = [i_chunk * self._n_items_in_chunk, (i_chunk + 1) * self._n_items_in_chunk]
-                return dataset[i_chunk * self._n_items_in_chunk: (i_chunk + 1) * self._n_items_in_chunk]
+                if chunk_spec.chunk_size is not None:
+                    if chunk_spec.chunk_size in self._chunk_size_items:
+                        n_items = self._chunk_size_items[chunk_spec.chunk_size]
+                    else:
+                        first_item = dataset[0]
+                        item_byte_size = first_item.size * first_item.itemsize
+                        n_items = self._chunk_size_items[chunk_spec.chunk_size] = int(np.ceil(chunk_spec.chunk_size / item_byte_size)) \
+                            if int(np.ceil(chunk_spec.chunk_size / item_byte_size)) < len(dataset[()]) else len(dataset[()])
 
+                    self._chunks_info[chunk_spec.chunk_id] = [chunk_spec.chunk_id * n_items, (chunk_spec.chunk_id + 1) * n_items]
+                    return dataset[chunk_spec.chunk_id * n_items: (chunk_spec.chunk_id + 1) * n_items]
             return dataset[()]
 
     def get_chunks_info(self, i_chunk):
