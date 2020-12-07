@@ -486,14 +486,14 @@ class Distribution:
             if error_plot == 'kl':
                 pdf_err_title = "KL-error - dashed"
 
-            self.ax_pdf_err.set_ylabel(pdf_err_title)
+            #self.ax_pdf_err.set_ylabel(pdf_err_title)
             self.ax_pdf_err.set_yscale('log')
 
             if cdf_plot:
                 self.ax_cdf_err = self.ax_cdf.twinx()
                 self.ax_cdf.set_zorder(10)
                 self.ax_cdf.patch.set_visible(False)
-                self.ax_cdf_err.set_ylabel("error - dashed")
+                #self.ax_cdf_err.set_ylabel("error - dashed")
                 self.ax_cdf_err.set_yscale('log')
 
     def add_raw_samples(self, samples):
@@ -863,7 +863,7 @@ class ArticleDistribution(Distribution):
             if self._log_x:
                 self.ax_cdf.set_xscale('log')
 
-        self.x_lim = [0, 5]
+        self.x_lim = [0, 15]
 
         self.ax_pdf.set_xlim(*self.x_lim)
         self.ax_cdf.set_xlim(*self.x_lim)

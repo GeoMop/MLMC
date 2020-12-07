@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.ma as ma
 from scipy.interpolate import BSpline
+import numpy.polynomial.polynomial as P
 
 
 class Moments:
@@ -38,6 +39,11 @@ class Moments:
         elif not safe_eval and not log:
             self.transform = lambda val: self.linear(val)
             self.inv_transform = lambda ref: self.inv_linear(ref)
+
+        self.diff_mat = np.zeros((size, size))
+        for n in range(size - 1):
+            self.diff_mat[n, n + 1::2] = 2 * n + 1
+        self.diff2_mat = self.diff_mat @ self.diff_mat
 
     def __eq__(self, other):
         """
@@ -150,9 +156,32 @@ class Monomial(Moments):
         # Vandermonde matrix
         return np.polynomial.polynomial.polyvander(t, deg=size - 1)
 
+    def _eval_all_der(self, value, size, degree=1):
+        """
+        Derivative of Legendre polynomials
+        :param value: values to evaluate
+        :param size: number of _moments_fn
+        :param degree: degree of derivative
+        :return:
+        """
+        t = self.transform(np.atleast_1d(value))
+        # Vandermonde matrix
+        poly_matrix = np.polynomial.polynomial.polyvander(t, deg=size-1+degree)
+        return P.polyder(poly_matrix, m=degree, axis=1)
+
     def eval(self, i, value):
         t = self.transform(np.atleast_1d(value))
         return t**i
+
+    def _eval_diff(self, value, size):
+        t = self.transform(np.atleast_1d(value))
+        P_n = np.polynomial.polynomial.polyvander(t, deg=size - 1)
+        return P_n @ self.diff_mat
+
+    def _eval_diff2(self, value, size):
+        t = self.transform(np.atleast_1d(value))
+        P_n = np.polynomial.polynomial.polyvander(t, deg=size - 1)
+        return P_n @ self.diff2_mat
 
 
 class Fourier(Moments):
@@ -200,12 +229,6 @@ class Legendre(Moments):
             self.ref_domain = ref_domain
         else:
             self.ref_domain = (-1, 1)
-
-        self.diff_mat = np.zeros((size, size))
-        for n in range(size - 1):
-            self.diff_mat[n, n + 1::2] = 2 * n + 1
-        self.diff2_mat = self.diff_mat @ self.diff_mat
-
         self.mean = mean
         super().__init__(size, domain, log, safe_eval, mean)
 

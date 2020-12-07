@@ -2651,6 +2651,23 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     # print("centered cov ")
     # print(pd.DataFrame(cov_center))
 
+    if orth_method == 0:
+        eval_flipped, evec_flipped, original_eval = _add_to_eigenvalues(cov_center, tol=tol, moments=moments)
+        if projection_matrix is not None:
+            icov_sqrt_t = projection_matrix
+        else:
+            icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
+
+        R_nm, Q_mm = sc.linalg.rq(icov_sqrt_t, mode='full')
+
+        # check
+        L_mn = R_nm.T
+        if L_mn[0, 0] < 0:
+            L_mn = -L_mn
+
+        info = (original_eval, eval_flipped, threshold, L_mn)
+        return moments, info, cov_center
+
     # Add const to eigenvalues
     if orth_method == 1:
         eval_flipped, evec_flipped, original_eval = _add_to_eigenvalues(cov_center, tol=tol, moments=moments)

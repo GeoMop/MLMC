@@ -417,9 +417,12 @@ class DistributionDomainCase:
                 mc_test.set_estimator(value_quantity)
                 mc_test.generate_samples(target_var=target_var)
 
+                estimator = mlmc.estimator.Estimate(quantity=value_quantity,
+                                                    sample_storage=mc_test.sampler.sample_storage,
+                                                    moments_fn=mc_test.moments_fn)
+
                 for reg_param in reg_params:
-                    distr_obj, info, result, moments_fn = estimator.construct_density(quantity=value_quantity,
-                                                                             moments_fn=mc_test.moments_fn,
+                    distr_obj, info, result, moments_fn = estimator.construct_density(
                                                                              tol=distr_accuracy,
                                                                              reg_param=reg_param,
                                                                              orth_moments_tol=target_var,
@@ -3289,7 +3292,7 @@ class DistributionDomainCase:
         :return:
         """
         min_noise = 1e-6
-        max_noise = 0.1
+        max_noise = 1e-2
         results = []
 
         distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="", cdf_plot=False,
@@ -3308,7 +3311,7 @@ class DistributionDomainCase:
         mom_class, min_mom, max_mom, log_flag = self.moments_data
 
         #moments_num = [5, 10, 15, 20]#, 10, 20, 30]
-        moments_num = [5]
+        moments_num = [max_mom]
         regularization = None
         reg_param = 0
 
@@ -3323,93 +3326,100 @@ class DistributionDomainCase:
                 multipliers = []
                 rep_size = 1
                 multipliers = np.zeros((rep_size, m))
+
+                self.setup_moments(self.moments_data, noise_level=0)
+                exact_moments = self.exact_moments
+                exact_moments_orig = self.moments_without_noise
+                moments_data = np.empty((m, 2))
+                moments_data[:, 0] = self.exact_moments[:m]
+                moments_data[:, 1] = 1.0
+
+                exact_result, exact_distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, 0.0,
+                                                     moments_data,
+                                                     tol=1e-10)
+                exact_L = self.L
+
                 for i in range(rep_size):
                     #np.random.seed(i)
 
                     for self.use_covariance in [True]:
-                        print("self use covariance ", self.use_covariance)
-
-                        # regularization = mlmc.tool.simple_distribution.RegularizationInexact()
-                        # reg_param = 1e-3
-
                         self.moments_data = (mom_class, m, m, log_flag)
                         info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
                                                                       orth_method=orth_method, regularization=regularization,
                                                                       reg_param=1e-3)
 
-                        n_moments = len(moments_with_noise)
-
                         original_evals, evals, threshold, L = info
                         new_moments = np.matmul(moments_with_noise, L.T)
                         n_moments = len(new_moments)
-
                         moments_data = np.empty((n_moments, 2))
                         moments_data[:, 0] = new_moments
                         moments_data[:, 1] = noise ** 2
                         moments_data[0, 1] = 1.0
 
-                        print("moments data ", moments_data)
 
-                        if self.use_covariance:
-                            print("if use covariance ", self.use_covariance)
+                        # modif_cov, reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(self.moments_fn, self.pdf,
+                        #                                                              regularization=regularization,
+                        #                                                              reg_param=reg_param)
+                        #
+                        # diff_norm = np.linalg.norm(modif_cov - np.eye(*modif_cov.shape)) / n_moments
+                        # ref_moments = np.zeros(n_moments)
+                        # ref_moments[0] = 1.0
+                        # mom_err = np.linalg.norm(self.exact_moments[:n_moments] - ref_moments) / np.sqrt(n_moments)
+                        # print("noise: {:6.2g} error of natural cov: {:6.2g} natural moments: {:6.2g}".format(
+                        #     noise, diff_norm, mom_err))
 
-                            modif_cov, reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(self.moments_fn, self.pdf,
-                                                                                         regularization=regularization,
-                                                                                         reg_param=reg_param)
+                        result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise,
+                                                             moments_data,
+                                                             tol=1e-8, regularization=regularization, reg_param=reg_param)
 
-                            print("modif_cov ", modif_cov)
+                        multipliers[i, :len(distr_obj.multipliers)] = distr_obj.multipliers
 
-                            diff_norm = np.linalg.norm(modif_cov - np.eye(*modif_cov.shape)) / n_moments
-                            ref_moments = np.zeros(n_moments)
-                            ref_moments[0] = 1.0
-                            mom_err = np.linalg.norm(self.exact_moments[:n_moments] - ref_moments) / np.sqrt(n_moments)
-                            print("noise: {:6.2g} error of natural cov: {:6.2g} natural moments: {:6.2g}".format(
-                                noise, diff_norm, mom_err))
+                        distr_plot.add_distribution(distr_obj,
+                                                    label="{} moments, {} threshold, noise: {}, kl: {}".
+                                                    format(n_moments, threshold, noise, result.kl))
+                        results.append(result)
 
-                            #assert mom_err/(noise + 1e-10) < 50  - 59 for five fingers dist
 
-                            result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise,
-                                                                 moments_data,
-                                                                 tol=1e-8, regularization=regularization, reg_param=reg_param)
 
-                            multipliers[i,:len(distr_obj.multipliers)] = distr_obj.multipliers
+                        # print("ORIGINAL COV CENTERED")
+                        # print(pd.DataFrame(self._cov_centered))
+                        #
+                        # M = np.eye(len(self._cov_with_noise[0]))
+                        # M[:, 0] = -self._cov_with_noise[:, 0]
+                        #
+                        # final_jac = distr_obj.final_jac
+                        #
+                        # print("result jacobian")
+                        # print(pd.DataFrame(distr_obj.final_jac))
+                        #
+                        # # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
+                        # # print(pd.DataFrame(
+                        # #     np.linalg.inv(M) @ (
+                        # #                 np.linalg.inv(L) @ final_jac @ np.linalg.inv(L.T)) @ np.linalg.inv(M.T)))
 
-                            distr_plot.add_distribution(distr_obj,
-                                                        label="{} moments, {} threshold, noise: {}, kl: {}".
-                                                        format(n_moments, threshold, noise, result.kl))
-                            results.append(result)
+                        #===================================================
+                        new_moments = np.matmul(exact_moments, L.T)
+                        n_moments = len(new_moments)
+                        moments_data = np.empty((n_moments, 2))
+                        moments_data[:, 0] = new_moments
+                        moments_data[:, 1] = noise ** 2
+                        moments_data[0, 1] = 1.0
 
-                        else:
-                            print("without covariance")
+                        result, exact_distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise,
+                                                             moments_data,
+                                                             tol=1e-8, regularization=regularization,
+                                                             reg_param=reg_param)
 
-                            print("moments data ", moments_data)
 
-                            # TODO:
-                            # Use SimpleDistribution only as soon as it use regularization that improve convergency even without
-                            # cov matrix. preconditioning.
-                            result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data, tol=1e-5)
-                            distr_plot.add_distribution(distr_obj, label="{} moments, kl: {}".format(n_moments, result.kl))
-                            results.append(result)
-
-                        print("ORIGINAL COV CENTERED")
-                        print(pd.DataFrame(self._cov_centered))
-
-                        M = np.eye(len(self._cov_with_noise[0]))
-                        M[:, 0] = -self._cov_with_noise[:, 0]
-
-                        final_jac = distr_obj.final_jac
-
-                        print("result jacobian")
-                        print(pd.DataFrame(distr_obj.final_jac))
-
-                        # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
-                        # print(pd.DataFrame(
-                        #     np.linalg.inv(M) @ (
-                        #                 np.linalg.inv(L) @ final_jac @ np.linalg.inv(L.T)) @ np.linalg.inv(M.T)))
+                        #===================================================
 
                         num_moments = m
 
                         moments_from_density = (np.linalg.pinv(L) @ distr_obj.final_jac @ np.linalg.pinv(L.T))[:, 0]
+
+                        print("moments from density ", moments_from_density)
+                        print("distr obj multipliers ", distr_obj.multipliers)
+
 
                         res = (moments_from_density[:num_moments - 1] - self.moments_without_noise[:num_moments - 1]) ** 2
 
@@ -3424,12 +3434,32 @@ class DistributionDomainCase:
 
                         res_mom.append(res)
 
+                        a, b = self.domain
+                        kl = mlmc.tool.simple_distribution.KL_divergence(exact_distr_obj.density, distr_obj.density, a, b)
+
+                        print("KL divergence ", kl)
+
+                        # moments = np.linalg.inv(exact_L) @ exact_moments
+                        # print("moments ", moments)
+                        # print("exact moments orig ", exact_moments_orig)
+                        # exact_multipliers = exact_distr_obj.multipliers @ np.linalg.inv(exact_L)
+                        # multipliers = distr_obj.multipliers @ np.linalg.inv(self.L)
+
+                        moments = new_moments
+                        exact_multipliers = exact_distr_obj.multipliers
+                        multipliers = distr_obj.multipliers
+
+                        mu_lambda_kl = np.dot(moments[:len(multipliers)],
+                                              -(exact_multipliers[:len(multipliers)] - multipliers))
+
+                        print("mu_lambda_kl ", mu_lambda_kl)
+
+
                 average_multipliers = np.mean(np.array(multipliers), axis=0)
 
-                distr_obj.multipliers = average_multipliers
+                #distr_obj.multipliers = average_multipliers
 
-                distr_plot.add_distribution(distr_obj,
-                                            label="average multipliers")
+                distr_plot.add_distribution(distr_obj, label="average multipliers")
 
 
         # print("res mom ", res_mom)
@@ -3496,7 +3526,7 @@ def test_pdf_approx_exact_moments(moments, distribution):
         tests = [case.mlmc_conv]
         #tests = [case.exact_conv]
         #tests = [case.inexact_conv]
-        # tests = [case.inexact_conv_test]
+        tests = [case.inexact_conv_test]
         #tests = [case.plot_KL_div_exact]
         #tests = [case.plot_KL_div_inexact_reg]
         #tests = [case.plot_KL_div_inexact_reg_mom]
@@ -3648,10 +3678,10 @@ def run_distr():
     # @pytest.mark.skip
     mom = [
         # moments_class, min and max number of moments, use_covariance flag
-        # (moments.Monomial, 3, 10),
+        #.(moments.Monomial, 10, 10, True),
         # (moments.Fourier, 5, 61),
         # (moments.Legendre, 7,61, False),
-        (moments.Legendre, 15, 15, True),
+        (moments.Legendre, 25, 25, True),
         #(moments.Spline, 10, 10, True),
     ]
 
@@ -3754,11 +3784,6 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
     min_result = exact_distr.estimate_density_minimize(tol=tolerance)
     # exact_tol = max(min_result.res_norm, tolerance)
     exact_mu = case.exact_orto_moments
-    # exact_mu = mlmc.tool.simple_distribution.compute_semiexact_moments_quadrature(orto_moments, case.distr.pdf,
-    #                                                                               tol=1e-10,
-    #                                                                               quad_points=exact_distr._quad_points,
-    #                                                                               quad_weights=exact_distr._quad_weights)
-
     exact_eval_0, exact_eval_max = exact_distr.jacobian_spectrum()[[0, -1]]
     mu_diffs, l_diffs, eigs, total_vars = [], [], [], []
     #ratio_distribution = stats.lognorm(s=0.1)
@@ -3772,7 +3797,6 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
     raw_distr = mlmc.tool.simple_distribution.SimpleDistribution(orto_moments, moment_data,
                                                             domain=case.distr.domain,
                                                             force_decay=case.distr.force_decay)
-
     size = len(exact_distr.multipliers)
     linf_log_approx_error = np.max(np.log(case.distr.pdf(exact_distr._quad_points))
                                    - np.log(exact_distr.density(exact_distr._quad_points)))
@@ -3796,12 +3820,20 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
         raw_distr.moments = raw_distr.moments_by_quadrature()
         raw_distr._quad_moments_2nd_der = raw_distr.moments_by_quadrature(der=2)
         raw_eval_0, raw_eval_max = raw_distr.jacobian_spectrum()[[0, -1]]
+        raw_distr.multipliers[0] += np.log(raw_distr.moments[0])
+
         lambda_diff = -(exact_distr.multipliers - raw_distr.multipliers)
 
         l_diff_norm = np.linalg.norm(lambda_diff[:])
         mu_diff = exact_mu - raw_distr.moments
         mu_diff_norm = np.linalg.norm(mu_diff[:])
-        dot_l_diff_mu_diff.append(np.dot(mu_diff, lambda_diff)) # good
+        # dot_l_diff_mu_diff.append(np.dot(mu_diff, lambda_diff)) # good
+
+        print("exact mu ", exact_mu)
+        print("original exact mu ", np.matmul(exact_mu, np.linalg.inv(case.L.T)))
+        print("lambda diff ", lambda_diff)
+
+        dot_l_diff_mu_diff.append(np.dot(exact_mu, lambda_diff))
 
         l_diffs.append(l_diff_norm)
         mu_diffs.append(mu_diff_norm)
@@ -3821,7 +3853,7 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
             reg_terms.append(mlmc.tool.simple_distribution.reg_term_distr_diff(exact_distr, raw_distr))
 
     plot_mu_to_lambda_lim = False
-    plot_kl_lambda_diff = False
+    plot_kl_lambda_diff = True
 
     size = 5
     scatter_size = size ** 2
@@ -3996,6 +4028,7 @@ class DistrTestCase:
         cov = self.noise_cov(noise)
         orto_moments_fn, info, cov_centered = mlmc.tool.simple_distribution.construct_orthogonal_moments(self.moments_fn, cov, tol=noise)
         original_evals, evals, threshold, L = info
+        self.L = L
 
         print("threshold: ", threshold, " from N: ", self.moments_fn.size)
         self.eigenvalues_plot.add_values(evals, threshold=evals[threshold], label="{:5.2e}".format(noise))

@@ -127,7 +127,7 @@ class FlowSim(Simulation):
         self.env = config['env']
         # Environment variables, flow123d, gmsh, ...
         self._fields_params = config['fields_params']
-        self._fields = create_corr_field(config['fields_params'])
+        self._fields = create_corr_field(**config['fields_params'])
         self._fields_used_params = None
         # Random fields instance
         self.time_factor = config.get('time_factor', 1.0)

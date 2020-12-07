@@ -31,7 +31,7 @@ class ProcessSimple:
         # 'Debug' mode is on - keep sample directories
         self.use_pbs = True
         # Use PBS sampling pool
-        self.n_levels = 7
+        self.n_levels = 1
         self.n_moments = 25
         # Number of MLMC levels
 
@@ -95,6 +95,8 @@ class ProcessSimple:
         # central_moments_quantity = moments(root_quantity, moments_fn=central_moments, mom_at_bottom=True)
         # central_moments_mean = estimate_mean(central_moments_quantity)
 
+        #estimator.sub_subselect(sample_vector=[10000])
+
         #self.process_target_var(estimator)
         self.construct_density(estimator, tol=1e-8)
         self.data_plots(estimator)
@@ -132,9 +134,8 @@ class ProcessSimple:
             distr_plot.add_raw_samples(np.squeeze(samples))
 
         distr_plot.show(None)
-        distr_plot.show(file=os.path.join(self.work_dir, "pdf_cdf_{}_moments".format(self.n_moments)))
+        distr_plot.show(file=os.path.join(self.work_dir, "pdf_cdf_{}_moments_1".format(self.n_moments)))
         distr_plot.reset()
-
 
     def run(self, renew=False):
         """
@@ -175,7 +176,7 @@ class ProcessSimple:
             'env': dict(flow123d=self.flow123d, gmsh=self.gmsh, gmsh_version=1),  # The Environment.
             'yaml_file': os.path.join(self.work_dir, '01_conductivity.yaml'),
             'geo_file': os.path.join(self.work_dir, 'square_1x1.geo'),
-            'fields_params': dict(model='TPLgauss'),
+            'fields_params': dict(model='exp', sigma=4, corr_length=0.1),
             'field_template': "!FieldElementwise {mesh_data_file: \"$INPUT_DIR$/%s\", field_name: %s}"
         }
 
@@ -216,7 +217,7 @@ class ProcessSimple:
             self.init_sample_timeout = 60
             self.sample_timeout = 60
             self.flow123d = "/home/jb/workspace/flow123d/bin/fterm flow123d dbg"
-            self.gmsh = "/home/jb/local/gmsh-3.0.5-git-Linux/bin/gmsh"
+            self.gmsh = "/home/martin/gmsh/bin/gmsh"
 
     def create_sampling_pool(self):
         """
@@ -227,7 +228,7 @@ class ProcessSimple:
             return OneProcessPool(work_dir=self.work_dir, debug=self.debug)  # Everything runs in one process
 
         # Create PBS sampling pool
-        sampling_pool = SamplingPoolPBS(work_dir=self.work_dir, clean=self.clean, debug=self.debug)
+        sampling_pool = SamplingPoolPBS(work_dir=self.work_dir, debug=self.debug)
 
         pbs_config = dict(
             n_cores=1,
@@ -281,6 +282,7 @@ class ProcessSimple:
 
                 q_estimator = QuantityEstimate(sample_storage=sampler._sample_storage, moments_fn=moments_fn,
                                                sim_steps=self.level_parameters)
+
                 target_var = 1e-5
                 sleep = 0
                 add_coef = 0.1
@@ -321,28 +323,6 @@ class ProcessSimple:
             running += sampler.ask_sampling_pool_for_samples(sleep=self.sample_sleep, timeout=0.1)
             print("N running: ", running)
 
-    def calculate_moments(self, sampler):
-        """
-        @TODO: refactor - use quantity
-        Calculate moments through the mlmc.QuantityEstimate
-        :param sampler: mlmc.Sampler
-        :return: None
-        """
-        # Simple moment evaluation
-        moments_fn = self.set_moments(sampler._sample_storage)
-
-        q_estimator = QuantityEstimate(sample_storage=sampler._sample_storage, moments_fn=moments_fn,
-                                       sim_steps=self.level_parameters)
-        means, vars = q_estimator.estimate_moments(moments_fn)
-        # The first moment is in any case 1 and its variance is 0
-        assert means[0] == 1
-        # assert np.isclose(means[1], 0, atol=1e-2)
-        assert vars[0] == 0
-
-    def set_moments(self, sample_storage, n_moments=5):
-        true_domain = QuantityEstimate.estimate_domain(sample_storage, quantile=0.01)
-        return Legendre(n_moments, true_domain)
-    
     @staticmethod
     def determine_level_parameters(n_levels, step_range):
         """
