@@ -26,7 +26,6 @@ and given moment functions.
 """
 import os
 import shutil
-import sys
 import time
 import pytest
 
@@ -48,6 +47,7 @@ import test.fixtures.mlmc_test_run
 import mlmc.spline_approx as spline_approx
 from mlmc.moments import Legendre
 from mlmc import estimator
+from mlmc.quantity_spec import ChunkSpec
 import mlmc.quantity
 import pandas as pd
 import pickle
@@ -431,8 +431,8 @@ class DistributionDomainCase:
                     original_evals, evals, threshold, L = info
 
                     if level == 1:
-                        samples = value_quantity.samples(level_id=0,
-                                                         n_samples=mc_test.sampler.sample_storage.get_n_collected()[0])[..., 0]
+                        samples = value_quantity.samples(ChunkSpec(level_id=0,
+                                                         n_samples=mc_test.sampler.sample_storage.get_n_collected()[0]))[..., 0]
                         distr_plot.add_raw_samples(np.squeeze(samples))
 
                     distr_plot.add_distribution(distr_obj, label="n_l: {}, reg_param: {}, th: {}".
@@ -3526,7 +3526,7 @@ def test_pdf_approx_exact_moments(moments, distribution):
         tests = [case.mlmc_conv]
         #tests = [case.exact_conv]
         #tests = [case.inexact_conv]
-        tests = [case.inexact_conv_test]
+        #tests = [case.inexact_conv_test]
         #tests = [case.plot_KL_div_exact]
         #tests = [case.plot_KL_div_inexact_reg]
         #tests = [case.plot_KL_div_inexact_reg_mom]
