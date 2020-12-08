@@ -45,7 +45,7 @@ class Quantity:
         # to the operation.
         self._storage = self.get_quantity_storage()
         # QuantityStorage instance
-        self._selection_id = None
+        self._selection_id = self.set_selection_id()
         # Identifier of selection, should be set in select() method
         self._check_selection_ids()
         self._op_additional_params()
@@ -63,6 +63,20 @@ class Quantity:
                 self._storage = storage
                 return storage
         return None
+
+    def set_selection_id(self):
+        """
+        Set selection id
+        selection id is None by default,
+         but if we create new quantity from quantities that are result of selection we need to pass selection id
+        """
+        selection_id = None
+        for input_quantity in self._input_quantities:
+            if selection_id is None:
+                selection_id = input_quantity.selection_id()
+            elif input_quantity.selection_id() is not None and selection_id != input_quantity.selection_id():
+                return None
+        return selection_id
 
     def _check_selection_ids(self):
         """
@@ -90,6 +104,8 @@ class Quantity:
             self._additional_params['level_id'] = 0
         if 'i_chunk' in sig_params:
             self._additional_params['i_chunk'] = 0
+        if 'chunk_spec' in sig_params:
+            self._additional_params['chunk_spec'] = None
 
     def selection_id(self):
         """
@@ -97,7 +113,7 @@ class Quantity:
         :return: List[int]
         """
         if self._selection_id is not None:
-            return id(self)
+            return self._selection_id
         else:
             if self._storage is None:
                 self._storage = self.get_quantity_storage()
@@ -128,11 +144,15 @@ class Quantity:
         :return: np.ndarray or None
         """
         chunks_quantity_level = [q.samples(chunk_spec) for q in self._input_quantities]
-        if not self._additional_params:  # dictionary is empty
+
+        if bool(self._additional_params):  # dictionary is empty
             if 'level_id' in self._additional_params:
                 self._additional_params['level_id'] = chunk_spec.level_id
             if 'i_chunk' in self._additional_params:
                 self._additional_params['i_chunk'] = chunk_spec.chunk_id
+            if 'chunk_spec' in self._additional_params:
+                self._additional_params['chunk_spec'] = chunk_spec
+
         return self._operation(*chunks_quantity_level, **self._additional_params)
 
     def _reduction_op(self, quantities, operation):
@@ -295,19 +315,6 @@ class Quantity:
             return self._process_mask(x, y, operator.ne, level_id)
         return self._mask_quantity(other, ne_op)
 
-    def sampling(self, size):
-        """
-        Random sampling
-        :param size: number of samples
-        :return: np.ndarray
-        """
-        def mask_gen(x, *args):
-            indices = np.random.choice(x.shape[1], size=size)
-            mask = np.zeros(x.shape[1], bool)
-            mask[indices] = True
-            return mask
-        return self._mask_quantity(size, mask_gen)
-
     def subsample(self, sample_vec):
         """
         Random subsampling
@@ -321,16 +328,17 @@ class Quantity:
         for level_id in self.get_quantity_storage().level_ids():
             rnd_indices[level_id] = np.sort(np.random.choice(n_collected[level_id], size=sample_vec[level_id]))
 
-        def mask_gen(x, level_id, i_chunk, *args):
-            chunks_info = quantity_storage.get_chunks_info(level_id, i_chunk)  # start and end index in collected values
+        def mask_gen(x, chunk_spec):
+            chunks_info = quantity_storage.get_chunks_info(chunk_spec)  # start and end index in collected values
             chunk_indices = list(range(*chunks_info))
             indices = np.intersect1d(rnd_indices[level_id], chunk_indices)
             final_indices = np.where(np.isin(chunk_indices, indices))[0]
             mask = np.zeros(x.shape[1], bool)
-
-            mask[final_indices] = True
+            mask[final_indices[:x.shape[1]]] = True
             return mask
-        return self._mask_quantity(0, mask_gen)
+
+        return Quantity(quantity_type=qt.QType.replace_scalar(self.qtype, qt.BoolType()),
+                        input_quantities=[self], operation=mask_gen)
 
     def __getitem__(self, key):
         """
@@ -680,17 +688,15 @@ class QuantityStorage(Quantity):
     def samples(self, chunk_spec):
         """
         Get results for given level id and chunk id
-        :param level_id: int
-        :param i_chunk: int
-        :param n_samples: int, number of retrieved samples
+        :param chunk_spec: mlmc.quantity_spec.ChunkSpec instance
         :return: Array[M, chunk size, 2]
         """
         level_chunk = self._storage.sample_pairs_level(chunk_spec)  # Array[M, chunk size, 2]
         assert self.qtype.size() == level_chunk.shape[0]
         return level_chunk
 
-    def get_chunks_info(self, level_id, i_chunk):
-        return self._storage.get_chunks_info(level_id, i_chunk)
+    def get_chunks_info(self, chunk_spec):
+        return self._storage.get_chunks_info(chunk_spec)
 
     def n_collected(self):
         return self._storage.get_n_collected()

@@ -379,17 +379,17 @@ class LevelGroup:
                         n_items = self._chunk_size_items[chunk_spec.chunk_size] = int(np.ceil(chunk_spec.chunk_size / item_byte_size)) \
                             if int(np.ceil(chunk_spec.chunk_size / item_byte_size)) < len(dataset[()]) else len(dataset[()])
 
-                    self._chunks_info[chunk_spec.chunk_id] = [chunk_spec.chunk_id * n_items, (chunk_spec.chunk_id + 1) * n_items]
+                    self._chunks_info[chunk_spec] = [chunk_spec.chunk_id * n_items, (chunk_spec.chunk_id + 1) * n_items]
                     return dataset[chunk_spec.chunk_id * n_items: (chunk_spec.chunk_id + 1) * n_items]
             return dataset[()]
 
-    def get_chunks_info(self, i_chunk):
+    def get_chunks_info(self, chunk_spec):
         """
         The start and end index of a chunk from a whole dataset point of view
-        :param i_chunk: id of chunk
+        :param chunk_spec: ChunkSpec instance
         :return: List[int, int]
         """
-        return self._chunks_info[i_chunk]
+        return self._chunks_info[chunk_spec]
 
     def collected_n_items(self):
         """
