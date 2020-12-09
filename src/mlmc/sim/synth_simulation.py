@@ -205,9 +205,11 @@ class SynthSimulationWorkspace(SynthSimulation):
         config["coarse"]["step"] = coarse_level_params[0]
         config["res_format"] = self.result_format()
 
+        job_weight = 20000
+
         return LevelSimulation(config_dict=config,
                                common_files=[self.config_yaml],
-                               task_size=self.n_ops_estimate(fine_level_params[0]),
+                               task_size=1.0 / job_weight,
                                need_sample_workspace=self.need_workspace)
 
     @staticmethod

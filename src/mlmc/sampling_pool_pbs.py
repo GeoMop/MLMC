@@ -198,7 +198,7 @@ class SamplingPoolPBS(SamplingPool):
 
         self._n_samples_in_job += 1
         self._current_job_weight += level_sim.task_size
-        if self._current_job_weight > 1:
+        if self._current_job_weight > 1 or self._n_samples_in_job > 1000:
             self.execute()
 
     def serialize_level_sim(self, level_sim: LevelSimulation):

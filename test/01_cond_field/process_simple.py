@@ -1,6 +1,8 @@
 import os
 import sys
 import numpy as np
+import gstools
+import time
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
@@ -8,8 +10,11 @@ from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.tool.flow_mc import FlowSim
 from mlmc.moments import Legendre, Monomial
 from mlmc.tool.process_base import ProcessBase
+from mlmc.random import correlated_field as cf
 from mlmc.quantity_estimate import QuantityEstimate
-from mlmc.quantity_concept import make_root_quantity, estimate_mean, moment, moments, covariance
+from mlmc.quantity import make_root_quantity, estimate_mean, moment, moments, covariance
+import mlmc.estimator as new_estimator
+import mlmc.tool.simple_distribution
 
 
 class ProcessSimple:
@@ -26,14 +31,25 @@ class ProcessSimple:
         # 'Debug' mode is on - keep sample directories
         self.use_pbs = True
         # Use PBS sampling pool
-        self.n_levels = 2
+        self.n_levels = 1
+        self.n_moments = 5
         # Number of MLMC levels
 
-        step_range = [1, 0.01]
+        step_range = [1, 0.005]
+        # step   - elements
+        # 0.1    - 262
+        # 0.08   - 478
+        # 0.06   - 816
+        # 0.055  - 996
+        # 0.005  - 106056
+        # 0.004  - 165404
+        # 0.0035 - 217208
+
         # step_range [simulation step at the coarsest level, simulation step at the finest level]
 
         # Determine level parameters at each level (In this case, simulation step at each level) are set automatically
         self.level_parameters = ProcessSimple.determine_level_parameters(self.n_levels, step_range)
+
         # Determine number of samples at each level
         self.n_samples = ProcessSimple.determine_n_samples(self.n_levels)
 
@@ -61,9 +77,8 @@ class ProcessSimple:
         # @TODO: How to estimate true_domain?
         true_domain = list(QuantityEstimate.estimate_domain(sample_storage, quantile=0.01))
 
-        n_moments = 10
         #moments_fn = Legendre(n_moments, true_domain)
-        moments_fn = Monomial(n_moments, true_domain)
+        moments_fn = Monomial(self.n_moments, true_domain)
 
         moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
         moments_mean = estimate_mean(moments_quantity)
@@ -76,12 +91,56 @@ class ProcessSimple:
         assert value_mean() == 1
 
         true_domain = [-10, 10]  # keep all values on the original domain
-        central_moments_fn = Monomial(n_moments, true_domain, ref_domain=true_domain, mean=means())
+        central_moments_fn = Monomial(self.n_moments, true_domain, ref_domain=true_domain, mean=means())
         central_moments_quantity = moments(root_quantity, moments_fn=central_moments_fn, mom_at_bottom=True)
         central_moments_mean = estimate_mean(central_moments_quantity)
 
         print("central moments mean ", central_moments_mean())
         print("moments mean ", moments_mean())
+
+        self.construct_density(root_quantity, moments_fn)
+
+    def construct_density(self, quantity, moments_fn, tol=1.95, reg_param=0.01):
+        """
+        Construct approximation of the density using given moment functions.
+        Args:
+            moments_fn: Moments object, determines also domain and n_moments.
+            tol: Tolerance of the fitting problem, with account for variances in moments.
+                 Default value 1.95 corresponds to the two tail confidency 0.95.
+            reg_param: Regularization parameter.
+        """
+        cov = estimate_mean(covariance(quantity, moments_fn))
+
+        conductivity_cov = cov['conductivity']
+        time_cov = conductivity_cov[1]  # times: [1]
+        location_cov = time_cov['0']  # locations: ['0']
+        values_cov = location_cov[0, 0]  # result shape: (1, 1)
+        cov = values_cov()
+
+        moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(moments_fn, cov, tol=0.0001)
+        print("n levels: ", self.n_levels, "size: ", moments_obj.size)
+        #est_moments, est_vars = self.estimate_moments(moments_obj)
+        moments_mean = estimate_mean(moments(quantity, moments_obj))
+        est_moments = moments_mean.mean()
+        est_vars = moments_mean.var()
+
+        print("est moments ", est_moments)
+        print("est vars ", est_vars)
+        #est_moments = np.zeros(moments_obj.size)
+        #est_moments[0] = 1.0
+        est_vars = np.ones(moments_obj.size)
+        min_var, max_var = np.min(est_vars[1:]), np.max(est_vars[1:])
+        print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
+        moments_data = np.stack((est_moments, est_vars), axis=1)
+        distr_obj = mlmc.tool.simple_distribution.SimpleDistribution(moments_obj, moments_data, domain=moments_obj.domain)
+        distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
+
+        self._distribution = distr_obj
+
+        distr_plot = mlmc.tool.plot.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
+        distr_plot.add_distribution(distr_obj, label="#{}".format(self.n_moments))
+        distr_plot.show(None)#file="{} levels, {} moments_pdf".format(self.n_levels, self.n_moments))
+        distr_plot.reset()
 
     def run(self, renew=False):
         """
@@ -100,8 +159,8 @@ class ProcessSimple:
         # Create sampler (mlmc.Sampler instance) - crucial class which actually schedule samples
         sampler = self.setup_config(clean=True)
         # Schedule samples
-        self.generate_jobs(sampler, n_samples=[10, 10], renew=renew)
-
+        self.generate_jobs(sampler, n_samples=None, renew=renew, target_var=1e-5)
+        #self.generate_jobs(sampler, n_samples=[500, 500], renew=renew, target_var=1e-5)
         self.all_collect(sampler)  # Check if all samples are finished
         self.calculate_moments(sampler)  # Simple moment check
 
@@ -122,6 +181,7 @@ class ProcessSimple:
             'env': dict(flow123d=self.flow123d, gmsh=self.gmsh, gmsh_version=1),  # The Environment.
             'yaml_file': os.path.join(self.work_dir, '01_conductivity.yaml'),
             'geo_file': os.path.join(self.work_dir, 'square_1x1.geo'),
+            'fields_params': dict(model='TPLgauss'),
             'field_template': "!FieldElementwise {mesh_data_file: \"$INPUT_DIR$/%s\", field_name: %s}"
         }
 
@@ -179,9 +239,9 @@ class ProcessSimple:
             n_cores=1,
             n_nodes=1,
             select_flags=['cgroups=cpuacct'],
-            mem='1Gb',
-            queue='charon_2h',
-            pbs_name='MLMC_test',
+            mem='4Gb',
+            queue='charon',
+            pbs_name='flow123d',
             walltime='1:00:00',
             optional_pbs_requests=[],  # e.g. ['#PBS -m ae', ...]
             home_dir='/storage/liberec3-tul/home/martin_spetlik/',
@@ -200,7 +260,7 @@ class ProcessSimple:
 
         return sampling_pool
 
-    def generate_jobs(self, sampler, n_samples=None, renew=False):
+    def generate_jobs(self, sampler, n_samples=None, renew=False, target_var=None):
         """
         Generate level samples
         :param n_samples: None or list, number of samples for each level
@@ -214,8 +274,46 @@ class ProcessSimple:
         else:
             if n_samples is not None:
                 sampler.set_initial_n_samples(n_samples)
+            else:
+                sampler.set_initial_n_samples()
             sampler.schedule_samples()
             sampler.ask_sampling_pool_for_samples(sleep=self.sample_sleep, timeout=self.sample_timeout)
+
+            if target_var is not None:
+                start_time = time.time()
+                self.all_collect(sampler)
+
+                moments_fn = self.set_moments(sampler.sample_storage)
+
+                q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
+                                               sim_steps=self.level_parameters)
+                target_var = 1e-5
+                sleep = 0
+                add_coef = 0.1
+
+                # @TODO: test
+                # New estimation according to already finished samples
+                variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+                n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                                   n_levels=sampler.n_levels)
+
+                # Loop until number of estimated samples is greater than the number of scheduled samples
+                while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
+                    with open(os.path.join(self.work_dir, "sampling_info.txt"), "a") as writer:
+                        n_target_str = ",".join([str(n_target) for n_target in sampler._n_target_samples])
+                        n_scheduled_str = ",".join([str(n_scheduled) for n_scheduled in sampler._n_scheduled_samples])
+                        n_estimated_str = ",".join([str(n_est) for n_est in n_estimated])
+                        variances_str = ",".join([str(vars) for vars in variances])
+                        n_ops_str = ",".join([str(n_o) for n_o in n_ops])
+
+                        writer.write("{}; {}; {}; {}; {}; {}\n".format(n_target_str, n_scheduled_str,
+                                                                   n_estimated_str, variances_str,
+                                                                   n_ops_str, str(time.time() - start_time)))
+
+                    # New estimation according to already finished samples
+                    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+                    n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                                       n_levels=sampler.n_levels)
 
     def all_collect(self, sampler):
         """

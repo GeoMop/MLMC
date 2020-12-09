@@ -8,6 +8,7 @@ import shutil
 import copy
 import yaml
 from typing import List
+import gstools
 from mlmc.level_simulation import LevelSimulation
 from mlmc.tool import gmsh_io
 from mlmc.sim.simulation import Simulation
@@ -15,13 +16,33 @@ from mlmc.sim.simulation import QuantitySpec
 from mlmc.random import correlated_field as cf
 
 
-def create_corr_field():
+def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True):
     """
     Create random fields
     :return:
     """
+    len_scale = corr_length * 2 * np.pi
+    # Random points gauss model
+
+    if model == 'fourier':
+        return cf.Fields([
+            cf.Field('conductivity', cf.FourierSpatialCorrelatedField('gauss', dim=dim,
+                                                                      corr_length=corr_length, log=log)),
+        ])
+
+    if model == 'exp':
+        model = gstools.Exponential(dim=dim, len_scale=len_scale)
+    elif model == 'TPLgauss':
+        model = gstools.TPLGaussian(dim=dim, len_scale=len_scale)
+    elif model == 'TPLexp':
+        model = gstools.TPLExponential(dim=dim, len_scale=len_scale)
+    elif model == 'TPLStable':
+        model = gstools.TPLStable(dim=dim, len_scale=len_scale)
+    else:
+        model = gstools.Gaussian(dim=dim, len_scale=len_scale)
+
     return cf.Fields([
-        cf.Field('conductivity', cf.FourierSpatialCorrelatedField('gauss', dim=2, corr_length=0.125, log=True)),
+        cf.Field('conductivity', cf.GSToolsSpatialCorrelatedField(model, log=log)),
     ])
 
 
@@ -106,7 +127,9 @@ class FlowSim(Simulation):
         # This simulation requires workspace
         self.env = config['env']
         # Environment variables, flow123d, gmsh, ...
-        self._fields = create_corr_field()
+        self._fields_params = config['fields_params']
+        self._fields = create_corr_field(config['fields_params'])
+        self._fields_used_params = None
         # Random fields instance
         self.time_factor = config.get('time_factor', 1.0)
         # It is used for minimal element from mesh determination (see level_instance method)
@@ -140,9 +163,10 @@ class FlowSim(Simulation):
         common_files_dir = os.path.join(self.work_dir, "l_step_{}_common_files".format(fine_step))
         force_mkdir(common_files_dir, force=self.clean)
 
+        self.mesh_file = os.path.join(common_files_dir, self.MESH_FILE)
+
         if self.clean:
             # Prepare mesh
-            self.mesh_file = os.path.join(common_files_dir, self.MESH_FILE)
             geo_file = os.path.join(common_files_dir, self.GEO_FILE)
             shutil.copyfile(self.base_geo_file, geo_file)
             self._make_mesh(geo_file, self.mesh_file, fine_step)  # Common computational mesh for all samples.
@@ -150,8 +174,8 @@ class FlowSim(Simulation):
             # Prepare main input YAML
             yaml_template = os.path.join(common_files_dir, self.YAML_TEMPLATE)
             shutil.copyfile(self.base_yaml_file, yaml_template)
-            self.yaml_file = os.path.join(common_files_dir, self.YAML_FILE)
-            self._substitute_yaml(yaml_template, self.yaml_file)
+            yaml_file = os.path.join(common_files_dir, self.YAML_FILE)
+            self._substitute_yaml(yaml_template, yaml_file)
 
         # Mesh is extracted because we need number of mesh points to determine task_size parameter (see return value)
         fine_mesh_data = self.extract_mesh(self.mesh_file)
@@ -176,9 +200,10 @@ class FlowSim(Simulation):
         config["fields_used_params"] = self._fields_used_params  # Params for Fields instance, which is createed in PbsJob
         config["gmsh"] = self.env['gmsh']
         config["flow123d"] = self.env['flow123d']
+        config['fields_params'] = self._fields_params
 
         # Auxiliary parameter which I use to determine task_size (should be from 0 to 1, if task_size is above 1 then pbs job is scheduled)
-        job_weight = 200000
+        job_weight = 17000000  # 4000000 - 20 min, 2000000 - cca 10 min
 
         return LevelSimulation(config_dict=config,
                                task_size=len(fine_mesh_data['points'])/job_weight,
@@ -196,7 +221,7 @@ class FlowSim(Simulation):
         :return: List[fine result, coarse result], both flatten arrays (see mlmc.sim.synth_simulation.calculate())
         """
         # Init correlation field objects
-        fields = create_corr_field()  # correlated_field.Fields instance
+        fields = create_corr_field(config['fields_params'])  # correlated_field.Fields instance
         fields.set_outer_fields(config["fields_used_params"])
 
         coarse_step = config["coarse"]["step"]  # Coarse simulation step, zero if one level MC

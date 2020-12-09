@@ -104,10 +104,13 @@ class Moments:
             else:
                 value[...] = value[...] - self.mean[:, None, None]
         else:
-            if np.all(value[..., 1]) == 0:
-                value[..., 0] = value[..., 0] - self.mean
+            if isinstance(value, (float, int)):
+                value = value - self.mean
             else:
-                value[...] = value[...] - self.mean
+                if np.all(value[..., 1]) == 0:
+                    value[..., 0] = value[..., 0] - self.mean
+                else:
+                    value[...] = value[...] - self.mean
 
         return value
 
@@ -199,6 +202,7 @@ class TransformedMoments(Moments):
         n, m = matrix.shape
         assert m == other_moments.size
 
+        self.mean = 0
         self.size = n
         self.domain = other_moments.domain
 

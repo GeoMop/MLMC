@@ -7,15 +7,16 @@ from scipy import stats
 from mlmc.sim.simulation import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc import quantity_concept as q
-from mlmc.quantity_concept import make_root_quantity, estimate_mean, moment, moments, covariance
-from mlmc.quantity_concept import Quantity, QuantityStorage, DictType, QuantityConst, ScalarType
+from mlmc import quantity as q
+from mlmc.quantity import make_root_quantity, estimate_mean, moment, moments, covariance
+from mlmc.quantity import Quantity, QuantityStorage, DictType, QuantityConst, ScalarType
 from mlmc.sampler import Sampler
 from mlmc.moments import Legendre, Monomial
 from mlmc.quantity_estimate import QuantityEstimate
 from mlmc.sampling_pool import OneProcessPool, ProcessPool
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
 from test.synth_sim_for_tests import SynthSimulationForTests
+import mlmc.estimator as new_estimator
 
 
 def _prepare_work_dir():
@@ -289,8 +290,8 @@ class QuantityTests(unittest.TestCase):
         root_quantity_comp_mean = estimate_mean(root_quantity_comp)
         assert len(root_quantity_comp_mean()) == 0
 
-        #new_quantity = selected_quantity + root_quantity
-        #self.assertRaises(AssertionError, (selected_quantity + root_quantity))
+        # new_quantity = selected_quantity + root_quantity
+        # self.assertRaises(AssertionError, (selected_quantity + root_quantity))
 
         # bound root quantity result - select the ones which meet conditions
         mask = np.logical_and(0 < root_quantity, root_quantity < 10)
@@ -304,7 +305,7 @@ class QuantityTests(unittest.TestCase):
         quantity_add = root_quantity + root_quantity
         q_add_bounded = quantity_add.select(0 < quantity_add, quantity_add < 20)
         means_add_bounded = estimate_mean(q_add_bounded)
-        assert np.allclose((means_add_bounded()), mean_q_bounded_2()*2)
+        assert np.allclose((means_add_bounded()), mean_q_bounded_2() * 2)
 
         q_bounded = root_quantity.select(10 < root_quantity, root_quantity < 20)
         mean_q_bounded = estimate_mean(q_bounded)
@@ -407,7 +408,7 @@ class QuantityTests(unittest.TestCase):
         x = np.ones(108)
         add_one_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.
         add_one_root_quantity_means = estimate_mean(add_one_root_quantity)
-        assert np.allclose(root_quantity_means() + np.ones((108,)), add_one_root_quantity_means())
+        assert np.allclose(root_quantity_means() + np.ones(108,), add_one_root_quantity_means())
 
         x = np.ones((108, 5, 2))
         self.assertRaises(ValueError, np.divide, x, root_quantity)
@@ -527,10 +528,20 @@ class QuantityTests(unittest.TestCase):
         """
         np.random.seed(1234)
         n_moments = 3
-        step_range = [[0.1], [0.001]]
+        step_range = [0.5, 0.01]
+        n_levels = 2
+
+        assert step_range[0] > step_range[1]
+        level_parameters = []
+        for i_level in range(n_levels):
+            if n_levels == 1:
+                level_param = 1
+            else:
+                level_param = i_level / (n_levels - 1)
+            level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
 
         clean = True
-        sampler, simulation_factory = self._create_sampler(step_range, clean=clean)
+        sampler, simulation_factory = self._create_sampler(level_parameters, clean=clean)
 
         distr = stats.norm()
         true_domain = distr.ppf([0.0001, 0.9999])
@@ -542,7 +553,24 @@ class QuantityTests(unittest.TestCase):
         sampler.ask_sampling_pool_for_samples()
 
         q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
-                                       sim_steps=step_range)
+                                       sim_steps=level_parameters)
+        target_var = 1e-2
+        sleep = 0
+        add_coef = 0.1
+
+        # @TODO: test
+        # New estimation according to already finished samples
+        variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+        n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                           n_levels=sampler.n_levels)
+
+        # Loop until number of estimated samples is greater than the number of scheduled samples
+        while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
+            # New estimation according to already finished samples
+            variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+            n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                               n_levels=sampler.n_levels)
+
         means, vars = q_estimator.estimate_moments(moments_fn)
 
         sampler.sample_storage.chunk_size = 1024

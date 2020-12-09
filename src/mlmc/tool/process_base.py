@@ -59,7 +59,7 @@ class ProcessBase:
 
         mlmc_list = []
         for nl in [1]:  # , 2, 3, 4,5, 7, 9]:
-            mlmc = self.setup_config(nl, clean=True)
+            mlmc = self.setup_config(nl, clean=self.clean)
             self.generate_jobs(mlmc, n_samples=[8], sample_sleep=self.sample_sleep, sample_timeout=self.sample_timeout)
             mlmc_list.append(mlmc)
 
