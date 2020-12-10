@@ -1,10 +1,11 @@
 import numpy as np
 import numpy.ma as ma
+from scipy.interpolate import BSpline
 
 
 class Moments:
     """
-    Class for moments of random distribution
+    Class for _moments_fn of random distribution
     """
     def __init__(self, size, domain, log=False, safe_eval=True, mean=0):
         assert size > 0
@@ -51,7 +52,7 @@ class Moments:
     def change_size(self, size):
         """
         Return moment object with different size.
-        :param size: int, new number of moments
+        :param size: int, new number of _moments_fn
         """
         return self.__class__(size, self.domain, self._is_log, self._is_clip)
 
@@ -94,10 +95,12 @@ class Moments:
             size = self.size
 
         value = self._center(value)
-
         return self._eval_all(value, size)
 
     def _center(self, value):
+        if isinstance(value, (int, float)):
+            return value - self.mean
+
         if not isinstance(self.mean, int):
             if np.all(value[..., 1]) == 0:
                 value[..., 0] = value[..., 0] - self.mean[:, None]
@@ -113,6 +116,24 @@ class Moments:
                     value[...] = value[...] - self.mean
 
         return value
+
+    def eval_all_der(self, value, size=None, degree=1):
+        value = self._center(value)
+        if size is None:
+            size = self.size
+        return self._eval_all_der(value, size, degree)
+
+    def eval_diff(self, value, size=None):
+        value = self._center(value)
+        if size is None:
+            size = self.size
+        return self._eval_diff(value, size)
+
+    def eval_diff2(self, value, size=None):
+        value = self._center(value)
+        if size is None:
+            size = self.size
+        return self._eval_diff2(value, size)
 
 
 class Monomial(Moments):
@@ -147,7 +168,7 @@ class Fourier(Moments):
         # Transform values
         t = self.transform(np.atleast_1d(value))
 
-        # Half the number of moments
+        # Half the number of _moments_fn
         R = int(size / 2)
         shorter_sin = 1 - int(size % 2)
         k = np.arange(1, R + 1)
@@ -180,37 +201,220 @@ class Legendre(Moments):
         else:
             self.ref_domain = (-1, 1)
 
+        self.diff_mat = np.zeros((size, size))
+        for n in range(size - 1):
+            self.diff_mat[n, n + 1::2] = 2 * n + 1
+        self.diff2_mat = self.diff_mat @ self.diff_mat
+
         self.mean = mean
         super().__init__(size, domain, log, safe_eval, mean)
 
+    def _eval_value(self, x, size):
+        return np.polynomial.legendre.legvander(x, deg=size-1)
+
     def _eval_all(self, value, size):
+        value = self.transform(np.atleast_1d(value))
+        return np.polynomial.legendre.legvander(value, deg=size - 1)
+
+    def _eval_all_der(self, value, size, degree=1):
+        """
+        Derivative of Legendre polynomials
+        :param value: values to evaluate
+        :param size: number of _moments_fn
+        :param degree: degree of derivative
+        :return:
+        """
+        value = self.transform(np.atleast_1d(value))
+        eval_values = np.empty((value.shape + (size,)))
+
+        for s in range(size):
+            if s == 0:
+                coef = [1]
+            else:
+                coef = np.zeros(s+1)
+                coef[-1] = 1
+
+            coef = np.polynomial.legendre.legder(coef, degree)
+            eval_values[:, s] = np.polynomial.legendre.legval(value, coef)
+        return eval_values
+
+    def _eval_diff(self, value, size):
         t = self.transform(np.atleast_1d(value))
-        return np.polynomial.legendre.legvander(t, deg=size - 1)
+        P_n = np.polynomial.legendre.legvander(t, deg=size - 1)
+        return P_n @ self.diff_mat
+
+    def _eval_diff2(self, value, size):
+        t = self.transform(np.atleast_1d(value))
+        P_n = np.polynomial.legendre.legvander(t, deg=size - 1)
+        return P_n @ self.diff2_mat
+
+
+class BivariateMoments:
+    def __init__(self, moment_x, moment_y):
+        self.moment_x = moment_x
+        self.moment_y = moment_y
+        assert self.moment_y.size == self.moment_x.size
+
+        self.size = self.moment_x.size
+        self.domain = [self.moment_x.domain, self.moment_y.domain]
+
+    def eval_value(self, value):
+        x, y = value
+        results = np.empty((self.size, self.size))
+        for i in range(self.size):
+            for j in range(self.size):
+                results[i, j] = np.squeeze(self.moment_x(x))[i] * np.squeeze(self.moment_y(y))[j]
+
+        return results
+
+    def eval_all(self, value):
+        results, x, y = self._preprocess_value(value)
+        for i in range(self.size):
+            for j in range(self.size):
+                results[:, i, j] = np.squeeze(self.moment_x(x))[:, i] * np.squeeze(self.moment_y(y))[:, j]
+        return results
+
+    def eval_all_der(self, value, degree=1):
+        results, x, y = self._preprocess_value(value)
+
+        for i in range(self.size):
+            for j in range(self.size):
+                results[:, i, j] = np.squeeze(self.moment_x.eval_all_der(x, degree=degree))[:, i] *\
+                                   np.squeeze(self.moment_y.eval_all_der(y, degree=degree))[:, j]
+        return results
+
+    def _preprocess_value(self, value):
+        if not isinstance(value[0], (list, tuple, np.ndarray)):
+            return self.eval_value(value)
+        value = np.array(value)
+        x = value[0, :]
+        y = value[1, :]
+        return np.empty((len(value[0]), self.size, self.size)), x, y
+
+
+class Spline(Moments):
+
+    def __init__(self, size, domain, log=False, safe_eval=True):
+        self.ref_domain = domain
+        self.poly_degree = 3
+        self.polynomial = None
+
+        super().__init__(size, domain, log, safe_eval)
+
+        self._generate_knots(size)
+        self._generate_splines()
+
+    def _generate_knots(self, size=2):
+        """
+        Code from bgem
+        """
+        knot_range = self.ref_domain
+        degree = self.poly_degree
+        n_intervals = size
+        n = n_intervals + 2 * degree + 1
+        knots = np.array((knot_range[0],) * n)
+        diff = (knot_range[1] - knot_range[0]) / n_intervals
+        for i in range(degree + 1, n - degree):
+            knots[i] = (i - degree) * diff + knot_range[0]
+        knots[-degree - 1:] = knot_range[1]
+        self.knots = knots
+
+    def _generate_splines(self):
+        self.splines = []
+        if len(self.knots) <= self.size:
+            self._generate_knots(self.size)
+        for i in range(self.size-1):
+            c = np.zeros(len(self.knots))
+            c[i] = 1
+            self.splines.append(BSpline(self.knots, c, self.poly_degree))
+
+    def _eval_value(self, x, size):
+        values = np.zeros(size)
+        index = 0
+        values[index] = 1
+        for spline in self.splines:
+            index += 1
+            if index >= size:
+                break
+            values[index] = spline(x)
+        return values
+
+    def _eval_all(self, x, size):
+        x = self.transform(np.atleast_1d(x))
+
+        if len(x.shape) == 1:
+            values = np.zeros((size, len(x)))
+            transpose_tuple = (1, 0)
+            values[0] = np.ones(len(x))
+            index = 0
+
+        elif len(x.shape) == 2:
+            values = np.zeros((size, x.shape[0], x.shape[1]))
+            transpose_tuple = (1, 2, 0)
+            values[0] = np.ones((x.shape[0], x.shape[1]))
+            index = 0
+
+        x = np.array(x, copy=False, ndmin=1) + 0.0
+
+        for spline in self.splines:
+            index += 1
+            if index >= size:
+                break
+            values[index] = spline(x)
+
+        return values.transpose(transpose_tuple)
+
+    def _eval_all_der(self, x, size, degree=1):
+        """
+        Derivative of Legendre polynomials
+        :param x: values to evaluate
+        :param size: number of _moments_fn
+        :param degree: degree of derivative
+        :return:
+        """
+        x = self.transform(np.atleast_1d(x))
+
+        if len(x.shape) == 1:
+            values = np.zeros((size, len(x)))
+            transpose_tuple = (1, 0)
+            values[0] = np.zeros(len(x))
+            index = 0
+
+        elif len(x.shape) == 2:
+            values = np.zeros((size, x.shape[0], x.shape[1]))
+            transpose_tuple = (1, 2, 0)
+            values[0] = np.zeros((x.shape[0], x.shape[1]))
+            index = 0
+
+        x = np.array(x, copy=False, ndmin=1) + 0.0
+
+        for spline in self.splines:
+            index += 1
+            if index >= size:
+                break
+            values[index] = (spline.derivative(degree))(x)
+        return values.transpose(transpose_tuple)
 
 
 class TransformedMoments(Moments):
-    def __init__(self, other_moments, matrix):
+    def __init__(self, other_moments, matrix, mean=0):
         """
         Set a new moment functions as linear combination of the previous.
         new_moments = matrix . old_moments
 
         We assume that new_moments[0] is still == 1. That means
         first row of the matrix must be (1, 0 , ...).
-        :param other_moments: Original moments.
-        :param matrix: Linear combinations of the original moments.
+        :param other_moments: Original _moments_fn.
+        :param matrix: Linear combinations of the original _moments_fn.
         """
         n, m = matrix.shape
         assert m == other_moments.size
-
         self.mean = 0
         self.size = n
         self.domain = other_moments.domain
-
+        self.mean = mean
         self._origin = other_moments
         self._transform = matrix
-        #self._inv = inv
-        #assert np.isclose(matrix[0, 0], 1) and np.allclose(matrix[0, 1:], 0)
-        # TODO: find last nonzero for every row to compute which origianl moments needs to be evaluated for differrent sizes.
 
     def __eq__(self, other):
         return type(self) is type(other) \
@@ -221,5 +425,52 @@ class TransformedMoments(Moments):
     def _eval_all(self, value, size):
         orig_moments = self._origin._eval_all(value, self._origin.size)
         x1 = np.matmul(orig_moments, self._transform.T)
-        #x2 = np.linalg.solve(self._inv, orig_moments.T).T
-        return x1[:, :size]
+        return x1[..., :size]
+
+    def _eval_all_der(self, value, size, degree=1):
+        orig_moments = self._origin._eval_all_der(value, self._origin.size, degree=degree)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        return x1[..., :size]
+
+    def _eval_diff(self, value, size):
+        orig_moments = self._origin.eval_diff(value, self._origin.size)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        return x1[..., :size]
+
+    def _eval_diff2(self, value, size):
+        orig_moments = self._origin.eval_diff2(value, self._origin.size)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        return x1[..., :size]
+
+
+class TransformedMomentsDerivative(Moments):
+    def __init__(self, other_moments, matrix, degree=2, mean=0):
+        """
+        Set a new moment functions as linear combination of the previous.
+        new_moments = matrix . old_moments
+
+        We assume that new_moments[0] is still == 1. That means
+        first row of the matrix must be (1, 0 , ...).
+        :param other_moments: Original _moments_fn.
+        :param matrix: Linear combinations of the original _moments_fn.
+        """
+        n, m = matrix.shape
+        assert m == other_moments.size
+        self.size = n
+        self.domain = other_moments.domain
+        self.mean = mean
+        self._origin = other_moments
+        self._transform = matrix
+        self._degree = degree
+
+    def __eq__(self, other):
+        return type(self) is type(other) \
+                and self.size == other.size \
+                and self._origin == other._origin \
+                and np.all(self._transform == other._transform)
+
+    def _eval_all(self, value, size):
+        value = np.squeeze(value)
+        orig_moments = self._origin._eval_all_der(value, self._origin.size, degree=self._degree)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        return x1[..., :size]
