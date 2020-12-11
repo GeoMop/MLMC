@@ -1,5 +1,6 @@
 import numpy as np
 import h5py
+import warnings
 
 
 class HDF5:
@@ -102,17 +103,6 @@ class HDF5:
             # Create h5py.Group Levels, it contains other groups with mlmc.Level data
             hdf_file.create_group("Levels")
 
-    # def save_workspace_attrs(self, work_dir, job_dir):
-    #     """
-    #     Save workspace information to header
-    #     :param work_dir: str
-    #     :param job_dir: str
-    #     :return: None
-    #     """
-    #     with h5py.File(self.file_name, "a") as hdf_file:
-    #         hdf_file.attrs['work_dir'] = work_dir
-    #         hdf_file.attrs['job_dir'] = job_dir
-
     def add_level_group(self, level_id):
         """
         Create group for particular level, parent group is 'Levels'
@@ -157,6 +147,8 @@ class HDF5:
                     dtype=result_format_dtype,
                     maxshape=(None,),
                     chunks=True)
+            else:
+                warnings.warn('Be careful, you are setting the new result format for an existing sample storage')
 
         # Format data
         result_array = np.empty((len(result_format),), dtype=result_format_dtype)
@@ -184,6 +176,13 @@ class HDF5:
             dataset = hdf_file[self.result_format_dset_name]
             return dataset[()]
 
+    def load_level_parameters(self):
+        with h5py.File(self.file_name, "r") as hdf_file:
+            # Set global attributes to root group (h5py.Group)
+            if 'level_parameters' in hdf_file.attrs:
+                return hdf_file.attrs['level_parameters']
+            else:
+                return []
 
 class LevelGroup:
     # Row format for dataset (h5py.Dataset) scheduled
@@ -214,8 +213,6 @@ class LevelGroup:
         # Collected items in one chunk
         self._chunks_info = {}
         # Basic info about chunks, use in quantity subsampling
-        self._collected_n_items = None
-        # Number of samples in collected dataset
 
         # Set group attribute 'level_id'
         with h5py.File(self.file_name, 'a') as hdf_file:
@@ -395,13 +392,12 @@ class LevelGroup:
         Number of collected samples
         :return: int
         """
-        if self._collected_n_items is None:
-            with h5py.File(self.file_name, 'r') as hdf_file:
-                if 'collected_values' not in hdf_file[self.level_group_path]:
-                    return None
-                dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
-                self._collected_n_items = len(dataset[()])
-        return self._collected_n_items
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            if 'collected_values' not in hdf_file[self.level_group_path]:
+                return None
+            dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
+            collected_n_items = len(dataset[()])
+        return collected_n_items
 
     def get_finished_ids(self):
         """

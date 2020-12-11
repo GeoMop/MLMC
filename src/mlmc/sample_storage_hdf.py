@@ -2,7 +2,7 @@ import os
 import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.sim.simulation import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec
 import mlmc.tool.hdf5 as hdf
 
 
@@ -161,14 +161,12 @@ class SampleStorageHDF(SampleStorage):
         :return: np.ndarray
         """
         chunk_size = self.chunk_size
-
         if n_samples is None:
             chunk_size = None
-
         sample_pairs = self._level_groups[int(level_id)].collected(i_chunk, chunk_size=chunk_size, n_samples=n_samples)
         # Chunk is empty
         if len(sample_pairs) == 0:
-            raise StopIteration
+            return None
         return sample_pairs.transpose((2, 0, 1))  # [M, chunk size, 2]
 
     def n_finished(self):
@@ -237,7 +235,33 @@ class SampleStorageHDF(SampleStorage):
         return [int(level.level_id) for level in self._level_groups]
 
     def get_level_parameters(self):
-        return self._hdf_object.level_parameters
+        return self._hdf_object.load_level_parameters()
 
     def get_items_in_chunk(self, level_id):
-        return self._level_groups[level_id].get_items_in_chunk()
+        return self._level_groups[level_id].n_items_in_chunk
+
+    def get_chunks_info(self, level_id, i_chunk):
+        """
+        The start and end index of a chunk from a whole dataset point of view
+        :param level_id: level id
+        :param i_chunk: chunk id
+        :return: List[int, int]
+        """
+        return self._level_groups[level_id].get_chunks_info(i_chunk)
+
+    def get_n_collected(self):
+        """
+        Get number of collected samples at each level
+        :return: List
+        """
+        n_collected = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_collected[int(level.level_id)] = level.collected_n_items()
+        return n_collected
+
+    def get_n_levels(self):
+        """
+        Get number of levels
+        :return: int
+        """
+        return len(self._level_groups)

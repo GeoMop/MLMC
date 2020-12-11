@@ -2,7 +2,7 @@ import numpy as np
 from abc import ABCMeta
 from abc import abstractmethod
 from typing import List, Dict
-from mlmc.sim.simulation import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec
 
 
 class SampleStorage(metaclass=ABCMeta):
@@ -90,6 +90,27 @@ class SampleStorage(metaclass=ABCMeta):
         :return: int
         """
 
+    @abstractmethod
+    def get_n_levels(self):
+        """
+        Get number of levels
+        :return: int
+        """
+
+    @abstractmethod
+    def get_level_parameters(self):
+        """
+        Get level parameters
+        :return: list
+        """
+
+    @abstractmethod
+    def get_n_collected(self):
+        """
+        Get number of collected results at each evel
+        :return: list
+        """
+
     @property
     def chunk_size(self):
         return self._chunk_size
@@ -112,6 +133,8 @@ class Memory(SampleStorage):
         self._result_specification = []
         self._n_ops = {}
         self._n_finished = {}
+        self._level_parameters = []
+        super().__init__()
 
     def save_samples(self, successful_samples, failed_samples):
         """
@@ -124,6 +147,7 @@ class Memory(SampleStorage):
 
     def save_global_data(self, result_format, level_parameters=None):
         self.save_result_format(result_format)
+        self._level_parameters = level_parameters
 
     def _save_successful(self, samples):
         """
@@ -228,7 +252,7 @@ class Memory(SampleStorage):
         :return: np.ndarray
         """
         if i_chunk != 0:
-            raise StopIteration
+            return None
         if n_samples is not None:
             results = self._results[int(level_id)]
             n_samples = n_samples if n_samples < results.shape[0] else results.shape[0]
@@ -269,5 +293,39 @@ class Memory(SampleStorage):
     def get_level_ids(self):
         return list(self._results.keys())
 
+    def get_chunks_info(self, level_id, i_chunk):
+        """
+        The start and end index of a chunk from a whole dataset point of view
+        :param level_id: level id
+        :param i_chunk: chunk id
+        :return: List[int, int]
+        """
+        return [0, len(self._results[level_id])-1]
+
     def get_items_in_chunk(self, level_id):
+        """
+        Number of items in one chunk
+        :param level_id: level id
+        :return: int
+        """
         return len(self._results[level_id])
+
+    def get_n_collected(self):
+        """
+        Number of collected samples at each level
+        :return: List
+        """
+        n_collected = list(np.zeros(len(self._results)))
+        for level in self._results:
+            n_collected[int(level.level_id)] = level.collected_n_items()
+        return n_collected
+
+    def get_n_levels(self):
+        """
+        Get number of levels
+        :return: int
+        """
+        return len(self._results)
+
+    def get_level_parameters(self):
+        return self._level_parameters
