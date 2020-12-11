@@ -1,7 +1,7 @@
 import os
 import sys
 import shutil
-import yaml
+import ruamel.yaml as yaml
 import numpy as np
 from scipy import stats
 import argparse
