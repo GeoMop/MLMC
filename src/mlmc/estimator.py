@@ -2,6 +2,7 @@ import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
 from mlmc.tool import plot
+from mlmc.quantity_spec import ChunkSpec
 import mlmc.quantity_estimate as qe
 import mlmc.tool.simple_distribution
 
@@ -336,8 +337,8 @@ class Estimate:
             quantile = 0.01
 
         for level_id in range(sample_storage.get_n_levels()):
-            fine_samples = quantity.samples(level_id=level_id,
-                                                  n_samples=sample_storage.get_n_collected()[0])[..., 0]
+            fine_samples = quantity.samples(ChunkSpec(level_id=level_id,
+                                                  n_samples=sample_storage.get_n_collected()[0]))[..., 0]
 
             fine_samples = np.squeeze(fine_samples)
             ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
@@ -371,4 +372,5 @@ class Estimate:
         return distr_obj, info, result, moments_obj
 
     def get_level_samples(self, level_id):
-        return self._quantity.samples(level_id=level_id, n_samples=self._sample_storage.get_n_collected()[level_id])
+        return self._quantity.samples(ChunkSpec(level_id=level_id,
+                                                n_samples=self._sample_storage.get_n_collected()[level_id]))
