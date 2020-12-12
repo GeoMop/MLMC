@@ -5,7 +5,7 @@ import ruamel.yaml as yaml
 import numpy as np
 from scipy import stats
 import argparse
-# import pytest
+import pytest
 
 from mlmc.moments import Legendre
 from mlmc.sampler import Sampler
@@ -17,7 +17,7 @@ from mlmc.sim.synth_simulation import SynthSimulationWorkspace
 import mlmc.quantity
 
 
-# @pytest.mark.pbs
+@pytest.mark.skip
 def test_sampler_pbs(work_dir, clean=False, debug=False):
     np.random.seed(3)
     n_moments = 5
