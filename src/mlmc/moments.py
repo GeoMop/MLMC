@@ -249,6 +249,153 @@ class Legendre(Moments):
         return P_n @ self.diff2_mat
 
 
+class BivariateMoments:
+    def __init__(self, moment_x, moment_y):
+        self.moment_x = moment_x
+        self.moment_y = moment_y
+        assert self.moment_y.size == self.moment_x.size
+
+        self.size = self.moment_x.size
+        self.domain = [self.moment_x.domain, self.moment_y.domain]
+
+    def eval_value(self, value):
+        x, y = value
+        results = np.empty((self.size, self.size))
+        for i in range(self.size):
+            for j in range(self.size):
+                results[i, j] = np.squeeze(self.moment_x(x))[i] * np.squeeze(self.moment_y(y))[j]
+
+        return results
+
+    def eval_all(self, value):
+        results, x, y = self._preprocess_value(value)
+        for i in range(self.size):
+            for j in range(self.size):
+                results[:, i, j] = np.squeeze(self.moment_x(x))[:, i] * np.squeeze(self.moment_y(y))[:, j]
+        return results
+
+    def eval_all_der(self, value, degree=1):
+        results, x, y = self._preprocess_value(value)
+
+        for i in range(self.size):
+            for j in range(self.size):
+                results[:, i, j] = np.squeeze(self.moment_x.eval_all_der(x, degree=degree))[:, i] *\
+                                   np.squeeze(self.moment_y.eval_all_der(y, degree=degree))[:, j]
+        return results
+
+    def _preprocess_value(self, value):
+        if not isinstance(value[0], (list, tuple, np.ndarray)):
+            return self.eval_value(value)
+        value = np.array(value)
+        x = value[0, :]
+        y = value[1, :]
+        return np.empty((len(value[0]), self.size, self.size)), x, y
+
+
+class Spline(Moments):
+
+    def __init__(self, size, domain, log=False, safe_eval=True):
+        self.ref_domain = domain
+        self.poly_degree = 3
+        self.polynomial = None
+
+        super().__init__(size, domain, log, safe_eval)
+
+        self._generate_knots(size)
+        self._generate_splines()
+
+    def _generate_knots(self, size=2):
+        """
+        Code from bgem
+        """
+        knot_range = self.ref_domain
+        degree = self.poly_degree
+        n_intervals = size
+        n = n_intervals + 2 * degree + 1
+        knots = np.array((knot_range[0],) * n)
+        diff = (knot_range[1] - knot_range[0]) / n_intervals
+        for i in range(degree + 1, n - degree):
+            knots[i] = (i - degree) * diff + knot_range[0]
+        knots[-degree - 1:] = knot_range[1]
+        self.knots = knots
+
+    def _generate_splines(self):
+        self.splines = []
+        if len(self.knots) <= self.size:
+            self._generate_knots(self.size)
+        for i in range(self.size-1):
+            c = np.zeros(len(self.knots))
+            c[i] = 1
+            self.splines.append(BSpline(self.knots, c, self.poly_degree))
+
+    def _eval_value(self, x, size):
+        values = np.zeros(size)
+        index = 0
+        values[index] = 1
+        for spline in self.splines:
+            index += 1
+            if index >= size:
+                break
+            values[index] = spline(x)
+        return values
+
+    def _eval_all(self, x, size):
+        x = self.transform(np.atleast_1d(x))
+
+        if len(x.shape) == 1:
+            values = np.zeros((size, len(x)))
+            transpose_tuple = (1, 0)
+            values[0] = np.ones(len(x))
+            index = 0
+
+        elif len(x.shape) == 2:
+            values = np.zeros((size, x.shape[0], x.shape[1]))
+            transpose_tuple = (1, 2, 0)
+            values[0] = np.ones((x.shape[0], x.shape[1]))
+            index = 0
+
+        x = np.array(x, copy=False, ndmin=1) + 0.0
+
+        for spline in self.splines:
+            index += 1
+            if index >= size:
+                break
+            values[index] = spline(x)
+
+        return values.transpose(transpose_tuple)
+
+    def _eval_all_der(self, x, size, degree=1):
+        """
+        Derivative of Legendre polynomials
+        :param x: values to evaluate
+        :param size: number of _moments_fn
+        :param degree: degree of derivative
+        :return:
+        """
+        x = self.transform(np.atleast_1d(x))
+
+        if len(x.shape) == 1:
+            values = np.zeros((size, len(x)))
+            transpose_tuple = (1, 0)
+            values[0] = np.zeros(len(x))
+            index = 0
+
+        elif len(x.shape) == 2:
+            values = np.zeros((size, x.shape[0], x.shape[1]))
+            transpose_tuple = (1, 2, 0)
+            values[0] = np.zeros((x.shape[0], x.shape[1]))
+            index = 0
+
+        x = np.array(x, copy=False, ndmin=1) + 0.0
+
+        for spline in self.splines:
+            index += 1
+            if index >= size:
+                break
+            values[index] = (spline.derivative(degree))(x)
+        return values.transpose(transpose_tuple)
+
+
 class TransformedMoments(Moments):
     def __init__(self, other_moments, matrix, mean=0):
         """

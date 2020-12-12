@@ -187,15 +187,15 @@ class CondField(process_base.ProcessBase):
 
     def calculate_moments(self, sampler_list):
         """
-        Calculate moments through the mlmc.QuantityEstimate
+        Calculate _moments_fn through the mlmc.QuantityEstimate
         :param sampler_list: List of samplers (mlmc.Sampler)
         :return: None
         """
         # Simple moment evaluation
         for sampler in sampler_list:
-            moments_fn = self.set_moments(sampler.sample_storage)
+            moments_fn = self.set_moments(sampler._sample_storage)
 
-            q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
+            q_estimator = QuantityEstimate(sample_storage=sampler._sample_storage, moments_fn=moments_fn,
                                            sim_steps=self.step_range)
 
             print("collected samples ", sampler._n_scheduled_samples)

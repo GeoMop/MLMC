@@ -11,9 +11,9 @@ from mlmc.tool.flow_mc import FlowSim
 from mlmc.moments import Legendre, Monomial
 from mlmc.tool.process_base import ProcessBase
 from mlmc.random import correlated_field as cf
-#from mlmc.quantity_estimate import QuantityEstimate
+# from mlmc.quantity_estimate import QuantityEstimate
 from mlmc.quantity import make_root_quantity, estimate_mean, moment, moments, covariance
-import mlmc.estimator as new_estimator
+from mlmc import estimator
 import mlmc.tool.simple_distribution
 
 
@@ -32,7 +32,7 @@ class ProcessSimple:
         self.use_pbs = True
         # Use PBS sampling pool
         self.n_levels = 1
-        self.n_moments = 5
+        self.n_moments = 25
         # Number of MLMC levels
 
         step_range = [1, 0.005]
@@ -64,10 +64,9 @@ class ProcessSimple:
 
     def process(self):
         sample_storage = SampleStorageHDF(file_path=os.path.join(self.work_dir, "mlmc_{}.hdf5".format(self.n_levels)))
-        sample_storage.chunk_size = 1024
+        sample_storage.chunk_size = 1e8
         result_format = sample_storage.load_result_format()
         root_quantity = make_root_quantity(sample_storage, result_format)
-
 
         conductivity = root_quantity['conductivity']
         time = conductivity[1]  # times: [1]
@@ -79,13 +78,11 @@ class ProcessSimple:
         true_domain = mlmc.estimator.Estimate.estimate_domain(q_value, sample_storage, quantile=quantile)
         moments_fn = Legendre(self.n_moments, true_domain)
 
-
         estimator = mlmc.estimator.Estimate(quantity=q_value, sample_storage=sample_storage, moments_fn=moments_fn)
         means, vars = estimator.estimate_moments(moments_fn)
 
         moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
         moments_mean = estimate_mean(moments_quantity, level_means=True)
-
         conductivity_mean = moments_mean['conductivity']
         time_mean = conductivity_mean[1]  # times: [1]
         location_mean = time_mean['0']  # locations: ['0']
@@ -98,29 +95,33 @@ class ProcessSimple:
         # central_moments_quantity = moments(root_quantity, moments_fn=central_moments, mom_at_bottom=True)
         # central_moments_mean = estimate_mean(central_moments_quantity)
 
-        #self.process_target_var(estimator)
+        # self.process_target_var(estimator)
         self.construct_density(estimator, tol=1e-8)
 
     def process_target_var(self, estimator):
         n0, nL = 100, 3
         n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), self.n_levels))).astype(int)
 
-        n_estimated = estimator.bs_target_var_n_estimated(target_var=1e-5, sample_vec=n_samples)  # number of estimated sampels for given target variance
+        n_estimated = estimator.bs_target_var_n_estimated(target_var=1e-5,
+                                                          sample_vec=n_samples)  # number of estimated sampels for given target variance
         estimator.plot_variances(sample_vec=n_estimated)
         estimator.plot_bs_var_log(sample_vec=n_estimated)
 
     def construct_density(self, estimator, tol=1.95, reg_param=0.0):
         """
         Construct approximation of the density using given moment functions.
-        Args:
-            moments_fn: Moments object, determines also domain and n_moments.
-            tol: Tolerance of the fitting problem, with account for variances in moments.
-                 Default value 1.95 corresponds to the two tail confidency 0.95.
-            reg_param: Regularization parameter.
+        :param quantity: mlmc.quanitity.Quantity instance, quantity for which the density is reconstructed
+        :param moments_fn: mlmc.moments
+        :param sample_storage: mlmc.sample_storage.SampleStorage instance, quantity data are stored there
+        :param tol: Tolerance of the fitting problem, with account for variances in moments.
+                    Default value 1.95 corresponds to the two tail confidence 0.95.
+        :param reg_param: regularization parameter
+        :return: None
         """
         distr_obj, result, _, _ = estimator.construct_density(tol=tol, reg_param=reg_param)
-        #distr_plot = mlmc.tool.plot.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
-        distr_plot = mlmc.tool.plot.ArticleDistribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
+        # distr_plot = mlmc.tool.plot.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
+        distr_plot = mlmc.tool.plot.ArticleDistribution(
+            title="{} levels, {} moments".format(self.n_levels, self.n_moments))
 
         distr_plot.add_distribution(distr_obj, label="#{}".format(self.n_moments))
 
@@ -150,7 +151,7 @@ class ProcessSimple:
         sampler = self.setup_config(clean=True)
         # Schedule samples
         self.generate_jobs(sampler, n_samples=None, renew=renew, target_var=1e-5)
-        #self.generate_jobs(sampler, n_samples=[500, 500], renew=renew, target_var=1e-5)
+        # self.generate_jobs(sampler, n_samples=[500, 500], renew=renew, target_var=1e-5)
         self.all_collect(sampler)  # Check if all samples are finished
         self.calculate_moments(sampler)  # Simple moment check
 
@@ -181,7 +182,7 @@ class ProcessSimple:
         # Create HDF sample storage
         sample_storage = SampleStorageHDF(
             file_path=os.path.join(self.work_dir, "mlmc_{}.hdf5".format(self.n_levels)),
-            #append=self.append
+            # append=self.append
         )
 
         # Create sampler, it manages sample scheduling and so on
@@ -273,9 +274,9 @@ class ProcessSimple:
                 start_time = time.time()
                 self.all_collect(sampler)
 
-                moments_fn = self.set_moments(sampler.sample_storage)
+                moments_fn = self.set_moments(sampler._sample_storage)
 
-                q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
+                q_estimator = QuantityEstimate(sample_storage=sampler._sample_storage, moments_fn=moments_fn,
                                                sim_steps=self.level_parameters)
                 target_var = 1e-5
                 sleep = 0
@@ -284,8 +285,8 @@ class ProcessSimple:
                 # @TODO: test
                 # New estimation according to already finished samples
                 variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-                n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-                                                                                   n_levels=sampler.n_levels)
+                n_estimated = estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                               n_levels=sampler.n_levels)
 
                 # Loop until number of estimated samples is greater than the number of scheduled samples
                 while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
@@ -297,13 +298,13 @@ class ProcessSimple:
                         n_ops_str = ",".join([str(n_o) for n_o in n_ops])
 
                         writer.write("{}; {}; {}; {}; {}; {}\n".format(n_target_str, n_scheduled_str,
-                                                                   n_estimated_str, variances_str,
-                                                                   n_ops_str, str(time.time() - start_time)))
+                                                                       n_estimated_str, variances_str,
+                                                                       n_ops_str, str(time.time() - start_time)))
 
                     # New estimation according to already finished samples
                     variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-                    n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-                                                                                       n_levels=sampler.n_levels)
+                    n_estimated = estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                                   n_levels=sampler.n_levels)
 
     def all_collect(self, sampler):
         """
@@ -319,14 +320,15 @@ class ProcessSimple:
 
     def calculate_moments(self, sampler):
         """
+        @TODO: refactor - use quantity
         Calculate moments through the mlmc.QuantityEstimate
         :param sampler: mlmc.Sampler
         :return: None
         """
         # Simple moment evaluation
-        moments_fn = self.set_moments(sampler.sample_storage)
+        moments_fn = self.set_moments(sampler._sample_storage)
 
-        q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
+        q_estimator = QuantityEstimate(sample_storage=sampler._sample_storage, moments_fn=moments_fn,
                                        sim_steps=self.level_parameters)
         means, vars = q_estimator.estimate_moments(moments_fn)
         # The first moment is in any case 1 and its variance is 0
@@ -337,7 +339,7 @@ class ProcessSimple:
     def set_moments(self, sample_storage, n_moments=5):
         true_domain = QuantityEstimate.estimate_domain(sample_storage, quantile=0.01)
         return Legendre(n_moments, true_domain)
-    
+
     @staticmethod
     def determine_level_parameters(n_levels, step_range):
         """
@@ -384,4 +386,15 @@ class ProcessSimple:
 
 
 if __name__ == "__main__":
-    pr = ProcessSimple()
+    ProcessSimple()
+
+    # import cProfile
+    # import pstats
+    # pr = cProfile.Profile()
+    # pr.enable()
+    #
+    # my_result = ProcessSimple()
+    #
+    # pr.disable()
+    # ps = pstats.Stats(pr).sort_stats('cumtime')
+    # ps.print_stats()

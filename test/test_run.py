@@ -124,3 +124,9 @@ def test_mlmc(test_case):
     assert means[0] == 1
     assert vars[0] == 0
 
+
+if __name__ == "__main__":
+    test_mlmc((simulation, storage_memory, sampling_pool_single_process))
+    #multiproces_sampler_test()
+    #threads_sampler_test()
+

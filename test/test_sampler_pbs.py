@@ -1,23 +1,27 @@
 import os
 import sys
 import shutil
-import ruamel.yaml as yaml
+import yaml
 import numpy as np
 from scipy import stats
 import argparse
-import pytest
+# import pytest
 
 from mlmc.moments import Legendre
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
+<<<<<<< HEAD
 from mlmc.sampling_pool import OneProcessPool
 from mlmc.quantity_estimate import QuantityEstimate
+=======
+from mlmc.estimator import Estimate
+>>>>>>> 98e1cdb5a2525a8d34b5d9ac37064d179c41e0be
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
 import mlmc.quantity
 
 
-@pytest.mark.skip
+# @pytest.mark.pbs
 def test_sampler_pbs(work_dir, clean=False, debug=False):
     np.random.seed(3)
     n_moments = 5
@@ -98,7 +102,7 @@ def test_sampler_pbs(work_dir, clean=False, debug=False):
     sampler.schedule_samples()
     n_running = sampler.ask_sampling_pool_for_samples()
 
-
+<<<<<<< HEAD
     # running = 1
     # while running > 0:
     #     running = 0
@@ -110,6 +114,16 @@ def test_sampler_pbs(work_dir, clean=False, debug=False):
     #         file_object.write("{}\n".format(running))
 
     #q_estimator = QuantityEstimate(sample_storage=sample_storage, moments_fn=moments_fn, sim_steps=level_parameters)
+=======
+    quantity = mlmc.quantity.make_root_quantity(storage=sample_storage,
+                                                q_specs=sample_storage.load_result_format())
+    length = quantity['length']
+    time = length[1]
+    location = time['10']
+    value_quantity = location[0]
+
+    estimator = Estimate(quantity=value_quantity, sample_storage=sample_storage, moments_fn=moments_fn)
+>>>>>>> 98e1cdb5a2525a8d34b5d9ac37064d179c41e0be
 
     # target_var = 1e-3
     # sleep = 0
@@ -127,8 +141,13 @@ def test_sampler_pbs(work_dir, clean=False, debug=False):
     #     n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
     #                                                                        n_levels=sampler.n_levels)
 
+<<<<<<< HEAD
     # print("collected samples ", sampler._n_created_samples)
     #means, vars = q_estimator.estimate_moments(moments_fn)
+=======
+    #print("collected samples ", sampler._n_created_samples)
+    means, vars = estimator.estimate_moments(moments_fn)
+>>>>>>> 98e1cdb5a2525a8d34b5d9ac37064d179c41e0be
 
     # print("means ", means)
     # print("vars ", vars)
