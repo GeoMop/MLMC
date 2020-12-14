@@ -108,18 +108,12 @@ class Moments:
             return value - self.mean
 
         if not isinstance(self.mean, int):
-            if np.all(value[..., 1]) == 0:
-                value[..., 0] = value[..., 0] - self.mean[:, None]
-            else:
-                value[...] = value[...] - self.mean[:, None, None]
+            value[...] = value[...] - self.mean[:, None, None]
         else:
             if isinstance(value, (float, int)):
                 value = value - self.mean
             else:
-                if np.all(value[..., 1]) == 0:
-                    value[..., 0] = value[..., 0] - self.mean
-                else:
-                    value[...] = value[...] - self.mean
+                value[...] = value[...] - self.mean
 
         return value
 
