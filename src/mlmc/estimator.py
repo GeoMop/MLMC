@@ -107,8 +107,7 @@ class Estimate:
             if moments_fn is None:
                 moments_fn = self._moments_fn
             raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
-        sim_steps = self._sample_storage.get_level_parameters()
-
+        sim_steps = np.squeeze(self._sample_storage.get_level_parameters())
         vars = self._all_moments_variance_regression(raw_vars, sim_steps)
 
         # We need to get n_ops_estimate from storage
@@ -157,8 +156,7 @@ class Estimate:
         # model log var_{r,l} = a_r  + b * log step_l
         # X_(r,l), j = dirac_{r,j}
 
-        K = 3 # number of parameters
-
+        K = 3  # number of parameters
         X = np.zeros((L1, K))
         log_step = np.log(sim_steps[1:])
         X[:, 0] = np.ones(L1)
@@ -220,7 +218,6 @@ class Estimate:
         sample_vector = determine_sample_vec(n_collected_samples=self._sample_storage.get_n_collected(),
                                              n_levels=self._sample_storage.get_n_levels(),
                                              sample_vector=sample_vector)
-
         bs_mean = []
         bs_var = []
         bs_l_means = []
@@ -307,7 +304,7 @@ class Estimate:
         label_n_spaces = 5
         n_levels = self._sample_storage.get_n_levels()
         for level_id in range(n_levels):
-            samples = np.squeeze(self._quantity.samples(level_id=level_id, n_samples=None), axis=0)
+            samples = np.squeeze(self._quantity.samples(ChunkSpec(level_id=level_id)), axis=0)
             if level_id == 0:
                 label = "{} F{} {} C".format(level_id, ' ' * label_n_spaces, level_id + 1)
                 data = {'samples': samples[:, 0], 'type': 'fine', 'level': label}

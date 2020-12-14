@@ -100,10 +100,6 @@ class Quantity:
         """
         self._additional_params = {}
         sig_params = signature(self._operation).parameters
-        if 'level_id' in sig_params:
-            self._additional_params['level_id'] = 0
-        if 'i_chunk' in sig_params:
-            self._additional_params['i_chunk'] = 0
         if 'chunk_spec' in sig_params:
             self._additional_params['chunk_spec'] = None
 
@@ -146,10 +142,6 @@ class Quantity:
         chunks_quantity_level = [q.samples(chunk_spec) for q in self._input_quantities]
 
         if bool(self._additional_params):  # dictionary is empty
-            if 'level_id' in self._additional_params:
-                self._additional_params['level_id'] = chunk_spec.level_id
-            if 'i_chunk' in self._additional_params:
-                self._additional_params['i_chunk'] = chunk_spec.chunk_id
             if 'chunk_spec' in self._additional_params:
                 self._additional_params['chunk_spec'] = chunk_spec
 
@@ -248,7 +240,7 @@ class Quantity:
         return x % y
 
     @staticmethod
-    def _process_mask(x, y, operator, level_id):
+    def _process_mask(x, y, operator):
         """
         Create samples mask
         All values for sample must meet given condition, if any value doesn't meet the condition,
@@ -256,14 +248,8 @@ class Quantity:
         :param x: Quantity chunk
         :param y: Quantity chunk or int, float
         :param operator: operator module function
-        :param level_id: int, level identifier
         :return: np.ndarray of bools
         """
-        # Zero level - use just fine samples
-        if level_id == 0:
-            mask = operator(x[..., 0], y[..., 0])  # y is from other quantity
-            return mask.all(axis=tuple(range(mask.ndim - 1)))
-
         mask = operator(x, y)
         return mask.all(axis=tuple(range(mask.ndim - 2))).all(axis=1)
 
@@ -286,33 +272,33 @@ class Quantity:
         return Quantity(quantity_type=new_qtype, input_quantities=[self, other], operation=op)
 
     def __lt__(self, other):
-        def lt_op(x, y, level_id=0):
-            return Quantity._process_mask(x, y, operator.lt, level_id)
+        def lt_op(x, y):
+            return Quantity._process_mask(x, y, operator.lt)
         return self._mask_quantity(other, lt_op)
 
     def __le__(self, other):
-        def le_op(x, y, level_id=0):
-            return self._process_mask(x, y, operator.le, level_id)
+        def le_op(x, y):
+            return self._process_mask(x, y, operator.le)
         return self._mask_quantity(other, le_op)
 
     def __gt__(self, other):
-        def gt_op(x, y, level_id=0):
-            return self._process_mask(x, y, operator.gt, level_id)
+        def gt_op(x, y):
+            return self._process_mask(x, y, operator.gt)
         return self._mask_quantity(other, gt_op)
 
     def __ge__(self, other):
-        def ge_op(x, y, level_id=0):
-            return self._process_mask(x, y, operator.ge, level_id)
+        def ge_op(x, y):
+            return self._process_mask(x, y, operator.ge)
         return self._mask_quantity(other, ge_op)
 
     def __eq__(self, other):
-        def eq_op(x, y, level_id=0):
-            return self._process_mask(x, y, operator.eq, level_id)
+        def eq_op(x, y):
+            return self._process_mask(x, y, operator.eq)
         return self._mask_quantity(other, eq_op)
 
     def __ne__(self, other):
-        def ne_op(x, y, level_id=0):
-            return self._process_mask(x, y, operator.ne, level_id)
+        def ne_op(x, y):
+            return self._process_mask(x, y, operator.ne)
         return self._mask_quantity(other, ne_op)
 
     def subsample(self, sample_vec):
@@ -493,9 +479,9 @@ class QuantityConst(Quantity):
         self.qtype = quantity_type
         self._value = self._process_value(value)
         self._input_quantities = []
-        self._selection_id = None
         # List of input quantities should be empty,
         # but we still need this attribute due to storage_id() and level_ids() method
+        self._selection_id = None
 
     def _process_value(self, value):
         """
