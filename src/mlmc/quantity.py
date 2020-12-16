@@ -1,3 +1,4 @@
+import abc
 import numpy as np
 import copy
 import operator
@@ -881,16 +882,35 @@ class QType(metaclass=abc.ABCMeta):
     def base_qtype(self):
         return self._qtype.base_qtype()
 
-    def replace_scalar(self, new_qtype):
+    @staticmethod
+    def replace_scalar(original_qtype, substitute_qtype):
         """
         Find ScalarType and replace it with new_qtype
-        :param new_qtype: QType
+        :param substitute_qtype: QType, replace ScalarType
         :return: None
         """
-        if isinstance(self._qtype, ScalarType):
-            self._qtype = new_qtype
-        else:
-            self._qtype.replace_scalar(new_qtype)
+        qtypes = []
+        current_qtype = original_qtype
+        while True:
+            if isinstance(current_qtype, DictType):
+                qtypes.append(DictType.replace_scalar(current_qtype, substitute_qtype))
+                break
+
+            if isinstance(current_qtype, (ScalarType, BoolType)):
+                if isinstance(current_qtype, (ScalarType, BoolType)):
+                    qtypes.append(substitute_qtype)
+                    break
+
+            qtypes.append(current_qtype)
+            current_qtype = current_qtype._qtype
+
+        first_qtype = qtypes[0]
+        new_qtype = first_qtype
+
+        for i in range(1, len(qtypes)):
+            new_qtype._qtype = qtypes[i]
+            new_qtype = new_qtype._qtype
+        return first_qtype
 
     def _keep_dims(self, chunk):
         """
@@ -1060,12 +1080,15 @@ class DictType(QType):
     def size(self) -> int:
         return int(np.sum(q_type.size() for _, q_type in self._dict.items()))
 
-    def replace_scalar(self, new_qtype):
-        for key, qtype in self._dict.items():
+    @staticmethod
+    def replace_scalar(original_qtype, substitute_qtype):
+        dict_items = []
+        for key, qtype in original_qtype._dict.items():
             if isinstance(qtype, ScalarType):
-                self._dict[key] = new_qtype
+                dict_items.append((key, substitute_qtype))
             else:
-                qtype.replace_scalar(new_qtype)
+                dict_items.append((key, QType.replace_scalar(qtype, substitute_qtype)))
+        return DictType(dict_items)
 
     def __getitem__(self, key):
         try:
