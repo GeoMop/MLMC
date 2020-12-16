@@ -8,7 +8,6 @@ from scipy import interpolate
 from typing import List, Tuple
 from mlmc.sample_storage import SampleStorage
 from mlmc.quantity_spec import QuantitySpec
-from mlmc.quantity_types import QType, ScalarType, BoolType, ArrayType, DictType, TimeSeriesType, FieldType
 
 
 CHUNK_SIZE = 512000  # bytes in decimal
