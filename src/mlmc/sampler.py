@@ -29,8 +29,7 @@ class Sampler:
         sample_storage.save_global_data(level_parameters=level_parameters,
                                         result_format=sim_factory.result_format())
 
-        self._n_scheduled_samples = [len(level_scheduled) for level_id, level_scheduled in
-                                     sample_storage.load_scheduled_samples().items()]
+        self._n_scheduled_samples = [len(level_scheduled) for level_id, level_scheduled in sample_storage.load_scheduled_samples().items()]
         # Number of created samples
 
         if not self._n_scheduled_samples:
@@ -142,7 +141,7 @@ class Sampler:
 
             # Store scheduled samples
             self.sample_storage.save_scheduled_samples(level_id, samples)
-
+            
     def _check_failed_samples(self):
         """
         Get unfinished samples and check if failed samples have saved results then collect them
@@ -188,7 +187,7 @@ class Sampler:
         self.sample_storage.save_samples(successful_samples, failed_samples)
         self.sample_storage.save_n_ops(n_ops)
 
-    def process_adding_samples(self, n_estimated, sleep=0, add_coef=0.1):
+    def process_adding_samples(self, n_estimated, sleep, add_coef=0.1):
         """
         Process adding samples
         Note: n_estimated are wrong if n_ops is similar through all levels
