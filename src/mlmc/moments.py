@@ -1,10 +1,11 @@
 import numpy as np
 import numpy.ma as ma
+from scipy.interpolate import BSpline
 
 
 class Moments:
     """
-    Class for moments of random distribution
+    Class for _moments_fn of random distribution
     """
     def __init__(self, size, domain, log=False, safe_eval=True, mean=0):
         assert size > 0
@@ -51,7 +52,7 @@ class Moments:
     def change_size(self, size):
         """
         Return moment object with different size.
-        :param size: int, new number of moments
+        :param size: int, new number of _moments_fn
         """
         return self.__class__(size, self.domain, self._is_log, self._is_clip)
 
@@ -94,10 +95,12 @@ class Moments:
             size = self.size
 
         value = self._center(value)
-
         return self._eval_all(value, size)
 
     def _center(self, value):
+        if isinstance(value, (int, float)):
+            return value - self.mean
+
         if not isinstance(self.mean, int):
             if np.all(value[..., 1]) == 0:
                 value[..., 0] = value[..., 0] - self.mean[:, None]
@@ -113,6 +116,24 @@ class Moments:
                     value[...] = value[...] - self.mean
 
         return value
+
+    def eval_all_der(self, value, size=None, degree=1):
+        value = self._center(value)
+        if size is None:
+            size = self.size
+        return self._eval_all_der(value, size, degree)
+
+    def eval_diff(self, value, size=None):
+        value = self._center(value)
+        if size is None:
+            size = self.size
+        return self._eval_diff(value, size)
+
+    def eval_diff2(self, value, size=None):
+        value = self._center(value)
+        if size is None:
+            size = self.size
+        return self._eval_diff2(value, size)
 
 
 class Monomial(Moments):
@@ -180,37 +201,73 @@ class Legendre(Moments):
         else:
             self.ref_domain = (-1, 1)
 
+        self.diff_mat = np.zeros((size, size))
+        for n in range(size - 1):
+            self.diff_mat[n, n + 1::2] = 2 * n + 1
+        self.diff2_mat = self.diff_mat @ self.diff_mat
+
         self.mean = mean
         super().__init__(size, domain, log, safe_eval, mean)
 
+    def _eval_value(self, x, size):
+        return np.polynomial.legendre.legvander(x, deg=size-1)
+
     def _eval_all(self, value, size):
+        value = self.transform(np.atleast_1d(value))
+        return np.polynomial.legendre.legvander(value, deg=size - 1)
+
+    def _eval_all_der(self, value, size, degree=1):
+        """
+        Derivative of Legendre polynomials
+        :param value: values to evaluate
+        :param size: number of moments
+        :param degree: degree of derivative
+        :return:
+        """
+        value = self.transform(np.atleast_1d(value))
+        eval_values = np.empty((value.shape + (size,)))
+
+        for s in range(size):
+            if s == 0:
+                coef = [1]
+            else:
+                coef = np.zeros(s+1)
+                coef[-1] = 1
+
+            coef = np.polynomial.legendre.legder(coef, degree)
+            eval_values[:, s] = np.polynomial.legendre.legval(value, coef)
+        return eval_values
+
+    def _eval_diff(self, value, size):
         t = self.transform(np.atleast_1d(value))
-        return np.polynomial.legendre.legvander(t, deg=size - 1)
+        P_n = np.polynomial.legendre.legvander(t, deg=size - 1)
+        return P_n @ self.diff_mat
+
+    def _eval_diff2(self, value, size):
+        t = self.transform(np.atleast_1d(value))
+        P_n = np.polynomial.legendre.legvander(t, deg=size - 1)
+        return P_n @ self.diff2_mat
 
 
 class TransformedMoments(Moments):
-    def __init__(self, other_moments, matrix):
+    def __init__(self, other_moments, matrix, mean=0):
         """
         Set a new moment functions as linear combination of the previous.
         new_moments = matrix . old_moments
 
         We assume that new_moments[0] is still == 1. That means
         first row of the matrix must be (1, 0 , ...).
-        :param other_moments: Original moments.
-        :param matrix: Linear combinations of the original moments.
+        :param other_moments: Original _moments_fn.
+        :param matrix: Linear combinations of the original _moments_fn.
         """
         n, m = matrix.shape
         assert m == other_moments.size
-
         self.mean = 0
         self.size = n
         self.domain = other_moments.domain
-
+        self.mean = mean
         self._origin = other_moments
         self._transform = matrix
-        #self._inv = inv
-        #assert np.isclose(matrix[0, 0], 1) and np.allclose(matrix[0, 1:], 0)
-        # TODO: find last nonzero for every row to compute which origianl moments needs to be evaluated for differrent sizes.
 
     def __eq__(self, other):
         return type(self) is type(other) \
@@ -221,5 +278,52 @@ class TransformedMoments(Moments):
     def _eval_all(self, value, size):
         orig_moments = self._origin._eval_all(value, self._origin.size)
         x1 = np.matmul(orig_moments, self._transform.T)
-        #x2 = np.linalg.solve(self._inv, orig_moments.T).T
-        return x1[:, :size]
+        return x1[..., :size]
+
+    def _eval_all_der(self, value, size, degree=1):
+        orig_moments = self._origin._eval_all_der(value, self._origin.size, degree=degree)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        return x1[..., :size]
+
+    def _eval_diff(self, value, size):
+        orig_moments = self._origin.eval_diff(value, self._origin.size)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        return x1[..., :size]
+
+    def _eval_diff2(self, value, size):
+        orig_moments = self._origin.eval_diff2(value, self._origin.size)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        return x1[..., :size]
+
+
+class TransformedMomentsDerivative(Moments):
+    def __init__(self, other_moments, matrix, degree=2, mean=0):
+        """
+        Set a new moment functions as linear combination of the previous.
+        new_moments = matrix . old_moments
+
+        We assume that new_moments[0] is still == 1. That means
+        first row of the matrix must be (1, 0 , ...).
+        :param other_moments: Original _moments_fn.
+        :param matrix: Linear combinations of the original _moments_fn.
+        """
+        n, m = matrix.shape
+        assert m == other_moments.size
+        self.size = n
+        self.domain = other_moments.domain
+        self.mean = mean
+        self._origin = other_moments
+        self._transform = matrix
+        self._degree = degree
+
+    def __eq__(self, other):
+        return type(self) is type(other) \
+                and self.size == other.size \
+                and self._origin == other._origin \
+                and np.all(self._transform == other._transform)
+
+    def _eval_all(self, value, size):
+        value = np.squeeze(value)
+        orig_moments = self._origin._eval_all_der(value, self._origin.size, degree=self._degree)
+        x1 = np.matmul(orig_moments, self._transform.T)
+        return x1[..., :size]
