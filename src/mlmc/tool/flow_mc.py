@@ -6,7 +6,7 @@ import json
 import glob
 import shutil
 import copy
-import yaml
+import ruamel.yaml as yaml
 from typing import List
 import gstools
 from mlmc.level_simulation import LevelSimulation
