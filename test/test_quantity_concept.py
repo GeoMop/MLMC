@@ -3,8 +3,9 @@ import shutil
 import unittest
 import numpy as np
 import random
+import pytest
 from scipy import stats
-from mlmc.sim.simulation import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc import quantity as q
@@ -12,7 +13,6 @@ from mlmc.quantity import make_root_quantity, estimate_mean, moment, moments, co
 from mlmc.quantity import Quantity, QuantityStorage, DictType, QuantityConst, ScalarType
 from mlmc.sampler import Sampler
 from mlmc.moments import Legendre, Monomial
-#from mlmc.quantity_estimate import QuantityEstimate
 from mlmc.sampling_pool import OneProcessPool, ProcessPool
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
 from test.synth_sim_for_tests import SynthSimulationForTests
@@ -134,6 +134,11 @@ class QuantityTests(unittest.TestCase):
         means_width = estimate_mean(width)
         assert np.allclose((means_add()[sizes[0] + sizes[1]:sizes[0] + sizes[1] + sizes[2]]).tolist(), means_width().tolist())
 
+        const = 5
+        const_mult_quantity = const * root_quantity
+        const_mult_mean = estimate_mean(const_mult_quantity)
+        assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
+
         # Concatenate quantities
         quantity_dict = Quantity.QDict([("depth", depth), ("length", length)])
         quantity_dict_mean = estimate_mean(quantity_dict)
@@ -248,6 +253,8 @@ class QuantityTests(unittest.TestCase):
         # Multiplication
         const_mult_quantity = const * root_quantity
         const_mult_mean = estimate_mean(const_mult_quantity)
+        means = estimate_mean(root_quantity)
+
         assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
 
         # True division
@@ -379,6 +386,8 @@ class QuantityTests(unittest.TestCase):
         """
         Test numpy functions
         """
+        work_dir = _prepare_work_dir()
+        sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5"))
         sample_storage = Memory()
         result_format, sizes = self.fill_sample_storage(sample_storage)
         root_quantity = make_root_quantity(sample_storage, result_format)
@@ -484,7 +493,7 @@ class QuantityTests(unittest.TestCase):
 
         return result_format, sizes
 
-    def _create_sampler(self, step_range, clean=False):
+    def _create_sampler(self, step_range, clean=False, memory=False):
         # Set work dir
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
         work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
@@ -498,12 +507,16 @@ class QuantityTests(unittest.TestCase):
         distr = stats.norm()
         simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
         simulation_factory = SynthSimulationForTests(simulation_config)
+
         # shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
         # simulation_config = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
         # simulation_workspace = SynthSimulationWorkspace(simulation_config)
 
         # Create sample storages
-        sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_test.hdf5"))
+        if memory:
+            sample_storage = Memory()
+        else:
+            sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_test.hdf5"))
         # Create sampling pools
         sampling_pool = OneProcessPool()
         # sampling_pool_dir = OneProcessPool(work_dir=work_dir)
@@ -556,14 +569,17 @@ class QuantityTests(unittest.TestCase):
         root_quantity_mean = estimate_mean(root_quantity)
 
         estimator = new_estimator.Estimate(root_quantity, sample_storage=sampler.sample_storage, moments_fn=moments_fn)
+
         target_var = 1e-2
         sleep = 0
         add_coef = 0.1
 
+        # @TODO: test
         # New estimation according to already finished samples
         variances, n_ops = estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
         n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                             n_levels=sampler.n_levels)
+
 
         # Loop until number of estimated samples is greater than the number of scheduled samples
         while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
@@ -606,10 +622,11 @@ class QuantityTests(unittest.TestCase):
         location_mean = time_mean['10']
         central_value_mean = location_mean[0]
 
-        assert np.isclose(central_value_mean()[0, 0], 1, atol=1e-10)
-        assert np.isclose(central_value_mean()[0, 1], 0, atol=1e-2)
+        assert np.isclose(central_value_mean()[0], 1, atol=1e-10)
+        assert np.isclose(central_value_mean()[1], 0, atol=1e-2)
 
         # Covariance
+        cov = estimator.estimate_covariance(moments_fn)
         covariance_quantity = covariance(root_quantity, moments_fn=moments_fn, cov_at_bottom=True)
         cov_mean = estimate_mean(covariance_quantity)
         length_mean = cov_mean['length']
@@ -626,6 +643,64 @@ class QuantityTests(unittest.TestCase):
         location_mean = time_mean['10']
         value_mean = location_mean[0]
         assert len(value_mean()) == 1
+
+    @pytest.mark.parametrize("memory", [False, True])
+    def test_bootstrap(self, memory=False):
+        np.random.seed(1234)
+        n_moments = 3
+        step_range = [0.5, 0.01]
+        n_levels = 5
+
+        assert step_range[0] > step_range[1]
+        level_parameters = []
+        for i_level in range(n_levels):
+            if n_levels == 1:
+                level_param = 1
+            else:
+                level_param = i_level / (n_levels - 1)
+            level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
+
+        clean = True
+        sampler, simulation_factory = self._create_sampler(level_parameters, clean=clean, memory=memory)
+
+        distr = stats.norm()
+        true_domain = distr.ppf([0.0001, 0.9999])
+        # moments_fn = Legendre(n_moments, true_domain)
+        moments_fn = Monomial(n_moments, true_domain)
+
+        sampler.set_initial_n_samples([100, 80, 50, 30, 10])
+        sampler.schedule_samples()
+        sampler.ask_sampling_pool_for_samples()
+
+        sampler.sample_storage.chunk_size = 1024
+        root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
+        root_quantity_subsamples = root_quantity.subsample(sample_vec=[10, 8, 5, 3, 2])
+        root_quantity_subsamples_select = root_quantity.select(root_quantity_subsamples)
+
+        # Moments values are at the bottom
+        moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
+        moments_mean = estimate_mean(moments_quantity)
+        length_mean = moments_mean['length']
+        time_mean = length_mean[1]
+        location_mean = time_mean['10']
+        value_mean = location_mean[0]
+
+        # Moments values are at the bottom
+        moments_quantity = moments(root_quantity_subsamples_select, moments_fn=moments_fn, mom_at_bottom=True)
+        moments_mean = estimate_mean(moments_quantity)
+        length_mean = moments_mean['length']
+        time_mean = length_mean[1]
+        location_mean = time_mean['10']
+        value_mean_select = location_mean[0]
+        assert np.all(np.array(value_mean.var[1:]) < np.array(value_mean_select.var[1:]))
+
+    def dev_memory_usage_test(self):
+        work_dir = "/home/martin/Documents/MLMC_quantity"
+        sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_quantity_2.hdf5"))
+        sample_storage.chunk_size = 1e6
+        result_format = sample_storage.load_result_format()
+        root_quantity = make_root_quantity(sample_storage, result_format)
+        mean_root_quantity = estimate_mean(root_quantity)
 
 
 if __name__ == '__main__':
