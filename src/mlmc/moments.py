@@ -168,7 +168,7 @@ class Fourier(Moments):
         # Transform values
         t = self.transform(np.atleast_1d(value))
 
-        # Half the number of _moments_fn
+        # Half the number of moments
         R = int(size / 2)
         shorter_sin = 1 - int(size % 2)
         k = np.arange(1, R + 1)
@@ -220,7 +220,7 @@ class Legendre(Moments):
         """
         Derivative of Legendre polynomials
         :param value: values to evaluate
-        :param size: number of _moments_fn
+        :param size: number of moments
         :param degree: degree of derivative
         :return:
         """
