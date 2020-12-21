@@ -2,30 +2,8 @@ import numpy as np
 import scipy.stats as st
 from scipy import interpolate
 import seaborn
-import matplotlib as mpl
-# font = {'family': 'normal',
-#         'weight': 'bold',
-#         'size': 22}
-#
-# matplotlib.rc('font', **font)
-
-# mpl.use("pgf")
-# pgf_with_pdflatex = {
-#     "pgf.texsystem": "pdflatex",
-#     "pgf.preamble": [
-#         r"\usepackage[utf8]{inputenc}",
-#         r"\usepackage[T1]{fontenc}",
-#         ##r"\usepackage{cmbright}",
-#     ],
-# }
-# mpl.rcParams.update(pgf_with_pdflatex)
-
-
-
-# mpl.rcParams['xtick.labelsize']=12
-# mpl.rcParams['ytick.labelsize']=12
-
 import matplotlib
+
 matplotlib.rcParams.update({'font.size': 22})
 from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
