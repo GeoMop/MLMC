@@ -1529,7 +1529,3 @@ def plot_pbs_flow_job_time():
     #ax.set_yscale('log')
     ax.plot(1/(level_params**2), n_ops)
     _show_and_save(fig, "flow_time", "flow_time")
-
-
-if __name__ == "__main__":
-    plot_pbs_flow_job_time()
