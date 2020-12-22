@@ -50,11 +50,11 @@ class QuantityTests(unittest.TestCase):
 
         length = root_quantity['length']
         means_length = estimate_mean(length)
-        assert np.allclose((means()[sizes[0]:sizes[0]+sizes[1]]).tolist(), means_length().tolist())
+        assert np.allclose((means()[sizes[0]:sizes[0] + sizes[1]]).tolist(), means_length().tolist())
 
         length_add = quantity_add['length']
         means_length_add = estimate_mean(length_add)
-        assert np.allclose(means_length_add(), means_length()*2)
+        assert np.allclose(means_length_add(), means_length() * 2)
 
         depth = root_quantity['depth']
         means_depth = estimate_mean(depth)
@@ -67,7 +67,7 @@ class QuantityTests(unittest.TestCase):
         # Select position
         position = locations['10']
         mean_position_1 = estimate_mean(position)
-        assert np.allclose(mean_interp_value()[:len(mean_interp_value())//2], mean_position_1())
+        assert np.allclose(mean_interp_value()[:len(mean_interp_value()) // 2], mean_position_1().flatten())
 
         # Array indexing tests
         values = position
@@ -96,7 +96,7 @@ class QuantityTests(unittest.TestCase):
 
         y = position[:2, ...]
         y_mean = estimate_mean(y)
-        assert len(y_mean()) == 6
+        assert len(y_mean().flatten()) == 6
 
         value = values[1]
         value_mean = estimate_mean(value)
@@ -108,7 +108,7 @@ class QuantityTests(unittest.TestCase):
 
         position = locations['20']
         mean_position_2 = estimate_mean(position)
-        assert np.allclose(mean_interp_value()[len(mean_interp_value())//2:], mean_position_2())
+        assert np.allclose(mean_interp_value()[len(mean_interp_value()) // 2:], mean_position_2().flatten())
 
         width = root_quantity['width']
         width_locations = width.time_interpolation(1.2)
@@ -117,11 +117,11 @@ class QuantityTests(unittest.TestCase):
         # Select position
         position = width_locations['30']
         mean_position_1 = estimate_mean(position)
-        assert np.allclose(mean_width_interp_value()[:len(mean_width_interp_value())//2], mean_position_1())
+        assert np.allclose(mean_width_interp_value()[:len(mean_width_interp_value()) // 2], mean_position_1().flatten())
 
         position = width_locations['40']
         mean_position_2 = estimate_mean(position)
-        assert np.allclose(mean_width_interp_value()[len(mean_width_interp_value())//2:], mean_position_2())
+        assert np.allclose(mean_width_interp_value()[len(mean_width_interp_value()) // 2:], mean_position_2().flatten())
 
         quantity_add = root_quantity + root_quantity
         means_add = estimate_mean(quantity_add)
@@ -129,11 +129,12 @@ class QuantityTests(unittest.TestCase):
 
         length = quantity_add['length']
         means_length = estimate_mean(length)
-        assert np.allclose((means_add()[sizes[0]:sizes[0]+sizes[1]]).tolist(), means_length().tolist())
+        assert np.allclose((means_add()[sizes[0]:sizes[0] + sizes[1]]).tolist(), means_length().tolist())
 
         width = quantity_add['width']
         means_width = estimate_mean(width)
-        assert np.allclose((means_add()[sizes[0] + sizes[1]:sizes[0] + sizes[1] + sizes[2]]).tolist(), means_width().tolist())
+        assert np.allclose((means_add()[sizes[0] + sizes[1]:sizes[0] + sizes[1] + sizes[2]]).tolist(),
+                           means_width().tolist())
 
         # Concatenate quantities
         quantity_dict = Quantity.QDict([("depth", depth), ("length", length)])
@@ -147,7 +148,7 @@ class QuantityTests(unittest.TestCase):
         mean_interp_value = estimate_mean(locations)
         position = locations['10']
         mean_position_1 = estimate_mean(position)
-        assert np.allclose(mean_interp_value()[:len(mean_interp_value()) // 2], mean_position_1())
+        assert np.allclose(mean_interp_value()[:len(mean_interp_value()) // 2], mean_position_1().flatten())
         values = position[:, 2]
         values_mean = estimate_mean(values)
         assert len(values_mean()) == 2
@@ -164,7 +165,7 @@ class QuantityTests(unittest.TestCase):
         quantity_array = Quantity.QArray([[length, length], [length, length]])
         quantity_array_mean = estimate_mean(quantity_array)
         assert np.allclose(quantity_array_mean().flatten(), np.concatenate((means_length(), means_length(),
-                                                                  means_length(), means_length())))
+                                                                            means_length(), means_length())))
 
         quantity_timeseries = Quantity.QTimeSeries([(0, locations), (1, locations)])
         quantity_timeseries_mean = estimate_mean(quantity_timeseries)
