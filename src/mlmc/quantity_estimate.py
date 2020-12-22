@@ -5,6 +5,7 @@ import mlmc.quantity_types as qt
 from mlmc.quantity_spec import ChunkSpec
 
 
+
 def mask_nan_samples(chunk):
     """
     Mask out samples that contain NaN in either fine or coarse part of the result
@@ -57,6 +58,7 @@ def estimate_mean(quantity, chunk_size=512000000, level_means=False):
                     chunk[..., 1] = 0
 
                 chunk, n_rm_samples = mask_nan_samples(chunk)
+
                 # level_chunk is Numpy Array with shape [M, chunk_size, 2]
                 n_samples[level_id] += chunk.shape[1]
 

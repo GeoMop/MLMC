@@ -160,6 +160,7 @@ class SampleStorageHDF(SampleStorage):
         :return: np.ndarray
         """
         sample_pairs = self._level_groups[int(chunk_spec.level_id)].collected(chunk_spec)
+
         # Chunk is empty
         if len(sample_pairs) == 0:
             raise StopIteration
