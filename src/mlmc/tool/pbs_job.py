@@ -151,6 +151,7 @@ class PbsJob:
         times = []
         # Sample calculation time - Tuple(level_id, [n samples, cumul time for n sample])
         n_times = 0
+        successful_dest_dir = os.path.join(self._output_dir, SamplingPool.SEVERAL_SUCCESSFUL_DIR)
         for level_id, sample_id, seed in level_id_sample_id_seed:
             # Deserialize level simulation config
             if level_id not in self._level_simulations:
@@ -173,7 +174,7 @@ class PbsJob:
                 success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
                 SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
-                                      dest_dir=SamplingPool.SEVERAL_SUCCESSFUL_DIR)
+                                      dest_dir=successful_dest_dir)
                 if not self._debug:
                     SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
 

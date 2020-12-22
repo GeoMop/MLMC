@@ -14,7 +14,6 @@ from mlmc.level_simulation import LevelSimulation
 
 
 class SamplingPool(ABC):
-
     FAILED_DIR = 'failed'
     SEVERAL_SUCCESSFUL_DIR = 'several_successful'
 
@@ -43,6 +42,7 @@ class SamplingPool(ABC):
             if os.path.exists(directory) and not self._debug:
                 shutil.rmtree(directory)
             os.makedirs(directory, mode=0o775, exist_ok=True)
+            return directory
 
     @abstractmethod
     def schedule_sample(self, sample_id, level_sim: LevelSimulation):
@@ -109,14 +109,14 @@ class SamplingPool(ABC):
                     [np.prod(quantity_spec.shape) * len(quantity_spec.times) * len(quantity_spec.locations)
                      for quantity_spec in level_sim._result_format()])
 
-                assert len(flatten_fine_res) == len(flatten_coarse_res) == res_expected_len,\
+                assert len(flatten_fine_res) == len(flatten_coarse_res) == res_expected_len, \
                     "Unexpected result format, expected length: {}, resultf length: {}".format(res_expected_len,
                                                                                                len(flatten_fine_res))
 
         except Exception:
             str_list = traceback.format_exception(*sys.exc_info())
             err_msg = "".join(str_list)
-            
+
         return sample_id, res, err_msg, running_time
 
     @staticmethod
@@ -167,7 +167,7 @@ class SamplingPool(ABC):
         :return: None
         """
         if sample_workspace and work_dir is not None:
-            if int(sample_id[-1:]) < 5:
+            if int(sample_id[-7:]) < 5:
                 destination_dir = os.path.join(work_dir, dest_dir)
                 sample_dir = SamplingPool.change_to_sample_directory(work_dir, sample_id)
                 if os.path.exists(os.path.join(destination_dir, sample_id)):
