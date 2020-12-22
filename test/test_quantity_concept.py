@@ -15,11 +15,10 @@ from mlmc.quantity import Quantity, QuantityStorage, QuantityConst
 from mlmc.quantity_types import DictType, ScalarType
 from mlmc.sampler import Sampler
 from mlmc.moments import Legendre, Monomial
-#from mlmc.quantity_estimate import QuantityEstimate
 from mlmc.sampling_pool import OneProcessPool, ProcessPool
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
 from test.synth_sim_for_tests import SynthSimulationForTests
-import mlmc.estimator
+import mlmc.estimator as new_estimator
 
 
 def _prepare_work_dir():
@@ -68,7 +67,7 @@ class QuantityTests(unittest.TestCase):
         # Select position
         position = locations['10']
         mean_position_1 = estimate_mean(position)
-        assert np.allclose(mean_interp_value()[:len(mean_interp_value())//2], mean_position_1().flatten())
+        assert np.allclose(mean_interp_value()[:len(mean_interp_value())//2], mean_position_1())
 
         # Array indexing tests
         values = position
@@ -98,7 +97,7 @@ class QuantityTests(unittest.TestCase):
 
         y = position[:2, ...]
         y_mean = estimate_mean(y)
-        assert len(y_mean().flatten()) == 6
+        assert len(y_mean()) == 6
 
         value = values[1]
         value_mean = estimate_mean(value)
@@ -110,7 +109,7 @@ class QuantityTests(unittest.TestCase):
 
         position = locations['20']
         mean_position_2 = estimate_mean(position)
-        assert np.allclose(mean_interp_value()[len(mean_interp_value())//2:], mean_position_2().flatten())
+        assert np.allclose(mean_interp_value()[len(mean_interp_value())//2:], mean_position_2())
 
         width = root_quantity['width']
         width_locations = width.time_interpolation(1.2)
@@ -119,11 +118,11 @@ class QuantityTests(unittest.TestCase):
         # Select position
         position = width_locations['30']
         mean_position_1 = estimate_mean(position)
-        assert np.allclose(mean_width_interp_value()[:len(mean_width_interp_value())//2], mean_position_1().flatten())
+        assert np.allclose(mean_width_interp_value()[:len(mean_width_interp_value())//2], mean_position_1())
 
         position = width_locations['40']
         mean_position_2 = estimate_mean(position)
-        assert np.allclose(mean_width_interp_value()[len(mean_width_interp_value())//2:], mean_position_2().flatten())
+        assert np.allclose(mean_width_interp_value()[len(mean_width_interp_value())//2:], mean_position_2())
 
         quantity_add = root_quantity + root_quantity
         means_add = estimate_mean(quantity_add)
@@ -149,7 +148,7 @@ class QuantityTests(unittest.TestCase):
         mean_interp_value = estimate_mean(locations)
         position = locations['10']
         mean_position_1 = estimate_mean(position)
-        assert np.allclose(mean_interp_value()[:len(mean_interp_value()) // 2], mean_position_1().flatten())
+        assert np.allclose(mean_interp_value()[:len(mean_interp_value()) // 2], mean_position_1())
         values = position[:, 2]
         values_mean = estimate_mean(values)
         assert len(values_mean()) == 2
@@ -308,7 +307,7 @@ class QuantityTests(unittest.TestCase):
         quantity_add = root_quantity + root_quantity
         q_add_bounded = quantity_add.select(0 < quantity_add, quantity_add < 20)
         means_add_bounded = estimate_mean(q_add_bounded)
-        assert np.allclose((means_add_bounded()), mean_q_bounded_2()*2)
+        assert np.allclose((means_add_bounded()), mean_q_bounded_2() * 2)
 
         q_bounded = root_quantity.select(10 < root_quantity, root_quantity < 20)
         mean_q_bounded = estimate_mean(q_bounded)
@@ -409,6 +408,7 @@ class QuantityTests(unittest.TestCase):
         # add_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.
         # add_root_quantity_means = estimate_mean(add_root_quantity)
         # print("add_root_quantity_means ", add_root_quantity_means())
+
         self.assertRaises(ValueError, np.add, x, root_quantity)
 
         x = np.ones(108)
@@ -444,6 +444,7 @@ class QuantityTests(unittest.TestCase):
         y = QuantityConst(ScalarType(), 10)
         z = x + y
         assert isinstance(z, QuantityConst)
+
 
     def fill_sample_storage(self, sample_storage, chunk_size=512000000):
         sample_storage.chunk_size = chunk_size  # bytes in decimal
@@ -541,7 +542,14 @@ class QuantityTests(unittest.TestCase):
         step_range = [0.5, 0.01]
         n_levels = 2
 
-        level_parameters = mlmc.estimator.calc_level_params(step_range, n_levels)
+        assert step_range[0] > step_range[1]
+        level_parameters = []
+        for i_level in range(n_levels):
+            if n_levels == 1:
+                level_param = 1
+            else:
+                level_param = i_level / (n_levels - 1)
+            level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
 
         clean = True
         sampler, simulation_factory = self._create_sampler(level_parameters, clean=clean)
@@ -558,23 +566,23 @@ class QuantityTests(unittest.TestCase):
         root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
         root_quantity_mean = estimate_mean(root_quantity)
 
-        estimator = mlmc.estimator.Estimate(root_quantity, sample_storage=sampler.sample_storage, moments_fn=moments_fn)
+        estimator = new_estimator.Estimate(root_quantity, sample_storage=sampler.sample_storage, moments_fn=moments_fn)
+
         target_var = 1e-2
         sleep = 0
         add_coef = 0.1
 
-        print("sampler._n_scheduled_samples ", sampler._n_scheduled_samples)
-
         # New estimation according to already finished samples
         variances, n_ops = estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-        n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+        n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                             n_levels=sampler.n_levels)
+
 
         # Loop until number of estimated samples is greater than the number of scheduled samples
         while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
             # New estimation according to already finished samples
             variances, n_ops = estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-            n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+            n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                                 n_levels=sampler.n_levels)
 
         means, vars = estimator.estimate_moments(moments_fn)
@@ -606,8 +614,8 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose(value_mean(), [first_moment()[0], second_moment()[0], third_moment()[0]], atol=1e-4)
 
         # Central moments
-        central_moments = Monomial(n_moments, domain=true_domain, ref_domain=true_domain, mean=root_quantity_mean())
-        central_moments_quantity = moments(root_quantity, moments_fn=central_moments, mom_at_bottom=True)
+        central_moments_fn = Monomial(n_moments, domain=true_domain, ref_domain=true_domain, mean=root_quantity_mean())
+        central_moments_quantity = moments(root_quantity, moments_fn=central_moments_fn, mom_at_bottom=True)
         central_moments_mean = estimate_mean(central_moments_quantity)
         length_mean = central_moments_mean['length']
         time_mean = length_mean[1]
@@ -618,6 +626,7 @@ class QuantityTests(unittest.TestCase):
         assert np.isclose(central_value_mean()[1], 0, atol=1e-2)
 
         # Covariance
+        cov = estimator.estimate_covariance(moments_fn)
         covariance_quantity = covariance(root_quantity, moments_fn=moments_fn, cov_at_bottom=True)
         cov_mean = estimate_mean(covariance_quantity)
         length_mean = cov_mean['length']

@@ -161,8 +161,10 @@ class SampleStorageHDF(SampleStorage):
         :return: np.ndarray
         """
         chunk_size = self.chunk_size
+
         if n_samples is None:
             chunk_size = None
+
         sample_pairs = self._level_groups[int(level_id)].collected(i_chunk, chunk_size=chunk_size, n_samples=n_samples)
         # Chunk is empty
         if len(sample_pairs) == 0:
