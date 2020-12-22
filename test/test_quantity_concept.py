@@ -549,7 +549,7 @@ class QuantityTests(unittest.TestCase):
                 level_param = i_level / (n_levels - 1)
             level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
 
-        clean = False
+        clean = True
         sampler, simulation_factory = self._create_sampler(level_parameters, clean=clean, memory=False)
 
         distr = stats.norm()
@@ -619,7 +619,6 @@ class QuantityTests(unittest.TestCase):
         assert np.isclose(central_value_mean()[1], 0, atol=1e-2)
 
         # Covariance
-        cov = estimator.estimate_covariance(moments_fn)
         covariance_quantity = covariance(root_quantity, moments_fn=moments_fn, cov_at_bottom=True)
         cov_mean = estimate_mean(covariance_quantity)
         length_mean = cov_mean['length']

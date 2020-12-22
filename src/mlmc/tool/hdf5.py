@@ -396,13 +396,12 @@ class LevelGroup:
         Number of collected samples
         :return: int
         """
-        if self._collected_n_items is None:
-            with h5py.File(self.file_name, 'r') as hdf_file:
-                if 'collected_values' not in hdf_file[self.level_group_path]:
-                    return None
-                dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
-                self._collected_n_items = len(dataset[()])
-        return self._collected_n_items
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            if 'collected_values' not in hdf_file[self.level_group_path]:
+                return None
+            dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
+            collected_n_items = len(dataset[()])
+        return collected_n_items
 
     def get_finished_ids(self):
         """
