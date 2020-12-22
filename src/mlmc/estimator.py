@@ -2,7 +2,7 @@ import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
 from mlmc.tool import plot
-from mlmc.quantity import estimate_mean, moments, covariance
+from mlmc.quantity_estimate import estimate_mean, moments, covariance
 import mlmc.tool.simple_distribution
 
 

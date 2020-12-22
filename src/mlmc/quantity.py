@@ -1,30 +1,13 @@
-import abc
 import numpy as np
-import copy
 import operator
 from inspect import signature
 from memoization import cached
-from scipy import interpolate
-from typing import List, Tuple
+from typing import List
 from mlmc.sample_storage import SampleStorage
 from mlmc.quantity_spec import QuantitySpec
-
+from mlmc.quantity_types import QType, ScalarType, BoolType, ArrayType, DictType, TimeSeriesType, FieldType
 
 CHUNK_SIZE = 512000  # bytes in decimal
-
-
-def _result_qtype(method, quantities):
-    """
-    Determine QType from evaluation with given method and first few samples from storage
-    :param quantities: list of Quantities
-    :param method: ufunc function
-    :return: QType
-    """
-    chunks_quantity_level = [q.samples(level_id=0, i_chunk=0, n_samples=10) for q in quantities]
-    result = np.array(method(*chunks_quantity_level))  # numpy array of [M, <=10, 2]
-    qtype = ArrayType(shape=result.shape[0], qtype=Quantity._get_base_qtype(quantities))
-    return qtype
-
 
 def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
     """
@@ -49,161 +32,6 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
     dict_type = DictType(dict_types)
 
     return QuantityStorage(storage, dict_type)
-
-
-def mask_nan_samples(chunk):
-    """
-    Mask out samples that contain NaN in either fine or coarse part of the result
-    :param chunk: np.ndarray [M, chunk_size, 2]
-    :return: np.ndarray
-    """
-    # Fine and coarse moments mask
-    mask = np.any(np.isnan(chunk), axis=0)
-    m = ~mask.any(axis=1)
-    return chunk[..., m, :]
-
-
-def estimate_mean(quantity, level_means=False):
-    """
-    MLMC mean estimator.
-    The MLMC method is used to compute the mean estimate to the Quantity dependent on the collected samples.
-    The squared error of the estimate (the estimator variance) is estimated using the central limit theorem.
-    Data is processed by chunks, so that it also supports big data processing
-    :param quantity: Quantity
-    :return: QuantityMean which holds both mean and variance
-    """
-    Quantity.samples.cache_clear()
-    quantity_vec_size = quantity.size()
-    n_samples = None
-    sums = None
-    sums_of_squares = None
-    i_chunk = 0
-    level_chunks_none = np.zeros(1)  # if ones then the iteration through the chunks was terminated at each level
-
-    while not np.alltrue(level_chunks_none):
-        level_ids = quantity.get_quantity_storage().level_ids()
-        if i_chunk == 0:
-            # initialization
-            n_levels = len(level_ids)
-            n_samples = [0] * n_levels
-
-        level_chunks_none = np.zeros(n_levels)
-        for level_id in level_ids:
-            # Chunk of samples for given level id
-            try:
-                chunk = quantity.samples(level_id, i_chunk)
-                if level_id == 0:
-                    # Set variables for level sums and sums of powers
-                    if i_chunk == 0:
-                        sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-                        sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-
-                    # Coarse result for level 0, there is issue for moments processing (not know about level)
-                    chunk[..., 1] = 0
-
-                chunk = mask_nan_samples(chunk)
-                # level_chunk is Numpy Array with shape [M, chunk_size, 2]
-                n_samples[level_id] += chunk.shape[1]
-
-                assert(chunk.shape[0] == quantity_vec_size)
-                chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
-                sums[level_id] += np.sum(chunk_diff, axis=1)
-                sums_of_squares[level_id] += np.sum(chunk_diff**2, axis=1)
-            except StopIteration:
-                level_chunks_none[level_id] = True
-
-        i_chunk += 1
-
-    mean = np.zeros_like(sums[0])
-    var = np.zeros_like(sums[0])
-    l_means = []
-    l_vars = []
-
-    for s, sp, n in zip(sums, sums_of_squares, n_samples):
-        mean += s / n
-        if n > 1:
-            var += (sp - (s ** 2 / n)) / ((n - 1) * n)
-        else:
-            var += (sp - (s ** 2))
-
-        if level_means:
-            l_means.append(s / n)
-            if n > 1:
-                l_vars.append((sp - (s ** 2 / n)) / (n-1))
-            else:
-                l_vars.append((sp - (s ** 2)))
-
-    return quantity.create_quantity_mean(mean=mean, var=var, l_means=l_means, l_vars=l_vars, n_samples=n_samples)
-
-
-def moment(quantity, moments_fn, i=0):
-    """
-    Create quantity with operation that evaluates particular moment
-    :param quantity: Quantity instance
-    :param moments_fn: mlmc.moments.Moments child
-    :param i: index of moment
-    :return: Quantity
-    """
-    def eval_moment(x):
-        return moments_fn.eval_single_moment(i, value=x)
-    return Quantity(quantity_type=quantity.qtype, input_quantities=[quantity], operation=eval_moment)
-
-
-def moments(quantity, moments_fn, mom_at_bottom=True):
-    """
-    Create quantity with operation that evaluates moments
-    :param quantity: Quantity
-    :param moments_fn: mlmc.moments.Moments child
-    :param mom_at_bottom: bool, if True moments are underneath
-    :return: Quantity
-    """
-    def eval_moments(x):
-        if mom_at_bottom:
-            mom = moments_fn.eval_all(x).transpose((0, 3, 1, 2))  # [M, R, N, 2]
-        else:
-            mom = moments_fn.eval_all(x).transpose((3, 0, 1, 2))  # [R, M, N, 2]
-        return mom.reshape((np.prod(mom.shape[:-2]), mom.shape[-2], mom.shape[-1]))  # [M, N, 2]
-
-    # Create quantity type which has moments at the bottom
-    if mom_at_bottom:
-        moments_array_type = ArrayType(shape=(moments_fn.size,), qtype=ScalarType())
-        moments_qtype = QType.replace_scalar(copy.deepcopy(quantity.qtype), moments_array_type)
-    # Create quantity type that has moments on the surface
-    else:
-        moments_qtype = ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
-    return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
-
-
-def covariance(quantity, moments_fn, cov_at_bottom=True):
-    """
-    Create quantity with operation that evaluates covariance matrix
-    :param quantity: Quantity
-    :param moments_fn: mlmc.moments.Moments child
-    :param cov_at_bottom: bool, if True cov matrices are underneath
-    :return: Quantity
-    """
-    def eval_cov(x):
-        moments = moments_fn.eval_all(x)
-        mom_fine = moments[..., 0, :]
-        mom_coarse = moments[..., 1, :]
-
-        cov_fine = np.einsum('...i,...j', mom_fine, mom_fine)
-        cov_coarse = np.einsum('...i,...j', mom_coarse, mom_coarse)
-
-        if cov_at_bottom:
-            cov = np.array([cov_fine, cov_coarse]).transpose((1, 3, 4, 2, 0))   # [M, R, R, N, 2]
-        else:
-            cov = np.array([cov_fine, cov_coarse]).transpose((3, 4, 1, 2, 0))   # [R, R, M, N, 2]
-        return cov.reshape((np.prod(cov.shape[:-2]), cov.shape[-2], cov.shape[-1]))
-
-    # Create quantity type which has covariance matrices at the bottom
-    if cov_at_bottom:
-        moments_array_type = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=ScalarType())
-        moments_qtype = QType.replace_scalar(copy.deepcopy(quantity.qtype), moments_array_type)
-    # Create quantity type that has covariance matrices on the surface
-    else:
-        moments_qtype = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
-    return Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_cov)
 
 
 class Quantity:
@@ -287,7 +115,7 @@ class Quantity:
         """
         return self.qtype.size()
 
-    def get_cache_key(self, level_id, i_chunk, n_samples=np.inf):
+    def get_cache_key(self, level_id, i_chunk=0, n_samples=np.inf):
         """
         Create cache key
         :param level_id: int
@@ -297,13 +125,13 @@ class Quantity:
         return (level_id, i_chunk, id(self), n_samples)  # redundant parentheses needed due to py36, py37
 
     @cached(custom_key_maker=get_cache_key)
-    def samples(self, level_id, i_chunk, n_samples=np.inf):
+    def samples(self, level_id, i_chunk=0, n_samples=np.inf):
         """
         Yields list of sample chunks for individual levels.
         Possibly calls underlying quantities.
         :param level_id: int
         :param i_chunk: int
-        :return: np.ndarray
+        :return: np.ndarray or None
         """
         chunks_quantity_level = [q.samples(level_id, i_chunk) for q in self._input_quantities]
         if not self._additional_params:  # dictionary is empty
@@ -595,7 +423,7 @@ class Quantity:
         for arg in args:
             quantities.append(Quantity.wrap(arg))
 
-        result_qtype = _result_qtype(_ufunc_call, quantities)
+        result_qtype = Quantity._result_qtype(_ufunc_call, quantities)
         return Quantity(quantity_type=result_qtype, input_quantities=list(quantities), operation=_ufunc_call)
 
     @staticmethod
@@ -618,6 +446,19 @@ class Quantity:
         else:
             raise ValueError("Values {} are not flat, bool or array (list)".format(value))
         return quantity
+
+    @staticmethod
+    def _result_qtype(method, quantities):
+        """
+        Determine QType from evaluation with given method and first few samples from storage
+        :param quantities: list of Quantities
+        :param method: ufunc function
+        :return: QType
+        """
+        chunks_quantity_level = [q.samples(level_id=0, i_chunk=0, n_samples=10) for q in quantities]
+        result = np.array(method(*chunks_quantity_level))  # numpy array of [M, <=10, 2]
+        qtype = ArrayType(shape=result.shape[0], qtype=Quantity._get_base_qtype(quantities))
+        return qtype
 
     @staticmethod
     def QArray(quantities):
@@ -749,13 +590,13 @@ class QuantityMean:
         return self._n_samples
 
     def _reshape(self, data, levels=False):
-        if isinstance(self.qtype, ArrayType):
-            reshape_shape = self.qtype._shape
-            if isinstance(reshape_shape, int):
-                reshape_shape = [reshape_shape]
-            if levels:
-                return data.reshape((data.shape[0], *reshape_shape))
-            return data.reshape(*reshape_shape)
+        # if isinstance(self.qtype, ArrayType):
+        #     reshape_shape = self.qtype._shape
+        #     if isinstance(reshape_shape, int):
+        #         reshape_shape = [reshape_shape]
+        #     if levels:
+        #         return data.reshape((data.shape[0], *reshape_shape))
+        #     return data.reshape(*reshape_shape)
         return data
 
     def __getitem__(self, key):
@@ -833,7 +674,7 @@ class QuantityStorage(Quantity):
     def __init__(self, storage, qtype):
         """
         Special Quantity for direct access to SampleStorage
-        :param storage: mlmc.sample_storage.SampleStorage child
+        :param storage: mlmc._sample_storage.SampleStorage child
         :param qtype: QType
         """
         self._storage = storage
@@ -858,7 +699,7 @@ class QuantityStorage(Quantity):
     def get_quantity_storage(self):
         return self
 
-    def samples(self, level_id, i_chunk, n_samples=np.inf):
+    def samples(self, level_id, i_chunk=0, n_samples=np.inf):
         """
         Get results for given level id and chunk id
         :param level_id: int
@@ -870,234 +711,8 @@ class QuantityStorage(Quantity):
         assert self.qtype.size() == level_chunk.shape[0]
         return level_chunk
 
+    def get_chunks_info(self, level_id, i_chunk):
+        return self._storage.get_chunks_info(level_id, i_chunk)
 
-class QType(metaclass=abc.ABCMeta):
-    def size(self) -> int:
-        """
-        Size of type
-        :return: int
-        """
-
-    def base_qtype(self):
-        return self._qtype.base_qtype()
-
-    @staticmethod
-    def replace_scalar(original_qtype, substitute_qtype):
-        """
-        Find ScalarType and replace it with new_qtype
-        :param substitute_qtype: QType, replace ScalarType
-        :return: None
-        """
-        qtypes = []
-        current_qtype = original_qtype
-        while True:
-            if isinstance(current_qtype, DictType):
-                qtypes.append(DictType.replace_scalar(current_qtype, substitute_qtype))
-                break
-
-            if isinstance(current_qtype, (ScalarType, BoolType)):
-                if isinstance(current_qtype, (ScalarType, BoolType)):
-                    qtypes.append(substitute_qtype)
-                    break
-
-            qtypes.append(current_qtype)
-            current_qtype = current_qtype._qtype
-
-        first_qtype = qtypes[0]
-        new_qtype = first_qtype
-
-        for i in range(1, len(qtypes)):
-            new_qtype._qtype = qtypes[i]
-            new_qtype = new_qtype._qtype
-        return first_qtype
-
-    def _keep_dims(self, chunk):
-        """
-        Always keep chunk shape to be [M, chunk size, 2]!
-        For scalar quantities, the input block can have the shape (chunk size, 2)
-        Sometimes we need to 'flatten' first few shape to have desired chunk shape
-        :param chunk: list
-        :return: list
-        """
-        # Keep dims [M, chunk size, 2]
-        if len(chunk.shape) == 2:
-            chunk = chunk[np.newaxis, :]
-        elif len(chunk.shape) > 2:
-            chunk = chunk.reshape((np.prod(chunk.shape[:-2]), chunk.shape[-2], chunk.shape[-1]))
-        else:
-            raise ValueError("Chunk shape not supported")
-        return chunk
-
-    def _make_getitem_op(self, chunk, key):
-        """
-        Operation
-        :param chunk: level chunk, list with shape [M, chunk size, 2]
-        :param key: parent QType's key, needed for ArrayType
-        :return: list
-        """
-        return self._keep_dims(chunk[key])
-
-
-class ScalarType(QType):
-    def __init__(self, qtype=float):
-        self._qtype = qtype
-
-    def base_qtype(self):
-        return self
-
-    def size(self) -> int:
-        return 1
-
-
-class BoolType(ScalarType):
-    pass
-
-
-class ArrayType(QType):
-    def __init__(self, shape, qtype: QType):
-        self._shape = shape
-        self._qtype = qtype
-
-    def size(self) -> int:
-        return np.prod(self._shape) * self._qtype.size()
-
-    def __getitem__(self, key):
-        """
-        ArrayType indexing
-        :param key: int, tuple of ints or slice objects
-        :return: QuantityType - ArrayType or self._qtype
-        """
-        # Get new shape
-        new_shape = np.empty(self._shape)[key].shape
-
-        # One selected item is considered to be a scalar QType
-        if len(new_shape) == 1 and new_shape[0] == 1:
-            new_shape = ()
-
-        # Result is also array
-        if len(new_shape) > 0:
-            q_type = ArrayType(new_shape, qtype=self._qtype)
-        # Result is single array item
-        else:
-            q_type = self._qtype
-
-        return q_type, 0
-
-    def _make_getitem_op(self, chunk, key):
-        """
-        Operation
-        :param chunk: list [M, chunk size, 2]
-        :param key: slice
-        :return:
-        """
-        # Reshape M to original shape to allow access
-        assert self._shape is not None
-        chunk = chunk.reshape((*self._shape, chunk.shape[-2], chunk.shape[-1]))
-        return self._keep_dims(chunk[key])
-
-
-class TimeSeriesType(QType):
-    def __init__(self, times, qtype):
-        if isinstance(times, np.ndarray):
-            times = times.tolist()
-        self._times = times
-        self._qtype = qtype
-
-    def size(self) -> int:
-        return len(self._times) * self._qtype.size()
-
-    def __getitem__(self, key):
-        q_type = self._qtype
-        try:
-            position = self._times.index(key)
-        except KeyError:
-            print("Item " + str(key) + " was not found in TimeSeries" + ". Available items: " + str(list(self._times)))
-        return q_type, position * q_type.size()
-
-    @staticmethod
-    def time_interpolation(quantity, value):
-        """
-        Interpolation in time
-        :param quantity: Quantity instance
-        :param value: point where to interpolate
-        :return: Quantity
-        """
-        def interp(y):
-            split_indeces = np.arange(1, len(quantity.qtype._times)) * quantity.qtype._qtype.size()
-            y = np.split(y, split_indeces, axis=-3)
-            f = interpolate.interp1d(quantity.qtype._times, y, axis=0)
-            return f(value)
-
-        return Quantity(quantity_type=quantity.qtype._qtype, input_quantities=[quantity], operation=interp)
-
-
-class FieldType(QType):
-    def __init__(self, args: List[Tuple[str, QType]]):
-        """
-        QType must have same structure
-        :param args:
-        """
-        self._dict = dict(args)
-        self._qtype = args[0][1]
-        assert all(q_type.size() == self._qtype.size() for _, q_type in args)
-
-    def size(self) -> int:
-        return len(self._dict.keys()) * self._qtype.size()
-
-    def __getitem__(self, key):
-        q_type = self._qtype
-        try:
-            position = list(self._dict.keys()).index(key)
-        except KeyError:
-            print("Key " + str(key) + " was not found in FieldType" +
-                  ". Available keys: " + str(list(self._dict.keys())[:5]) + "...")
-        return q_type, position * q_type.size()
-
-    def __copy__(self):
-        new = type(self)([(k, v) for k, v in self._dict.items()])
-        new.__dict__.update(self.__dict__)
-        return new
-
-
-class DictType(QType):
-    def __init__(self, args: List[Tuple[str, QType]]):
-        self._dict = dict(args)  # Be aware we it is ordered dictionary
-        self._check_base_type()
-
-    def _check_base_type(self):
-        qtypes = list(self._dict.values())
-        qtype_0_base_type = qtypes[0].base_qtype()
-        for qtype in qtypes[1:]:
-            if not isinstance(qtype.base_qtype(), type(qtype_0_base_type)):
-                raise TypeError("qtype {} has base QType {}, expecting {}. "
-                                "All QTypes must have same base QType, either SacalarType or BoolType".
-                                format(qtype, qtype.base_qtype(), qtype_0_base_type))
-
-    def base_qtype(self):
-        return list(self._dict.values())[0].base_qtype()
-
-    def size(self) -> int:
-        return int(np.sum(q_type.size() for _, q_type in self._dict.items()))
-
-    @staticmethod
-    def replace_scalar(original_qtype, substitute_qtype):
-        dict_items = []
-        for key, qtype in original_qtype._dict.items():
-            if isinstance(qtype, ScalarType):
-                dict_items.append((key, substitute_qtype))
-            else:
-                dict_items.append((key, QType.replace_scalar(qtype, substitute_qtype)))
-        return DictType(dict_items)
-
-    def __getitem__(self, key):
-        try:
-            q_type = self._dict[key]
-        except KeyError:
-            print("Key " + str(key) + " was not found in DictType" +
-                  ". Available keys: " + str(list(self._dict.keys())[:5]) + "...")
-        start = 0
-        for k, qt in self._dict.items():
-            if k == key:
-                break
-            start += qt.size()
-        return q_type, start
+    def n_collected(self):
+        return self._storage.get_n_collected()
