@@ -351,9 +351,10 @@ class Estimate:
         """
         Construct approximation of the density using given moment functions.
         """
-        cov = np.squeeze(qe.estimate_mean(qe.covariance(self._quantity, self._moments_fn))())
-        moments_obj, info, cov_centered = mlmc.tool.simple_distribution.construct_orthogonal_moments(self._moments_fn,
-                                                                                                     cov,
+        cov_mean = qe.estimate_mean(qe.covariance(self._quantity, self._moments_fn))
+        cov_mat = cov_mean()
+        moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(self._moments_fn,
+                                                                                                     cov_mat,
                                                                                                      tol=orth_moments_tol)
         moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_obj), level_means=True)
         est_moments = moments_mean.mean
