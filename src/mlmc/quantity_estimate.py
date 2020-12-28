@@ -1,20 +1,22 @@
 import numpy as np
 import copy
-from mlmc.quantity_types import QType, ScalarType, BoolType, ArrayType, DictType, TimeSeriesType, FieldType
 import mlmc.quantity
+import mlmc.quantity_types as qt
+
 
 CHUNK_SIZE = 512000  # bytes in decimal
+
+
 
 def mask_nan_samples(chunk):
     """
     Mask out samples that contain NaN in either fine or coarse part of the result
     :param chunk: np.ndarray [M, chunk_size, 2]
-    :return: np.ndarray
+    :return: chunk: np.ndarray, number of removed samples: int
     """
     # Fine and coarse moments_fn mask
-    mask = np.any(np.isnan(chunk), axis=0)
-    m = ~mask.any(axis=1)
-    return chunk[..., m, :]
+    mask = np.any(np.isnan(chunk), axis=0).any(axis=1)
+    return chunk[..., ~mask, :], np.count_nonzero(mask)
 
 
 def estimate_mean(quantity, level_means=False):
@@ -24,6 +26,7 @@ def estimate_mean(quantity, level_means=False):
     The squared error of the estimate (the estimator variance) is estimated using the central limit theorem.
     Data is processed by chunks, so that it also supports big data processing
     :param quantity: Quantity
+    :param level_means: bool, if True calculate means and vars at each level
     :return: QuantityMean which holds both mean and variance
     """
     mlmc.quantity.Quantity.samples.cache_clear()
@@ -32,6 +35,7 @@ def estimate_mean(quantity, level_means=False):
     sums = None
     sums_of_squares = None
     i_chunk = 0
+    n_rm_samples = 0
     level_chunks_none = np.zeros(1)  # if ones then the iteration through the chunks was terminated at each level
 
     while not np.alltrue(level_chunks_none):
@@ -51,11 +55,11 @@ def estimate_mean(quantity, level_means=False):
                     if i_chunk == 0:
                         sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
                         sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-
                     # Coarse result for level 0, there is issue for moments_fn processing (not know about level)
                     chunk[..., 1] = 0
 
-                chunk = mask_nan_samples(chunk)
+                chunk, n_rm_samples = mask_nan_samples(chunk)
+
                 # level_chunk is Numpy Array with shape [M, chunk_size, 2]
                 n_samples[level_id] += chunk.shape[1]
 
@@ -65,7 +69,6 @@ def estimate_mean(quantity, level_means=False):
                 sums_of_squares[level_id] += np.sum(chunk_diff**2, axis=1)
             except StopIteration:
                 level_chunks_none[level_id] = True
-
         i_chunk += 1
 
     mean = np.zeros_like(sums[0])
@@ -87,7 +90,13 @@ def estimate_mean(quantity, level_means=False):
             else:
                 l_vars.append((sp - (s ** 2)))
 
-    return quantity.create_quantity_mean(mean=mean, var=var, l_means=l_means, l_vars=l_vars, n_samples=n_samples)
+    # sums full of zeros
+    if np.isnan(mean).all():
+        mean = []
+        var = []
+
+    return mlmc.quantity.QuantityMean(quantity.qtype, mean, var, l_means=l_means, l_vars=l_vars, n_samples=n_samples,
+                                      n_rm_samples=n_rm_samples)
 
 
 def moment(quantity, moments_fn, i=0):
@@ -120,11 +129,11 @@ def moments(quantity, moments_fn, mom_at_bottom=True):
 
     # Create quantity type which has moments_fn at the bottom
     if mom_at_bottom:
-        moments_array_type = ArrayType(shape=(moments_fn.size,), qtype=ScalarType())
-        moments_qtype = QType.replace_scalar(copy.deepcopy(quantity.qtype), moments_array_type)
+        moments_array_type = qt.ArrayType(shape=(moments_fn.size,), qtype=qt.ScalarType())
+        moments_qtype = qt.QType.replace_scalar(copy.deepcopy(quantity.qtype), moments_array_type)
     # Create quantity type that has moments_fn on the surface
     else:
-        moments_qtype = ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
+        moments_qtype = qt.ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
     return mlmc.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
 
 
@@ -152,10 +161,10 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
 
     # Create quantity type which has covariance matrices at the bottom
     if cov_at_bottom:
-        moments_array_type = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=ScalarType())
-        moments_qtype = QType.replace_scalar(copy.deepcopy(quantity.qtype), moments_array_type)
+        moments_array_type = qt.ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=qt.ScalarType())
+        moments_qtype = qt.QType.replace_scalar(copy.deepcopy(quantity.qtype), moments_array_type)
     # Create quantity type that has covariance matrices on the surface
     else:
-        moments_qtype = ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
+        moments_qtype = qt.ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
     return mlmc.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_cov)
 

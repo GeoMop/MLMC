@@ -5,9 +5,10 @@ from memoization import cached
 from typing import List
 from mlmc.sample_storage import SampleStorage
 from mlmc.quantity_spec import QuantitySpec
-from mlmc.quantity_types import QType, ScalarType, BoolType, ArrayType, DictType, TimeSeriesType, FieldType
+import mlmc.quantity_types as qt
 
 CHUNK_SIZE = 512000  # bytes in decimal
+
 
 def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
     """
@@ -24,12 +25,12 @@ def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
 
     dict_types = []
     for q_spec in q_specs:
-        scalar_type = ScalarType(float)
-        array_type = ArrayType(q_spec.shape, scalar_type)
-        field_type = FieldType([(loc, array_type) for loc in q_spec.locations])
-        ts_type = TimeSeriesType(q_spec.times, field_type)
+        scalar_type = qt.ScalarType(float)
+        array_type = qt.ArrayType(q_spec.shape, scalar_type)
+        field_type = qt.FieldType([(loc, array_type) for loc in q_spec.locations])
+        ts_type = qt.TimeSeriesType(q_spec.times, field_type)
         dict_types.append((q_spec.name, ts_type))
-    dict_type = DictType(dict_types)
+    dict_type = qt.DictType(dict_types)
 
     return QuantityStorage(storage, dict_type)
 
@@ -141,26 +142,8 @@ class Quantity:
                 self._additional_params['i_chunk'] = i_chunk
         return self._operation(*chunks_quantity_level, **self._additional_params)
 
-    def create_quantity_mean(self, mean: np.ndarray, var: np.ndarray, l_means:np.ndarray, l_vars:np.ndarray, n_samples=None):
-        """
-        Crate a new quantity with the same structure but containing fixed data vector.
-        Primary usage is to organise computed means and variances.
-        Can possibly be used also to organise single sample row.
-        :param mean: np.ndarray
-        :param var: np.ndarray
-        :param l_means: np.ndarray, means at each level
-        :param l_vars: np.ndarray, vars at each level
-        :return:
-        """
-        if np.isnan(mean).all():
-            mean = []
-            var = []
-        return QuantityMean(self.qtype, mean, var, l_means=l_means, l_vars=l_vars, n_samples=n_samples)
-
     def _reduction_op(self, quantities, operation):
         """
-        Check if the quantities have the same structure and same storage possibly return copy of the common quantity
-        structure depending on the other quantities with given operation.
         :param quantities: List[Quantity]
         :param operation: function which is run with given quantities
         :return: Quantity
@@ -168,6 +151,8 @@ class Quantity:
         for quantity in quantities:
             if not isinstance(quantity, QuantityConst):
                 return Quantity(quantity.qtype, operation=operation, input_quantities=quantities)
+        # Quantity from QuantityConst instances
+        return QuantityConst(quantities[0].qtype, value=operation(*[q._value for q in quantities]))
 
     def select(self, *args):
         """
@@ -179,7 +164,7 @@ class Quantity:
         masks = args[0]
 
         for quantity in args:
-            if not isinstance(quantity.qtype.base_qtype(), BoolType):
+            if not isinstance(quantity.qtype.base_qtype(), qt.BoolType):
                 raise Exception("Quantity: {} doesn't have BoolType, instead it has QType: {}"
                                 .format(quantity, quantity.qtype.base_qtype()))
 
@@ -198,34 +183,53 @@ class Quantity:
         return Quantity._method(ufunc, method, *args, **kwargs)
 
     def __add__(self, other):
-        return self._reduction_op([self, Quantity.wrap(other)], Quantity.add_op)
+        return Quantity.create_quantity([self, Quantity.wrap(other)], Quantity.add_op)
 
     def __sub__(self, other):
-        return self._reduction_op([self, Quantity.wrap(other)], Quantity.sub_op)
+        return Quantity.create_quantity([self, Quantity.wrap(other)], Quantity.sub_op)
 
     def __mul__(self, other):
-        return self._reduction_op([self, Quantity.wrap(other)], Quantity.mult_op)
+        return Quantity.create_quantity([self, Quantity.wrap(other)], Quantity.mult_op)
 
     def __truediv__(self, other):
-        return self._reduction_op([self, Quantity.wrap(other)], Quantity.truediv_op)
+        return Quantity.create_quantity([self, Quantity.wrap(other)], Quantity.truediv_op)
 
     def __mod__(self, other):
-        return self._reduction_op([self, Quantity.wrap(other)], Quantity.mod_op)
+        return Quantity.create_quantity([self, Quantity.wrap(other)], Quantity.mod_op)
 
     def __radd__(self, other):
-        return self._reduction_op([Quantity.wrap(other), self], Quantity.add_op)
+        return Quantity.create_quantity([Quantity.wrap(other), self], Quantity.add_op)
 
     def __rsub__(self, other):
-        return self._reduction_op([Quantity.wrap(other), self], Quantity.sub_op)
+        return Quantity.create_quantity([Quantity.wrap(other), self], Quantity.sub_op)
 
     def __rmul__(self, other):
-        return self._reduction_op([Quantity.wrap(other), self], Quantity.mult_op)
+        return Quantity.create_quantity([Quantity.wrap(other), self], Quantity.mult_op)
 
     def __rtruediv__(self, other):
-        return self._reduction_op([Quantity.wrap(other), self], Quantity.truediv_op)
+        return Quantity.create_quantity([Quantity.wrap(other), self], Quantity.truediv_op)
 
     def __rmod__(self, other):
-        return self._reduction_op([Quantity.wrap(other), self], Quantity.mod_op)
+        return Quantity.create_quantity([Quantity.wrap(other), self], Quantity.mod_op)
+
+    @staticmethod
+    def create_quantity(quantities, operation):
+        """
+        Create new quantity (Quantity or QuantityConst) based on given quantities and operation.
+        There are two scenarios:
+        1. At least one of quantities is Quantity instance then all quantities are considered to be input_quantities
+         of new Quantity
+        2. All of quantities are QuantityConst instances then new QuantityConst is created
+        :param quantities: List[Quantity]
+        :param operation: function which is run with given quantities
+        :return: Quantity
+        """
+        for quantity in quantities:
+            if not isinstance(quantity, QuantityConst):
+                return Quantity(quantity.qtype, operation=operation, input_quantities=quantities)
+        # Quantity from QuantityConst instances
+        return QuantityConst(quantities[0].qtype, value=operation(*[q._value for q in quantities]))
+
 
     @staticmethod
     def add_op(x, y):
@@ -274,12 +278,12 @@ class Quantity:
         :param op: operation
         :return: Quantity
         """
-        bool_type = BoolType()
+        bool_type = qt.BoolType()
         new_qtype = self.qtype
-        new_qtype = QType.replace_scalar(new_qtype, bool_type)
+        new_qtype = qt.QType.replace_scalar(new_qtype, bool_type)
         other = Quantity.wrap(other)
 
-        if not isinstance(self.qtype.base_qtype(), ScalarType) or not isinstance(other.qtype.base_qtype(), ScalarType):
+        if not isinstance(self.qtype.base_qtype(), qt.ScalarType) or not isinstance(other.qtype.base_qtype(), qt.ScalarType):
             raise TypeError("Quantity has base qtype {}. "
                             "Quantities with base qtype ScalarType are the only ones that support comparison".
                             format(self.qtype.base_qtype()))
@@ -360,7 +364,7 @@ class Quantity:
         """
         new_qtype, start = self.qtype[key]  # New quantity type
 
-        if not isinstance(self.qtype, ArrayType):
+        if not isinstance(self.qtype, qt.ArrayType):
             key = slice(start, start + new_qtype.size())
 
         def _make_getitem_op(y):
@@ -400,9 +404,9 @@ class Quantity:
         # Either all quantities are BoolType or it is considered to be ScalarType
         for quantity in args_quantities:
             if isinstance(quantity, Quantity):
-                if type(quantity.qtype.base_qtype()) == ScalarType:
-                    return ScalarType()
-        return BoolType()
+                if type(quantity.qtype.base_qtype()) == qt.ScalarType:
+                    return qt.ScalarType()
+        return qt.BoolType()
 
     @staticmethod
     def _method(ufunc, method, *args, **kwargs):
@@ -436,12 +440,12 @@ class Quantity:
         if isinstance(value, Quantity):
             return value
         elif isinstance(value, (int, float)):
-            quantity = QuantityConst(quantity_type=ScalarType(), value=value)
+            quantity = QuantityConst(quantity_type=qt.ScalarType(), value=value)
         elif isinstance(value, bool):
-            quantity = QuantityConst(quantity_type=BoolType(), value=value)
+            quantity = QuantityConst(quantity_type=qt.BoolType(), value=value)
         elif isinstance(value, (list, np.ndarray)):
             value = np.array(value)
-            qtype = ArrayType(shape=value.shape, qtype=ScalarType())
+            qtype = qt.ArrayType(shape=value.shape, qtype=qt.ScalarType())
             quantity = QuantityConst(quantity_type=qtype, value=value)
         else:
             raise ValueError("Values {} are not flat, bool or array (list)".format(value))
@@ -457,31 +461,32 @@ class Quantity:
         """
         chunks_quantity_level = [q.samples(level_id=0, i_chunk=0, n_samples=10) for q in quantities]
         result = np.array(method(*chunks_quantity_level))  # numpy array of [M, <=10, 2]
-        qtype = ArrayType(shape=result.shape[0], qtype=Quantity._get_base_qtype(quantities))
+        qtype = qt.ArrayType(shape=result.shape[0], qtype=Quantity._get_base_qtype(quantities))
         return qtype
 
     @staticmethod
     def QArray(quantities):
         flat_quantities = np.array(quantities).flatten()
         qtype = Quantity._check_same_qtype(flat_quantities)
-        array_type = ArrayType(np.array(quantities).shape, qtype)
+        array_type = qt.ArrayType(np.array(quantities).shape, qtype)
         return Quantity._concatenate(flat_quantities, qtype=array_type)
 
     @staticmethod
     def QDict(key_quantity):
-        dict_type = DictType([(key, quantity.qtype) for key, quantity in key_quantity])
+        dict_type = qt.DictType([(key, quantity.qtype) for key, quantity in key_quantity])
         return Quantity._concatenate(np.array(key_quantity)[:, 1], qtype=dict_type)
 
     @staticmethod
     def QTimeSeries(time_quantity):
         qtype = Quantity._check_same_qtype(np.array(time_quantity)[:, 1])
         times = np.array(time_quantity)[:, 0]
-        return Quantity._concatenate(np.array(time_quantity)[:, 1], qtype=TimeSeriesType(times=times, qtype=qtype))
+        return Quantity._concatenate(np.array(time_quantity)[:, 1], qtype=qt.TimeSeriesType(times=times, qtype=qtype))
+
 
     @staticmethod
     def QField(key_quantity):
         Quantity._check_same_qtype(np.array(key_quantity)[:, 1])
-        field_type = FieldType([(key, quantity.qtype) for key, quantity in key_quantity])
+        field_type = qt.FieldType([(key, quantity.qtype) for key, quantity in key_quantity])
         return Quantity._concatenate(np.array(key_quantity)[:, 1], qtype=field_type)
 
     @staticmethod
@@ -548,7 +553,7 @@ class QuantityConst(Quantity):
 
 class QuantityMean:
 
-    def __init__(self, quantity_type, mean, var, l_means=[], l_vars=[], n_samples=None):
+    def __init__(self, quantity_type, mean, var, l_means=[], l_vars=[], n_samples=None, n_rm_samples=0):
         """
         QuantityMean represents result of estimate_mean method
         :param quantity_type: QType
@@ -561,6 +566,7 @@ class QuantityMean:
         self._l_means = np.array(l_means)
         self._l_vars = np.array(l_vars)
         self._n_samples = n_samples
+        self._n_rm_samples = n_rm_samples
 
     def __call__(self):
         """
@@ -590,13 +596,17 @@ class QuantityMean:
         return self._n_samples
 
     def _reshape(self, data, levels=False):
-        # if isinstance(self.qtype, ArrayType):
-        #     reshape_shape = self.qtype._shape
-        #     if isinstance(reshape_shape, int):
-        #         reshape_shape = [reshape_shape]
-        #     if levels:
-        #         return data.reshape((data.shape[0], *reshape_shape))
-        #     return data.reshape(*reshape_shape)
+        if isinstance(self.qtype, qt.ArrayType):
+            reshape_shape = self.qtype._shape
+            size = self.qtype._qtype.size()
+            if isinstance(reshape_shape, int):
+                reshape_shape = [reshape_shape]
+            if levels:
+                return data.reshape((data.shape[0], *reshape_shape))
+            if size > 1:
+                return data.reshape(*reshape_shape, size)
+            else:
+                return data.reshape(*reshape_shape)
         return data
 
     def __getitem__(self, key):
@@ -609,16 +619,11 @@ class QuantityMean:
         reshape_shape = None
         newshape = None
         # ArrayType might be accessed directly regardless of qtype start and size
-        if isinstance(self.qtype, ArrayType):
+        if isinstance(self.qtype, qt.ArrayType):
             slice_key = key
             reshape_shape = self.qtype._shape
             if isinstance(reshape_shape, int):
                 reshape_shape = [reshape_shape]
-
-            # If QType inside array is also array
-            # set newshape which holds shape of inner array - good for reshape process
-            if isinstance(new_qtype, ArrayType):
-                 newshape = new_qtype._shape
         # Other accessible quantity types uses start and size
         else:
             end = start + new_qtype.size()
@@ -630,15 +635,10 @@ class QuantityMean:
         l_vars = self._l_vars
 
         if reshape_shape is not None:
-            if newshape is not None:  # reshape [Mr] to e.g. [..., R, R, M]
-                mean = mean.reshape(*reshape_shape, *newshape)
-                var = var.reshape(*reshape_shape, *newshape)
-                l_means = l_means.reshape((l_means.shape[0], *reshape_shape, *newshape))
-                l_vars = l_vars.reshape((l_vars.shape[0], *reshape_shape, *newshape))
-            elif (np.prod(mean.shape) // np.prod(reshape_shape)) > 1:
+            if (np.prod(mean.shape) // np.prod(reshape_shape)) > 1:
                 mean = mean.reshape(*reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape))
                 var = var.reshape(*reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape))
-                l_means = l_means.reshape((l_means.shape[0], *reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape)))
+                l_means = l_means.reshape((l_means.shape[0], *reshape_shape, np.prod(mean.shape[1:]) // np.prod(reshape_shape)))
                 l_vars = l_vars.reshape((l_vars.shape[0], *reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape)))
             else:
                 mean = mean.reshape(*reshape_shape)
@@ -646,9 +646,8 @@ class QuantityMean:
                 l_means = l_means.reshape((l_means.shape[0], *reshape_shape))
                 l_vars = l_vars.reshape((l_vars.shape[0], *reshape_shape))
 
-
-        mean_get_item = mean[slice_key]
-        var_get_item = var[slice_key]
+        mean_get_item = mean[slice_key].flatten()
+        var_get_item = var[slice_key].flatten()
 
         # Handle level means and variances
         if len(l_means) > 0:
@@ -658,7 +657,6 @@ class QuantityMean:
             else:
                 if isinstance(slice_key, int):
                     slice_key = [slice_key]
-
                 if len(l_means.shape) - (len(slice_key) +1) > 0:
                     l_means = l_means[(slice(0, l_means.shape[0]), *slice_key, slice(0, l_means.shape[-1]))]
                     l_vars = l_vars[(slice(0, l_vars.shape[0]), *slice_key, slice(0, l_vars.shape[-1]))]
@@ -666,8 +664,12 @@ class QuantityMean:
                     l_means = l_means[(slice(0, l_means.shape[0]), *slice_key)]
                     l_vars = l_vars[(slice(0, l_vars.shape[0]), *slice_key)]
 
+        if len(l_means.shape) > 1:
+            l_means = l_means.reshape(l_means.shape[0], np.prod(l_means.shape[1:]))
+            l_vars = l_vars.reshape(l_vars.shape[0], np.prod(l_vars.shape[1:]))
+
         return QuantityMean(quantity_type=new_qtype, mean=mean_get_item, var=var_get_item,
-                            l_means=l_means, l_vars=l_vars)
+                            l_means=l_means, l_vars=l_vars, n_samples=self._n_samples, n_rm_samples=self._n_rm_samples)
 
 
 class QuantityStorage(Quantity):

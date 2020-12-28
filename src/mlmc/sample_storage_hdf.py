@@ -239,7 +239,7 @@ class SampleStorageHDF(SampleStorage):
     def get_level_parameters(self):
         return self._hdf_object.load_level_parameters()
 
-    def get_items_in_chunk(self, level_id):
+    def level_chunk_n_samples(self, level_id):
         return self._level_groups[level_id].n_items_in_chunk
 
     def get_chunks_info(self, level_id, i_chunk):
