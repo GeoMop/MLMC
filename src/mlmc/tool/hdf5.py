@@ -398,7 +398,7 @@ class LevelGroup:
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             if 'collected_values' not in hdf_file[self.level_group_path]:
-                return None
+                return AttributeError("collected_values dataset not in HDF file for level {}".format(self.level_id))
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
             collected_n_items = len(dataset[()])
         return collected_n_items

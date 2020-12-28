@@ -75,7 +75,7 @@ class Quantity:
             if selection_id is None:
                 selection_id = input_quantity.selection_id()
             elif input_quantity.selection_id() is not None and selection_id != input_quantity.selection_id():
-                return None
+                raise Exception("Different selection IDs among input quantities")
         return selection_id
 
     def _check_selection_ids(self):
