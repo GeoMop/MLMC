@@ -5,7 +5,6 @@ import mlmc.quantity_types as qt
 from mlmc.quantity_spec import ChunkSpec
 
 
-
 def mask_nan_samples(chunk):
     """
     Mask out samples that contain NaN in either fine or coarse part of the result
@@ -49,21 +48,20 @@ def estimate_mean(quantity, chunk_size=512000000, level_means=False):
             # Chunk of samples for given level id
             try:
                 chunk = quantity.samples(ChunkSpec(level_id, chunk_id, chunk_size=chunk_size))
+                chunk, n_rm_samples = mask_nan_samples(chunk)
+                # level_chunk is Numpy Array with shape [M, chunk_size, 2]
+                n_samples[level_id] += chunk.shape[1]
+                assert (chunk.shape[0] == quantity_vec_size)
+
                 if level_id == 0:
                     # Set variables for level sums and sums of powers
                     if chunk_id == 0:
                         sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
                         sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-                    # Coarse result for level 0, there is issue for moments_fn processing (not know about level)
-                    chunk[..., 1] = 0
+                    chunk_diff = chunk[:, :, 0]
+                else:
+                    chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
 
-                chunk, n_rm_samples = mask_nan_samples(chunk)
-
-                # level_chunk is Numpy Array with shape [M, chunk_size, 2]
-                n_samples[level_id] += chunk.shape[1]
-
-                assert(chunk.shape[0] == quantity_vec_size)
-                chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
                 sums[level_id] += np.sum(chunk_diff, axis=1)
                 sums_of_squares[level_id] += np.sum(chunk_diff**2, axis=1)
             except StopIteration:
@@ -147,15 +145,19 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
     def eval_cov(x):
         moments = moments_fn.eval_all(x)
         mom_fine = moments[..., 0, :]
-        mom_coarse = moments[..., 1, :]
-
         cov_fine = np.einsum('...i,...j', mom_fine, mom_fine)
-        cov_coarse = np.einsum('...i,...j', mom_coarse, mom_coarse)
+
+        if moments.shape[-2] == 1:
+            cov = np.array([cov_fine])
+        else:
+            mom_coarse = moments[..., 1, :]
+            cov_coarse = np.einsum('...i,...j', mom_coarse, mom_coarse)
+            cov = np.array([cov_fine, cov_coarse])
 
         if cov_at_bottom:
-            cov = np.array([cov_fine, cov_coarse]).transpose((1, 3, 4, 2, 0))   # [M, R, R, N, 2]
+            cov = cov.transpose((1, 3, 4, 2, 0))   # [M, R, R, N, 2]
         else:
-            cov = np.array([cov_fine, cov_coarse]).transpose((3, 4, 1, 2, 0))   # [R, R, M, N, 2]
+            cov = cov.transpose((3, 4, 1, 2, 0))   # [R, R, M, N, 2]
         return cov.reshape((np.prod(cov.shape[:-2]), cov.shape[-2], cov.shape[-1]))
 
     # Create quantity type which has covariance matrices at the bottom
