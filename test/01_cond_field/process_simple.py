@@ -117,7 +117,7 @@ class ProcessSimple:
     def construct_density(self, estimator, tol=1.95, reg_param=0.0):
         """
         Construct approximation of the density using given moment functions.
-        :param estimator: mlmc.estimator
+        :param estimator: mlmc.estimator.Estimate instance, it contains quantity for which the density is reconstructed
         :param tol: Tolerance of the fitting problem, with account for variances in moments.
                     Default value 1.95 corresponds to the two tail confidence 0.95.
         :param reg_param: regularization parameter
