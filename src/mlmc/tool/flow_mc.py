@@ -2,10 +2,7 @@ import os
 import os.path
 import subprocess
 import numpy as np
-import json
-import glob
 import shutil
-import copy
 import ruamel.yaml as yaml
 from typing import List
 import gstools
@@ -222,7 +219,7 @@ class FlowSim(Simulation):
         :return: List[fine result, coarse result], both flatten arrays (see mlmc.sim.synth_simulation.calculate())
         """
         # Init correlation field objects
-        fields = create_corr_field(config['fields_params'])  # correlated_field.Fields instance
+        fields = create_corr_field(**config['fields_params'])  # correlated_field.Fields instance
         fields.set_outer_fields(config["fields_used_params"])
 
         coarse_step = config["coarse"]["step"]  # Coarse simulation step, zero if one level MC

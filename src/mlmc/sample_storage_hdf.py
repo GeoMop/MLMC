@@ -2,7 +2,7 @@ import os
 import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.quantity_spec import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec, ChunkSpec
 import mlmc.tool.hdf5 as hdf
 
 
@@ -144,31 +144,29 @@ class SampleStorageHDF(SampleStorage):
         levels_results = list(np.empty(len(self._level_groups)))
 
         for level in self._level_groups:
-            results = self.sample_pairs_level(level_id=level.level_id, n_samples=None)  # return all samples no chunks
+            results = self.sample_pairs_level(ChunkSpec(level_id=level.level_id))  # return all samples no chunks
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue
             levels_results[int(level.level_id)] = results
-
         return levels_results
 
-    def sample_pairs_level(self, level_id, i_chunk=0, n_samples=np.inf):
+    def sample_pairs_level(self, chunk_spec):
         """
         Get result for particular level and chunk
-        :param level_id: int, level id
-        :param i_chunk: int, chunk identifier
-        :param n_samples: if None return all samples in one go, otherwise it returns the greater of n_samples and self.chunk_size
+        :param chunk_spec: ChunkSpec instance, contains level_id, chunk_id, possibly n_samples
         :return: np.ndarray
         """
-        chunk_size = self.chunk_size
+        sample_pairs = self._level_groups[int(chunk_spec.level_id)].collected(chunk_spec)
 
-        if n_samples is None:
-            chunk_size = None
-
-        sample_pairs = self._level_groups[int(level_id)].collected(i_chunk, chunk_size=chunk_size, n_samples=n_samples)
         # Chunk is empty
         if len(sample_pairs) == 0:
             raise StopIteration
+
+        # Remove auxiliary zeros from level zero sample pairs
+        if chunk_spec.level_id == 0:
+            sample_pairs = sample_pairs[:, :1, :]
+
         return sample_pairs.transpose((2, 0, 1))  # [M, chunk size, 2]
 
     def n_finished(self):
@@ -200,10 +198,8 @@ class SampleStorageHDF(SampleStorage):
         :return: dict
         """
         failed_samples = {}
-
         for level in self._level_groups:
             failed_samples[str(level.level_id)] = list(level.get_failed_ids())
-
         return failed_samples
 
     def clear_failed(self):
@@ -239,17 +235,16 @@ class SampleStorageHDF(SampleStorage):
     def get_level_parameters(self):
         return self._hdf_object.load_level_parameters()
 
-    def get_items_in_chunk(self, level_id):
+    def level_chunk_n_samples(self, level_id):
         return self._level_groups[level_id].n_items_in_chunk
 
-    def get_chunks_info(self, level_id, i_chunk):
+    def get_chunks_info(self, chunk_spec):
         """
         The start and end index of a chunk from a whole dataset point of view
-        :param level_id: level id
-        :param i_chunk: chunk id
+        :param chunk_spec: ChunkSpec instance
         :return: List[int, int]
         """
-        return self._level_groups[level_id].get_chunks_info(i_chunk)
+        return self._level_groups[chunk_spec.level_id].get_chunks_info(chunk_spec)
 
     def get_n_collected(self):
         """
