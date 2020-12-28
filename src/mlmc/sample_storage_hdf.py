@@ -136,7 +136,6 @@ class SampleStorageHDF(SampleStorage):
         Load results from hdf file
         :return: List[Array[M, N, 2]]
         """
-        print("sample pairs")
         if len(self._level_groups) == 0:
             raise Exception("self._level_groups shouldn't be empty, save_global_data() method should have set it, "
                             "that method is always called from mlmc.sampler.Sampler constructor."
@@ -150,7 +149,6 @@ class SampleStorageHDF(SampleStorage):
                 levels_results[int(level.level_id)] = []
                 continue
             levels_results[int(level.level_id)] = results
-
         return levels_results
 
     def sample_pairs_level(self, chunk_spec):
@@ -164,6 +162,11 @@ class SampleStorageHDF(SampleStorage):
         # Chunk is empty
         if len(sample_pairs) == 0:
             raise StopIteration
+
+        # Remove auxiliary zeros from level zero sample pairs
+        if chunk_spec.level_id == 0:
+            sample_pairs = sample_pairs[:, :1, :]
+
         return sample_pairs.transpose((2, 0, 1))  # [M, chunk size, 2]
 
     def n_finished(self):
@@ -235,14 +238,13 @@ class SampleStorageHDF(SampleStorage):
     def level_chunk_n_samples(self, level_id):
         return self._level_groups[level_id].n_items_in_chunk
 
-    def get_chunks_info(self, level_id, i_chunk):
+    def get_chunks_info(self, chunk_spec):
         """
         The start and end index of a chunk from a whole dataset point of view
-        :param level_id: level id
-        :param i_chunk: chunk id
+        :param chunk_spec: ChunkSpec instance
         :return: List[int, int]
         """
-        return self._level_groups[level_id].get_chunks_info(i_chunk)
+        return self._level_groups[chunk_spec.level_id].get_chunks_info(chunk_spec)
 
     def get_n_collected(self):
         """

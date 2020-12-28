@@ -45,7 +45,7 @@ class Quantity:
         # to the operation.
         self._storage = self.get_quantity_storage()
         # QuantityStorage instance
-        self._selection_id = None
+        self._selection_id = self.set_selection_id()
         # Identifier of selection, should be set in select() method
         self._check_selection_ids()
         self._op_additional_params()
@@ -63,6 +63,20 @@ class Quantity:
                 self._storage = storage
                 return storage
         return None
+
+    def set_selection_id(self):
+        """
+        Set selection id
+        selection id is None by default,
+         but if we create new quantity from quantities that are result of selection we need to pass selection id
+        """
+        selection_id = None
+        for input_quantity in self._input_quantities:
+            if selection_id is None:
+                selection_id = input_quantity.selection_id()
+            elif input_quantity.selection_id() is not None and selection_id != input_quantity.selection_id():
+                raise Exception("Different selection IDs among input quantities")
+        return selection_id
 
     def _check_selection_ids(self):
         """
@@ -86,10 +100,8 @@ class Quantity:
         """
         self._additional_params = {}
         sig_params = signature(self._operation).parameters
-        if 'level_id' in sig_params:
-            self._additional_params['level_id'] = 0
-        if 'i_chunk' in sig_params:
-            self._additional_params['i_chunk'] = 0
+        if 'chunk_spec' in sig_params:
+            self._additional_params['chunk_spec'] = None
 
     def selection_id(self):
         """
@@ -97,7 +109,7 @@ class Quantity:
         :return: List[int]
         """
         if self._selection_id is not None:
-            return id(self)
+            return self._selection_id
         else:
             if self._storage is None:
                 self._storage = self.get_quantity_storage()
@@ -128,11 +140,11 @@ class Quantity:
         :return: np.ndarray or None
         """
         chunks_quantity_level = [q.samples(chunk_spec) for q in self._input_quantities]
-        if not self._additional_params:  # dictionary is empty
-            if 'level_id' in self._additional_params:
-                self._additional_params['level_id'] = chunk_spec.level_id
-            if 'i_chunk' in self._additional_params:
-                self._additional_params['i_chunk'] = chunk_spec.chunk_id
+
+        if bool(self._additional_params):  # dictionary is empty
+            if 'chunk_spec' in self._additional_params:
+                self._additional_params['chunk_spec'] = chunk_spec
+
         return self._operation(*chunks_quantity_level, **self._additional_params)
 
     def _reduction_op(self, quantities, operation):
@@ -245,7 +257,7 @@ class Quantity:
         return x % y
 
     @staticmethod
-    def _process_mask(x, y, operator, level_id):
+    def _process_mask(x, y, operator):
         """
         Create samples mask
         All values for sample must meet given condition, if any value doesn't meet the condition,
@@ -253,14 +265,8 @@ class Quantity:
         :param x: Quantity chunk
         :param y: Quantity chunk or int, float
         :param operator: operator module function
-        :param level_id: int, level identifier
         :return: np.ndarray of bools
         """
-        # Zero level - use just fine samples
-        if level_id == 0:
-            mask = operator(x[..., 0], y[..., 0])  # y is from other quantity
-            return mask.all(axis=tuple(range(mask.ndim - 1)))
-
         mask = operator(x, y)
         return mask.all(axis=tuple(range(mask.ndim - 2))).all(axis=1)
 
@@ -283,47 +289,34 @@ class Quantity:
         return Quantity(quantity_type=new_qtype, input_quantities=[self, other], operation=op)
 
     def __lt__(self, other):
-        def lt_op(x, y, level_id=0):
-            return Quantity._process_mask(x, y, operator.lt, level_id)
+        def lt_op(x, y):
+            return Quantity._process_mask(x, y, operator.lt)
         return self._mask_quantity(other, lt_op)
 
     def __le__(self, other):
-        def le_op(x, y, level_id=0):
-            return self._process_mask(x, y, operator.le, level_id)
+        def le_op(x, y):
+            return self._process_mask(x, y, operator.le)
         return self._mask_quantity(other, le_op)
 
     def __gt__(self, other):
-        def gt_op(x, y, level_id=0):
-            return self._process_mask(x, y, operator.gt, level_id)
+        def gt_op(x, y):
+            return self._process_mask(x, y, operator.gt)
         return self._mask_quantity(other, gt_op)
 
     def __ge__(self, other):
-        def ge_op(x, y, level_id=0):
-            return self._process_mask(x, y, operator.ge, level_id)
+        def ge_op(x, y):
+            return self._process_mask(x, y, operator.ge)
         return self._mask_quantity(other, ge_op)
 
     def __eq__(self, other):
-        def eq_op(x, y, level_id=0):
-            return self._process_mask(x, y, operator.eq, level_id)
+        def eq_op(x, y):
+            return self._process_mask(x, y, operator.eq)
         return self._mask_quantity(other, eq_op)
 
     def __ne__(self, other):
-        def ne_op(x, y, level_id=0):
-            return self._process_mask(x, y, operator.ne, level_id)
+        def ne_op(x, y):
+            return self._process_mask(x, y, operator.ne)
         return self._mask_quantity(other, ne_op)
-
-    def sampling(self, size):
-        """
-        Random sampling
-        :param size: number of samples
-        :return: np.ndarray
-        """
-        def mask_gen(x, *args):
-            indices = np.random.choice(x.shape[1], size=size)
-            mask = np.zeros(x.shape[1], bool)
-            mask[indices] = True
-            return mask
-        return self._mask_quantity(size, mask_gen)
 
     def subsample(self, sample_vec):
         """
@@ -338,16 +331,17 @@ class Quantity:
         for level_id in self.get_quantity_storage().level_ids():
             rnd_indices[level_id] = np.sort(np.random.choice(n_collected[level_id], size=sample_vec[level_id]))
 
-        def mask_gen(x, level_id, i_chunk, *args):
-            chunks_info = quantity_storage.get_chunks_info(level_id, i_chunk)  # start and end index in collected values
+        def mask_gen(x, chunk_spec):
+            chunks_info = quantity_storage.get_chunks_info(chunk_spec)  # start and end index in collected values
             chunk_indices = list(range(*chunks_info))
             indices = np.intersect1d(rnd_indices[level_id], chunk_indices)
             final_indices = np.where(np.isin(chunk_indices, indices))[0]
             mask = np.zeros(x.shape[1], bool)
-
-            mask[final_indices] = True
+            mask[final_indices[:x.shape[1]]] = True
             return mask
-        return self._mask_quantity(0, mask_gen)
+
+        return Quantity(quantity_type=qt.QType.replace_scalar(self.qtype, qt.BoolType()),
+                        input_quantities=[self], operation=mask_gen)
 
     def __getitem__(self, key):
         """
@@ -503,9 +497,9 @@ class QuantityConst(Quantity):
         self.qtype = quantity_type
         self._value = self._process_value(value)
         self._input_quantities = []
-        self._selection_id = None
         # List of input quantities should be empty,
         # but we still need this attribute due to storage_id() and level_ids() method
+        self._selection_id = None
 
     def _process_value(self, value):
         """
@@ -698,17 +692,15 @@ class QuantityStorage(Quantity):
     def samples(self, chunk_spec):
         """
         Get results for given level id and chunk id
-        :param level_id: int
-        :param i_chunk: int
-        :param n_samples: int, number of retrieved samples
+        :param chunk_spec: mlmc.quantity_spec.ChunkSpec instance
         :return: Array[M, chunk size, 2]
         """
         level_chunk = self._storage.sample_pairs_level(chunk_spec)  # Array[M, chunk size, 2]
         assert self.qtype.size() == level_chunk.shape[0]
         return level_chunk
 
-    def get_chunks_info(self, level_id, i_chunk):
-        return self._storage.get_chunks_info(level_id, i_chunk)
+    def get_chunks_info(self, chunk_spec):
+        return self._storage.get_chunks_info(chunk_spec)
 
     def n_collected(self):
         return self._storage.get_n_collected()

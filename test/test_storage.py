@@ -67,14 +67,13 @@ def test_storage(storage, n_levels):
     for _, l_sch in scheduled.items():
         assert len(l_sch) == n_successful + n_failed
 
-    results = np.array(storage.sample_pairs())
+    results = storage.sample_pairs()
 
     assert len(results) == n_levels
     for level_res in results:
         assert level_res.shape[1] == n_successful
         assert level_res.shape[0] == res_length
         assert np.allclose(level_res[:, :, 0], 1)
-        assert np.allclose(level_res[:, :, 1], 0)
 
     n_ops = storage.get_n_ops()
     assert len(n_ops) == n_levels

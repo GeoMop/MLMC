@@ -250,17 +250,17 @@ class QuantityTests(unittest.TestCase):
         # Multiplication
         const_mult_quantity = const * root_quantity
         const_mult_mean = estimate_mean(const_mult_quantity)
-        assert np.allclose((const * means()).tolist(), const_mult_mean().tolist())
+        assert np.allclose((const * means()), const_mult_mean())
 
         # True division
         const_div_quantity = const / root_quantity
-        const_div_mean = estimate_mean(const_div_quantity)()
-        #assert np.allclose((const / means()).tolist(), const_div_mean().tolist())
+        const_div_mean = estimate_mean(const_div_quantity)
+        assert len(const_div_mean()) == len(means())
 
         # Mod
         const_mod_quantity = const % root_quantity
-        const_mod_mean = estimate_mean(const_mod_quantity)()
-        #assert np.allclose((const % means()).tolist(), const_mod_mean().tolist())
+        const_mod_mean = estimate_mean(const_mod_quantity)
+        assert len(const_mod_mean()) == len(means())
 
     def test_condition(self):
         """
@@ -278,6 +278,7 @@ class QuantityTests(unittest.TestCase):
 
         selected_quantity = root_quantity.select(root_quantity < 0)
         selected_quantity_mean = estimate_mean(selected_quantity)
+        print("selected_quantity_mean() ", selected_quantity_mean())
         assert len(selected_quantity_mean()) == 0
 
         all_root_quantity = root_quantity.select(0 < root_quantity)
@@ -369,13 +370,6 @@ class QuantityTests(unittest.TestCase):
         quantity_ne = length.select(-1 != length)
         means_ne = estimate_mean(quantity_ne)
         assert np.allclose((means_ne()).tolist(), mean_length().tolist())
-
-        # Quantity sampling
-        root_quantity_subsamples = root_quantity.select(root_quantity.sampling(size=2))
-        means_eq = estimate_mean(root_quantity_subsamples)
-
-        root_quantity_subsamples = root_quantity.select(root_quantity.sampling(size=10))
-        means_eq = estimate_mean(root_quantity_subsamples)
 
     def test_functions(self):
         """
@@ -544,7 +538,7 @@ class QuantityTests(unittest.TestCase):
         np.random.seed(1234)
         n_moments = 3
         step_range = [0.5, 0.01]
-        n_levels = 2
+        n_levels = 5
 
         assert step_range[0] > step_range[1]
         level_parameters = []
@@ -556,17 +550,17 @@ class QuantityTests(unittest.TestCase):
             level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
 
         clean = True
-        sampler, simulation_factory = self._create_sampler(level_parameters, clean=clean)
+        sampler, simulation_factory = self._create_sampler(level_parameters, clean=clean, memory=False)
 
         distr = stats.norm()
         true_domain = distr.ppf([0.0001, 0.9999])
+        # moments_fn = Legendre(n_moments, true_domain)
         moments_fn = Monomial(n_moments, true_domain)
 
-        sampler.set_initial_n_samples([50, 50])
+        sampler.set_initial_n_samples([100, 80, 50, 30, 10])
         sampler.schedule_samples()
         sampler.ask_sampling_pool_for_samples()
 
-        sampler.sample_storage.chunk_size = 1024
         root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
         root_quantity_mean = estimate_mean(root_quantity)
 
@@ -589,18 +583,16 @@ class QuantityTests(unittest.TestCase):
             n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                                 n_levels=sampler.n_levels)
 
-        means, vars = estimator.estimate_moments(moments_fn)
-
         # Moments values are at the bottom
         moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
         moments_mean = estimate_mean(moments_quantity)
         length_mean = moments_mean['length']
         time_mean = length_mean[1]
         location_mean = time_mean['10']
-        value_mean = location_mean[0]
+        values_mean = location_mean[0]
 
-        assert np.allclose(value_mean()[:2], [1, 0.5], atol=1e-2)
-        assert np.all(value_mean.var < target_var)
+        assert np.allclose(values_mean()[:2], [1, 0.5], atol=1e-2)
+        assert np.all(values_mean.var < target_var)
 
         new_moments = moments_quantity + moments_quantity
         new_moments_mean = estimate_mean(new_moments)
@@ -612,7 +604,7 @@ class QuantityTests(unittest.TestCase):
         first_moment = moments_mean[0]
         second_moment = moments_mean[1]
         third_moment = moments_mean[2]
-        assert np.allclose(value_mean(), [first_moment()[0], second_moment()[0], third_moment()[0]], atol=1e-4)
+        assert np.allclose(values_mean(), [first_moment()[0], second_moment()[0], third_moment()[0]], atol=1e-4)
 
         # Central moments
         central_moments_fn = Monomial(n_moments, domain=true_domain, ref_domain=true_domain, mean=root_quantity_mean())
@@ -627,14 +619,13 @@ class QuantityTests(unittest.TestCase):
         assert np.isclose(central_value_mean()[1], 0, atol=1e-2)
 
         # Covariance
-        cov = estimator.estimate_covariance(moments_fn)
         covariance_quantity = covariance(root_quantity, moments_fn=moments_fn, cov_at_bottom=True)
         cov_mean = estimate_mean(covariance_quantity)
         length_mean = cov_mean['length']
         time_mean = length_mean[1]
         location_mean = time_mean['10']
         cov_mean = location_mean[0]
-        assert np.allclose(value_mean(), cov_mean()[:, 0])
+        assert np.allclose(values_mean(), cov_mean()[:, 0])
 
         # Single moment
         moment_quantity = moment(root_quantity, moments_fn=moments_fn, i=0)
@@ -645,55 +636,17 @@ class QuantityTests(unittest.TestCase):
         value_mean = location_mean[0]
         assert len(value_mean()) == 1
 
-    # @pytest.mark.parametrize("memory", [False, True])
-    # def test_bootstrap(self, memory=False):
-    #     np.random.seed(1234)
-    #     n_moments = 3
-    #     step_range = [0.5, 0.01]
-    #     n_levels = 5
-    #
-    #     assert step_range[0] > step_range[1]
-    #     level_parameters = []
-    #     for i_level in range(n_levels):
-    #         if n_levels == 1:
-    #             level_param = 1
-    #         else:
-    #             level_param = i_level / (n_levels - 1)
-    #         level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
-    #
-    #     clean = False
-    #     sampler, simulation_factory = self._create_sampler(level_parameters, clean=clean, memory=memory)
-    #
-    #     distr = stats.norm()
-    #     true_domain = distr.ppf([0.0001, 0.9999])
-    #     # moments_fn = Legendre(n_moments, true_domain)
-    #     moments_fn = Monomial(n_moments, true_domain)
-    #
-    #     sampler.set_initial_n_samples([100, 80, 50, 30, 10])
-    #     sampler.schedule_samples()
-    #     sampler.ask_sampling_pool_for_samples()
-    #
-    #     sampler.sample_storage.chunk_size = 1024
-    #     root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
-    #     root_quantity_subsamples = root_quantity.subsample(sample_vec=[10, 8, 5, 3, 2])
-    #     root_quantity_subsamples_select = root_quantity.select(root_quantity_subsamples)
-    #
-    #     # Moments values are at the bottom
-    #     moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
-    #     moments_mean = estimate_mean(moments_quantity)
-    #     length_mean = moments_mean['length']
-    #     time_mean = length_mean[1]
-    #     location_mean = time_mean['10']
-    #     value_mean = location_mean[0]
-    #
-    #     # Moments values are at the bottom
-    #     moments_quantity = moments(root_quantity_subsamples_select, moments_fn=moments_fn, mom_at_bottom=True)
-    #     moments_mean = estimate_mean(moments_quantity)
-    #     length_mean = moments_mean['length']
-    #     time_mean = length_mean[1]
-    #     location_mean = time_mean['10']
-    #     value_mean_select = location_mean[0]
-    #     assert np.all(np.array(value_mean.var[1:]) < np.array(value_mean_select.var[1:]))
+        root_quantity_subsamples = root_quantity.subsample(sample_vec=[10, 8, 5, 3, 2])
+        root_quantity_subsamples_select = root_quantity.select(root_quantity_subsamples)
+
+        # Moments values are at the bottom
+        moments_quantity = moments(root_quantity_subsamples_select, moments_fn=moments_fn, mom_at_bottom=True)
+        moments_mean = estimate_mean(moments_quantity)
+        length_mean = moments_mean['length']
+        time_mean = length_mean[1]
+        location_mean = time_mean['10']
+        value_mean_select = location_mean[0]
+        assert np.all(np.array(values_mean.var[1:]) < np.array(value_mean_select.var[1:]))
 
     def dev_memory_usage_test(self):
         work_dir = "/home/martin/Documents/MLMC_quantity"
@@ -705,4 +658,6 @@ class QuantityTests(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    qt = QuantityTests()
+    qt.test_moments()
+    #unittest.main()
