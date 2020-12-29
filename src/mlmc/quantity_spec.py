@@ -1,14 +1,21 @@
 import attr
+import numpy as np
 from typing import List, Tuple, Union
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, eq=False)
 class QuantitySpec:
     name: str
     unit: str
     shape: Tuple[int, int]
     times: List[float]
     locations: Union[List[str], List[Tuple[float, float, float]]]
+
+    def __eq__(self, other):
+        if (self.name, self.unit) == (other.name, other.unit) and np.allclose(self.shape, other.shape) and np.allclose(self.times, other.times)\
+                and not (set(self.locations) - set(other.locations)):
+            return True
+        return False
 
 
 @attr.s(auto_attribs=True, eq=False)  # eq=False allows custom __hash__ and __eq__
