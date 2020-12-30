@@ -62,10 +62,6 @@ def test_mlmc(test_case):
 
     simulation_factory, sample_storage, sampling_pool = test_case
 
-    if sampling_pool._output_dir is not None:
-        if os.path.exists(work_dir):
-            shutil.rmtree(work_dir)
-        os.makedirs(work_dir)
     if simulation_factory.need_workspace:
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
         shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
@@ -113,7 +109,7 @@ def test_mlmc(test_case):
 
 
 if __name__ == "__main__":
-    test_mlmc((simulation, storage_memory, sampling_pool_single_process))
+    test_mlmc((SynthSimulationForTests(simulation_config), Memory(), OneProcessPool()))
     #multiproces_sampler_test()
     #threads_sampler_test()
 
