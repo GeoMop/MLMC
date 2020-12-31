@@ -538,126 +538,113 @@ class QuantityConst(Quantity):
 
 class QuantityMean:
 
-    def __init__(self, quantity_type, mean, var, l_means=[], l_vars=[], n_samples=None, n_rm_samples=0):
+    def __init__(self, quantity_type, l_means, l_vars, n_samples=None, n_rm_samples=None):
         """
-        QuantityMean represents result of mlmc.quantity_estimate.estimate_mean method
+        QuantityMean represents results of mlmc.quantity_estimate.estimate_mean method
         :param quantity_type: QType
-        :param mean: np.ndarray
-        :param var: np.ndarray
         :param l_means: np.ndarray, shape: L, M
         :param l_vars: np.ndarray, shape: L, M
-        :param n_samples: int, number of samples that were used for means computing
-        :param n_rm_samples: int, number of removed samples in mlmc.quantity_estimate.estimate_mean()
+        :param n_samples: List, number of samples that were used for means at each level
+        :param n_rm_samples: List, number of removed samples at each level,
+                             n_samples + n_rm_samples = all successfully collected samples
         """
         self.qtype = quantity_type
-        self._mean = mean
-        self._var = var
+        self._mean = None
+        self._var = None
         self._l_means = np.array(l_means)
         self._l_vars = np.array(l_vars)
-        self._n_samples = n_samples
-        self._n_rm_samples = n_rm_samples
+        self._n_samples = np.array(n_samples)
+        self._n_rm_samples = np.array(n_rm_samples)
 
-    def __call__(self):
+    def _calculate_mean_var(self):
         """
-        Return reshaped mean
+        Calculates the overall estimates of the mean and the variance from the means and variances at each level
         """
-        return self.mean
+        self._mean = np.sum(self._l_means, axis=0)
+        self._var = np.sum(self._l_vars / self._n_samples[:, None], axis=0)
+
+        # Sums full of zeros leads to NaN
+        if np.isnan(self._mean).all():
+            self._mean = []
+            self._var = []
 
     @property
     def mean(self):
+        if self._mean is None:
+            self._calculate_mean_var()
         return self._reshape(self._mean)
 
     @property
     def var(self):
+        if self._var is None:
+            self._calculate_mean_var()
         return self._reshape(self._var)
 
     @property
     def l_means(self):
-        return self._reshape(self._l_means, levels=True)
+        return np.array([self._reshape(means) for means in self._l_means])
 
     @property
     def l_vars(self):
-        return self._reshape(self._l_vars, levels=True)
+        return np.array([self._reshape(vars) for vars in self._l_vars])
 
     @property
     def n_samples(self):
         return self._n_samples
 
-    def _reshape(self, data, levels=False):
-        if isinstance(self.qtype, qt.ArrayType):
-            reshape_shape = self.qtype._shape
-            size = self.qtype._qtype.size()
-            if isinstance(reshape_shape, int):
-                reshape_shape = [reshape_shape]
-            if levels:
-                return data.reshape((data.shape[0], *reshape_shape))
-            if size > 1:
-                return data.reshape(*reshape_shape, size)
-            else:
-                return data.reshape(*reshape_shape)
-        return data
+    @property
+    def n_rm_samples(self):
+        return self._n_rm_samples
+
+    def _reshape(self, data):
+        """
+        Reshape passed data, expected means or vars
+        :param data: flatten np.ndarray
+        :return: np.ndarray, reshaped data, the final data shape depends on the particular QType
+                             there is currently a reshape for ArrayType only
+        """
+        return self.qtype.reshape(data)
 
     def __getitem__(self, key):
         """
-        Get items from Quantity, quantity type must support brackets access
+        Get item from current QuantityMean, quantity type must support brackets access
+        All levels means and vars are reshaped to their QType shape and then the item is gotten,
+        ath the end, new QuantityMean instance is created with flatten selected means and vars
         :param key: str, int, tuple
-        :return: np.ndarray
+        :return: QuantityMean
         """
         new_qtype, start = self.qtype[key]  # New quantity type
         reshape_shape = None
-        newshape = None
+
         # ArrayType might be accessed directly regardless of qtype start and size
         if isinstance(self.qtype, qt.ArrayType):
-            slice_key = key
             reshape_shape = self.qtype._shape
-            if isinstance(reshape_shape, int):
-                reshape_shape = [reshape_shape]
-        # Other accessible quantity types uses start and size
+        # Other accessible quantity types use start and size to determine slice
         else:
             end = start + new_qtype.size()
-            slice_key = slice(start, end)
+            key = slice(start, end)
 
-        mean = self._mean
-        var = self._var
         l_means = self._l_means
         l_vars = self._l_vars
 
+        # Reshape l_means and l_vars, keep the first item of the shape equal to the number of levels
         if reshape_shape is not None:
-            if (np.prod(mean.shape) // np.prod(reshape_shape)) > 1:
-                mean = mean.reshape(*reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape))
-                var = var.reshape(*reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape))
-                l_means = l_means.reshape((l_means.shape[0], *reshape_shape, np.prod(mean.shape[1:]) // np.prod(reshape_shape)))
-                l_vars = l_vars.reshape((l_vars.shape[0], *reshape_shape, np.prod(mean.shape) // np.prod(reshape_shape)))
-            else:
-                mean = mean.reshape(*reshape_shape)
-                var = var.reshape(*reshape_shape)
-                l_means = l_means.reshape((l_means.shape[0], *reshape_shape))
-                l_vars = l_vars.reshape((l_vars.shape[0], *reshape_shape))
+            new_shape = l_means.shape[0], *reshape_shape, np.prod(l_means.shape[1:]) // np.prod(reshape_shape)
+            l_means = l_means.reshape(new_shape)
+            l_vars = l_vars.reshape(new_shape)
 
-        mean_get_item = mean[slice_key].flatten()
-        var_get_item = var[slice_key].flatten()
+        # Getting items
+        l_means = l_means[:, key]
+        l_vars = l_vars[:, key]
 
-        # Handle level means and variances
-        if len(l_means) > 0:
-            if isinstance(slice_key, slice):
-                l_means = l_means[:, slice_key]
-                l_vars = l_vars[:, slice_key]
-            else:
-                if isinstance(slice_key, int):
-                    slice_key = [slice_key]
-                if len(l_means.shape) - (len(slice_key) +1) > 0:
-                    l_means = l_means[(slice(0, l_means.shape[0]), *slice_key, slice(0, l_means.shape[-1]))]
-                    l_vars = l_vars[(slice(0, l_vars.shape[0]), *slice_key, slice(0, l_vars.shape[-1]))]
-                else:
-                    l_means = l_means[(slice(0, l_means.shape[0]), *slice_key)]
-                    l_vars = l_vars[(slice(0, l_vars.shape[0]), *slice_key)]
-
+        # Flatten l_means and l_vars, keep the first item of the shape equal to the number of levels
         if len(l_means.shape) > 1:
-            l_means = l_means.reshape(l_means.shape[0], np.prod(l_means.shape[1:]))
-            l_vars = l_vars.reshape(l_vars.shape[0], np.prod(l_vars.shape[1:]))
+            flatten_shape = l_means.shape[0], np.prod(l_means.shape[1:])
+            l_means = l_means.reshape(flatten_shape)
+            l_vars = l_vars.reshape(flatten_shape)
 
-        return QuantityMean(quantity_type=new_qtype, mean=mean_get_item, var=var_get_item,
-                            l_means=l_means, l_vars=l_vars, n_samples=self._n_samples, n_rm_samples=self._n_rm_samples)
+        return QuantityMean(quantity_type=new_qtype, l_means=l_means, l_vars=l_vars, n_samples=self._n_samples,
+                            n_rm_samples=self._n_rm_samples)
 
 
 class QuantityStorage(Quantity):

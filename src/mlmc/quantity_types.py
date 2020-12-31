@@ -75,6 +75,9 @@ class QType(metaclass=abc.ABCMeta):
         """
         return QType.keep_dims(chunk[key])
 
+    def reshape(self, data):
+        return data
+
 
 class ScalarType(QType):
     def __init__(self, qtype=float):
@@ -97,6 +100,10 @@ class BoolType(ScalarType):
 
 class ArrayType(QType):
     def __init__(self, shape, qtype: QType):
+
+        if isinstance(shape, int):
+            shape = (shape,)
+
         self._shape = shape
         self._qtype = qtype
 
@@ -135,6 +142,12 @@ class ArrayType(QType):
         assert self._shape is not None
         chunk = chunk.reshape((*self._shape, chunk.shape[-2], chunk.shape[-1]))
         return QType.keep_dims(chunk[key])
+
+    def reshape(self, data):
+        if isinstance(self._qtype, ScalarType):
+            return data.reshape(self._shape)
+        else:
+            return data.reshape((*self._shape, np.prod(data.shape) // np.prod(self._shape)))
 
 
 class TimeSeriesType(QType):
