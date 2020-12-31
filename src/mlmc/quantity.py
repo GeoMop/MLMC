@@ -279,7 +279,7 @@ class Quantity:
         """
         bool_type = qt.BoolType()
         new_qtype = self.qtype
-        new_qtype = qt.QType.replace_scalar(new_qtype, bool_type)
+        new_qtype = new_qtype.replace_scalar(bool_type)
         other = Quantity.wrap(other)
 
         if not isinstance(self.qtype.base_qtype(), qt.ScalarType) or not isinstance(other.qtype.base_qtype(), qt.ScalarType):
@@ -340,7 +340,7 @@ class Quantity:
             mask[final_indices[:x.shape[1]]] = True
             return mask
 
-        return Quantity(quantity_type=qt.QType.replace_scalar(self.qtype, qt.BoolType()),
+        return Quantity(quantity_type=self.qtype.replace_scalar(qt.BoolType()),
                         input_quantities=[self], operation=mask_gen)
 
     def __getitem__(self, key):

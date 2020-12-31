@@ -1,5 +1,4 @@
 import numpy as np
-import copy
 import mlmc.quantity
 import mlmc.quantity_types as qt
 from mlmc.quantity_spec import ChunkSpec
@@ -24,7 +23,6 @@ def estimate_mean(quantity, chunk_size=512000000):
     Data is processed by chunks, so that it also supports big data processing
     :param quantity: Quantity
     :param chunk_size: chunk size in bytes in decimal, determines number of samples in chunk
-    :param level_means: bool, if True calculate means and vars at each level
     :return: QuantityMean which holds both mean and variance
     """
     mlmc.quantity.Quantity.samples.cache_clear()
@@ -114,7 +112,7 @@ def moments(quantity, moments_fn, mom_at_bottom=True):
     # Create quantity type which has moments_fn at the bottom
     if mom_at_bottom:
         moments_array_type = qt.ArrayType(shape=(moments_fn.size,), qtype=qt.ScalarType())
-        moments_qtype = qt.QType.replace_scalar(copy.deepcopy(quantity.qtype), moments_array_type)
+        moments_qtype = quantity.qtype.replace_scalar(moments_array_type)
     # Create quantity type that has moments_fn on the surface
     else:
         moments_qtype = qt.ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
@@ -150,7 +148,7 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
     # Create quantity type which has covariance matrices at the bottom
     if cov_at_bottom:
         moments_array_type = qt.ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=qt.ScalarType())
-        moments_qtype = qt.QType.replace_scalar(copy.deepcopy(quantity.qtype), moments_array_type)
+        moments_qtype = quantity.qtype.replace_scalar(moments_array_type)
     # Create quantity type that has covariance matrices on the surface
     else:
         moments_qtype = qt.ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
