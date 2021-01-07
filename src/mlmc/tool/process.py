@@ -2,32 +2,37 @@ import os
 import sys
 import shutil
 import numpy as np
+
+src_path = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(src_path, '..', '..', 'src'))
+
+import mlmc.tool.pbs as pbs
 from mlmc.moments import Legendre
+from mlmc.estimate import Estimate
+from mlmc.estimate import CompareLevels
 
 
-class ProcessBase:
+class Process:
     """
     Parent class for particular simulation processes
     """
     def __init__(self):
-        args = ProcessBase.get_arguments(sys.argv[1:])
+        args = self.get_arguments(sys.argv[1:])
 
         self.step_range = (1, 0.01)
 
         self.work_dir = args.work_dir
-        self.append = False
-        self.clean = args.clean
-        self.debug = args.debug
+        self.options = {'keep_collected': args.keep_collected,
+                        'regen_failed': args.regen_failed}
 
         if args.command == 'run':
             self.run()
-        else:
-            self.append = True
-            self.clean = False
-            self.run(renew=True) if args.command == 'renew' else self.run()
+        elif args.command == 'collect':
+            self.collect()
+        elif args.command == 'process':
+            self.process()
 
-    @staticmethod
-    def get_arguments(arguments):
+    def get_arguments(self, arguments):
         """
         Getting arguments from console
         :param arguments: list of arguments
@@ -36,21 +41,17 @@ class ProcessBase:
         import argparse
         parser = argparse.ArgumentParser()
 
-        parser.add_argument('command', choices=['run', 'collect', 'renew', 'process'],
-                            help='run - create new execution,'
-                                 'collect - keep collected, append existing HDF file'
-                                 'renew - renew failed samples, run new samples with failed sample ids (which determine random seed)')
+        parser.add_argument('command', choices=['run', 'collect', 'process'], help='Run, collect or process')
         parser.add_argument('work_dir', help='Work directory')
-        parser.add_argument("-c", "--clean", default=False, action='store_true',
-                            help="Clean before run, used only with 'run' command")
-        parser.add_argument("-d", "--debug", default=False, action='store_true',
-                            help="Keep sample directories")
+        parser.add_argument("-r", "--regen-failed", default=False, action='store_true',
+                            help="Regenerate failed samples", )
+        parser.add_argument("-k", "--keep-collected", default=False, action='store_true',
+                            help="Keep sample dirs")
 
         args = parser.parse_args(arguments)
-
         return args
 
-    def run(self, renew=True):
+    def run(self):
         """
         Run mlmc
         :return: None
@@ -59,48 +60,48 @@ class ProcessBase:
 
         mlmc_list = []
         for nl in [1]:  # , 2, 3, 4,5, 7, 9]:
-            mlmc = self.setup_config(nl, clean=self.clean)
+            mlmc = self.setup_config(nl, clean=True)
             self.generate_jobs(mlmc, n_samples=[8], sample_sleep=self.sample_sleep, sample_timeout=self.sample_timeout)
             mlmc_list.append(mlmc)
 
         self.all_collect(mlmc_list)
 
-    # def collect(self):
-    #     """
-    #     Collect samples
-    #     :return: None
-    #     """
-    #     assert os.path.isdir(self.work_dir)
-    #     mlmc_list = []
-    #
-    #     for nl in [1, 2, 3, 4, 5, 7]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
-    #         mlmc = self.setup_config(nl, clean=False)
-    #         mlmc_list.append(mlmc)
-    #     self.all_collect(mlmc_list)
-    #     self.calculate_var(mlmc_list)
-    #     # show_results(mlmc_list)
+    def collect(self):
+        """
+        Collect samples
+        :return: None
+        """
+        assert os.path.isdir(self.work_dir)
+        mlmc_list = []
 
-    # def process(self):
-    #     """
-    #     Use collected data
-    #     :return: None
-    #     """
-    #     assert os.path.isdir(self.work_dir)
-    #     mlmc_est_list = []
-    #     # for nl in [ 1,3,5,7,9]:
-    #     for nl in [3]:  # high resolution fields
-    #         mlmc = self.setup_config(nl, clean=False)
-    #         # Use wrapper object for working with collected data
-    #         mlmc_est_list.append(mlmc)
-    #
-    #     cl = CompareLevels(mlmc_est_list,
-    #                        output_dir=src_path,
-    #                        quantity_name="Q [m/s]",
-    #                        moment_class=Legendre,
-    #                        log_scale=False,
-    #                        n_moments=21, )
-    #
-    #     self.process_analysis(cl)
+        for nl in [1, 2, 3, 4, 5, 7]:  # , 3, 4, 5, 7, 9]:#, 5,7]:
+            mlmc = self.setup_config(nl, clean=False)
+            mlmc_list.append(mlmc)
+        self.all_collect(mlmc_list)
+        self.calculate_var(mlmc_list)
+        # show_results(mlmc_list)
+
+    def process(self):
+        """
+        Use collected data
+        :return: None
+        """
+        assert os.path.isdir(self.work_dir)
+        mlmc_est_list = []
+        # for nl in [ 1,3,5,7,9]:
+        for nl in [3]:  # high resolution fields
+            mlmc = self.setup_config(nl, clean=False)
+            # Use wrapper object for working with collected data
+            mlmc_est_list.append(mlmc)
+
+        cl = CompareLevels(mlmc_est_list,
+                           output_dir=src_path,
+                           quantity_name="Q [m/s]",
+                           moment_class=Legendre,
+                           log_scale=False,
+                           n_moments=21, )
+
+        self.process_analysis(cl)
 
     def set_environment_variables(self):
         """
@@ -215,7 +216,7 @@ class ProcessBase:
 
         mlmc.target_var_adding_samples(target_variance, self.moments_fn, pbs=self.pbs_obj)
 
-    def all_collect(self, sampler_list):
+    def all_collect(self, mlmc_list):
         """
         Collect samples
         :param mlmc_list: List of mlmc.MLMC objects
@@ -224,8 +225,8 @@ class ProcessBase:
         running = 1
         while running > 0:
             running = 0
-            for sampler in sampler_list:
-                running += sampler.ask_sampling_pool_for_samples(sleep=self.sample_sleep, timeout=0.1)
+            for mc in mlmc_list:
+                running += mc.wait_for_simulations(sleep=self.sample_sleep, timeout=0.1)
             print("N running: ", running)
 
     def process_analysis(self, cl):
@@ -336,6 +337,7 @@ class ProcessBase:
         sample_vec = [5000, 5000, 1700, 600, 210, 72, 25, 9, 3]
         # n_samples = mc.mlmc.estimate_n_samples_for_target_variance(0.0001, cl.moments )
         # sample_vec = np.max(n_samples, axis=1).astype(int)
+        # print(sample_vec)
 
         mc.ref_estimates_bootstrap(300, sample_vector=sample_vec[:mc.n_levels])
         mc.mlmc.update_moments(cl.moments)

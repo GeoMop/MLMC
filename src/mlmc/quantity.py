@@ -469,7 +469,6 @@ class Quantity:
         times = np.array(time_quantity)[:, 0]
         return Quantity._concatenate(np.array(time_quantity)[:, 1], qtype=qt.TimeSeriesType(times=times, qtype=qtype))
 
-
     @staticmethod
     def QField(key_quantity):
         Quantity._check_same_qtype(np.array(key_quantity)[:, 1])

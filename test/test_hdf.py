@@ -198,6 +198,7 @@ def collected(hdf_level_group):
     """
     hdf_level_group.append_successful(COLLECTED_SAMPLES)
 
+
     results = hdf_level_group.collected()
     for col, res in zip(COLLECTED_SAMPLES, results):
         assert (res == np.array(col[1])).all()
@@ -205,7 +206,6 @@ def collected(hdf_level_group):
     with h5py.File(hdf_level_group.file_name, "r") as hdf_file:
         for _, dset_params in mlmc.tool.hdf5.LevelGroup.COLLECTED_ATTRS.items():
             assert len(COLLECTED_SAMPLES) == len(hdf_file[hdf_level_group.level_group_path][dset_params['name']][()])
-
 
 if __name__ == '__main__':
     test_hdf5()

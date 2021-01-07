@@ -167,6 +167,7 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose(quantity_array_mean().flatten(), np.concatenate((means_length(), means_length(),
                                                                             means_length(), means_length())))
 
+
         quantity_timeseries = Quantity.QTimeSeries([(0, locations), (1, locations)])
         quantity_timeseries_mean = estimate_mean(quantity_timeseries)
         assert np.allclose(quantity_timeseries_mean(), np.concatenate((mean_interp_value(), mean_interp_value())))
@@ -406,7 +407,6 @@ class QuantityTests(unittest.TestCase):
         # add_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.
         # add_root_quantity_means = estimate_mean(add_root_quantity)
         # print("add_root_quantity_means ", add_root_quantity_means())
-
         self.assertRaises(ValueError, np.add, x, root_quantity)
 
         x = np.ones(108)
@@ -442,7 +442,6 @@ class QuantityTests(unittest.TestCase):
         y = QuantityConst(ScalarType(), 10)
         z = x + y
         assert isinstance(z, QuantityConst)
-
 
     def fill_sample_storage(self, sample_storage, chunk_size=512000000):
         sample_storage.chunk_size = chunk_size  # bytes in decimal
@@ -575,7 +574,6 @@ class QuantityTests(unittest.TestCase):
         n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                             n_levels=sampler.n_levels)
 
-
         # Loop until number of estimated samples is greater than the number of scheduled samples
         while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
             # New estimation according to already finished samples
@@ -607,8 +605,8 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose(values_mean(), [first_moment()[0], second_moment()[0], third_moment()[0]], atol=1e-4)
 
         # Central moments
-        central_moments_fn = Monomial(n_moments, domain=true_domain, ref_domain=true_domain, mean=root_quantity_mean())
-        central_moments_quantity = moments(root_quantity, moments_fn=central_moments_fn, mom_at_bottom=True)
+        central_moments = Monomial(n_moments, domain=true_domain, ref_domain=true_domain, mean=root_quantity_mean())
+        central_moments_quantity = moments(root_quantity, moments_fn=central_moments, mom_at_bottom=True)
         central_moments_mean = estimate_mean(central_moments_quantity)
         length_mean = central_moments_mean['length']
         time_mean = length_mean[1]
