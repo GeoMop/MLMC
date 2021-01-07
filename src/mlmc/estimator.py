@@ -301,6 +301,8 @@ class Estimate:
 
     def fine_coarse_violinplot(self):
         import pandas as pd
+        from mlmc.tool import violinplot
+
         label_n_spaces = 5
         n_levels = self._sample_storage.get_n_levels()
         for level_id in range(n_levels):
@@ -318,7 +320,7 @@ class Estimate:
                     label = "{} F{} {} C".format(level_id, ' ' * label_n_spaces, level_id + 1)
                     data = {'samples': samples[:, 0], 'type': 'fine', 'level': label}
                     dframe = pd.concat([dframe, pd.DataFrame(data)], axis=0)
-        plot.fine_coarse_violinplot(dframe)
+        violinplot.fine_coarse_violinplot(dframe)
 
     @staticmethod
     def estimate_domain(quantity, sample_storage, quantile=None):
@@ -347,9 +349,10 @@ class Estimate:
         """
         Construct approximation of the density using given moment functions.
         """
-        cov = np.squeeze(qe.estimate_mean(qe.covariance(self._quantity, self._moments_fn))())
-        moments_obj, info, cov_centered = mlmc.tool.simple_distribution.construct_orthogonal_moments(self._moments_fn,
-                                                                                                     cov,
+        cov_mean = qe.estimate_mean(qe.covariance(self._quantity, self._moments_fn))
+        cov_mat = cov_mean()
+        moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(self._moments_fn,
+                                                                                                     cov_mat,
                                                                                                      tol=orth_moments_tol)
         moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_obj), level_means=True)
         est_moments = moments_mean.mean

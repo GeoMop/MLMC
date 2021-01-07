@@ -75,7 +75,7 @@ class Quantity:
             if selection_id is None:
                 selection_id = input_quantity.selection_id()
             elif input_quantity.selection_id() is not None and selection_id != input_quantity.selection_id():
-                return None
+                raise Exception("Different selection IDs among input quantities")
         return selection_id
 
     def _check_selection_ids(self):
@@ -149,8 +149,6 @@ class Quantity:
 
     def _reduction_op(self, quantities, operation):
         """
-        Check if the quantities have the same structure and same storage possibly return copy of the common quantity
-        structure depending on the other quantities with given operation.
         :param quantities: List[Quantity]
         :param operation: function which is run with given quantities
         :return: Quantity
@@ -190,34 +188,53 @@ class Quantity:
         return Quantity._method(ufunc, method, *args, **kwargs)
 
     def __add__(self, other):
-        return self._reduction_op([self, Quantity.wrap(other)], Quantity.add_op)
+        return Quantity.create_quantity([self, Quantity.wrap(other)], Quantity.add_op)
 
     def __sub__(self, other):
-        return self._reduction_op([self, Quantity.wrap(other)], Quantity.sub_op)
+        return Quantity.create_quantity([self, Quantity.wrap(other)], Quantity.sub_op)
 
     def __mul__(self, other):
-        return self._reduction_op([self, Quantity.wrap(other)], Quantity.mult_op)
+        return Quantity.create_quantity([self, Quantity.wrap(other)], Quantity.mult_op)
 
     def __truediv__(self, other):
-        return self._reduction_op([self, Quantity.wrap(other)], Quantity.truediv_op)
+        return Quantity.create_quantity([self, Quantity.wrap(other)], Quantity.truediv_op)
 
     def __mod__(self, other):
-        return self._reduction_op([self, Quantity.wrap(other)], Quantity.mod_op)
+        return Quantity.create_quantity([self, Quantity.wrap(other)], Quantity.mod_op)
 
     def __radd__(self, other):
-        return self._reduction_op([Quantity.wrap(other), self], Quantity.add_op)
+        return Quantity.create_quantity([Quantity.wrap(other), self], Quantity.add_op)
 
     def __rsub__(self, other):
-        return self._reduction_op([Quantity.wrap(other), self], Quantity.sub_op)
+        return Quantity.create_quantity([Quantity.wrap(other), self], Quantity.sub_op)
 
     def __rmul__(self, other):
-        return self._reduction_op([Quantity.wrap(other), self], Quantity.mult_op)
+        return Quantity.create_quantity([Quantity.wrap(other), self], Quantity.mult_op)
 
     def __rtruediv__(self, other):
-        return self._reduction_op([Quantity.wrap(other), self], Quantity.truediv_op)
+        return Quantity.create_quantity([Quantity.wrap(other), self], Quantity.truediv_op)
 
     def __rmod__(self, other):
-        return self._reduction_op([Quantity.wrap(other), self], Quantity.mod_op)
+        return Quantity.create_quantity([Quantity.wrap(other), self], Quantity.mod_op)
+
+    @staticmethod
+    def create_quantity(quantities, operation):
+        """
+        Create new quantity (Quantity or QuantityConst) based on given quantities and operation.
+        There are two scenarios:
+        1. At least one of quantities is Quantity instance then all quantities are considered to be input_quantities
+         of new Quantity
+        2. All of quantities are QuantityConst instances then new QuantityConst is created
+        :param quantities: List[Quantity]
+        :param operation: function which is run with given quantities
+        :return: Quantity
+        """
+        for quantity in quantities:
+            if not isinstance(quantity, QuantityConst):
+                return Quantity(quantity.qtype, operation=operation, input_quantities=quantities)
+        # Quantity from QuantityConst instances
+        return QuantityConst(quantities[0].qtype, value=operation(*[q._value for q in quantities]))
+
 
     @staticmethod
     def add_op(x, y):
@@ -543,7 +560,7 @@ class QuantityMean:
         """
         Return reshaped mean
         """
-        return self._reshape(self.mean)
+        return self.mean
 
     @property
     def mean(self):
@@ -686,6 +703,3 @@ class QuantityStorage(Quantity):
 
     def n_collected(self):
         return self._storage.get_n_collected()
-
-
-

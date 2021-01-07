@@ -1,30 +1,6 @@
 import numpy as np
 import scipy.stats as st
 from scipy import interpolate
-import seaborn
-import matplotlib as mpl
-# font = {'family': 'normal',
-#         'weight': 'bold',
-#         'size': 22}
-#
-# matplotlib.rc('font', **font)
-
-# mpl.use("pgf")
-# pgf_with_pdflatex = {
-#     "pgf.texsystem": "pdflatex",
-#     "pgf.preamble": [
-#         r"\usepackage[utf8]{inputenc}",
-#         r"\usepackage[T1]{fontenc}",
-#         ##r"\usepackage{cmbright}",
-#     ],
-# }
-# mpl.rcParams.update(pgf_with_pdflatex)
-
-
-
-# mpl.rcParams['xtick.labelsize']=12
-# mpl.rcParams['ytick.labelsize']=12
-
 import matplotlib
 matplotlib.rcParams.update({'font.size': 22})
 from matplotlib.patches import Patch
@@ -863,7 +839,7 @@ class ArticleDistribution(Distribution):
             if self._log_x:
                 self.ax_cdf.set_xscale('log')
 
-        self.x_lim = [0, 15]
+        self.x_lim = [0, 5]
 
         self.ax_pdf.set_xlim(*self.x_lim)
         self.ax_cdf.set_xlim(*self.x_lim)
@@ -1572,6 +1548,225 @@ class BSplots:
         clb.set_label(label)
         return lambda v: colormap(normalize(v))
 
+    def _scatter_level_moment_data(self, ax, values, i_moments=None, marker='o'):
+        """
+        Scatter plot of given table of data for moments and levels.
+        X coordinate is given by level, and slight shift is applied to distinguish the moments.
+        Moments are colored using self._moments_cmap.
+        :param ax: Axis where to add the scatter.
+        :param values: data to plot, array n_levels x len(i_moments)
+        :param i_moments: Indices of moments to use, all moments grater then 0 are used.
+        :param marker: Scatter marker to use.
+        :return:
+        """
+        cmap = self._moments_cmap
+        if i_moments is None:
+            i_moments = range(1, self._n_moments)
+        values = values[:, i_moments[:]]
+        n_levels = values.shape[0]
+        n_moments = values.shape[1]
+
+        moments_x_step = 0.5/n_moments
+        for m in range(n_moments):
+            color = cmap(i_moments[m])
+            X = np.arange(n_levels) + moments_x_step * m
+            Y = values[:, m]
+            col = np.ones(n_levels)[:, None] * np.array(color)[None, :]
+            ax.scatter(X, Y, c=col, marker=marker, label="var, m=" + str(i_moments[m]))
+
+    def plot_bootstrap_variance_compare(self):
+        """
+        Plot fraction (MLMC var est) / (BS var set) for the total variance and level variances.
+        :return:
+        """
+        moments_fn = self.moments
+        mean, var, l_mean, l_var = self._bs_get_estimates(moments_fn)
+        l_var = l_var / self.n_samples[: , None]
+        est_variances = np.concatenate((var[None, 1:], l_var[:, 1:]), axis=0)
+
+        bs_var = self._bs_mean_variance
+        bs_l_var = self._bs_level_mean_variance / self.n_samples[:, None]
+        bs_variances = np.concatenate((bs_var[None, 1:], bs_l_var[:, 1:]), axis=0)
+
+        fraction = est_variances / bs_variances
+
+        fig = plt.figure(figsize=(30, 10))
+        ax = fig.add_subplot(1, 1, 1)
+
+        #self._scatter_level_moment_data(ax, bs_variances, marker='.')
+        #self._scatter_level_moment_data(ax, est_variances, marker='d')
+        self._scatter_level_moment_data(ax, fraction, marker='o')
+
+        #ax.legend(loc=6)
+        lbls = ['Total'] + ['L{:2d}'.format(l+1) for l in range(self.n_levels)]
+        ax.set_xticks(ticks=np.arange(self.n_levels + 1))
+        ax.set_xticklabels(lbls)
+        ax.set_yscale('log')
+        ax.set_ylim((0.3, 3))
+
+        self.color_bar(moments_fn.size, 'moments')
+
+        fig.savefig('bs_var_vs_var.pdf')
+        plt.show()
+
+    def plot_bs_variances(self, variances, y_label=None, log=True, y_lim=None):
+        """
+        Plot BS estimate of error of variances of other related quantities.
+        :param variances: Data, shape: (n_levels + 1, n_moments).
+        :return:
+        """
+        if y_lim is None:
+            y_lim = (np.min(variances[:, 1:]), np.max(variances[:, 1:]))
+        if y_label is None:
+            y_label = "Error of variance estimates"
+
+        fig = plt.figure(figsize=(8, 5))
+        ax = fig.add_subplot(1, 1, 1)
+        self._moments_cmap = self.set_moments_color_bar(len(variances[0]), "moments")
+        self._scatter_level_moment_data(ax, variances, marker='.')
+
+        lbls = ['Total'] + ['L{:2d}\n{}\n{}'.format(l + 1, nsbs, ns)
+                            for l, (nsbs, ns) in enumerate(zip(self._bs_n_samples, self._n_samples))]
+        ax.set_xticks(ticks=np.arange(len(self._bs_n_samples) + 1)) # number of levels + 1
+        ax.set_xticklabels(lbls)
+        if log:
+            ax.set_yscale('log')
+        ax.set_ylim(y_lim)
+        ax.set_ylabel(y_label)
+
+        fig.savefig('bs_var_var.pdf')
+        plt.show()
+
+    def plot_bs_var_error_contributions(self):
+        """
+        MSE of total variance and contribution of individual levels.
+        """
+        bs_var_var = self._bs_var_variance[:]
+        bs_l_var_var = self._bs_level_var_variance[:, :]
+        bs_l_var_var[:, 1:] /= self._bs_n_samples[:, None]**2
+
+        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+        self.plot_bs_variances(bs_variances, log=True,
+                               y_label="MSE of total variance and contributions from individual levels.",
+                               )
+
+    def plot_bs_level_variances_error(self):
+        """
+        Plot error of estimates of V_l. Scaled as V_l^2 / N_l
+        """
+        l_var = self._ref_level_var
+
+        l_var_var_scale = l_var[:, 1:] ** 2 * 2 / (self._bs_n_samples[:, None] - 1)
+        total_var_var_scale = np.sum(l_var_var_scale[:, :] / self._bs_n_samples[:, None]**2, axis=0 )
+
+        bs_var_var = self._bs_var_variance[:]
+        bs_var_var[1:] /= total_var_var_scale
+
+        bs_l_var_var = self._bs_level_var_variance[:, :]
+        bs_l_var_var[:, 1:] /= l_var_var_scale
+
+        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+        self.plot_bs_variances(bs_variances, log=True,
+                               y_label="MSE of level variances estimators scaled by $V_l^2/N_l$.")
+
+    def plot_bs_var_log_var(self):
+        """
+        Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).
+        """
+        #vv = 1/ self.mlmc._variance_of_variance(self._bs_n_samples)
+        vv = self._bs_n_samples
+        bs_l_var_var = np.sqrt((self._bs_level_var_variance[:, :]) * vv[:, None])
+        bs_var_var = self._bs_var_variance[:]  # - np.log(total_var_var_scale)
+        bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+        self.plot_bs_variances(bs_variances, log=True,
+                               y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
+                               )#y_lim=(0.1, 20))
+
+    # def plot_bs_var_reg_var(self):
+    #     """
+    #     Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).
+    #     """
+    #     vv = self.mlmc._variance_of_variance(self._bs_n_samples)
+    #     bs_l_var_var = (self._bs_level_var_variance[:, :]) / vv[:, None]
+    #     bs_var_var = self._bs_var_variance[:]  # - np.log(total_var_var_scale)
+    #     bs_variances = np.concatenate((bs_var_var[None, :], bs_l_var_var[:, :]), axis=0)
+    #     self.plot_bs_variances(bs_variances, log=True,
+    #                            y_label="BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.",
+    #                            y_lim=(0.1, 20))
+
+    def plot_means_and_vars(self, moments_mean, moments_var, n_levels, exact_moments=None):
+        """
+        Plot means with variance whiskers to given axes.
+        :param moments_mean: array, moments mean
+        :param moments_var: array, moments variance
+        :param n_levels: array, number of levels
+        :param exact_moments: array, moments from distribution
+        :return:
+        """
+        x = np.arange(0, 1)
+        x = x - 0.3
+        default_x = x
+
+        self._moments_cmap = self.set_moments_color_bar(len(moments_mean), "moments")
+
+        for index, means in enumerate(moments_mean):
+            if index == int(len(moments_mean) / 2) and exact_moments is not None:
+                plt.plot(default_x, exact_moments, 'ro', label="Exact moments")
+            else:
+                x = x + (1 / ((index+1) * 1.5))
+                plt.errorbar(x, means, yerr=moments_var[index], fmt='o', capsize=3, color=self._moments_cmap(index),
+                             label="%dLMC" % n_levels)
+
+        plt.legend()
+        plt.show()
+
+    def plot_var_regression(self, estimator, n_levels, moments_fn, i_moments=None):
+        """
+        Plot total and level variances and their regression and errors of regression.
+        :param i_moments: List of moment indices to plot. If it is an int M, the range(M) is used.
+                       If None, self.moments_fn.size is used.
+        """
+        fig = plt.figure(figsize=(30, 10))
+        ax = fig.add_subplot(1, 2, 1)
+        ax_err = fig.add_subplot(1, 2, 2)
+
+        if i_moments is None:
+            i_moments = moments_fn.size
+        if type(i_moments) is int:
+            i_moments = list(range(i_moments))
+        i_moments = np.array(i_moments, dtype=int)
+
+        self._moments_cmap = self.set_moments_color_bar(range=moments_fn.size, label="moments", ax=ax)
+
+        est_diff_vars, n_samples = estimator.estimate_diff_vars(moments_fn)
+        reg_diff_vars, _ = estimator.estimate_diff_vars_regression(moments_fn) #/ self.n_samples[:, None]
+        ref_diff_vars = self._ref_level_var #/ self.n_samples[:, None]
+
+        self._scatter_level_moment_data(ax,  ref_diff_vars, i_moments, marker='o')
+        self._scatter_level_moment_data(ax, est_diff_vars, i_moments, marker='d')
+        # add regression curves
+        moments_x_step = 0.5 / self._n_moments
+        for m in i_moments:
+            color = self._moments_cmap(m)
+            X = np.arange(n_levels) + moments_x_step * m
+            Y = reg_diff_vars[1:, m]
+            ax.plot(X[1:], Y, c=color)
+            ax_err.plot(X[:], reg_diff_vars[:, m]/ref_diff_vars[:,m], c=color)
+
+        ax.set_yscale('log')
+        ax.set_ylabel("level variance $V_l$")
+        ax.set_xlabel("step h_l")
+
+        ax_err.set_yscale('log')
+        ax_err.set_ylabel("regresion var. / reference var.")
+
+        #ax.legend(loc=2)
+        fig.savefig('level_vars_regression.pdf')
+        plt.show()
+
+
+
+class Aux:
     def _scatter_level_moment_data(self, ax, values, i_moments=None, marker='o'):
         """
         Scatter plot of given table of data for moments and levels.
@@ -2673,70 +2868,6 @@ def plot_error(arr, ax, label):
 #         plot(x, y, 'r.', alpha=0.2)
 
 
-class ViolinPlotter(seaborn.categorical._ViolinPlotter):
-    def draw_quartiles(self, ax, data, support, density, center, split=False):
-        q25, q50, q75 = np.percentile(data, [25, 50, 75])
-        mean = np.mean(data)
-
-        self.draw_to_density(ax, center, mean, support, density, split,
-                             linewidth=self.linewidth)
-
-        self.draw_to_density(ax, center, q25, support, density, split,
-                             linewidth=self.linewidth,
-                             dashes=[self.linewidth * 1.5] * 2)
-        self.draw_to_density(ax, center, q50, support, density, split,
-                             linewidth=self.linewidth,
-                             dashes=[self.linewidth * 3] * 2)
-        self.draw_to_density(ax, center, q75, support, density, split,
-                             linewidth=self.linewidth,
-                             dashes=[self.linewidth * 1.5] * 2)
-
-
-def violinplot(
-    *,
-    x=None, y=None,
-    hue=None, data=None,
-    order=None, hue_order=None,
-    bw="scott", cut=2, scale="area", scale_hue=True, gridsize=100,
-    width=.8, inner="box", split=False, dodge=True, orient=None,
-    linewidth=None, color=None, palette=None, saturation=.75,
-    ax=None, **kwargs,):
-
-    plotter = ViolinPlotter(x, y, hue, data, order, hue_order,
-                             bw, cut, scale, scale_hue, gridsize,
-                             width, inner, split, dodge, orient, linewidth,
-                             color, palette, saturation)
-
-    if ax is None:
-        ax = plt.gca()
-
-    plotter.plot(ax)
-    return ax
-
-
-def fine_coarse_violinplot(data_frame):
-    fig, axes = plt.subplots(1, 1, figsize=(22, 10))
-
-    # mean with confidence interval
-    # sns.pointplot(x='level', y='samples', hue='type', data=data_frame, estimator=np.mean,
-    #               palette="Set2", join=False, ax=axes)
-
-    # line is not suitable for our purpose
-    # sns.lineplot(x="level", y="samples", hue="type",# err_style="band", ci='sd'
-    #              estimator=np.median, data=data_frame, ax=axes)
-
-    violinplot(x="level", y="samples", hue='type', data=data_frame, palette="Set2",
-                           split=True, scale="area", inner="quartile", ax=axes)
-
-    axes.set_yscale('log')
-    axes.set_ylabel('')
-    axes.set_xlabel('')
-    axes.legend([], [], frameon=False)
-
-    _show_and_save(fig, "violinplot", "violinplot")
-    _show_and_save(fig, None, "violinplot")
-
-
 def plot_pbs_flow_job_time():
     from mlmc.sample_storage_hdf import SampleStorageHDF
     import os
@@ -2766,7 +2897,3 @@ def plot_pbs_flow_job_time():
     #ax.set_yscale('log')
     ax.plot(1/(level_params**2), n_ops)
     _show_and_save(fig, "flow_time", "flow_time")
-
-
-if __name__ == "__main__":
-    plot_pbs_flow_job_time()

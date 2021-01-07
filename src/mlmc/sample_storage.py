@@ -236,21 +236,17 @@ class Memory(SampleStorage):
         """
         if chunk_spec.chunk_id != 0:
             raise StopIteration
-        if chunk_spec.n_samples is not None:
-            results = self._results[int(chunk_spec.level_id)]
-            n_samples = chunk_spec.n_samples if chunk_spec.n_samples < results.shape[0] else results.shape[0]
 
-            # Remove auxiliary zeros from level zero sample pairs
-            if chunk_spec.level_id == 0:
-                results = results[:, :1, :]
-
-            return results[:n_samples, ...].transpose((2, 0, 1))  # [M, N, 2]
+        results = self._results[int(chunk_spec.level_id)]
+        n_samples = chunk_spec.n_samples\
+            if chunk_spec.n_samples is not None and chunk_spec.n_samples < results.shape[0]\
+            else results.shape[0]
 
         # Remove auxiliary zeros from level zero sample pairs
         if chunk_spec.level_id == 0:
-            return self._results[int(chunk_spec.level_id)][:, :1, :].transpose((2, 0, 1))
+            results = results[:, :1, :]
 
-        return self._results[int(chunk_spec.level_id)].transpose((2, 0, 1))  # [M, N, 2]
+        return results[:n_samples, ...].transpose((2, 0, 1))  # [M, N, 2]
 
     def save_n_ops(self, n_ops):
         """

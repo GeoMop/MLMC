@@ -9,7 +9,6 @@ from mlmc.level_simulation import LevelSimulation
 from mlmc.sampling_pool import SamplingPool
 from mlmc.tool.pbs_job import PbsJob
 
-
 """
 SamplingPoolPBS description
     - this class inherits from SampleStorage, both abstract methods and other crucial ones are described
@@ -19,35 +18,34 @@ SamplingPoolPBS description
         - compute random seed from sample_id
         - add (level_sim._level_id, sample_id, seed) to job's scheduled samples 
         - add job weight, increment number of samples in job and execute if job_weight is exceeded
-    
+
     execute()
         - it is call when job weight (Maximum sum of task sizes summation in single one job) is exceeded
         - methods from mlmc/pbs_job.py are called
             - PbsJob class is created and serialized (PbsJob static method does both)
             - scheduled samples are saved through PbsJob class static method
         - pbs script is written out and ready to run
-        
+
     get_finished()
         - run execute()
         - get finished_pbs_jobs and unfinished_pbs_jobs from qstat output
         - call get_result_files(), it returns successful samples, failed samples and times all of that is return to Sampler
-        
+
     _get_result_files()
         - set n_running - number of running samples, it is given from unfinished_pbs_jobs
         - successful samples, failed samples and run times are retrieved from PbsJob class with given job_id
         - if there are _unfinished_sample_ids ('renew' command was use) these samples are appended to previous ones
-        
-    
+
+
     This class cooperate with PbsJob (mlmc/pbs_job), which is used as "mediator" between master process and
     worker (job) process. Data which are necessary for worker process are passed to PbsJob from SampleStoragePbs. 
     Master process serializes PbsJob instance.
     Then PbsJob is deserialized in worker process.
-    
+
 """
 
 
 class SamplingPoolPBS(SamplingPool):
-
     OUTPUT_DIR = "output"
     JOBS_DIR = "jobs"
     LEVEL_SIM_CONFIG = "level_{}_simulation_config"  # Serialized level simulation
@@ -137,7 +135,7 @@ class SamplingPoolPBS(SamplingPool):
             kwargs['python'] = "python3"
 
         if 'std_out_err' not in kwargs:
-            kwargs['std_out_err'] = 'oe' # Standard error and standard output are  merged  into standard output.
+            kwargs['std_out_err'] = 'oe'  # Standard error and standard output are  merged  into standard output.
 
         self._pbs_header_template = ["#!/bin/bash",
                                      '#PBS -S /bin/bash',
@@ -146,12 +144,13 @@ class SamplingPoolPBS(SamplingPool):
                                      '#PBS -q {queue}',
                                      '#PBS -N {pbs_name}',
                                      '#PBS -j {std_out_err}',  # Specifies  whether and how to join the job's
-                                                               # standard error and standard output streams.
+                                     # standard error and standard output streams.
                                      '#PBS -o {pbs_output_dir}/{job_name}.OU',
                                      '#PBS -e {pbs_output_dir}/{job_name}.ER'
                                      ]
 
-        self._pbs_header_template.extend(kwargs['optional_pbs_requests'])  # e.g. ['#PBS -m ae'] means mail is sent when the job aborts or terminates
+        self._pbs_header_template.extend(
+            kwargs['optional_pbs_requests'])  # e.g. ['#PBS -m ae'] means mail is sent when the job aborts or terminates
         self._pbs_header_template.extend(('MLMC_WORKDIR=\"{}\"'.format(self._work_dir),))
         self._pbs_header_template.extend(kwargs['env_setting'])
         self._pbs_header_template.extend(('{python} -m mlmc.tool.pbs_job {output_dir} {job_name} >'
@@ -214,7 +213,7 @@ class SamplingPoolPBS(SamplingPool):
             # Write current job count
             self._job_count += 1
 
-            #subprocess.call(job_file)
+            # subprocess.call(job_file)
 
             process = subprocess.run(['qsub', job_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             if process.returncode != 0:
@@ -245,7 +244,7 @@ class SamplingPoolPBS(SamplingPool):
 
     def write_script(self, content, job_file):
         """
-        Create 
+        Create
         :param content: script content
         :param job_file: job file path
         :return: None
@@ -342,7 +341,7 @@ class SamplingPoolPBS(SamplingPool):
                                                                                  failed_results, times)
 
         return successful_results, failed_results, n_running, list(times.items())
-    
+
     def _load_sample_id_job_id_map(self, sample_dir):
         """
         :param sample_dir: path to sample directory
@@ -404,7 +403,7 @@ class SamplingPoolPBS(SamplingPool):
         List of unfinished sample ids, the corresponding samples are collecting in next get_finished() call .
         """
         self._unfinished_sample_ids = set(sample_ids)
-        
+
     @staticmethod
     def delete_pbs_id_file(file_path):
         """

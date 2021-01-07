@@ -141,7 +141,7 @@ class Sampler:
 
             # Store scheduled samples
             self.sample_storage.save_scheduled_samples(level_id, samples)
-            
+
     def _check_failed_samples(self):
         """
         Get unfinished samples and check if failed samples have saved results then collect them

@@ -3,7 +3,7 @@ import os.path
 import subprocess
 import numpy as np
 import shutil
-import yaml
+import ruamel.yaml as yaml
 from typing import List
 import gstools
 from mlmc.level_simulation import LevelSimulation

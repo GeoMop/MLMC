@@ -14,6 +14,8 @@ from mlmc.level_simulation import LevelSimulation
 
 
 class SamplingPool(ABC):
+    FAILED_DIR = 'failed'
+    SEVERAL_SUCCESSFUL_DIR = 'several_successful'
 
     FAILED_DIR = 'failed'
     SEVERAL_SUCCESSFUL_DIR = 'several_successful'
@@ -110,14 +112,14 @@ class SamplingPool(ABC):
                     [np.prod(quantity_spec.shape) * len(quantity_spec.times) * len(quantity_spec.locations)
                      for quantity_spec in level_sim._result_format()])
 
-                assert len(flatten_fine_res) == len(flatten_coarse_res) == res_expected_len,\
+                assert len(flatten_fine_res) == len(flatten_coarse_res) == res_expected_len, \
                     "Unexpected result format, expected length: {}, resultf length: {}".format(res_expected_len,
                                                                                                len(flatten_fine_res))
 
         except Exception:
             str_list = traceback.format_exception(*sys.exc_info())
             err_msg = "".join(str_list)
-            
+
         return sample_id, res, err_msg, running_time
 
     @staticmethod
