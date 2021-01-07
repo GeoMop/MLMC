@@ -405,44 +405,6 @@ def test_cov_func_convergence(seed):
     impl_test_cov_func(impl, exponential, random_points, n_terms_range=n_terms)
 
 
-def plot_cov_models():
-    from mlmc.tool import gmsh_io
-    from mlmc.tool.flow_mc import FlowSim, create_corr_field
-    import matplotlib
-    from matplotlib import ticker, cm
-    matplotlib.rcParams.update({'font.size': 22})
-    dim = 2
-    log = True
-    corr_lengths = [0.1]
-    #sigma = [1, 2, 4]
-    sigma = [2]
-
-    mesh_file = ""
-
-    for cl in corr_lengths:
-        for s in sigma:
-            fig, ax = plt.subplots(1,1, figsize=(15, 10))
-            mesh_data = FlowSim.extract_mesh(mesh_file)
-            fields = create_corr_field(model="exp", dim=dim, sigma=s, corr_length=cl, log=log)
-            # Create fields both fine and coarse
-            fields = FlowSim.make_fields(fields, mesh_data, None)
-
-            fine_input_sample, coarse_input_sample = FlowSim.generate_random_sample(fields, coarse_step=0,
-                                                                                    n_fine_elements=len(
-                                                                                        mesh_data['points']))
-
-            gmsh_io.GmshIO().write_fields('fields_sample.msh', mesh_data['ele_ids'], fine_input_sample)
-
-            cont = ax.tricontourf(fields.fields[0].correlated_field.points[:, 0],
-                                  fields.fields[0].correlated_field.points[:, 1],
-                                  fine_input_sample['conductivity'].ravel(),  locator=ticker.LogLocator())
-
-            fig.colorbar(cont)
-            fig.savefig("cl_{}_var_{}.pdf".format(cl, s**2))
-            plt.show()
-
-
 if __name__ == "__main__":
-    plot_cov_models()
-    #test_field_mean_std_convergence(2)
+    test_field_mean_std_convergence(2)
     #test_cov_func_convergence(2)
