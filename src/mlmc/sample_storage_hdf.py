@@ -235,17 +235,6 @@ class SampleStorageHDF(SampleStorage):
     def get_level_parameters(self):
         return self._hdf_object.load_level_parameters()
 
-    def level_chunk_n_samples(self, level_id):
-        return self._level_groups[level_id].n_items_in_chunk
-
-    def get_chunks_info(self, chunk_spec):
-        """
-        The start and end index of a chunk from a whole dataset point of view
-        :param chunk_spec: ChunkSpec instance
-        :return: List[int, int]
-        """
-        return self._level_groups[chunk_spec.level_id].get_chunks_info(chunk_spec)
-
     def get_n_collected(self):
         """
         Get number of collected samples at each level

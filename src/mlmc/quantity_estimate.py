@@ -26,6 +26,7 @@ def estimate_mean(quantity, chunk_size=512000000):
     :return: QuantityMean which holds both mean and variance
     """
     mlmc.quantity.Quantity.samples.cache_clear()
+    mlmc.quantity.QuantityConst.samples.cache_clear()
     quantity_vec_size = quantity.size()
     n_samples = None
     n_rm_samples = None
@@ -51,13 +52,18 @@ def estimate_mean(quantity, chunk_size=512000000):
                 # level_chunk is Numpy Array with shape [M, chunk_size, 2]
                 n_samples[level_id] += chunk.shape[1]
                 n_rm_samples[level_id] += n_mask_samples
+
+                # No samples in chunk
+                if chunk.shape[1] == 0:
+                    continue
                 assert (chunk.shape[0] == quantity_vec_size)
 
+                # Set variables for level sums and sums of squares
+                if sums is None:
+                    sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+                    sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+
                 if level_id == 0:
-                    # Set variables for level sums and sums of powers
-                    if chunk_id == 0:
-                        sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-                        sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
                     chunk_diff = chunk[:, :, 0]
                 else:
                     chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
@@ -67,6 +73,9 @@ def estimate_mean(quantity, chunk_size=512000000):
             except StopIteration:
                 level_chunks_none[level_id] = True
         chunk_id += 1
+
+    if sums is None:
+        raise Exception("All samples were masked")
 
     l_means = []
     l_vars = []

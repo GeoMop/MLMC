@@ -280,23 +280,6 @@ class Memory(SampleStorage):
     def get_level_ids(self):
         return list(self._results.keys())
 
-    def get_chunks_info(self, level_id, i_chunk):
-        """
-        The start and end index of a chunk from a whole dataset point of view
-        :param level_id: level id
-        :param i_chunk: chunk id
-        :return: List[int, int]
-        """
-        return [0, len(self._results[level_id])-1]
-
-    def level_chunk_n_samples(self, level_id):
-        """
-        Number of items in one chunk
-        :param level_id: level id
-        :return: int
-        """
-        return len(self._results[level_id])
-
     def get_n_collected(self):
         """
         Number of collected samples at each level
