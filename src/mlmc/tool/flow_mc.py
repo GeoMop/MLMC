@@ -13,33 +13,44 @@ from mlmc.quantity_spec import QuantitySpec
 from mlmc.random import correlated_field as cf
 
 
-def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1):
+def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1, mode_no=1000):
     """
     Create random fields
     :return:
     """
-    len_scale = corr_length * 2 * np.pi
-
     if model == 'fourier':
         return cf.Fields([
             cf.Field('conductivity', cf.FourierSpatialCorrelatedField('gauss', dim=dim,
-                                                                      corr_length=corr_length, log=log)),
+                                                                      corr_length=corr_length,
+                                                                      log=log, sigma=sigma)),
         ])
 
-    if model == 'exp':
-        model = gstools.Exponential(dim=dim, var=sigma**2, len_scale=len_scale)
+    elif model == 'svd':
+        conductivity = dict(
+            mu=0.0,
+            sigma=sigma,
+            corr_exp='exp',
+            dim=dim,
+            corr_length=corr_length,
+            log=log
+        )
+        return cf.Fields([cf.Field("conductivity", cf.SpatialCorrelatedField(**conductivity))])
+
+    elif model == 'exp':
+        model = gstools.Exponential(dim=dim, len_scale=corr_length)
     elif model == 'TPLgauss':
-        model = gstools.TPLGaussian(dim=dim, var=sigma**2, len_scale=len_scale)
+        model = gstools.TPLGaussian(dim=dim,  len_scale=corr_length)
     elif model == 'TPLexp':
-        model = gstools.TPLExponential(dim=dim, var=sigma**2, len_scale=len_scale)
+        model = gstools.TPLExponential(dim=dim,  len_scale=corr_length)
     elif model == 'TPLStable':
-        model = gstools.TPLStable(dim=dim, var=sigma**2, len_scale=len_scale)
+        model = gstools.TPLStable(dim=dim,  len_scale=corr_length)
     else:
-        model = gstools.Gaussian(dim=dim, var=sigma**2, len_scale=len_scale)
+        model = gstools.Gaussian(dim=dim,  len_scale=corr_length)
 
     return cf.Fields([
-        cf.Field('conductivity', cf.GSToolsSpatialCorrelatedField(model, log=log)),
+        cf.Field('conductivity', cf.GSToolsSpatialCorrelatedField(model, log=log, sigma=sigma, mode_no=mode_no)),
     ])
+
 
 
 def substitute_placeholders(file_in, file_out, params):
@@ -124,7 +135,7 @@ class FlowSim(Simulation):
         self.env = config['env']
         # Environment variables, flow123d, gmsh, ...
         self._fields_params = config['fields_params']
-        self._fields = create_corr_field(config['fields_params'])
+        self._fields = create_corr_field(**config['fields_params'])
         self._fields_used_params = None
         # Random fields instance
         self.time_factor = config.get('time_factor', 1.0)

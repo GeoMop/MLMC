@@ -24,7 +24,6 @@ class PbsJob:
     CLASS_FILE = "pbs_process_serialized.txt"
     # Serialized data which are "passed" from sampling pool to pbs process
     PERMANENT_SAMPLE = "permanent_jobID_{}"
-
     # Indicates that sample is stored in _successful_results.yaml or _failed_results.yaml
 
     def __init__(self, output_dir, jobs_dir, job_id, level_sim_file, debug):
@@ -173,9 +172,11 @@ class PbsJob:
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
-                SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
-                                      dest_dir=successful_dest_dir)
                 if not self._debug:
+                    # Store few successful samples
+                    if int(sample_id[-7:]) < SamplingPool.N_SUCCESSFUL:
+                        SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
+                                              dest_dir=successful_dest_dir)
                     SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
 
             else:
