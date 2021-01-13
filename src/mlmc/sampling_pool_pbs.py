@@ -288,6 +288,13 @@ class SamplingPoolPBS(SamplingPool):
         for pbs_id in self._pbs_ids:
             if pbs_id not in finished_pbs_jobs:
                 unfinished_pbs_jobs.append(pbs_id)
+            else:
+                # Remove finished ids from all saved pbs_ids
+                # It prevents qstat exception: "Unknown Job Id",
+                # that occurs because there is some kind of qstat 'forgetfulness' of terminated jobs
+                # It is a very rare phenomenon, which is observed only during the long run (e.g. 8 hours for a job)
+                # of many (e.g. 2500) simulations, here it happened after around a day and a half of running MLMC.
+                self._pbs_ids.remove(pbs_id)
 
         return finished_pbs_jobs, unfinished_pbs_jobs
 

@@ -154,10 +154,10 @@ class ProcessSimple:
         # Create sampler (mlmc.Sampler instance) - crucial class which actually schedule samples
         sampler = self.setup_config(clean=True)
         # Schedule samples
-        self.generate_jobs(sampler, n_samples=None, renew=renew, target_var=1e-5)
+        self.generate_jobs(sampler, n_samples=[10], renew=renew)
+        #self.generate_jobs(sampler, n_samples=None, renew=renew, target_var=1e-5)
         #self.generate_jobs(sampler, n_samples=[500, 500], renew=renew, target_var=1e-5)
         self.all_collect(sampler)  # Check if all samples are finished
-        self.calculate_moments(sampler)  # Simple moment check
 
     def setup_config(self, clean):
         """
@@ -273,42 +273,26 @@ class ProcessSimple:
                 sampler.set_initial_n_samples()
             sampler.schedule_samples()
             sampler.ask_sampling_pool_for_samples(sleep=self.sample_sleep, timeout=self.sample_timeout)
+            self.all_collect(sampler)
 
             if target_var is not None:
-                start_time = time.time()
-                self.all_collect(sampler)
+                moments_fn = self.set_moments(sampler.sample_storage, n_moments=self.n_moments)
 
-                moments_fn = self.set_moments(sampler._sample_storage)
-
-                q_estimator = QuantityEstimate(sample_storage=sampler._sample_storage, moments_fn=moments_fn,
+                q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
                                                sim_steps=self.level_parameters)
 
-                target_var = 1e-5
                 sleep = 0
                 add_coef = 0.1
-
-                # @TODO: test
                 # New estimation according to already finished samples
                 variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-                n_estimated = estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                                    n_levels=sampler.n_levels)
 
                 # Loop until number of estimated samples is greater than the number of scheduled samples
                 while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
-                    with open(os.path.join(self.work_dir, "sampling_info.txt"), "a") as writer:
-                        n_target_str = ",".join([str(n_target) for n_target in sampler._n_target_samples])
-                        n_scheduled_str = ",".join([str(n_scheduled) for n_scheduled in sampler._n_scheduled_samples])
-                        n_estimated_str = ",".join([str(n_est) for n_est in n_estimated])
-                        variances_str = ",".join([str(vars) for vars in variances])
-                        n_ops_str = ",".join([str(n_o) for n_o in n_ops])
-
-                        writer.write("{}; {}; {}; {}; {}; {}\n".format(n_target_str, n_scheduled_str,
-                                                                   n_estimated_str, variances_str,
-                                                                   n_ops_str, str(time.time() - start_time)))
-
                     # New estimation according to already finished samples
                     variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-                    n_estimated = estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                    n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                                        n_levels=sampler.n_levels)
 
     def all_collect(self, sampler):
