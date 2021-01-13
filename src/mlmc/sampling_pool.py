@@ -196,7 +196,8 @@ class OneProcessPool(SamplingPool):
         Everything is running in one process
         """
         super().__init__(work_dir=work_dir, debug=debug)
-        self._successful_dest_dir = os.path.join(self._output_dir, SamplingPool.SEVERAL_SUCCESSFUL_DIR)
+        if self._output_dir is not None:
+            self._successful_dest_dir = os.path.join(self._output_dir, SamplingPool.SEVERAL_SUCCESSFUL_DIR)
         self._failed_queues = {}
         self._queues = {}
         self._n_running = 0
