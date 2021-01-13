@@ -32,7 +32,7 @@ class SamplingPool(ABC):
 
         self._create_dir()  # prepare output dir
         self._create_dir(SamplingPool.FAILED_DIR)  # prepare failed dir
-        self._create_dir(SamplingPool.SEVERAL_SUCCESSFUL_DIR)  # prepare several successful dir
+        self._successful_dir = self._create_dir(SamplingPool.SEVERAL_SUCCESSFUL_DIR)  # prepare several successful dir
 
     def _create_dir(self, directory=""):
         """
@@ -168,7 +168,7 @@ class SamplingPool(ABC):
         :param dest_dir: destination
         :return: None
         """
-        if sample_workspace and work_dir is not None:
+        if sample_workspace and work_dir is not None and dest_dir is not None:
             destination_dir = os.path.join(work_dir, dest_dir)
             sample_dir = SamplingPool.change_to_sample_directory(work_dir, sample_id)
             if os.path.exists(os.path.join(destination_dir, sample_id)):
@@ -196,8 +196,6 @@ class OneProcessPool(SamplingPool):
         Everything is running in one process
         """
         super().__init__(work_dir=work_dir, debug=debug)
-        if self._output_dir is not None:
-            self._successful_dest_dir = os.path.join(self._output_dir, SamplingPool.SEVERAL_SUCCESSFUL_DIR)
         self._failed_queues = {}
         self._queues = {}
         self._n_running = 0
@@ -232,7 +230,7 @@ class OneProcessPool(SamplingPool):
             if not self._debug:
                 if int(sample_id[-7:]) < SamplingPool.N_SUCCESSFUL:
                     SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
-                                          dest_dir=self._successful_dest_dir)
+                                          dest_dir=self._successful_dir)
                 SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
         else:
             self._failed_queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, err_msg))
