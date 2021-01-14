@@ -576,7 +576,6 @@ class QuantityTests(unittest.TestCase):
         n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                             n_levels=sampler.n_levels)
 
-
         # Loop until number of estimated samples is greater than the number of scheduled samples
         while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
             # New estimation according to already finished samples
@@ -608,8 +607,10 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose(values_mean.mean, [first_moment.mean[0], second_moment.mean[0], third_moment.mean[0]], atol=1e-4)
 
         # Central moments
-        central_moments_fn = Monomial(n_moments, domain=true_domain, ref_domain=true_domain, mean=root_quantity_mean.mean)
-        central_moments_quantity = moments(root_quantity, moments_fn=central_moments_fn, mom_at_bottom=True)
+        central_root_quantity = root_quantity - root_quantity_mean()
+        monomial_mom_fn = Monomial(n_moments, domain=true_domain, ref_domain=true_domain)
+        central_moments_quantity = moments(central_root_quantity, moments_fn=monomial_mom_fn, mom_at_bottom=True)
+
         central_moments_mean = estimate_mean(central_moments_quantity)
         length_mean = central_moments_mean['length']
         time_mean = length_mean[1]
