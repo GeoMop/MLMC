@@ -10,7 +10,7 @@ from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc import quantity as q
 from mlmc.quantity import make_root_quantity
-from mlmc.quantity_estimate import estimate_mean, moment, moments, covariance
+from mlmc.quantity_estimate import estimate_mean, moment, moments, covariance, cache_clear
 from mlmc.quantity import Quantity, QuantityStorage, QuantityConst
 from mlmc.quantity_types import DictType, ScalarType
 from mlmc.sampler import Sampler
@@ -386,11 +386,6 @@ class QuantityTests(unittest.TestCase):
         max_means = estimate_mean(max_root_quantity)
         assert len(max_means.mean) == 1
 
-        #@TODO: should failed
-        # q_and = np.logical_and(True, root_quantity)
-        # q_and_mean = estimate_mean(q_and)
-        # print("q and mean ", q_and_mean.mean)
-
         sin_root_quantity = np.sin(root_quantity)
         sin_means = estimate_mean(sin_root_quantity)
         assert len(sin_means.mean) == np.sum(sizes)
@@ -403,20 +398,10 @@ class QuantityTests(unittest.TestCase):
         add_root_quantity_means = estimate_mean(add_root_quantity)
         assert np.allclose(add_root_quantity_means.mean.flatten(), (root_quantity_means.mean * 2))
 
-        x = np.ones((108, 5, 2))
-        # add_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.
-        # add_root_quantity_means = estimate_mean(add_root_quantity)
-        # print("add_root_quantity_means ", add_root_quantity_means.mean)
-
-        self.assertRaises(ValueError, np.add, x, root_quantity)
-
         x = np.ones(108)
         add_one_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.
         add_one_root_quantity_means = estimate_mean(add_one_root_quantity)
         assert np.allclose(root_quantity_means.mean + np.ones((108,)), add_one_root_quantity_means.mean.flatten())
-
-        x = np.ones((108, 5, 2))
-        self.assertRaises(ValueError, np.divide, x, root_quantity)
 
         x = np.ones(108)
         divide_one_root_quantity = np.divide(x, root_quantity)  # Add arguments element-wise.
@@ -438,12 +423,21 @@ class QuantityTests(unittest.TestCase):
         sin_means_length = estimate_mean(sin_length)
         assert np.allclose((sin_means.mean[sizes[0]:sizes[0]+sizes[1]]).tolist(), sin_means_length.mean.tolist())
 
+        cache_clear()
+        x = np.ones((108, 5, 2))
+        self.assertRaises(ValueError, np.add, x, root_quantity)
+
+        x = np.ones((108, 5, 2))
+        self.assertRaises(ValueError, np.divide, x, root_quantity)
+
+        q_and = np.logical_and(True, root_quantity)
+        self.assertRaises(TypeError, estimate_mean, q_and)
+
     def test_quantity_const(self):
         x = QuantityConst(ScalarType(), 5)
         y = QuantityConst(ScalarType(), 10)
         z = x + y
         assert isinstance(z, QuantityConst)
-
 
     def fill_sample_storage(self, sample_storage, chunk_size=512000000):
         sample_storage.chunk_size = chunk_size  # bytes in decimal

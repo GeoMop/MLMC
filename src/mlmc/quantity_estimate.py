@@ -15,6 +15,11 @@ def mask_nan_samples(chunk):
     return chunk[..., ~mask, :], np.count_nonzero(mask)
 
 
+def cache_clear():
+    mlmc.quantity.Quantity.samples.cache_clear()
+    mlmc.quantity.QuantityConst.samples.cache_clear()
+
+
 def estimate_mean(quantity, chunk_size=512000000):
     """
     MLMC mean estimator.
@@ -25,8 +30,7 @@ def estimate_mean(quantity, chunk_size=512000000):
     :param chunk_size: chunk size in bytes in decimal, determines number of samples in chunk
     :return: QuantityMean which holds both mean and variance
     """
-    mlmc.quantity.Quantity.samples.cache_clear()
-    mlmc.quantity.QuantityConst.samples.cache_clear()
+    cache_clear()
     quantity_vec_size = quantity.size()
     n_samples = None
     n_rm_samples = None
