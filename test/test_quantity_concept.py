@@ -423,6 +423,9 @@ class QuantityTests(unittest.TestCase):
         sin_means_length = estimate_mean(sin_length)
         assert np.allclose((sin_means.mean[sizes[0]:sizes[0]+sizes[1]]).tolist(), sin_means_length.mean.tolist())
 
+        q_and = np.logical_and(True, root_quantity)
+        self.assertRaises(TypeError, estimate_mean, q_and)
+
         cache_clear()
         x = np.ones((108, 5, 2))
         self.assertRaises(ValueError, np.add, x, root_quantity)
@@ -430,8 +433,7 @@ class QuantityTests(unittest.TestCase):
         x = np.ones((108, 5, 2))
         self.assertRaises(ValueError, np.divide, x, root_quantity)
 
-        q_and = np.logical_and(True, root_quantity)
-        self.assertRaises(TypeError, estimate_mean, q_and)
+
 
     def test_quantity_const(self):
         x = QuantityConst(ScalarType(), 5)
