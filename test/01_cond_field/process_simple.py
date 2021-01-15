@@ -36,7 +36,7 @@ class ProcessSimple:
         self.n_moments = 25
         # Number of MLMC levels
 
-        step_range = [1, 0.005]
+        step_range = [1, 0.5]
         # step   - elements
         # 0.1    - 262
         # 0.08   - 478
@@ -154,8 +154,8 @@ class ProcessSimple:
         # Create sampler (mlmc.Sampler instance) - crucial class which actually schedule samples
         sampler = self.setup_config(clean=True)
         # Schedule samples
-        self.generate_jobs(sampler, n_samples=[10], renew=renew)
-        #self.generate_jobs(sampler, n_samples=None, renew=renew, target_var=1e-5)
+        #self.generate_jobs(sampler, n_samples=[10], renew=renew)
+        self.generate_jobs(sampler, n_samples=None, renew=renew, target_var=1e-3)
         #self.generate_jobs(sampler, n_samples=[500, 500], renew=renew, target_var=1e-5)
         self.all_collect(sampler)  # Check if all samples are finished
 
@@ -240,15 +240,13 @@ class ProcessSimple:
             walltime='1:00:00',
             optional_pbs_requests=[],  # e.g. ['#PBS -m ae', ...]
             home_dir='/storage/liberec3-tul/home/martin_spetlik/',
-            python='python3',
+            python='python3.8',
             env_setting=['cd $MLMC_WORKDIR',
-                         'module load python36-modules-gcc',
+                         'module load python/3.8.0-gcc',
                          'source env/bin/activate',
-                         'pip3 install /storage/liberec3-tul/home/martin_spetlik/MLMC_new_design',
-                         'module use /storage/praha1/home/jan-hybs/modules',
-                         'module load python36-modules-gcc',
                          'module load flow123d',
-                         'module list']
+                         'module unload python-3.6.2-gcc',
+                         'module unload python36-modules-gcc']
         )
 
         sampling_pool.pbs_common_setting(flow_3=True, **pbs_config)
@@ -276,24 +274,32 @@ class ProcessSimple:
             self.all_collect(sampler)
 
             if target_var is not None:
-                moments_fn = self.set_moments(sampler.sample_storage, n_moments=self.n_moments)
+                root_quantity = make_root_quantity(storage=sampler.sample_storage,
+                                                   q_specs=sampler.sample_storage.load_result_format())
 
-                q_estimator = QuantityEstimate(sample_storage=sampler.sample_storage, moments_fn=moments_fn,
-                                               sim_steps=self.level_parameters)
+                moments_fn = self.set_moments(root_quantity, sampler.sample_storage, n_moments=self.n_moments)
+                estimate_obj = estimator.Estimate(root_quantity, sample_storage=sampler.sample_storage,
+                                                   moments_fn=moments_fn)
 
+                target_var = 1e-2
                 sleep = 0
                 add_coef = 0.1
+
                 # New estimation according to already finished samples
-                variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-                n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                variances, n_ops = estimate_obj.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+                n_estimated = estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                                    n_levels=sampler.n_levels)
 
                 # Loop until number of estimated samples is greater than the number of scheduled samples
                 while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
                     # New estimation according to already finished samples
-                    variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-                    n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                    variances, n_ops = estimate_obj.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+                    n_estimated = estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                                        n_levels=sampler.n_levels)
+
+    def set_moments(self, quantity, sample_storage, n_moments=5):
+        true_domain = estimator.Estimate.estimate_domain(quantity, sample_storage, quantile=0.01)
+        return Legendre(n_moments, true_domain)
 
     def all_collect(self, sampler):
         """
