@@ -244,6 +244,7 @@ class ProcessSimple:
             env_setting=['cd $MLMC_WORKDIR',
                          'module load python/3.8.0-gcc',
                          'source env/bin/activate',
+                         'module use /storage/praha1/home/jan-hybs/modules',
                          'module load flow123d',
                          'module unload python-3.6.2-gcc',
                          'module unload python36-modules-gcc']
