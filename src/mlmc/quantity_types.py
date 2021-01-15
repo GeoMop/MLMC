@@ -100,7 +100,7 @@ class ArrayType(QType):
     def size(self) -> int:
         return np.prod(self._shape) * self._qtype.size()
 
-    def __getitem__(self, key):
+    def get_key(self, key):
         """
         ArrayType indexing
         :param key: int, tuple of ints or slice objects
@@ -150,7 +150,7 @@ class TimeSeriesType(QType):
     def size(self) -> int:
         return len(self._times) * self._qtype.size()
 
-    def __getitem__(self, key):
+    def get_key(self, key):
         q_type = self._qtype
         try:
             position = self._times.index(key)
@@ -187,7 +187,7 @@ class FieldType(QType):
     def size(self) -> int:
         return len(self._dict.keys()) * self._qtype.size()
 
-    def __getitem__(self, key):
+    def get_key(self, key):
         q_type = self._qtype
         try:
             position = list(self._dict.keys()).index(key)
@@ -232,7 +232,7 @@ class DictType(QType):
             dict_items.append((key,  new_qtype))
         return DictType(dict_items)
 
-    def __getitem__(self, key):
+    def get_key(self, key):
         try:
             q_type = self._dict[key]
         except KeyError:

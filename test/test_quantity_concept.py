@@ -607,7 +607,7 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose(values_mean.mean, [first_moment.mean[0], second_moment.mean[0], third_moment.mean[0]], atol=1e-4)
 
         # Central moments
-        central_root_quantity = root_quantity - root_quantity_mean()
+        central_root_quantity = root_quantity - root_quantity_mean.mean
         monomial_mom_fn = Monomial(n_moments, domain=true_domain, ref_domain=true_domain)
         central_moments_quantity = moments(central_root_quantity, moments_fn=monomial_mom_fn, mom_at_bottom=True)
 

@@ -75,7 +75,7 @@ def estimate_mean(quantity, chunk_size=512000000):
         if n > 1:
             l_vars.append((sp - (s ** 2 / n)) / (n-1))
         else:
-            l_vars.append((sp - (s ** 2)))
+            l_vars.append(np.inf)
 
     return mlmc.quantity.QuantityMean(quantity.qtype, l_means=l_means, l_vars=l_vars, n_samples=n_samples,
                                       n_rm_samples=n_rm_samples)
