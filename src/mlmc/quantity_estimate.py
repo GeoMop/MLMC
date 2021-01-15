@@ -9,14 +9,14 @@ def mask_nan_samples(chunk):
     """
     Mask out samples that contain NaN in either fine or coarse part of the result
     :param chunk: np.ndarray [M, chunk_size, 2]
-    :return: chunk: np.ndarray, number of removed samples: int
+    :return: chunk: np.ndarray, number of masked samples: int
     """
     # Fine and coarse moments_fn mask
     mask = np.any(np.isnan(chunk), axis=0).any(axis=1)
     return chunk[..., ~mask, :], np.count_nonzero(mask)
 
 
-def estimate_mean(quantity, chunk_size=512000000, level_means=False):
+def estimate_mean(quantity, chunk_size=512000000):
     """
     MLMC mean estimator.
     The MLMC method is used to compute the mean estimate to the Quantity dependent on the collected samples.
@@ -30,10 +30,10 @@ def estimate_mean(quantity, chunk_size=512000000, level_means=False):
     mlmc.quantity.Quantity.samples.cache_clear()
     quantity_vec_size = quantity.size()
     n_samples = None
+    n_rm_samples = None
     sums = None
     sums_of_squares = None
     chunk_id = 0
-    n_rm_samples = 0
     level_chunks_none = np.zeros(1)  # if ones then the iteration through the chunks was terminated at each level
 
     while not np.alltrue(level_chunks_none):
@@ -42,15 +42,17 @@ def estimate_mean(quantity, chunk_size=512000000, level_means=False):
             # initialization
             n_levels = len(level_ids)
             n_samples = [0] * n_levels
+            n_rm_samples = [0] * n_levels
 
         level_chunks_none = np.zeros(n_levels)
         for level_id in level_ids:
             # Chunk of samples for given level id
             try:
                 chunk = quantity.samples(ChunkSpec(level_id, chunk_id, chunk_size=chunk_size))
-                chunk, n_rm_samples = mask_nan_samples(chunk)
+                chunk, n_mask_samples = mask_nan_samples(chunk)
                 # level_chunk is Numpy Array with shape [M, chunk_size, 2]
                 n_samples[level_id] += chunk.shape[1]
+                n_rm_samples[level_id] += n_mask_samples
                 assert (chunk.shape[0] == quantity_vec_size)
 
                 if level_id == 0:
@@ -68,31 +70,16 @@ def estimate_mean(quantity, chunk_size=512000000, level_means=False):
                 level_chunks_none[level_id] = True
         chunk_id += 1
 
-    mean = np.zeros_like(sums[0])
-    var = np.zeros_like(sums[0])
     l_means = []
     l_vars = []
-
     for s, sp, n in zip(sums, sums_of_squares, n_samples):
-        mean += s / n
+        l_means.append(s / n)
         if n > 1:
-            var += (sp - (s ** 2 / n)) / ((n - 1) * n)
+            l_vars.append((sp - (s ** 2 / n)) / (n-1))
         else:
-            var += (sp - (s ** 2))
+            l_vars.append(np.inf)
 
-        if level_means:
-            l_means.append(s / n)
-            if n > 1:
-                l_vars.append((sp - (s ** 2 / n)) / (n-1))
-            else:
-                l_vars.append((sp - (s ** 2)))
-
-    # sums full of zeros
-    if np.isnan(mean).all():
-        mean = []
-        var = []
-
-    return mlmc.quantity.QuantityMean(quantity.qtype, mean, var, l_means=l_means, l_vars=l_vars, n_samples=n_samples,
+    return mlmc.quantity.QuantityMean(quantity.qtype, l_means=l_means, l_vars=l_vars, n_samples=n_samples,
                                       n_rm_samples=n_rm_samples)
 
 
