@@ -632,7 +632,7 @@ class QuantityTests(unittest.TestCase):
         value_mean = location_mean[0]
         assert len(value_mean.mean) == 1
 
-        iter = 200
+        iter = 500
         mult_chunks_means = []
         single_chunk_means = []
         mult_chunks_vars = []
@@ -640,7 +640,7 @@ class QuantityTests(unittest.TestCase):
         mult_chunks_subsamples = []
         single_chunk_subsamples = []
         for i in range(iter):
-            sample_vec = [10, 8, 5, 3, 2]
+            sample_vec = [10, 8, 5, 4, 3]
             root_quantity_subsamples = root_quantity.subsample(sample_vec)  # out of [100, 80, 50, 30, 10]
             moments_quantity = moments(root_quantity_subsamples, moments_fn=moments_fn, mom_at_bottom=True)
             mult_chunks_moments_mean = estimate_mean(moments_quantity, chunk_size=5120)  # about 6 chunks
