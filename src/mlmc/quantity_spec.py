@@ -1,8 +1,9 @@
 import attr
+import numpy as np
 from typing import List, Tuple, Union
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, eq=False)
 class QuantitySpec:
     name: str
     unit: str
@@ -10,8 +11,17 @@ class QuantitySpec:
     times: List[float]
     locations: Union[List[str], List[Tuple[float, float, float]]]
 
+    # Note: auto generated eq raises ValueError
+    def __eq__(self, other):
+        if (self.name, self.unit) == (other.name, other.unit) \
+                and np.array_equal(self.shape, other.shape)\
+                and np.array_equal(self.times, other.times)\
+                and not (set(self.locations) - set(other.locations)):
+            return True
+        return False
 
-@attr.s(auto_attribs=True, eq=False)  # eq=False allows custom __hash__ and __eq__
+
+@attr.s(auto_attribs=True, frozen=True)
 class ChunkSpec:
     level_id: int
     # Level identifier
@@ -21,12 +31,3 @@ class ChunkSpec:
     # Number of samples which we want to retrieve
     chunk_size: int = 512000000
     # Chunk size in bytes in decimal, determines number of samples in chunk
-
-    def __hash__(self):
-        return hash((self.level_id, self.chunk_id, self.n_samples, self.chunk_size))
-
-    def __eq__(self, other):
-        return (self.level_id, self.chunk_id, self.n_samples, self.chunk_size) == \
-               (other.level_id, other.chunk_id, other.n_samples, other.chunk_size)
-
-
