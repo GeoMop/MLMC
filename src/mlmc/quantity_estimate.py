@@ -26,6 +26,7 @@ def estimate_mean(quantity, chunk_size=512000000):
     :return: QuantityMean which holds both mean and variance
     """
     mlmc.quantity.Quantity.samples.cache_clear()
+    mlmc.quantity.QuantityConst.samples.cache_clear()
     quantity_vec_size = quantity.size()
     n_samples = None
     n_rm_samples = None
