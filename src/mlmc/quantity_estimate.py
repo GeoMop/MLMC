@@ -41,7 +41,7 @@ def estimate_mean(quantity, chunk_size=512000000):
 
     while not np.alltrue(level_chunks_none):
         level_ids = quantity.get_quantity_storage().level_ids()
-        if chunk_id == 0:
+        if n_samples is None:
             # initialization
             n_levels = len(level_ids)
             n_samples = [0] * n_levels

@@ -589,11 +589,6 @@ class QuantityMean:
         self._mean = np.sum(self._l_means, axis=0)
         self._var = np.sum(self._l_vars / self._n_samples[:, None], axis=0)
 
-        # Sums full of zeros leads to NaN
-        if np.isnan(self._mean).all():
-            self._mean = np.array([])
-            self._var = np.array([])
-
     @property
     def mean(self):
         if self._mean is None:
@@ -629,8 +624,6 @@ class QuantityMean:
         :return: np.ndarray, reshaped data, the final data shape depends on the particular QType
                              there is currently a reshape for ArrayType only
         """
-        if data.size == 0:
-            return data
         return self.qtype.reshape(data)
 
     def __getitem__(self, key):

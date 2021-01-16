@@ -434,7 +434,6 @@ class QuantityTests(unittest.TestCase):
         self.assertRaises(ValueError, np.divide, x, root_quantity)
 
 
-
     def test_quantity_const(self):
         x = QuantityConst(ScalarType(), 5)
         y = QuantityConst(ScalarType(), 10)
@@ -642,7 +641,7 @@ class QuantityTests(unittest.TestCase):
         mult_chunks_subsamples = []
         single_chunk_subsamples = []
         for i in range(iter):
-            sample_vec = [10, 8, 5, 4, 3]
+            sample_vec = [15, 10, 8, 6, 4]
             root_quantity_subsamples = root_quantity.subsample(sample_vec)  # out of [100, 80, 50, 30, 10]
             moments_quantity = moments(root_quantity_subsamples, moments_fn=moments_fn, mom_at_bottom=True)
             mult_chunks_moments_mean = estimate_mean(moments_quantity, chunk_size=5120)  # about 6 chunks
@@ -669,7 +668,7 @@ class QuantityTests(unittest.TestCase):
 
         assert np.allclose(np.mean(single_chunk_subsamples, axis=0), np.mean(mult_chunks_subsamples, axis=0), rtol=0.2)
         assert np.allclose(np.mean(single_chunk_subsamples, axis=0), sample_vec, rtol=0.2)
-        assert np.allclose(np.mean(mult_chunks_means, axis=0), np.mean(single_chunk_means, axis=0), atol=1e-2)
+        assert np.allclose(np.mean(mult_chunks_means, axis=0), np.mean(single_chunk_means, axis=0), atol=5e-2)
         assert np.allclose(np.mean(mult_chunks_means, axis=0), values_mean.mean, atol=5e-2)
         assert np.allclose(np.mean(mult_chunks_vars, axis=0) / iter, np.mean(single_chunk_vars, axis=0) / iter, atol=1e-3)
         assert np.allclose(np.mean(mult_chunks_vars, axis=0) / iter, values_mean.var, atol=1e-3)

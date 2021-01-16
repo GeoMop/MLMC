@@ -255,9 +255,10 @@ class Memory(SampleStorage):
         :return: None
         """
         for level, (time, n_samples) in n_ops:
-            if level not in self._n_ops or n_samples == 0:
+            if level not in self._n_ops:
                 self._n_ops[level] = 0
-            else:
+
+            if n_samples != 0:
                 self._n_ops[level] += time/n_samples
 
     def get_n_ops(self):
