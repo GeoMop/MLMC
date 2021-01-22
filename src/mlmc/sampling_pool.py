@@ -17,6 +17,9 @@ class SamplingPool(ABC):
     FAILED_DIR = 'failed'
     SEVERAL_SUCCESSFUL_DIR = 'several_successful'
 
+    FAILED_DIR = 'failed'
+    SEVERAL_SUCCESSFUL_DIR = 'several_successful'
+
     def __init__(self, work_dir=None, debug=False):
         """
         :param work_dir: Path to working directory

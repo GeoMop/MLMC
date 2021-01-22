@@ -169,6 +169,7 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose(quantity_array_mean.mean.flatten(), np.concatenate((means_length.mean, means_length.mean,
                                                                             means_length.mean, means_length.mean)))
 
+
         quantity_timeseries = Quantity.QTimeSeries([(0, locations), (1, locations)])
         quantity_timeseries_mean = estimate_mean(quantity_timeseries)
         assert np.allclose(quantity_timeseries_mean.mean, np.concatenate((mean_interp_value.mean, mean_interp_value.mean)))
@@ -397,6 +398,7 @@ class QuantityTests(unittest.TestCase):
         add_root_quantity = np.add(root_quantity, root_quantity)  # Add arguments element-wise.
         add_root_quantity_means = estimate_mean(add_root_quantity)
         assert np.allclose(add_root_quantity_means.mean.flatten(), (root_quantity_means.mean * 2))
+
 
         x = np.ones(108)
         add_one_root_quantity = np.add(x, root_quantity)  # Add arguments element-wise.

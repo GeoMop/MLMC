@@ -71,7 +71,7 @@ def test_mlmc(test_case):
 
     true_domain = distr.ppf([0.0001, 0.9999])
     moments_fn = Legendre(n_moments, true_domain)
-    # moments_fn = Monomial(n_moments, true_domain)
+    # _moments_fn = Monomial(n_moments, true_domain)
 
     sampler.set_initial_n_samples([10, 10])
     # sampler.set_initial_n_samples([10000])

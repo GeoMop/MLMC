@@ -1,16 +1,21 @@
-import numpy as np
+import autograd.numpy as np
+import numpy
 import scipy as sc
 import scipy.integrate as integrate
 import mlmc.moments
+from autograd import elementwise_grad as egrad
+from autograd import hessian
 import mlmc.tool.plot
 from abc import ABC, abstractmethod
-from numpy import testing
+
+from scipy.special import  softmax
 import pandas as pd
 
+import numdifftools as nd
 
 EXACT_QUAD_LIMIT = 1000
-GAUSS_DEGREE = 100
-HUBER_MU = 0.001
+GAUSS_DEGREE = 151
+HUBER_MU = 0.01
 
 
 class SimpleDistribution:
@@ -18,15 +23,17 @@ class SimpleDistribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=30, regularization=None):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=20, regularization=None):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
         :param domain: Explicit domain fo reconstruction. None = use domain of moments.
         :param force_decay: Flag for each domain side to enforce decay of the PDF approximation.
         """
+
         # Family of moments basis functions.
         self.moments_basis = moments_obj
+
         self.regularization = regularization
 
         # Moment evaluation function with bounded number of moments and their domain.
@@ -59,16 +66,15 @@ class SimpleDistribution:
         # Degree of Gauss quad to use on every subinterval determined by adaptive quad.
         self._gauss_degree = GAUSS_DEGREE
         # Panalty coef for endpoint derivatives
-        self._penalty_coef = 0#1
+        self._penalty_coef = 0
 
-        #self._reg_term_jacobian = None
+        self._reg_term_jacobian = None
 
         self.reg_param = reg_param
         self.max_iter = max_iter
 
         self.gradients = []
         self.reg_domain = domain
-        self.cond_number = 0
 
     @property
     def multipliers(self):
@@ -98,29 +104,21 @@ class SimpleDistribution:
         if multipliers is not None:
             self.multipliers = multipliers
 
-        #print("sefl multipliers ", self.multipliers)
+        print("sefl multipliers ", self.multipliers)
         method = 'trust-exact'
         #method = 'L-BFGS-B'
         #method ='Newton-CG'
         #method = 'trust-ncg'
 
-        #print("init multipliers ", self.multipliers)
-        # result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
-        #                               jac=self._calculate_gradient,
-        #                               hess=self._calculate_jacobian_matrix,
-        #                               options={'tol': tol, 'xtol': tol,
-        #                                        'gtol': tol, 'disp': True, 'maxiter':max_it}
-        #                               #options={'disp': True, 'maxiter': max_it}
-        #                                 )
+        print("init multipliers ", self.multipliers)
         result = sc.optimize.minimize(self._calculate_functional, self.multipliers, method=method,
                                       jac=self._calculate_gradient,
                                       hess=self._calculate_jacobian_matrix,
                                       options={'tol': tol, 'xtol': tol,
-                                               'gtol': tol, 'disp': True, 'maxiter': max_it}
-                                      # options={'disp': True, 'maxiter': max_it}
+                                               'gtol': tol, 'disp': True, 'maxiter':max_it}
+                                      #options={'disp': True, 'maxiter': max_it}
+
                                       )
-
-
         self.multipliers = result.x
         jac_norm = np.linalg.norm(result.jac)
         print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
@@ -150,8 +148,7 @@ class SimpleDistribution:
 
         result.eigvals = np.linalg.eigvalsh(jac)
         kappa = np.max(result.eigvals) / np.min(result.eigvals)
-        self.cond_number = kappa
-        #print("condition number ", kappa)
+        print("condition number ", kappa)
         #result.residual = jac[0] * self._moment_errs
         #result.residual[0] *= self._moment_errs[0]
         result.solver_res = result.jac
@@ -162,7 +159,7 @@ class SimpleDistribution:
 
         self.multipliers[0] += np.log(moment_0)
 
-        #print("final multipliers ", self.multipliers)
+        print("self multipliers ", self.multipliers)
 
         #m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1])[0]
         #moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
@@ -175,11 +172,6 @@ class SimpleDistribution:
         result.fun_norm = jac_norm
 
         return result
-
-    def jacobian_spectrum(self):
-        self._regularity_coef = 0.0
-        jac = self._calculate_jacobian_matrix(self.multipliers)
-        return np.linalg.eigvalsh(jac)
 
     def density(self, value):
         """
@@ -269,10 +261,11 @@ class SimpleDistribution:
     #     return self.reg_param * np.dot(self.eval_moments(value), self.multipliers)
     #
     def density_derivation(self, value):
-        moms = self.eval_moments(value)
-        power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
-        power = np.minimum(np.maximum(power, -200), 200)
-        return np.exp(power) * np.sum(-self.multipliers * self.eval_moments_der(value))
+        # moms = self.eval_moments(value)
+        # power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
+        # power = np.minimum(np.maximum(power, -200), 200)
+        return np.sum(self.multipliers * self.eval_moments_der(value, degree=2))
+        #return np.exp(power) * np.sum(-self.multipliers * self.eval_moments_der(value))
 
     def density_second_derivation(self, value):
         moms = self.eval_moments(value)
@@ -316,7 +309,7 @@ class SimpleDistribution:
             cdf_y[i] = last_y
         return cdf_y
 
-    def _initialize_params(self, size, tol=1e-10):
+    def _initialize_params(self, size, tol=None):
         """
         Initialize parameters for density estimation
         :return: None
@@ -338,14 +331,6 @@ class SimpleDistribution:
         # Evaluate endpoint derivatives of the moments.
         self._end_point_diff = self.end_point_derivatives()
         self._update_quadrature(self.multipliers, force=True)
-
-    def set_quadrature(self, other_distr):
-        self._quad_points = other_distr._quad_points
-        self._quad_weights = other_distr._quad_weights
-        self._quad_moments = other_distr._quad_moments
-        self._quad_moments_diffs = other_distr._quad_moments_diffs
-        self._quad_moments_2nd_der = other_distr._quad_moments_2nd_der
-        self._fixed_quad = True
 
     def eval_moments(self, x):
         return self.moments_fn.eval_all(x, self.approx_size)
@@ -412,20 +397,18 @@ class SimpleDistribution:
         else:
             y, abserr, info = result
             message =""
-
-        pt, w = np.polynomial.legendre.leggauss(self._gauss_degree)
+        pt, w = numpy.polynomial.legendre.leggauss(self._gauss_degree)
         K = info['last']
         #print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
         a = info['alist'][:K, None]
         b = info['blist'][:K, None]
-
         points = (pt[None, :] + 1) / 2 * (b - a) + a
         weights = w[None, :] * (b - a) / 2
         self._quad_points = points.flatten()
         self._quad_weights = weights.flatten()
 
+        #print("quad points ", self._quad_points)
         self._quad_moments = self.eval_moments(self._quad_points)
-        self._quad_moments_diffs = self.moments_fn.eval_diff(self._quad_points)
         self._quad_moments_2nd_der = self.eval_moments_der(self._quad_points, degree=2)
         self._quad_moments_3rd_der = self.eval_moments_der(self._quad_points, degree=3)
 
@@ -560,84 +543,119 @@ class SimpleDistribution:
         sum = np.sum(self.moment_means * multipliers / self._moment_errs)
         fun = sum + integral
 
-        if self._penalty_coef != 0:
-            end_diff = np.dot(self._end_point_diff, multipliers)
-            penalty = np.sum(np.maximum(end_diff, 0) ** 2)
-            fun = fun + np.abs(fun) * self._penalty_coef * penalty
+        # end_diff = np.dot(self._end_point_diff, multipliers)
+        # penalty = np.sum(np.maximum(end_diff, 0) ** 2)
+        # fun = fun + np.abs(fun) * self._penalty_coef * penalty
 
         #reg_term = np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
-        if self.regularization is not None:
-            print("regularization functional ", self.reg_param * self.regularization.functional_term(self))
-            fun += self.reg_param * self.regularization.functional_term(self)
-        # reg_term = np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
-        # fun += self.reg_param * reg_term
-        self.functional_value = fun
-        print("functional value ", fun)
-        print("self multipliers ", self.multipliers)
 
+        #tv = total_variation_int(self.density_derivation, self.domain[0], self.domain[1])
+
+        #print("total variation int ", tv)
+
+        tv = np.sum(self._quad_weights *
+                         (HUBER_MU *
+                          (np.sqrt(1 + (np.dot(self._quad_moments_2nd_der, self.multipliers)**2 / HUBER_MU**2)) - 1)))
+
+        # print("tv quad ", tv)
+        #
+        #
+        # print("functional TV ", tv)
+        # print("self.reg_param * tv ", self.reg_param * tv)
+        # print("functional func ", fun)
+        fun += self.reg_param * tv
+        #self.functional_value = fun
         return fun
 
-    def moments_by_quadrature(self, der=1):
-        q_density = self._density_in_quads(self.multipliers)
-        if der == 2:
-            q_gradient = self._quad_moments_2nd_der.T * q_density
-        else:
-            q_gradient = self._quad_moments.T * q_density
-        return np.dot(q_gradient, self._quad_weights) / self._moment_errs
+    def derivative(self, f, a, method='central', h=0.01):
+        '''Compute the difference formula for f'(a) with step size h.
 
-    # def derivative(self, f, a, method='central', h=0.01):
-    #     '''Compute the difference formula for f'(a) with step size h.
-    #
-    #     Parameters
-    #     ----------
-    #     f : function
-    #         Vectorized function of one variable
-    #     a : number
-    #         Compute derivative at x = a
-    #     method : string
-    #         Difference formula: 'forward', 'backward' or 'central'
-    #     h : number
-    #         Step size in difference formula
-    #
-    #     Returns
-    #     -------
-    #     float
-    #         Difference formula:
-    #             central: f(a+h) - f(a-h))/2h
-    #             forward: f(a+h) - f(a))/h
-    #             backward: f(a) - f(a-h))/h
-    #     '''
-    #     if method == 'central':
-    #         return (f(a + h) - f(a - h)) / (2 * h)
-    #     elif method == 'forward':
-    #         return (f(a + h) - f(a)) / h
-    #     elif method == 'backward':
-    #         return (f(a) - f(a - h)) / h
-    #     else:
-    #         raise ValueError("Method must be 'central', 'forward' or 'backward'.")
+        Parameters
+        ----------
+        f : function
+            Vectorized function of one variable
+        a : number
+            Compute derivative at x = a
+        method : string
+            Difference formula: 'forward', 'backward' or 'central'
+        h : number
+            Step size in difference formula
+
+        Returns
+        -------
+        float
+            Difference formula:
+                central: f(a+h) - f(a-h))/2h
+                forward: f(a+h) - f(a))/h
+                backward: f(a) - f(a-h))/h
+        '''
+        if method == 'central':
+            return (f(a + h) - f(a - h)) / (2 * h)
+        elif method == 'forward':
+            return (f(a + h) - f(a)) / h
+        elif method == 'backward':
+            return (f(a) - f(a - h)) / h
+        else:
+            raise ValueError("Method must be 'central', 'forward' or 'backward'.")
 
     def _calculate_gradient(self, multipliers):
         """
         Gradient of th functional
         :return: array, shape (n_moments,)
         """
-        self._update_quadrature(multipliers)
+        # gradient = egrad(self._calculate_functional)(multipliers)
+        #
+        # print("egrad gradient ", gradient)
+
+        # num_der = self.derivative(self._calculate_functional, multipliers)
+        # print("num der ", num_der)
+
         q_density = self._density_in_quads(multipliers)
         q_gradient = self._quad_moments.T * q_density
         integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
 
-        if self._penalty_coef != 0:
-            end_diff = np.dot(self._end_point_diff, multipliers)
-            penalty = 2 * np.dot(np.maximum(end_diff, 0), self._end_point_diff)
-            fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
-
-            gradient = self.moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
-        else:
-
-            gradient = self.moment_means / self._moment_errs - integral# + np.abs(fun) * self._penalty_coef * penalty
+        #end_diff = np.dot(self._end_point_diff, multipliers)
+        #penalty = 2 * np.dot(np.maximum(end_diff, 0), self._end_point_diff)
+        #fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
+        gradient = self.moment_means / self._moment_errs - integral# + np.abs(fun) * self._penalty_coef * penalty
 
         #print("gradient ", gradient)
-        #########################
+
+        # np.sum(simple_distr._quad_weights *
+        #        (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) *
+        #         simple_distr._quad_moments_2nd_der.T), axis=1)
+
+        x = np.dot(self._quad_moments_2nd_der, self.multipliers)
+
+        #print("x ", x)
+
+        pseudo_huber_tv_der = x*((x**2 + HUBER_MU**2)**(-0.5)) #(1/HUBER_MU) * (x * (1 + x**2/HUBER_MU**2)** (-0.5))
+
+        #print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
+
+        reg_term = np.sum(self._quad_weights * pseudo_huber_tv_der * self._quad_moments_2nd_der.T, axis=1)
+
+
+        #print("reg term ", reg_term)
+
+        gradient += self.reg_param * reg_term
+
+
+        print("final gradient ", gradient)
+
+        return gradient
+
+        # self._update_quadrature(multipliers)
+        # q_density = self._density_in_quads(multipliers)
+        # q_gradient = self._quad_moments.T * q_density
+        # integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
+        #
+        # #end_diff = np.dot(self._end_point_diff, multipliers)
+        # #penalty = 2 * np.dot(np.maximum(end_diff, 0), self._end_point_diff)
+        # #fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
+        # gradient = self.moment_means / self._moment_errs - integral# + np.abs(fun) * self._penalty_coef * penalty
+        #
+        # #########################
         # Numerical derivation
 
         # if self.reg_param != 0:
@@ -655,7 +673,7 @@ class SimpleDistribution:
         #     #         print("moments ", moments)
         #     #         return np.dot(moments, self.multipliers) * moments[:, i]
         #     #
-        #     #     [x, w] = np.polynomial.legendre.leggauss(GAUSS_DEGREE)
+        #     #     [x, w] = numpy.polynomial.legendre.leggauss(GAUSS_DEGREE)
         #     #     a = self.reg_domain[0]
         #     #     b = self.reg_domain[1]
         #     #     x = (x[None, :] + 1) / 2 * (b - a) + a
@@ -668,7 +686,7 @@ class SimpleDistribution:
         #     #     moments = self.eval_moments_der(x, degree=2)
         #     #     return np.dot(moments, self.multipliers) * moments.T
         #     #
-        #     # [x, w] = np.polynomial.legendre.leggauss(GAUSS_DEGREE)
+        #     # [x, w] = numpy.polynomial.legendre.leggauss(GAUSS_DEGREE)
         #     # a = self.reg_domain[0]
         #     # b = self.reg_domain[1]
         #     # x = (x[None, :] + 1) / 2 * (b - a) + a
@@ -679,58 +697,91 @@ class SimpleDistribution:
         #reg_term = np.sum(self._quad_weights *
         #                  (np.dot(self._quad_moments_2nd_der, self.multipliers) * self._quad_moments_2nd_der.T), axis=1)
 
-        if self.regularization is not None:
-            #print("self.regularization gradient term ", self.regularization.gradient_term(self))
-            gradient += self.reg_param * self.regularization.gradient_term(self)
-        # quad_moments_2nd_der = self._quad_moments_2nd_der
-        self.gradients.append(gradient)
 
-        return gradient
+        # if self.regularization is not None:
+        #     print("gradient ", gradient)
+        #     print("self.regularization gradient term ", self.regularization.gradient_term(self))
+        #     gradient += self.reg_param * self.regularization.gradient_term(self)
+        # self.gradients.append(gradient)
+        #
+        # return gradient
 
-    # def _calculate_reg_term_jacobian(self):
-    #     self._reg_term_jacobian = (self._quad_moments_2nd_der.T * self._quad_weights) @ self._quad_moments_2nd_der
+    def _calculate_reg_term_jacobian(self):
+        self._reg_term_jacobian = (self._quad_moments_2nd_der.T * self._quad_weights) @ self._quad_moments_2nd_der
 
-    def _calc_jac(self):
-        q_density = self.density(self._quad_points)
-        q_density_w = q_density * self._quad_weights
-
-        jacobian_matrix = (self._quad_moments.T * q_density_w) @ self._quad_moments
-        # if self.reg_param != 0:
-        # if self._reg_term_jacobian is None:
-        #     self._calculate_reg_term_jacobian()
-
-        if self.reg_param != 0:
-            if self.regularization is not None:
-                # print("jacobian ")
-                # print(pd.DataFrame(jacobian_matrix))
-                #
-                # print("regularization jacobian term")
-                # print(self.regularization.jacobian_term(self))
-
-                jacobian_matrix += self.reg_param * self.regularization.jacobian_term(self)
-
-        return jacobian_matrix
+    # def _calc_jac(self):
+    #     q_density = self.density(self._quad_points)
+    #     q_density_w = q_density * self._quad_weights
+    #
+    #     jacobian_matrix = (self._quad_moments.T * q_density_w) @ self._quad_moments
+    #     # if self.reg_param != 0:
+    #     if self._reg_term_jacobian is None:
+    #         self._calculate_reg_term_jacobian()
+    #
+    #     #  reg_term = self._reg_term_jacobian
+    #     if self.regularization is not None:
+    #         print("jacobian ")
+    #         print(pd.DataFrame(jacobian_matrix))
+    #
+    #         print("regularization jacobian term")
+    #         print(self.regularization.jacobian_term(self))
+    #
+    #         jacobian_matrix += self.reg_param * self.regularization.jacobian_term(self)
+    #
+    #     return jacobian_matrix
 
     def _calculate_jacobian_matrix(self, multipliers):
         """
         :return: jacobian matrix, symmetric, (n_moments, n_moments)
         """
         # jacobian_matrix_hess = hessian(self._calculate_functional)(multipliers)
+        # print("jacobian matrix hess")
         # print(pd.DataFrame(jacobian_matrix_hess))
-        jacobian_matrix = self._calc_jac()
 
-        if self._penalty_coef != 0:
-            end_diff = np.dot(self._end_point_diff, multipliers)
-            fun = np.sum(self.moment_means * multipliers / self._moment_errs) + jacobian_matrix[0, 0] * self._moment_errs[0] ** 2
-            for side in [0, 1]:
-                if end_diff[side] > 0:
-                    penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
-                    jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
+        q_density = self.density(self._quad_points)
+        q_density_w = q_density * self._quad_weights
 
-        # print("jacobian")
-        # print(pd.DataFrame(jacobian_matrix))
+        jacobian_matrix = (self._quad_moments.T * q_density_w) @ self._quad_moments
+
+        if self.reg_param > 0:
+            x = np.dot(self._quad_moments_2nd_der, self.multipliers)
+            #print("x ", x)
+            #pseudo_huber_tv_der = (1 / HUBER_MU) * ((1 + x ** 2 / HUBER_MU ** 2) ** (-1.5))
+            pseudo_huber_tv_der = (HUBER_MU ** 2) * (x**2 + HUBER_MU**2)**(-1.5)
+
+            #print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
+
+            #der_mat = np.diag(pseudo_huber_tv_der)
+
+            # print("der mat ")
+            # print(pd.DataFrame(der_mat))
+            # print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
+            #reg_term = np.sum(self._quad_weights * (pseudo_huber_tv_der * self._quad_moments_2nd_der.T), axis=1)
+
+            #print("(pseudo_huber_tv_der * self._quad_moments_2nd_der) ", (self._quad_moments_2nd_der.T * pseudo_huber_tv_der))
+            reg = ((self._quad_moments_2nd_der.T * pseudo_huber_tv_der) * self._quad_weights) @ self._quad_moments_2nd_der
+
+            # print("reg ")
+            # print(pd.DataFrame(reg))
+            #
+            # print("cal jac ")
+            # print(pd.DataFrame(jacobian_matrix))
+
+            jacobian_matrix += self.reg_param * reg
+
+            # reg_term = (self._quad_moments_2nd_der.T * self._quad_weights) @\
+            #    self._quad_moments_2nd_der
+
+            #jacobian_matrix += self.reg_param * reg_term
+
+
+        print("jacobian matrix")
+        print(pd.DataFrame(jacobian_matrix))
 
         return jacobian_matrix
+
+        # jacobian_matrix = self._calc_jac()
+        # return jacobian_matrix
 
 
 class Regularization(ABC):
@@ -753,24 +804,16 @@ class Regularization(ABC):
         Regularization to jacobian matrix
         """
 
-    @abstractmethod
-    def jacobian_precondition(self):
-        """
-        Jacobian matrix preconditioning
-        :return:
-        """
 
-
-class Regularization2ndDerivation(Regularization):
+class Regularization1(Regularization):
 
     def functional_term(self, simple_distr):
-        return np.sum(simple_distr._quad_weights * (np.dot(simple_distr._quad_moments_2nd_der,
-                                                           simple_distr.multipliers) ** 2))
+        return np.sum(simple_distr._quad_weights *
+                      (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) ** 2))
 
     def gradient_term(self, simple_distr):
         reg_term = np.sum(simple_distr._quad_weights *
-                          (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers) *
-                           simple_distr._quad_moments_2nd_der.T), axis=1)
+                          (np.dot(simple_distr._quad_moments_2nd_der, simple_distr.multipliers)))
 
         return 2 * reg_term
 
@@ -778,97 +821,17 @@ class Regularization2ndDerivation(Regularization):
         reg = 2 * (simple_distr._quad_moments_2nd_der.T * simple_distr._quad_weights) @\
                simple_distr._quad_moments_2nd_der
 
-        return reg
-
-    def jacobian_precondition(self, moments_fn, quad_points, quad_weights):
-        """
-        Jacobian matrix preconditioning
-        :return:
-        """
-        quad_moments_2nd_der = moments_fn.eval_all_der(quad_points, degree=2)
-
-        reg_term = (quad_moments_2nd_der.T * quad_weights) @ quad_moments_2nd_der
-
-        return 2 * reg_term
+        #reg[:, 1] = reg[:, 0] = reg[0, :] = reg[1, :] = 0
 
 
-class Regularization3rdDerivation(Regularization):
-
-    def functional_term(self, simple_distr):
-        return np.sum(simple_distr._quad_weights * (np.dot(simple_distr._quad_moments_3rd_der,
-                                                           simple_distr.multipliers) ** 2))
-
-    def gradient_term(self, simple_distr):
-        reg_term = np.sum(simple_distr._quad_weights *
-                          (np.dot(simple_distr._quad_moments_3rd_der, simple_distr.multipliers) *
-                           simple_distr._quad_moments_3rd_der.T), axis=1)
-
-        return 2 * reg_term
-
-    def jacobian_term(self, simple_distr):
-        reg = 2 * (simple_distr._quad_moments_3rd_der.T * simple_distr._quad_weights) @\
-               simple_distr._quad_moments_3rd_der
+        # print("reg ")
+        # print(pd.DataFrame(reg))
+        # exit()
 
         return reg
 
-    def jacobian_precondition(self, moments_fn, quad_points, quad_weights):
-        """
-        Jacobian matrix preconditioning
-        :return:
-        """
-        quad_moments_3rd_der = moments_fn.eval_all_der(quad_points, degree=3)
-
-        reg_term = (quad_moments_3rd_der.T * quad_weights) @ quad_moments_3rd_der
-        #print("reg term ", reg_term)
-
-        return 2 * reg_term
-
-
-class RegularizationInexact(Regularization):
-
-    def functional_term(self, simple_distr):
-        return np.sum((simple_distr.multipliers - simple_distr.multipliers[0])**2)
-
-    def gradient_term(self, simple_distr):
-        reg_term = 2*(simple_distr.multipliers - simple_distr.multipliers[0])
-
-        return reg_term
-
-    def jacobian_term(self, simple_distr):
-        reg = 2
-        return reg
-
-    def jacobian_precondition(self, moments_fn, quad_points, quad_weights):
-        """
-        Jacobian matrix preconditioning
-        :return:
-        """
-        reg_term = 2
-        return reg_term
-
-
-class RegularizationInexact2(Regularization):
-
-    def functional_term(self, simple_distr):
-        #print("np.sum(simple_distr.multipliers) ", np.sum(simple_distr.multipliers))
-        return np.sum(simple_distr.multipliers**2)
-
-    def gradient_term(self, simple_distr):
-        reg_term = 2*simple_distr.multipliers
-
-        return reg_term
-
-    def jacobian_term(self, simple_distr):
-        reg = 2
-        return reg
-
-    def jacobian_precondition(self, moments_fn, quad_points, quad_weights):
-        """
-        Jacobian matrix preconditioning
-        :return:
-        """
-        reg_term = 2
-        return reg_term
+        return 2 * (simple_distr._quad_moments_2nd_der.T * simple_distr._quad_weights) @\
+               simple_distr._quad_moments_2nd_der
 
 
 class RegularizationTV(Regularization):
@@ -929,7 +892,7 @@ def compute_semiexact_moments(moments_fn, density, tol=1e-10):
         y, abserr, info, message = result
     else:
         y, abserr, info = result
-    pt, w = np.polynomial.legendre.leggauss(GAUSS_DEGREE)
+    pt, w = numpy.polynomial.legendre.leggauss(GAUSS_DEGREE)
     K = info['last']
     # print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
     a = info['alist'][:K, None]
@@ -1132,7 +1095,7 @@ def compute_exact_cov(moments_fn, density, tol=1e-10, reg_param=0, domain=None):
     return integral, int_reg
 
 
-def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_size=None, regularization=None):
+def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_size=None, domain=None, reg_param_beta=0):
     """
     Compute approximation of covariance matrix using exact density.
     :param moments_fn: Moments function.
@@ -1158,7 +1121,7 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
     else:
         y, abserr, info = result
     # Computes the sample points and weights for Gauss-Legendre quadrature
-    pt, w = np.polynomial.legendre.leggauss(GAUSS_DEGREE)
+    pt, w = numpy.polynomial.legendre.leggauss(GAUSS_DEGREE)
 
     K = info['last']
     # print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
@@ -1178,15 +1141,78 @@ def compute_semiexact_cov_2(moments_fn, density, tol=1e-10, reg_param=0, mom_siz
     jacobian_matrix = (quad_moments.T * q_density_w) @ quad_moments
 
     reg_matrix = np.zeros(jacobian_matrix.shape)
-    print("regularization ", regularization)
 
-    if regularization is not None:
-        reg_term = regularization.jacobian_precondition(moments_fn, quad_points, quad_weights)
-        #reg_term = (quad_moments_2nd_der.T * quad_weights) @ quad_moments_2nd_der
-        reg_matrix += reg_param * reg_term
+    if reg_param > 0:
+        #reg_term = regularization.jacobian_precondition(moments_fn, quad_points, quad_weights)
+        reg_term = (quad_moments_2nd_der.T * quad_weights) @ quad_moments_2nd_der
 
-        print("reg matrix ")
-        print(pd.DataFrame(reg_matrix))
+        # multipliers =  [ 3.72882734, -0.01392014 ,-0.69928541,  0.02671801 ,-0.06471246,  0.02716513,
+        #                 0.00410978 , 0.00713195 , 0.01306825 , 0.01229978]
+        #
+        # multipliers = [3.72904448e+00, -1.83265880e-02, -7.03191152e-01,  2.26957738e-02,
+        #               -6.96317548e-02,  3.68647924e-02, -2.01494933e-03,  1.00377377e-02, 1.06380700e-02,
+        #                8.64229913e-03]
+        #
+        # multipliers = [3.72863390e+00, -2.31576406e-02, -7.15718144e-01, -3.06413523e-02, 9.68292729e-02, -3.25902355e-02, -2.56351724e-02, 1.11494324e-03,
+        #                 1.19851087e-02,  1.24691177e-02]
+
+        multipliers = np.zeros(len(jacobian_matrix))
+        multipliers[0] = 1
+
+        # multipliers = [3.74339877, -0.00793456,  3.19566561,  0.54460796,  2.6367997 ,-0.71500094,
+        #  -1.13994174, -0.20176865,  0.01182186 , 0.66893689, -0.36853327,  1.20576434,
+        #  -0.15366583, -1.12100597, -0.18095915 , 0.66721836 ,-0.28292881, -0.20041595,
+        #  -0.17657848,  0.00932298]
+
+        # multipliers = [ 3.75387179e+00,  1.24070091e-01, -2.86533276e+00,  3.31516336e-03,
+        #                   2.15162511e+00 , 1.26967430e-01 , 7.83945593e-01, -2.81245683e-01,
+        #                   2.24828094e-01 , 1.99815726e-01, -5.45780901e-01 ,-9.65962707e-01,
+        #                  -5.96781713e-01 , 1.31422497e+00,  5.36109127e-01 , 1.05420581e+00,
+        #                   9.97466359e-02 , 3.98191955e-01 , 2.89396315e-01 ,-9.23563238e-03,
+        #                   4.80049045e-01, -8.22580454e-02 , 3.43587300e-01 , 6.11066040e-02,
+        #                  -1.01815022e-01]
+
+        x = np.dot(quad_moments_2nd_der, multipliers)
+        #print("x ", x)
+        # pseudo_huber_tv_der = (1 / HUBER_MU) * ((1 + x ** 2 / HUBER_MU ** 2) ** (-1.5))
+        pseudo_huber_tv_der = (HUBER_MU ** 2) * (x ** 2 + HUBER_MU ** 2) ** (-1.5)
+
+        #print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
+
+        reg = ((quad_moments_2nd_der.T * pseudo_huber_tv_der) * quad_weights) @ quad_moments_2nd_der
+
+
+        # x = np.dot(quad_moments_2nd_der, multipliers)
+        # pseudo_huber_tv_der = (1 / HUBER_MU) * ((1 + x ** 2 / HUBER_MU ** 2) ** (-1.5))
+        #
+        # print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
+        #
+        # # der_mat = np.diag(pseudo_huber_tv_der)
+        #
+        # # print("der mat ")
+        # # print(pd.DataFrame(der_mat))
+        # # print("pseudo_huber_tv_der ", pseudo_huber_tv_der)
+        # # reg_term = np.sum(self._quad_weights * (pseudo_huber_tv_der * self._quad_moments_2nd_der.T), axis=1)
+        #
+        # reg = (pseudo_huber_tv_der * quad_moments_2nd_der.T * quad_weights) @ quad_moments_2nd_der
+
+        # print("reg ")
+        # print(pd.DataFrame(reg))
+        #
+        # print("cal jac ")
+        # print(pd.DataFrame(jacobian_matrix))
+
+        reg_matrix = reg_param * reg
+
+        #reg_matrix = reg_param * reg_term
+
+        # print("reg matrix ")
+        # print(pd.DataFrame(reg_matrix))
+
+    # if reg_param > 0:
+    #     #reg_term = (quad_moments_2nd_der.T * quad_weights) @ quad_moments_2nd_der
+    #     reg_matrix = 2 * reg_param * reg_term
+    #reg_matrix[:, 1] = reg_matrix[:, 0] = reg_matrix[0, :] = reg_matrix[1, :] = 0
 
     return jacobian_matrix, reg_matrix
 
@@ -1213,7 +1239,7 @@ def compute_semiexact_cov(moments_fn, density, tol=1e-10):
     else:
         y, abserr, info = result
     # Computes the sample points and weights for Gauss-Legendre quadrature
-    pt, w = np.polynomial.legendre.leggauss(GAUSS_DEGREE)
+    pt, w = numpy.polynomial.legendre.leggauss(GAUSS_DEGREE)
     K = info['last']
     # print("Update Quad: {} {} {} {}".format(K, y, abserr, message))
     a = info['alist'][:K, None]
@@ -1257,9 +1283,7 @@ def KL_divergence(prior_density, posterior_density, a, b):
         # prior
         p = prior_density(x)
         # posterior
-        #print("p ", p)
         q = max(posterior_density(x), 1e-300)
-        #print("q ", q)
         # modified integrand to provide positive value even in the case of imperfect normalization
         return p * np.log(p / q) - p + q
 
@@ -1282,44 +1306,11 @@ def L2_distance(prior_density, posterior_density, a, b):
     return np.sqrt(integrate.quad(integrand, a, b))[0]
 
 
-def reg_term_distr_diff(distr_1, distr_2):
-    """
-    L2 norm
-    :param prior_density:
-    :param posterior_density:
-    :param a:
-    :param b:
-    :return:
-    """
-
-    return np.sum(distr_1._quad_weights * (np.dot(distr_1._quad_moments_2nd_der - distr_2._quad_moments_2nd_der,
-                                                  distr_1.multipliers - distr_2.multipliers) ** 2))
-
-
-
 def total_variation_int(func, a, b):
     def integrand(x):
-        return huber_l1_norm(func, x)
+        return hubert_l1_norm(func, x)
 
     return integrate.quad(integrand, a, b)[0]
-
-
-def total_variation_distr_diff(distr_1, distr_2):
-    def distr_diff(x):
-        return distr_1.density_derivation(x) - distr_2.density_derivation(x)
-
-    def integrand(x):
-        return huber_l1_norm(distr_diff, x)
-    return np.sum(distr_1._quad_weights * integrand(distr_1._quad_points))
-
-
-def TV_distr_diff(distr_1, distr_2):
-    def distr_diff(x):
-        return distr_1.density(x) - distr_2.density(x)
-
-    def integrand(x):
-        return huber_l1_norm(distr_diff, x)
-    return 0.5 * np.sum(distr_1._quad_weights * integrand(distr_1._quad_points))
 
 
 # def total_variation_int(func, a, b):
@@ -1341,7 +1332,7 @@ def TV_distr_diff(distr_1, distr_2):
 #     fun_y = []
 #     f_y = []
 #
-#     x = np.linspace(-10, 10, 200)
+#     x = numpy.linspace(-10, 10, 200)
 #     #
 #     for i in x:
 #         print("func(i) ", func(i))
@@ -1362,27 +1353,27 @@ def TV_distr_diff(distr_1, distr_2):
 
 def l1_norm(func, x):
     import numdifftools as nd
-    return np.absolute(func(x))
-    #return np.absolute(nd.Derivative(func, n=1)(x))
+    return numpy.absolute(func(x))
+    #return numpy.absolute(nd.Derivative(func, n=1)(x))
 
 
-def huber_l1_norm(func, x):
+def hubert_l1_norm(func, x):
     r = func(x)
 
     mu = HUBER_MU
-    y = mu * (np.sqrt(1+(r**2/mu**2)) - 1)
+    y = mu * (numpy.sqrt(1+(r**2/mu**2)) - 1)
 
     return y
 
 
-def huber_norm(func, x):
+def hubert_norm(func, x):
     result = []
 
     for value in x:
         r = func(value)
         mu = HUBER_MU
 
-        y = mu * (np.sqrt(1+(r**2/mu**2)) - 1)
+        y = mu * (numpy.sqrt(1+(r**2/mu**2)) - 1)
 
         result.append(y)
 
@@ -1391,7 +1382,7 @@ def huber_norm(func, x):
 
 
 def total_variation_vec(func, a, b):
-    x = np.linspace(a, b, 1000)
+    x = numpy.linspace(a, b, 1000)
     x1 = x[1:]
     x2 = x[:-1]
 
@@ -1673,46 +1664,10 @@ def lsq_reconstruct(cov, eval, evec, treshold):
 
     return Q
 
-def print_cumul(eval):
-    import matplotlib.pyplot as plt
-    tot = sum(eval)
-    var_exp = [(i / tot) * 100 for i in sorted(eval, reverse=True)]
-    print("var_exp ", var_exp)
-    cum_var_exp = np.cumsum(var_exp)
-    #print("cum_var_exp ", cum_var_exp)
-
-    # threshold = np.argmin(cum_var_exp > 99.99)
-    # print("new threshold ", threshold)
-
-    #with plt.style.context('seaborn-whitegrid'):
-    # plt.figure(figsize=(6, 4))
-    #
-    # plt.bar(range(len(eval)), var_exp, alpha=0.5, align='center',
-    #         label='individual explained variance')
-    # plt.step(range(len(eval)), cum_var_exp, where='mid',
-    #          label='cumulative explained variance')
-    # plt.ylabel('Explained variance ratio')
-    # plt.xlabel('Principal components')
-    # plt.legend(loc='best')
-    # plt.tight_layout()
-    #
-    # plt.show()
-
-    return cum_var_exp, var_exp
-
 
 def _cut_eigenvalues(cov_center, tol):
-    print("CUT eigenvalues")
-
-    print("tol ", tol)
-
     eval, evec = np.linalg.eigh(cov_center)
-
-    print("original evec ")
-    print(pd.DataFrame(evec))
-
-    original_eval = eval
-    print("original eval ", eval)
+    print("cut eigenvalues tol ", tol)
 
     if tol is None:
         # treshold by statistical test of same slopes of linear models
@@ -1722,6 +1677,20 @@ def _cut_eigenvalues(cov_center, tol):
         # threshold given by eigenvalue magnitude
         threshold = np.argmax(eval > tol)
 
+    # add the |smallest eigenvalue - tol(^2??)| + eigenvalues[:-1]
+
+    #threshold = 0
+    print("threshold ", threshold)
+
+    #treshold, _ = self.detect_treshold(eval, log=True, window=8)
+
+    # tresold by MSE of eigenvalues
+    #treshold = self.detect_treshold_mse(eval, std_evals)
+
+    # treshold
+
+    #self.lsq_reconstruct(cov_center, fixed_eval, evec, treshold)
+
     # cut eigen values under treshold
     new_eval = eval[threshold:]
     new_evec = evec[:, threshold:]
@@ -1729,815 +1698,11 @@ def _cut_eigenvalues(cov_center, tol):
     eval = np.flip(new_eval, axis=0)
     evec = np.flip(new_evec, axis=1)
 
-    return eval, evec, threshold, original_eval
-
-
-# def _svd_cut(cov_center, tol):
-#     print("CUT eigenvalues")
-#     u, s, vh = np.linalg.svd(cov_center)
-#
-#     print("u")
-#     print(pd.DataFrame(u))
-#
-#     print("s")
-#     print(pd.DataFrame(s))
-#
-#     print("vh")
-#     print(pd.DataFrame(vh))
-#     exit()
-#
-#     # print("EVAL SORTED ", sorted(eval, reverse=True))
-#     # print("EVAL EIG PAIR ", np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
-#     # cum_var_exp = print_cumul(np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
-#
-#     if tol is None:
-#         # treshold by statistical test of same slopes of linear models
-#         threshold, fixed_eval = detect_treshold_slope_change(eval, log=True)
-#         threshold = np.argmax(eval - fixed_eval[0] > 0)
-#     else:
-#         # threshold given by eigenvalue magnitude
-#         threshold = np.argmax(eval > tol)
-#
-#     # print("[eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-5]]",
-#     #       [eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-5]])
-#
-#     #threshold = 30
-#     # print("threshold ", threshold)
-#     # print("eval ", eval)
-#
-#     #print("eig pairs ", eig_pairs[:])
-#
-#     #threshold_above = len(original_eval) - np.argmax(eval > 1)
-#
-#     #print("threshold above ", threshold_above)
-#
-#     # threshold = np.argmax(cum_var_exp > 110)
-#     # if threshold == 0:
-#     #     threshold = len(cum_var_exp)
-#     #
-#     # print("max eval index: {}, threshold: {}".format(len(eval) - 1, threshold))
-#
-#     # matrix_w = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:-30]]))
-#     #
-#     # print("matrix_w.shape ", matrix_w.shape)
-#     # print("matrix_w ")
-#     # print(pd.DataFrame(matrix_w))
-#
-#     # matrix_w = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
-#     #
-#     # new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
-#     #
-#     # threshold -= 1
-#
-#     # print("matrix_w.shape final ", matrix_w.shape)
-#     # print("matrix_w final ")
-#     # print(pd.DataFrame(matrix_w))
-#
-#     # add the |smallest eigenvalue - tol(^2??)| + eigenvalues[:-1]
-#
-#     #threshold = 0
-#     # print("threshold ", threshold)
-#     # print("eval ", eval)
-#
-#     #treshold, _ = self.detect_treshold(eval, log=True, window=8)
-#
-#     # tresold by MSE of eigenvalues
-#     #treshold = self.detect_treshold_mse(eval, std_evals)
-#
-#     # treshold
-#
-#     #self.lsq_reconstruct(cov_center, fixed_eval, evec, treshold)
-#
-#     # cut eigen values under treshold
-#     new_eval = eval[threshold:]
-#     new_evec = evec[:, threshold:]
-#
-#     eval = np.flip(new_eval, axis=0)
-#     evec = np.flip(new_evec, axis=1)
-#
-#     print_cumul(eval)
-#
-#     # for ev in evec:
-#     #     print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-#     #     #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-#     # print('Everything ok!')
-#
-#     return eval, evec, threshold, original_eval
-
-def my_ceil(a, precision=0):
-    return np.round(a + 0.5 * 10**(-precision), precision)
-
-def my_floor(a, precision=0):
-    return np.round(a - 0.5 * 10**(-precision), precision)
-
-
-# def _pca(cov_center, tol):
-#     from np import ma
-#     eval, evec = np.linalg.eigh(cov_center)
-#
-#     original_eval = eval
-#     print("original eval ", original_eval)
-#     #
-#     # print("original evec ")
-#     # print(pd.DataFrame(evec))
-#
-#     cum_var_exp, var_exp = print_cumul(sorted(eval, reverse=True))
-#     print("CUM VAR EXP ", cum_var_exp)
-#
-#     eval = np.flip(eval, axis=0)
-#     evec = np.flip(evec, axis=1)
-#
-#     eig_pairs = [(np.abs(eval[i]), evec[:, i]) for i in range(len(eval))]
-#
-#     # threshold = np.argmax(cum_var_exp > 110)
-#     # if threshold == 0:
-#     #     threshold = len(eval)
-#     # #threshold = len(eval)
-#
-#     cumul_hundred = np.argmax(cum_var_exp == 100)
-#     #print("cumul hundred ", cumul_hundred)
-#
-#     # cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
-#     # cum_var_exp, var_exp = print_cumul(eval[:cut_threshold])
-#     # print("new cum var exp ", cum_var_exp)
-#
-#     ######!!!!!! previous
-#
-#     print("np.max(np.floor(cum_var_exp))", )
-#
-#     threshold = 0
-#
-#     import decimal
-#     d = decimal.Decimal(str(tol))
-#     dec = d.as_tuple().exponent
-#
-#     # print("exp 10 ", 10**(-2))
-#     #
-#     # print("exp 10 ", 10 ** (-dec*(-1)))
-#     #
-#     # exit()
-#
-#     raw_floor_max = np.max(np.floor(cum_var_exp))
-#     #decimal_floor_max = np.max(my_floor(cum_var_exp, dec * (-1)))
-#     decimal_floor_max = np.max(np.round(cum_var_exp, dec * (-1)))
-#
-#     if raw_floor_max > 100:
-#         threshold = np.argmax(np.floor(cum_var_exp))
-#     elif raw_floor_max == 100:
-#         if decimal_floor_max > 100:
-#             threshold = np.argmax(my_floor(cum_var_exp, dec * (-1)))
-#             threshold = np.argmax(np.round(cum_var_exp, dec * (-1)))
-#
-#         elif decimal_floor_max == 100:
-#             for idx in range(len(cum_var_exp)):
-#                 if cum_var_exp[idx] > (100 + tol * 10):
-#                     # print("cum var exp threshold ", idx)
-#                     threshold = idx
-#                     print("cum var exp threshold FOR ", threshold)
-#                     break
-#
-#             if threshold <= 0:
-#                 threshold = len(eval) - 1
-#
-#             print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
-#             if all(cum_var_exp[threshold:] <= (100 + (tol * 10))):
-#                 threshold = len(eval) - 1
-#                 print("ALL <= (100 + tol * 10)) threshold ", threshold)
-#             else:
-#                 print("tol ", tol)
-#                 print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
-#                 cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))  # 1e-5)
-#                 cut_threshold -= 1
-#                 print("CUT threshold ", cut_threshold)
-#                 if cut_threshold < threshold:  # and not threshold_set:
-#                     threshold = cut_threshold
-#
-#                 threshold = cut_threshold
-#
-#     #
-#     #
-#     #
-#     #
-#     # if np.max(np.floor(cum_var_exp)) == 100:
-#     #     threshold = np.argmax(my_floor(cum_var_exp, dec * (-1)))
-#     #     print("MY floor threshold ", threshold)
-#     #
-#     #     for idx in range(len(cum_var_exp)):
-#     #         if cum_var_exp[idx] > (100 + tol * 10):
-#     #             #print("cum var exp threshold ", idx)
-#     #             threshold = idx
-#     #             print("cum var exp threshold FOR ", threshold)
-#     #             break
-#     #
-#     #     if threshold <= 0:
-#     #         threshold = len(eval) - 1
-#     #
-#     #     print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
-#     #     if all(cum_var_exp[threshold:] <= (100 + (tol * 10))):
-#     #         threshold = len(eval) - 1
-#     #         print("ALL <= (100 + tol * 10)) threshold ", threshold)
-#     #     else:
-#     #         print("tol ", tol)
-#     #         print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
-#     #         cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))#1e-5)
-#     #         cut_threshold -= 1
-#     #         print("CUT threshold ", cut_threshold)
-#     #         if cut_threshold < threshold:  # and not threshold_set:
-#     #             threshold = cut_threshold
-#     #
-#     #         threshold = cut_threshold
-#     #
-#     # else:
-#     #     threshold = np.argmax(np.floor(cum_var_exp))
-#     #     print("floor threshold ", threshold)
-#     #
-#     # max_cum = np.max(my_floor(cum_var_exp, dec*(-1)))
-#     # if max_cum > 100:
-#     #     threshold = np.argmax(my_floor(cum_var_exp, dec*(-1)))#np.floor(cum_var_exp))
-#     #     print("floor threshold ", threshold)
-#     # else:
-#     #     for idx in range(len(cum_var_exp)):
-#     #         if cum_var_exp[idx] > (100 + tol * 10):
-#     #             #print("cum var exp threshold ", idx)
-#     #             threshold = idx
-#     #             print("cum var exp threshold FOR ", threshold)
-#     #             break
-#     #
-#     #     if threshold <= 0:
-#     #         threshold = len(eval) - 1
-#     #
-#     #     print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
-#     #     if all(cum_var_exp[threshold:] <= (100 + (tol * 10))):
-#     #         threshold = len(eval) - 1
-#     #         print("ALL <= (100 + tol * 10)) threshold ", threshold)
-#     #     else:
-#     #         print("tol ", tol)
-#     #         print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
-#     #         cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))#1e-5)
-#     #         cut_threshold -= 1
-#     #         print("CUT threshold ", cut_threshold)
-#     #         if cut_threshold < threshold:  # and not threshold_set:
-#     #             threshold = cut_threshold
-#     #
-#     #         threshold = cut_threshold
-#     #
-#     # print("computed threshold ", threshold)
-#
-#     threshold_set = False
-#     # if threshold == len(eval)-1:
-#     #     threshold_set = True
-#
-#     #threshold = 0#cut_threshold -10
-#
-#     if threshold <= 0:
-#         threshold = len(eval) - 1
-#         threshold_set = True
-#
-#     # if threshold > 30:
-#     #     threshold = 30
-#
-#
-#
-#     cum_var_exp = np.floor(cum_var_exp)#, 2)
-#     #print("np.round(cum_var_exp, 2) ", cum_var_exp)
-#
-#     # threshold = 0
-#     # maximum = 0
-#     # for idx in range(len(cum_var_exp)):
-#     #     if cum_var_exp[idx] > maximum:
-#     #         print("cum var exp threshold ", idx)
-#     #         threshold = idx
-#     #         maximum = cum_var_exp[idx]
-#     #         break
-#     #
-#     # print("maximum ", maximum)
-#     # print("maximum threshold ", maximum)
-#
-#     #threshold = np.argmax(cum_var_exp)
-#
-#     # print("np.floor(cum_var_exp) ",cum_var_exp)
-#     # print("np.floor(cum_var_exp).argmax(axis=0) ", cum_var_exp.argmax(axis=0))
-#
-#     ##########!!!!! previous version
-#     #mx = np.max(cum_var_exp)
-#     ############!!!!!!!!!!
-#
-#
-#     # mx_index = np.argmax(cum_var_exp < (100.1))
-#     # if mx_index == 0:
-#     #     mx_index = len(eval) - 1
-#     # print("mx index ", mx_index)
-#     # mx = cum_var_exp[mx_index]
-#     # print("mx ", mx)
-#
-#     #threshold = np.max([i for i, j in enumerate(cum_var_exp) if j == mx])
-#
-#
-#     # print("all(cum_var_exp[threshold:] == mx) ", all(cum_var_exp[threshold:] == mx))
-#     #
-#     # cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
-#     # # cut_threshold = np.argmax(np.array(var_exp) < tol)
-#     #
-#     # print("cut threshold ", cut_threshold)
-#
-#     ### !!!! previous
-#     # if all(cum_var_exp[threshold:] == mx):
-#     #     threshold = len(cum_var_exp) - 1
-#     #     #print("np.array(np.abs(var_exp)) ", np.array(np.abs(var_exp)))
-#     #     threshold = np.argmax(np.array(np.abs(var_exp)) < 1e-5)
-#     # else:
-#     #     ##### !!!!!
-#     #
-#     #     threshold = mx_index
-#
-#     # if threshold == 0:
-#     #     threshold = len(eval) - 1
-#     #
-#     # print("threshold ", threshold)
-#
-#     # print("threshold if threshold < cut_threshold else cut_threshold ", threshold if threshold < cut_threshold else cut_threshold)
-#     # if cut_threshold < threshold:# and not threshold_set:
-#     #     threshold = cut_threshold
-#     #
-#     # #threshold = threshold if threshold < cut_threshold else cut_threshold
-#     # print("threshold after if ", threshold)
-#
-#     #threshold = cut_threshold
-#
-#     # if threshold == 0:
-#     #     threshold = len(eval) - 1
-#     #
-#     # #exit()
-#
-#     threshold += 1
-#
-#     #threshold = 35
-#
-#     print("tol ", tol)
-#
-#     #threshold = 9#len(new_eig_pairs)
-#     print("THreshold ", threshold)
-#
-#     # for pair in eig_pairs:
-#     #     print("evec ", pair[1])
-#
-#     new_evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
-#     new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
-#
-#     threshold = len(new_eval)-1
-#
-#     print_cumul(new_eval)
-#
-#     # cut eigen values under treshold
-#     # new_eval = eval[threshold:]
-#     # new_evec = evec[:, threshold:]
-#
-#     eval = np.flip(new_eval, axis=0)
-#     evec = np.flip(new_evec, axis=1)
-#
-#     eval = new_eval
-#     evec = new_evec
-#
-#
-#
-#     #print("evec ", evec)
-#
-#     # for i in range(len(original_eval)):
-#     #     threshold = len(original_eval) - i
-#     #     print("THRESHOLD ", threshold)
-#     #
-#     #     evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
-#     #
-#     #     for ev in evec:
-#     #         print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-#     #         testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-#     #     print('Everything ok!')
-#     #
-#     # exit()
-#
-#     # print("evec ", evec)
-#     #
-#     #
-#     # for ev in evec:
-#     #     print("ev")
-#     #     print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-#     #     #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-#     # print('Everything ok!')
-#
-#     return eval, evec, threshold, original_eval,None# new_evec
-
-# def _pca_(cov_center, tol):
-#     from np import ma
-#     eval, evec = np.linalg.eigh(cov_center)
-#
-#     original_eval = eval
-#     print("original eval ", original_eval)
-#     #
-#     # print("original evec ")
-#     # print(pd.DataFrame(evec))
-#
-#     cum_var_exp, var_exp = print_cumul(sorted(eval, reverse=True))
-#     print("CUM VAR EXP ", cum_var_exp)
-#
-#     eval = np.flip(eval, axis=0)
-#     evec = np.flip(evec, axis=1)
-#
-#     eig_pairs = [(np.abs(eval[i]), evec[:, i]) for i in range(len(eval))]
-#
-#     # threshold = np.argmax(cum_var_exp > 110)
-#     # if threshold == 0:
-#     #     threshold = len(eval)
-#     # #threshold = len(eval)
-#
-#     cumul_hundred = np.argmax(cum_var_exp == 100)
-#     #print("cumul hundred ", cumul_hundred)
-#
-#     # cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
-#     # cum_var_exp, var_exp = print_cumul(eval[:cut_threshold])
-#     # print("new cum var exp ", cum_var_exp)
-#
-#     ######!!!!!! previous
-#
-#     print("np.max(np.floor(cum_var_exp))", )
-#
-#     threshold = 0
-#
-#     max_cum = np.max(np.floor(cum_var_exp))
-#     if max_cum > 100:
-#         threshold = np.argmax(np.floor(cum_var_exp))
-#     else:
-#         for idx in range(len(cum_var_exp)):
-#             if cum_var_exp[idx] > (100 + tol * 10):
-#                 #print("cum var exp threshold ", idx)
-#                 threshold = idx
-#                 print("cum var exp threshold FOR ", threshold)
-#                 break
-#
-#         if threshold <= 0:
-#             threshold = len(eval) - 1
-#
-#         print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
-#         if all(cum_var_exp[threshold:] <= (100 + tol * 10)):
-#             threshold = len(eval) - 1
-#             print("ALL <= (100 + tol * 10)) threshold ", threshold)
-#         else:
-#             print("tol ", tol)
-#             print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
-#             cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))#1e-5)
-#             cut_threshold -= 1
-#             print("CUT threshold ", cut_threshold)
-#             if cut_threshold < threshold:  # and not threshold_set:
-#                 threshold = cut_threshold
-#
-#             threshold = cut_threshold
-#
-#     print("computed threshold ", threshold)
-#
-#     threshold_set = False
-#     # if threshold == len(eval)-1:
-#     #     threshold_set = True
-#
-#     #threshold = cut_threshold -10
-#
-#     if threshold <= 0:
-#         threshold = len(eval) - 1
-#         threshold_set = True
-#
-#     cum_var_exp = np.floor(cum_var_exp)#, 2)
-#     #print("np.round(cum_var_exp, 2) ", cum_var_exp)
-#
-#     # threshold = 0
-#     # maximum = 0
-#     # for idx in range(len(cum_var_exp)):
-#     #     if cum_var_exp[idx] > maximum:
-#     #         print("cum var exp threshold ", idx)
-#     #         threshold = idx
-#     #         maximum = cum_var_exp[idx]
-#     #         break
-#     #
-#     # print("maximum ", maximum)
-#     # print("maximum threshold ", maximum)
-#
-#     #threshold = np.argmax(cum_var_exp)
-#
-#     # print("np.floor(cum_var_exp) ",cum_var_exp)
-#     # print("np.floor(cum_var_exp).argmax(axis=0) ", cum_var_exp.argmax(axis=0))
-#
-#     ##########!!!!! previous version
-#     #mx = np.max(cum_var_exp)
-#     ############!!!!!!!!!!
-#
-#
-#     # mx_index = np.argmax(cum_var_exp < (100.1))
-#     # if mx_index == 0:
-#     #     mx_index = len(eval) - 1
-#     # print("mx index ", mx_index)
-#     # mx = cum_var_exp[mx_index]
-#     # print("mx ", mx)
-#
-#     #threshold = np.max([i for i, j in enumerate(cum_var_exp) if j == mx])
-#
-#
-#     # print("all(cum_var_exp[threshold:] == mx) ", all(cum_var_exp[threshold:] == mx))
-#     #
-#     # cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
-#     # # cut_threshold = np.argmax(np.array(var_exp) < tol)
-#     #
-#     # print("cut threshold ", cut_threshold)
-#
-#     ### !!!! previous
-#     # if all(cum_var_exp[threshold:] == mx):
-#     #     threshold = len(cum_var_exp) - 1
-#     #     #print("np.array(np.abs(var_exp)) ", np.array(np.abs(var_exp)))
-#     #     threshold = np.argmax(np.array(np.abs(var_exp)) < 1e-5)
-#     # else:
-#     #     ##### !!!!!
-#     #
-#     #     threshold = mx_index
-#
-#     # if threshold == 0:
-#     #     threshold = len(eval) - 1
-#     #
-#     # print("threshold ", threshold)
-#
-#     # print("threshold if threshold < cut_threshold else cut_threshold ", threshold if threshold < cut_threshold else cut_threshold)
-#     # if cut_threshold < threshold:# and not threshold_set:
-#     #     threshold = cut_threshold
-#     #
-#     # #threshold = threshold if threshold < cut_threshold else cut_threshold
-#     # print("threshold after if ", threshold)
-#
-#     #threshold = cut_threshold
-#
-#     # if threshold == 0:
-#     #     threshold = len(eval) - 1
-#     #
-#     # #exit()
-#
-#     threshold += 1
-#
-#     print("tol ", tol)
-#
-#     #threshold = 9#len(new_eig_pairs)
-#     print("THreshold ", threshold)
-#
-#     # for pair in eig_pairs:
-#     #     print("evec ", pair[1])
-#
-#     new_evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
-#     new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
-#
-#     threshold = len(new_eval)-1
-#
-#     print_cumul(new_eval)
-#
-#     # cut eigen values under treshold
-#     # new_eval = eval[threshold:]
-#     # new_evec = evec[:, threshold:]
-#
-#     eval = np.flip(new_eval, axis=0)
-#     evec = np.flip(new_evec, axis=1)
-#
-#     eval = new_eval
-#     evec = new_evec
-#
-#     #print("evec ", evec)
-#
-#     # for i in range(len(original_eval)):
-#     #     threshold = len(original_eval) - i
-#     #     print("THRESHOLD ", threshold)
-#     #
-#     #     evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
-#     #
-#     #     for ev in evec:
-#     #         print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-#     #         testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-#     #     print('Everything ok!')
-#     #
-#     # exit()
-#
-#     # print("evec ", evec)
-#     #
-#     #
-#     # for ev in evec:
-#     #     print("ev")
-#     #     print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-#     #     #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-#     # print('Everything ok!')
-#
-#     return eval, evec, threshold, original_eval,None# new_evec
-
-
-# def _pca(cov_center, tol):
-#     from np import ma
-#     print("tol ", tol)
-#     eval, evec = np.linalg.eigh(cov_center)
-#
-#     original_eval = eval
-#     print("original eval ", original_eval)
-#     #
-#     # print("original evec ")
-#     # print(pd.DataFrame(evec))
-#
-#     cum_var_exp, var_exp = print_cumul(sorted(eval, reverse=True))
-#     print("CUM VAR EXP ", cum_var_exp)
-#
-#     # cum_var_exp, var_exp = print_cumul(sorted(np.abs(eval), reverse=True))
-#     # print("ABS CUM VAR EXP ", cum_var_exp)
-#
-#     eval = np.flip(eval, axis=0)
-#     evec = np.flip(evec, axis=1)
-#
-#     eig_pairs = [(np.abs(eval[i]), evec[:, i]) for i in range(len(eval))]
-#
-#     # threshold = np.argmax(cum_var_exp > 110)
-#     # if threshold == 0:
-#     #     threshold = len(eval)
-#     # #threshold = len(eval)
-#
-#     cumul_hundred = np.argmax(cum_var_exp == 100)
-#     #print("cumul hundred ", cumul_hundred)
-#
-#     # cut_threshold = np.argmax(np.array(var_exp) < 1e-5)
-#     # cum_var_exp, var_exp = print_cumul(eval[:cut_threshold])
-#     # print("new cum var exp ", cum_var_exp)
-#
-#     cut = False
-#
-#     ######!!!!!! previous
-#     threshold = 0
-#     for idx in range(len(cum_var_exp)):
-#         if cum_var_exp[idx] > (100 + tol * 10):
-#             #print("cum var exp threshold ", idx)
-#             threshold = idx
-#             print("cum var exp threshold FOR ", threshold)
-#             break
-#
-#     if threshold == 0:
-#         threshold = len(eval) - 1
-#
-#     #print("ALL <= (100 + tol * 10)) threshold ", print("ALL <= (100 + tol * 10)) threshold ", threshold))
-#     if all(cum_var_exp[threshold:] <= (100 + tol * 10)):
-#         threshold = len(eval) - 1
-#         print("ALL <= (100 + tol * 10)) threshold ", threshold)
-#     else:
-#         print("np.min([1e-5, tol]) ", np.min([1e-5, tol]))
-#         cut_threshold = np.argmax(np.array(var_exp) < np.min([1e-5, tol]))#1e-5)
-#         print("CUT threshold ", cut_threshold)
-#         if cut_threshold < threshold:  # and not threshold_set:
-#             threshold = cut_threshold
-#             cut = True
-#     # threshold = cut_threshold
-#     # print("computed threshold ", threshold)
-#
-#     threshold_set = False
-#     # if threshold == len(eval)-1:
-#     #     threshold_set = True
-#
-#     print("cut: {}, threshold: {}".format(cut, threshold))
-#
-#     # There is cut on cumul value, so cut it from original eig pairs
-#     if cut is False and threshold != (len(eval) - 1):
-#         eig_pairs = [(eval[i], evec[:, i]) for i in range(len(eval))]
-#
-#     if threshold == 0:
-#         threshold = len(eval) - 1
-#         threshold_set = True
-#
-#     cum_var_exp = np.floor(cum_var_exp)#, 2)
-#     #print("np.round(cum_var_exp, 2) ", cum_var_exp)
-#
-#     threshold += 1
-#
-#     #threshold = 35
-#
-#
-#     #threshold = 9#len(new_eig_pairs)
-#     print("THreshold ", threshold)
-#
-#     # for pair in eig_pairs:
-#     #     print("evec ", pair[1])
-#
-#     print("cut ", cut)
-#
-#
-#
-#     new_evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
-#     new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
-#
-#     threshold = len(new_eval)-1
-#
-#     print_cumul(new_eval)
-#
-#     # cut eigen values under treshold
-#     # new_eval = eval[threshold:]
-#     # new_evec = evec[:, threshold:]
-#
-#     eval = np.flip(new_eval, axis=0)
-#     evec = np.flip(new_evec, axis=1)
-#
-#     eval = new_eval
-#     evec = new_evec
-#
-#
-#
-#     #print("evec ", evec)
-#
-#     # for i in range(len(original_eval)):
-#     #     threshold = len(original_eval) - i
-#     #     print("THRESHOLD ", threshold)
-#     #
-#     #     evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
-#     #
-#     #     for ev in evec:
-#     #         print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-#     #         testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-#     #     print('Everything ok!')
-#     #
-#     # exit()
-#
-#     # print("evec ", evec)
-#     #
-#     #
-#     # for ev in evec:
-#     #     print("ev")
-#     #     print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-#     #     #testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-#     # print('Everything ok!')
-#
-#     return eval, evec, threshold, original_eval,None# new_evec
-#
-#
-# def _pca_add_one(cov_center, tol, moments):
-#     eval, evec = np.linalg.eigh(cov_center)
-#
-#     cum_var_exp = print_cumul(sorted(eval, reverse=True))
-#
-#     original_eval = eval
-#     diag_value = tol - np.min([np.min(eval), 0])  # np.abs((np.min(eval) - tol))
-#     diagonal = np.zeros(moments.size)
-#     print("diag value ", diag_value)
-#
-#     diagonal[1:] += diag_value
-#     diag = np.diag(diagonal)
-#     eval += diagonal
-#
-#     #cum_var_exp = print_cumul(sorted(eval, reverse=True))
-#
-#     eig_pairs = [(eval[i], evec[:, i]) for i in range(len(eval))]
-#
-#     # Sort the (eigenvalue, eigenvector) tuples from high to low
-#     eig_pairs.sort(key=lambda x: x[0], reverse=True)
-#
-#     # print("EVAL SORTED ", sorted(eval, reverse=True))
-#     # print("EVAL EIG PAIR ", np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
-#     # cum_var_exp = print_cumul(np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:]])))
-#
-#     threshold = np.argmax(cum_var_exp > 100)
-#     if threshold == 0:
-#         threshold = len(cum_var_exp)
-#
-#     print("max eval index: {}, threshold: {}".format(len(eval) - 1, threshold))
-#
-#     new_evec = np.hstack(np.array([eig_pair[1].reshape(len(eval), 1) for eig_pair in eig_pairs[:threshold]]))
-#
-#     new_eval = np.hstack(np.array([eig_pair[0] for eig_pair in eig_pairs[:threshold]]))
-#
-#     threshold -= 1
-#
-#     print_cumul(new_eval)
-#
-#     # self.lsq_reconstruct(cov_center, fixed_eval, evec, treshold)
-#
-#     # cut eigen values under treshold
-#     # new_eval = eval[threshold:]
-#     # new_evec = evec[:, threshold:]
-#
-#     print("new eval", new_eval)
-#     print("new evec", new_evec)
-#
-#
-#     eval = np.flip(new_eval, axis=0)
-#     evec = np.flip(new_evec, axis=1)
-#
-#     eval = new_eval
-#     evec = new_evec
-#
-#     # print("eval flipped ", eval)
-#     # print("evec flipped ", evec)
-#     # exit()
-#
-#     for ev in evec:
-#         print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-#         testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-#     print('Everything ok!')
-#
-#     return eval, evec, threshold, original_eval, None#, matrix_w
+    return eval, evec, threshold
 
 
 def _cut_eigenvalues_to_constant(cov_center, tol):
     eval, evec = np.linalg.eigh(cov_center)
-    original_eval = eval
     print("cut eigenvalues tol ", tol)
 
     # threshold given by eigenvalue magnitude
@@ -2560,18 +1725,15 @@ def _cut_eigenvalues_to_constant(cov_center, tol):
     print("threshold ", threshold)
 
     # cut eigen values under treshold
-    eval[:threshold] = tol#eval[threshold]
+    eval[:threshold] = tol
     #new_evec = evec[:, threshold:]
 
-    print("eval ")
-    print(pd.DataFrame(eval))
-
     eval = np.flip(eval, axis=0)
-    #print("eval ", eval)
+    print("eval ", eval)
     evec = np.flip(evec, axis=1)
-    #print("evec ", evec)
+    print("evec ", evec)
 
-    return eval, evec, threshold, original_eval
+    return eval, evec, threshold
 
 
 def _add_to_eigenvalues(cov_center, tol, moments):
@@ -2581,14 +1743,9 @@ def _add_to_eigenvalues(cov_center, tol, moments):
     eval = np.flip(eval, axis=0)
     evec = np.flip(evec, axis=1)
 
+    print("eval ", eval)
+
     original_eval = eval
-
-    for ev in evec:
-        print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-        testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-    print('Everything ok!')
-
-    print_cumul(eval)
 
     # # Permutation
     # index = (np.abs(eval - 1)).argmin()
@@ -2618,99 +1775,63 @@ def _add_to_eigenvalues(cov_center, tol, moments):
     diag = np.diag(diagonal)
     eval += diagonal
 
-    for ev in evec:
-        print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-        testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-    print('Everything ok!')
-
     return eval, evec, original_eval
 
 
-def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_method=2, exact_cov=None):
+def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_method=1):
     """
     For given moments find the basis orthogonal with respect to the covariance matrix, estimated from samples.
     :param moments: moments object
     :return: orthogonal moments object of the same size.
     """
     threshold = 0
-    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    #     print("cov ")
-    #     print(pd.DataFrame(cov))
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print("cov ")
+        print(pd.DataFrame(cov))
+
+    # print("cov matrix rank ", numpy.linalg.matrix_rank(cov))
 
     # centered covariance
     M = np.eye(moments.size)
     M[:, 0] = -cov[:, 0]
     cov_center = M @ cov @ M.T
 
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print("cov center ")
-        print(pd.DataFrame(cov_center))
+    #cov_center = cov
 
-    projection_matrix = None
-
-    # print("centered cov ")
-    # print(pd.DataFrame(cov_center))
-
-    if orth_method == 0:
-        eval_flipped, evec_flipped, original_eval = _add_to_eigenvalues(cov_center, tol=tol, moments=moments)
-        if projection_matrix is not None:
-            icov_sqrt_t = projection_matrix
-        else:
-            icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
-
-        R_nm, Q_mm = sc.linalg.rq(icov_sqrt_t, mode='full')
-
-        # check
-        L_mn = R_nm.T
-        if L_mn[0, 0] < 0:
-            L_mn = -L_mn
-
-        info = (original_eval, eval_flipped, threshold, L_mn)
-        return moments, info, cov_center
+    #print("centered cov ", cov_center)
 
     # Add const to eigenvalues
     if orth_method == 1:
         eval_flipped, evec_flipped, original_eval = _add_to_eigenvalues(cov_center, tol=tol, moments=moments)
-        # print("eval flipped ")
-        # print(pd.DataFrame(eval_flipped))
-        # print("evec flipped ")
-        # print(pd.DataFrame(evec_flipped))
 
     # Cut eigenvalues below threshold
     elif orth_method == 2:
-        eval_flipped, evec_flipped, threshold, original_eval = _cut_eigenvalues(cov_center, tol=tol)
-        # print("eval flipped ")
-        # print(pd.DataFrame(eval_flipped))
-        # print("evec flipped ")
-        # print(pd.DataFrame(evec_flipped))
-        # print("threshold ", threshold)
-        #original_eval = eval_flipped
+        eval_flipped, evec_flipped, threshold = _cut_eigenvalues(cov_center, tol=tol)
+        print("eval flipped ", eval_flipped)
+        print("evec flipped ", evec_flipped)
+        print("threshold ", threshold)
+        original_eval = eval_flipped
 
-    # # Add const to eigenvalues below threshold
-    # elif orth_method == 3:
-    #     eval_flipped, evec_flipped, threshold, original_eval = _cut_eigenvalues_to_constant(cov_center, tol=tol)
-    #     # print("eval flipped ")
-    #     # print(pd.DataFrame(eval_flipped))
-    #     # print("evec flipped ")
-    #     # print(pd.DataFrame(evec_flipped))
-    #     # print("threshold ", threshold)
-    #     #original_eval = eval_flipped
-    # elif orth_method == 4:
-    #     eval_flipped, evec_flipped, threshold, original_eval, projection_matrix = _pca(cov_center, tol=tol)
-    # elif orth_method == 5:
-    #     eval_flipped, evec_flipped, threshold, original_eval, projection_matrix = \
-    #         _pca_add_one(cov_center, tol=tol, moments=moments)
-    # elif orth_method == 6:
-    #     eval_flipped, evec_flipped, threshold, original_eval, projection_matrix = \
-    #         _svd_cut(cov_center, tol=tol)
+    # Add const to eigenvalues below threshold
+    elif orth_method == 3:
+        eval_flipped, evec_flipped, threshold = _cut_eigenvalues_to_constant(cov_center, tol=tol)
+        print("eval flipped ", eval_flipped)
+        print("evec flipped ", evec_flipped)
+        print("threshold ", threshold)
+        original_eval = eval_flipped
     else:
         raise Exception("No eigenvalues method")
 
-    if projection_matrix is not None:
-        icov_sqrt_t = projection_matrix
-    else:
-        icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
 
+    #original_eval, _ = np.linalg.eigh(cov_center)
+
+    # Compute eigen value errors.
+    #evec_flipped = np.flip(evec, axis=1)
+    #L = (evec_flipped.T @ M)
+    #rot_moments = mlmc.moments.TransformedMoments(moments, L)
+    #std_evals = eigenvalue_error(rot_moments)
+
+    icov_sqrt_t = M.T @ evec_flipped * (1 / np.sqrt(eval_flipped))[None, :]
     R_nm, Q_mm = sc.linalg.rq(icov_sqrt_t, mode='full')
 
     # check
@@ -2719,6 +1840,25 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
         L_mn = -L_mn
 
     ortogonal_moments = mlmc.moments.TransformedMoments(moments, L_mn)
+
+    #mlmc.tool.plot.moments(ortogonal_moments, size=ortogonal_moments.size, title=str(reg_param), file=None)
+
+    #ortogonal_moments = mlmc.moments.TransformedMoments(moments, cov_sqrt_t.T)
+
+    #################################
+    # cov = self.mlmc.estimate_covariance(ortogonal_moments)
+    # M = np.eye(ortogonal_moments.size)
+    # M[:, 0] = -cov[:, 0]
+    # cov_center = M @ cov @ M.T
+    # eval, evec = np.linalg.eigh(cov_center)
+    #
+    # # Compute eigen value errors.
+    # evec_flipped = np.flip(evec, axis=1)
+    # L = (evec_flipped.T @ M)
+    # rot_moments = mlmc.moments.TransformedMoments(moments, L)
+    # std_evals = self.eigenvalue_error(rot_moments)
+    #
+    # self.plot_values(eval, log=True, treshold=treshold)
     info = (original_eval, eval_flipped, threshold, L_mn)
     return ortogonal_moments, info, cov_center
 

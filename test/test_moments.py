@@ -1,6 +1,7 @@
 """
 Test class monomials
 """
+import pytest
 import numpy as np
 import mlmc.moments
 import mlmc.tool.distribution
@@ -68,6 +69,18 @@ def test_legendre():
     ref = [np.ones_like(values), values, (3*values**2 - 1.0) / 2.0, (5*values**3 - 3 * values) / 2.0]
 
     assert np.allclose(np.array(ref).T, moments)
+
+
+@pytest.mark.skip
+def test_spline():
+    size = 10
+    moments_fn = mlmc.moments.Spline(size, (-1.0, 1.0), smoothing_factor=1)
+
+    values = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+
+    moments = moments_fn(values)
+
+    print("moments ", moments)
 
 
 def test_moments():
@@ -277,3 +290,5 @@ def test_transform():
 
 
 test_legendre()
+
+#test_spline()

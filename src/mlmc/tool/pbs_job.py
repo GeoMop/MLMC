@@ -175,6 +175,7 @@ class PbsJob:
                 # Increment number of successful samples for measured time
                 SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
                                       dest_dir=successful_dest_dir)
+
                 if not self._debug:
                     SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
 
