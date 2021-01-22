@@ -3,6 +3,7 @@ import scipy.stats as st
 from scipy import integrate
 from scipy.special import erf, erfinv
 import matplotlib.pyplot as plt
+from scipy.stats import norm
 from statsmodels.distributions.empirical_distribution import ECDF
 
 
@@ -173,8 +174,8 @@ class MultivariateNorm(st.rv_continuous):
 
 
 class Abyss(st.rv_continuous):
-    def __init__(self):
-        super().__init__(name="Abyss")
+    def __init__(self, name="Abyss"):
+        super().__init__(name=name)
         self.dist = self
         self.width = 0.1
         self.z = 0.1

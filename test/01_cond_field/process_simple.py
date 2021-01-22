@@ -134,7 +134,7 @@ class ProcessSimple:
             samples = estimator.get_level_samples(level_id=0)[..., 0]
             distr_plot.add_raw_samples(np.squeeze(samples))
         distr_plot.show(None)
-        distr_plot.show(file=os.path.join(self.work_dir, "pdf_cdf_{}_moments_1".format(self.n_moments)))
+        distr_plot.show(file=os.path.join(self.work_dir, "pdf_cdf_{}_moments".format(self.n_moments)))
         distr_plot.reset()
 
     def run(self, renew=False):

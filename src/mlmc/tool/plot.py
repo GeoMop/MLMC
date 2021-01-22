@@ -2,7 +2,7 @@ import numpy as np
 import scipy.stats as st
 from scipy import interpolate
 import matplotlib
-matplotlib.rcParams.update({'font.size': 22})
+matplotlib.rcParams.update({'font.size': 38})
 from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, FixedLocator
@@ -839,7 +839,7 @@ class ArticleDistribution(Distribution):
             if self._log_x:
                 self.ax_cdf.set_xscale('log')
 
-        self.x_lim = [0, 5]
+        self.x_lim = [-0.5, 5]
 
         self.ax_pdf.set_xlim(*self.x_lim)
         self.ax_cdf.set_xlim(*self.x_lim)
@@ -864,7 +864,7 @@ class ArticleDistribution(Distribution):
             self._domain = self.x_lim
         N = len(samples)
         print("N samples ", N)
-        bins = self._grid(int(0.5 * np.sqrt(N)))
+        bins = self._grid(int(0.5 * np.sqrt(N)) * 2)
         self.ax_pdf.hist(samples, density=True, color='red', bins=bins, alpha=0.3)
 
         # Ecdf
@@ -872,7 +872,7 @@ class ArticleDistribution(Distribution):
         Y = (np.arange(len(X)) + 0.5) / float(len(X))
         X, Y = make_monotone(X, Y)
         if self.ax_cdf is not None:
-            self.ax_cdf.plot(X, Y, ':', color='midnightblue', label="ecdf")
+            self.ax_cdf.plot(X, Y, ':', color='midnightblue', label="ECDF")
 
         # PDF approx as derivative of Bspline CDF approx
         size_8 = int(N / 8)
@@ -900,7 +900,7 @@ class ArticleDistribution(Distribution):
         d_size = domain[1] - domain[0]
         slack = 0  # 0.05
         extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
-        X = self._grid(1000, domain=domain)
+        X = self._grid(10000, domain=domain)
 
         line_styles = ['-', ':', '-.', '--']
         plots = []
@@ -915,6 +915,22 @@ class ArticleDistribution(Distribution):
             #self._plot_borders(self.ax_cdf, self.cdf_color, domain)
 
         self.i_plot += 1
+
+    def show(self, file=""):
+        """
+        Set colors according to the number of added plots.
+        Set domain from all plots.
+        Plot exact distribution.
+        show, possibly save to file.
+        :param file: None, or filename, default name is same as plot title.
+        """
+        self._add_exact_distr()
+        #self.ax_pdf.legend(title=self._legend_title)#, loc='upper right', bbox_to_anchor=(0.5, -0.05))
+
+        if self.ax_cdf is not None:
+            self.ax_cdf.legend()
+
+        _show_and_save(self.fig, file, self._title)
 
 
 class Eigenvalues:

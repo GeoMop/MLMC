@@ -3655,14 +3655,16 @@ def run_distr():
         # distibution, log_flag
         # (stats.dgamma(1,1), False) # not good
         # (stats.beta(0.5, 0.5), False) # Looks great
-        #(bd.TwoGaussians(name='two_gaussians'), False),
-        # (bd.FiveFingers(name='five_fingers'), False), # Covariance matrix decomposition failed
-        # (bd.Cauchy(name='cauchy'), False),# pass, check exact
-        # (bd.Discontinuous(name='discontinuous'), False),
-        #(bd.Abyss(), False),
+
+        (stats.norm(loc=0, scale=10), False),
+        (bd.TwoGaussians(name='two-gaussians'), False),
+        (bd.FiveFingers(name='five-fingers'), False), # Covariance matrix decomposition failed
+        (bd.Cauchy(name='cauchy'), False),# pass, check exact
+        (bd.Discontinuous(name='discontinuous'), False),
+        (bd.Abyss(name="abyss"), False),
         # # # # # # # # # # # # # # # # # # # #(bd.Gamma(name='gamma'), False) # pass
         # # # # # # # # # # # # # # # # # # # #(stats.norm(loc=1, scale=2), False),
-        (stats.norm(loc=0, scale=10), False),
+
         #(stats.lognorm(scale=np.exp(1), s=1), False),    # Quite hard but peak is not so small comparet to the tail.
         # # (stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
         # (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
@@ -3685,25 +3687,25 @@ def run_distr():
         #(moments.Spline, 10, 10, True),
     ]
 
-    # plot_requirements = {
-    #                      'sqrt_kl': False,
-    #                      'sqrt_kl_Cr': False,
-    #                      'tv': False,
-    #                      'sqrt_tv_Cr': False, # TV
-    #                      'reg_term': False,
-    #                      'l2': False,
-    #                      'barron_diff_mu_line': False,
-    #                      '1_eig0_diff_mu_line': False}
-    #
-    #
-    # test_kl_estimates(mom[0], distribution_list, plot_requirements)
+    plot_requirements = {
+                         'sqrt_kl': False,
+                         'sqrt_kl_Cr': True,
+                         'tv': False,
+                         'sqrt_tv_Cr': True, # TV
+                         'reg_term': False,
+                         'l2': False,
+                         'barron_diff_mu_line': False,
+                         '1_eig0_diff_mu_line': False}
+
+
+    test_kl_estimates(mom[0], distribution_list, plot_requirements)
     # #test_gauss_degree(mom[0], distribution_list[0], plot_requirements, degrees=[210, 220, 240, 260, 280, 300]) #  degrees=[10, 20, 40, 60, 80, 100], [110, 120, 140, 160, 180, 200]
     # test_gauss_degree(mom[0], distribution_list[0], plot_requirements, degrees=[10, 20, 40, 60, 80, 100])
-    for m in mom:
-        for distr in enumerate(distribution_list):
-            #test_spline_approx(m, distr)
-            #splines_indicator_vs_smooth(m, distr)
-            test_pdf_approx_exact_moments(m, distr)
+    # for m in mom:
+    #     for distr in enumerate(distribution_list):
+    #         #test_spline_approx(m, distr)
+    #         #splines_indicator_vs_smooth(m, distr)
+    #         test_pdf_approx_exact_moments(m, distr)
 
 @pytest.mark.skip
 def test_gauss_degree(moments, distr, plot_requirements, degrees=[100]):
@@ -3770,7 +3772,12 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
 
     case = DistrTestCase(distr_cfg, quantile, moments)
 
-    title = case.title
+    title = case.distr.distr_name#case.title
+    if title == "norm":
+        title = "normal"
+
+    print("title ", title)
+    print("case ", case.distr.distr_name)
     # if gauss_degree is not None:
     #     title = case.title + " gauss degree: {}".format(gauss_degree)
     orto_moments, moment_data = case.make_orto_moments(0)
@@ -3811,7 +3818,7 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
 
     reg_terms = []
 
-    for _ in range(1000):
+    for _ in range(100):
         s = 3 * stats.uniform.rvs(size=1)[0]
         lambda_inex = exact_distr.multipliers + s*ratio_distribution.rvs(size)
         raw_distr._initialize_params(size)
@@ -3827,12 +3834,6 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
         l_diff_norm = np.linalg.norm(lambda_diff[:])
         mu_diff = exact_mu - raw_distr.moments
         mu_diff_norm = np.linalg.norm(mu_diff[:])
-        # dot_l_diff_mu_diff.append(np.dot(mu_diff, lambda_diff)) # good
-
-        print("exact mu ", exact_mu)
-        print("original exact mu ", np.matmul(exact_mu, np.linalg.inv(case.L.T)))
-        print("lambda diff ", lambda_diff)
-
         dot_l_diff_mu_diff.append(np.dot(exact_mu, lambda_diff))
 
         l_diffs.append(l_diff_norm)
@@ -3853,7 +3854,7 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
             reg_terms.append(mlmc.tool.simple_distribution.reg_term_distr_diff(exact_distr, raw_distr))
 
     plot_mu_to_lambda_lim = False
-    plot_kl_lambda_diff = True
+    plot_kl_lambda_diff = False
 
     size = 5
     scatter_size = size ** 2
@@ -3877,7 +3878,7 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
                        s=scatter_size)#, label="$|\lambda_0 - \lambda_r| / \sqrt{C_R}$")
 
 
-        plot_scatter(ax, mu_diffs, np.sqrt(dot_l_diff_mu_diff/ barron_coef), title, ('log', 'log'), color='black', s=scatter_size)
+        #plot_scatter(ax, mu_diffs, np.sqrt(dot_l_diff_mu_diff/ barron_coef), title, ('log', 'log'), color='black', s=scatter_size)
 
     else:
         Y = np.array(l_diffs) * np.array(np.array(eigs)[:, 0]) / np.array(mu_diffs)
