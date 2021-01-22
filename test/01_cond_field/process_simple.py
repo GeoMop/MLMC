@@ -87,11 +87,8 @@ class ProcessSimple:
         conductivity_mean = moments_mean['conductivity']
         time_mean = conductivity_mean[1]  # times: [1]
         location_mean = time_mean['0']  # locations: ['0']
-        print("location_mean().shape ", location_mean().shape)
-        values_mean = location_mean[0, 0]  # result shape: (1, 1)
-        value_mean = values_mean[0]
-        print("value_mean ", value_mean())
-        assert value_mean() == 1
+        value_mean = location_mean[0]
+        assert value_mean.mean[0] == 1
 
         # true_domain = [-10, 10]  # keep all values on the original domain
         # central_moments = Monomial(self.n_moments, true_domain, ref_domain=true_domain, mean=means())
