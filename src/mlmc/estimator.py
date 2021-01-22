@@ -58,7 +58,6 @@ class Estimate:
         :return: array of variances, n_ops_estimate
         """
         self._n_created_samples = n_created_samples
-
         # vars shape L x R
         if raw_vars is None:
             if moments_fn is None:
@@ -78,7 +77,7 @@ class Estimate:
             diff_variance - shape LxR, variances of diffs of moments_fn
             n_samples -  shape L, num samples for individual levels.
         """
-        moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_fn), level_means=True)
+        moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_fn))
         return moments_mean.l_vars, moments_mean.n_samples
 
     def _all_moments_variance_regression(self, raw_vars, sim_steps):
@@ -182,7 +181,7 @@ class Estimate:
         for i in range(n_subsamples):
             quantity_subsample = self.quantity.select(self.quantity.subsample(sample_vec=sample_vector))
             moments_quantity = qe.moments(quantity_subsample, moments_fn=moments_fn, mom_at_bottom=False)
-            q_mean = qe.estimate_mean(moments_quantity, level_means=True)
+            q_mean = qe.estimate_mean(moments_quantity)
 
             bs_mean.append(q_mean.mean)
             bs_var.append(q_mean.var)
@@ -231,7 +230,7 @@ class Estimate:
                                           sample_vector=sample_vec)
 
         moments_quantity = qe.moments(self._quantity, moments_fn=self._moments_fn, mom_at_bottom=False)
-        q_mean = qe.estimate_mean(moments_quantity, level_means=True)
+        q_mean = qe.estimate_mean(moments_quantity)
 
         bs_plot = plot.BSplots(bs_n_samples=sample_vec, n_samples=self._sample_storage.get_n_collected(),
                                n_moments=self._moments_fn.size, ref_level_var=q_mean.l_vars)
@@ -275,7 +274,7 @@ class Estimate:
         moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(self._moments_fn,
                                                                                                      cov_mat,
                                                                                                      tol=orth_moments_tol)
-        moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_obj), level_means=True)
+        moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_obj))
         est_moments = moments_mean.mean
         est_vars = moments_mean.var
 

@@ -35,23 +35,16 @@ with open('synth_sim_config_test.yaml', "w") as file:
     yaml.dump(simulation_config, file, default_flow_style=False)
 shutil.copyfile('synth_sim_config_test.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
 sim_config_workspace = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
-simulation_factory_workspace = SynthSimulationWorkspaceForTests(sim_config_workspace)
-
-# Create sampling pools
-single_process_pool = OneProcessPool(work_dir=work_dir)
-multiprocess_pool = ProcessPool(4, work_dir=work_dir)
-#thread_pool = ThreadPool(4, work_dir=work_dir)
-
-single_process_pool_debug = OneProcessPool(work_dir=work_dir, debug=True)
-multiprocess_pool_debug = ProcessPool(4, work_dir=work_dir, debug=True)
-#thread_pool_debug = ThreadPool(4, work_dir=work_dir)
 
 
-@pytest.mark.parametrize("sampling_pool, simulation_factory", [(single_process_pool, simulation_factory_workspace),
-                                                               (multiprocess_pool, simulation_factory_workspace),
-                                                               (single_process_pool_debug, simulation_factory_workspace),
-                                                               (multiprocess_pool_debug, simulation_factory_workspace),
-                                                               ])
+@pytest.mark.parametrize("sampling_pool, simulation_factory",
+                         [(OneProcessPool(work_dir=work_dir), SynthSimulationWorkspaceForTests(sim_config_workspace)),
+                          (ProcessPool(4, work_dir=work_dir), SynthSimulationWorkspaceForTests(sim_config_workspace)),
+                          (OneProcessPool(work_dir=work_dir, debug=True),
+                           SynthSimulationWorkspaceForTests(sim_config_workspace)),
+                          (ProcessPool(4, work_dir=work_dir, debug=True),
+                           SynthSimulationWorkspaceForTests(sim_config_workspace)),
+                          ])
 def test_sampling_pools(sampling_pool, simulation_factory):
     n_moments = 5
     np.random.seed(123)
