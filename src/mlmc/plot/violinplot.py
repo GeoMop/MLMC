@@ -1,6 +1,6 @@
 import numpy as np
 import seaborn
-from mlmc.tool.plot import _show_and_save
+from mlmc.plot.plot import _show_and_save
 import matplotlib
 matplotlib.rcParams.update({'font.size': 22})
 import matplotlib.pyplot as plt

@@ -18,7 +18,7 @@ from mlmc.moments import Legendre, Monomial
 from mlmc.sampling_pool import OneProcessPool, ProcessPool
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
 from test.synth_sim_for_tests import SynthSimulationForTests
-import mlmc.estimator as new_estimator
+import mlmc.estimator
 
 
 def _prepare_work_dir():
@@ -539,17 +539,9 @@ class QuantityTests(unittest.TestCase):
         n_moments = 3
         step_range = [0.5, 0.01]
         n_levels = 5
-
-        assert step_range[0] > step_range[1]
-        level_parameters = []
-        for i_level in range(n_levels):
-            if n_levels == 1:
-                level_param = 1
-            else:
-                level_param = i_level / (n_levels - 1)
-            level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
-
         clean = True
+
+        level_parameters = mlmc.estimator.determine_level_parameters(n_levels=n_levels, step_range=step_range)
         sampler, simulation_factory = self._create_sampler(level_parameters, clean=clean, memory=False)
 
         distr = stats.norm()
@@ -564,7 +556,7 @@ class QuantityTests(unittest.TestCase):
         root_quantity = make_root_quantity(storage=sampler.sample_storage, q_specs=simulation_factory.result_format())
         root_quantity_mean = estimate_mean(root_quantity)
 
-        estimator = new_estimator.Estimate(root_quantity, sample_storage=sampler.sample_storage, moments_fn=moments_fn)
+        estimator = mlmc.estimator.Estimate(root_quantity, sample_storage=sampler.sample_storage, moments_fn=moments_fn)
 
         target_var = 1e-2
         sleep = 0
@@ -572,7 +564,7 @@ class QuantityTests(unittest.TestCase):
 
         # New estimation according to already finished samples
         variances, n_ops = estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-        n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+        n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                             n_levels=sampler.n_levels)
 
 
@@ -580,7 +572,7 @@ class QuantityTests(unittest.TestCase):
         while not sampler.process_adding_samples(n_estimated, sleep, add_coef):
             # New estimation according to already finished samples
             variances, n_ops = estimator.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-            n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+            n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                                 n_levels=sampler.n_levels)
 
         # Moments values are at the bottom

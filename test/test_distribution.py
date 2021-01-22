@@ -24,8 +24,6 @@ and given moment functions.
 
 
 """
-import os
-import sys
 import time
 import pytest
 
@@ -33,7 +31,7 @@ import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 
-import mlmc.tool.plot
+import mlmc.plot.plot
 # import mlmc.estimate
 # import mlmc.distribution
 # import mlmc.simple_distribution

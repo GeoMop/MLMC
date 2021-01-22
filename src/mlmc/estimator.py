@@ -1,53 +1,10 @@
 import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
-from mlmc.tool import plot
+from mlmc.plot import plot
 from mlmc.quantity_spec import ChunkSpec
 import mlmc.quantity_estimate as qe
 import mlmc.tool.simple_distribution
-
-
-def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_ops, n_levels):
-    """
-    Estimate optimal number of samples for individual levels that should provide a target variance of
-    resulting moment estimate.
-    This also set given moment functions to be used for further estimates if not specified otherwise.
-    :param target_variance: Constrain to achieve this variance.
-    :param prescribe_vars: vars[ L, M] for all levels L and moments_fn M safe the (zeroth) constant moment with zero variance.
-    :param n_ops: number of operations at each level
-    :param n_levels: number of levels
-    :return: np.array with number of optimal samples for individual levels and moments_fn, array (LxR)
-    """
-    vars = prescribe_vars
-    sqrt_var_n = np.sqrt(vars.T * n_ops)  # moments_fn in rows, levels in cols
-    total = np.sum(sqrt_var_n, axis=1)  # sum over levels
-    n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)  # moments_fn in cols
-    # Limit maximal number of samples per level
-    n_samples_estimate_safe = np.maximum(
-        np.minimum(n_samples_estimate, vars * n_levels / target_variance), 2)
-
-    return np.max(n_samples_estimate_safe, axis=1).astype(int)
-
-
-def calc_level_params(step_range, n_levels):
-    assert step_range[0] > step_range[1]
-    level_parameters = []
-    for i_level in range(n_levels):
-        if n_levels == 1:
-            level_param = 1
-        else:
-            level_param = i_level / (n_levels - 1)
-        level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
-
-    return level_parameters
-
-
-def determine_sample_vec(n_collected_samples, n_levels, sample_vector=None):
-    if sample_vector is None:
-        sample_vector = n_collected_samples
-    if len(sample_vector) > n_levels:
-        sample_vector = sample_vector[:n_levels]
-    return np.array(sample_vector)
 
 
 class Estimate:
@@ -268,13 +225,6 @@ class Estimate:
         var_plot.add_variances(self.mean_bs_l_vars, sample_vec, ref_level_vars=self._bs_level_mean_variance)
         var_plot.show(None)
 
-    # def plot_level_variances(self):
-    #     var_plot = plot.Variance(10)
-    #     for mc in self.mlmc:
-    #         steps, vars = mc.estimate_level_vars()
-    #         var_plot.add_level_variances(steps, vars)
-    #     var_plot.show()
-
     def plot_bs_var_log(self, sample_vec=None):
         sample_vec = determine_sample_vec(n_collected_samples=self._sample_storage.get_n_collected(),
                                           n_levels=self._sample_storage.get_n_levels(),
@@ -293,15 +243,9 @@ class Estimate:
 
         bs_plot.plot_var_regression(self, self._sample_storage.get_n_levels(), self._moments_fn)
 
-    def plot_var_compare(self, nl):
-        self[nl].plot_bootstrap_variance_compare(self._moments_fn)
-
-    def plot_var_var(self, nl):
-        self[nl].plot_bootstrap_var_var(self._moments_fn)
-
     def fine_coarse_violinplot(self):
         import pandas as pd
-        from mlmc.tool import violinplot
+        from mlmc.plot import violinplot
 
         label_n_spaces = 5
         n_levels = self._sample_storage.get_n_levels()
@@ -321,29 +265,6 @@ class Estimate:
                     data = {'samples': samples[:, 0], 'type': 'fine', 'level': label}
                     dframe = pd.concat([dframe, pd.DataFrame(data)], axis=0)
         violinplot.fine_coarse_violinplot(dframe)
-
-    @staticmethod
-    def estimate_domain(quantity, sample_storage, quantile=None):
-        """
-        Estimate moments domain from MLMC samples.
-        :param quantity: mlmc.quantity.Quantity instance, represents the real quantity
-        :param sample_storage: mlmc.sample_storage.SampleStorage instance, provides all the samples
-        :param quantile: float in interval (0, 1), None means whole sample range
-        :return: lower_bound, upper_bound
-        """
-        ranges = []
-        if quantile is None:
-            quantile = 0.01
-
-        for level_id in range(sample_storage.get_n_levels()):
-            fine_samples = quantity.samples(ChunkSpec(level_id=level_id,
-                                                  n_samples=sample_storage.get_n_collected()[0]))[..., 0]
-
-            fine_samples = np.squeeze(fine_samples)
-            ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
-
-        ranges = np.array(ranges)
-        return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
     def construct_density(self, tol=1e-8, reg_param=0.0, orth_moments_tol=1e-4, exact_pdf=None):
         """
@@ -374,3 +295,113 @@ class Estimate:
     def get_level_samples(self, level_id):
         return self._quantity.samples(ChunkSpec(level_id=level_id,
                                                 n_samples=self._sample_storage.get_n_collected()[level_id]))
+
+
+def estimate_domain(quantity, sample_storage, quantile=None):
+    """
+    Estimate moments domain from MLMC samples.
+    :param quantity: mlmc.quantity.Quantity instance, represents the real quantity
+    :param sample_storage: mlmc.sample_storage.SampleStorage instance, provides all the samples
+    :param quantile: float in interval (0, 1), None means whole sample range
+    :return: lower_bound, upper_bound
+    """
+    ranges = []
+    if quantile is None:
+        quantile = 0.01
+
+    for level_id in range(sample_storage.get_n_levels()):
+        fine_samples = quantity.samples(ChunkSpec(level_id=level_id,
+                                              n_samples=sample_storage.get_n_collected()[0]))[..., 0]
+
+        fine_samples = np.squeeze(fine_samples)
+        ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
+
+    ranges = np.array(ranges)
+    return np.min(ranges[:, 0]), np.max(ranges[:, 1])
+
+
+def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_ops, n_levels):
+    """
+    Estimate optimal number of samples for individual levels that should provide a target variance of
+    resulting moment estimate.
+    This also set given moment functions to be used for further estimates if not specified otherwise.
+    :param target_variance: Constrain to achieve this variance.
+    :param prescribe_vars: vars[ L, M] for all levels L and moments_fn M safe the (zeroth) constant moment with zero variance.
+    :param n_ops: number of operations at each level
+    :param n_levels: number of levels
+    :return: np.array with number of optimal samples for individual levels and moments_fn, array (LxR)
+    """
+    vars = prescribe_vars
+    sqrt_var_n = np.sqrt(vars.T * n_ops)  # moments_fn in rows, levels in cols
+    total = np.sum(sqrt_var_n, axis=1)  # sum over levels
+    n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)  # moments_fn in cols
+    # Limit maximal number of samples per level
+    n_samples_estimate_safe = np.maximum(
+        np.minimum(n_samples_estimate, vars * n_levels / target_variance), 2)
+
+    return np.max(n_samples_estimate_safe, axis=1).astype(int)
+
+
+def calc_level_params(step_range, n_levels):
+    assert step_range[0] > step_range[1]
+    level_parameters = []
+    for i_level in range(n_levels):
+        if n_levels == 1:
+            level_param = 1
+        else:
+            level_param = i_level / (n_levels - 1)
+        level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
+
+    return level_parameters
+
+
+def determine_sample_vec(n_collected_samples, n_levels, sample_vector=None):
+    if sample_vector is None:
+        sample_vector = n_collected_samples
+    if len(sample_vector) > n_levels:
+        sample_vector = sample_vector[:n_levels]
+    return np.array(sample_vector)
+
+
+def determine_level_parameters(n_levels, step_range):
+    """
+    Determine level parameters,
+    In this case, a step of fine simulation at each level
+    :param n_levels: number of MLMC levels
+    :param step_range: simulation step range
+    :return: List
+    """
+    assert step_range[0] > step_range[1]
+    level_parameters = []
+    for i_level in range(n_levels):
+        if n_levels == 1:
+            level_param = 1
+        else:
+            level_param = i_level / (n_levels - 1)
+        level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
+
+    return level_parameters
+
+
+def determine_n_samples(n_levels, n_samples=None):
+    """
+    Set target number of samples for each level
+    :param n_levels: number of levels
+    :param n_samples: array of number of samples
+    :return: None
+    """
+    if n_samples is None:
+        n_samples = [100, 3]
+    # Num of samples to ndarray
+    n_samples = np.atleast_1d(n_samples)
+
+    # Just maximal number of samples is set
+    if len(n_samples) == 1:
+        n_samples = np.array([n_samples[0], 3])
+
+    # Create number of samples for all levels
+    if len(n_samples) == 2:
+        n0, nL = n_samples
+        n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), n_levels))).astype(int)
+
+    return n_samples
