@@ -4,7 +4,7 @@ from mlmc.sampler import Sampler
 from mlmc.sampling_pool import OneProcessPool
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc import moments
-import mlmc.plot.plot
+import mlmc.plot.plots
 import mlmc.estimator
 import mlmc.archive.estimate
 from mlmc.sim.synth_simulation import SynthSimulation

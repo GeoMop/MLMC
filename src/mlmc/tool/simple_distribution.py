@@ -2,7 +2,7 @@ import numpy as np
 import scipy as sc
 import scipy.integrate as integrate
 import mlmc.moments
-import mlmc.plot.plot
+import mlmc.plot.plots
 
 EXACT_QUAD_LIMIT = 1000
 

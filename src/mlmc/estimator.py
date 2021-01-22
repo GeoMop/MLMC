@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
-from mlmc.plot import plot
+from mlmc.plot import plots
 from mlmc.quantity_spec import ChunkSpec
 import mlmc.quantity_estimate as qe
 import mlmc.tool.simple_distribution
@@ -215,7 +215,7 @@ class Estimate:
         return n_estimated
 
     def plot_variances(self, sample_vec=None):
-        var_plot = plot.VarianceBreakdown(10)
+        var_plot = plots.VarianceBreakdown(10)
 
         sample_vec = determine_sample_vec(n_collected_samples=self._sample_storage.get_n_collected(),
                                           n_levels=self._sample_storage.get_n_levels(),
@@ -233,8 +233,8 @@ class Estimate:
         moments_quantity = qe.moments(self._quantity, moments_fn=self._moments_fn, mom_at_bottom=False)
         q_mean = qe.estimate_mean(moments_quantity, level_means=True)
 
-        bs_plot = plot.BSplots(bs_n_samples=sample_vec, n_samples=self._sample_storage.get_n_collected(),
-                               n_moments=self._moments_fn.size, ref_level_var=q_mean.l_vars)
+        bs_plot = plots.BSplots(bs_n_samples=sample_vec, n_samples=self._sample_storage.get_n_collected(),
+                                n_moments=self._moments_fn.size, ref_level_var=q_mean.l_vars)
 
         bs_plot.plot_means_and_vars(self.mean_bs_mean[1:], self.mean_bs_var[1:], n_levels=self._sample_storage.get_n_levels())
 
@@ -249,22 +249,24 @@ class Estimate:
 
         label_n_spaces = 5
         n_levels = self._sample_storage.get_n_levels()
-        for level_id in range(n_levels):
-            samples = np.squeeze(self._quantity.samples(ChunkSpec(level_id=level_id)), axis=0)
-            if level_id == 0:
-                label = "{} F{} {} C".format(level_id, ' ' * label_n_spaces, level_id + 1)
-                data = {'samples': samples[:, 0], 'type': 'fine', 'level': label}
-                dframe = pd.DataFrame(data)
-            else:
 
-                data = {'samples': samples[:, 1], 'type': 'coarse', 'level': label}
-                dframe = pd.concat([dframe, pd.DataFrame(data)], axis=0)
-
-                if level_id + 1 < n_levels:
+        if n_levels > 1:
+            for level_id in range(n_levels):
+                samples = np.squeeze(self._quantity.samples(ChunkSpec(level_id=level_id)), axis=0)
+                if level_id == 0:
                     label = "{} F{} {} C".format(level_id, ' ' * label_n_spaces, level_id + 1)
                     data = {'samples': samples[:, 0], 'type': 'fine', 'level': label}
+                    dframe = pd.DataFrame(data)
+                else:
+
+                    data = {'samples': samples[:, 1], 'type': 'coarse', 'level': label}
                     dframe = pd.concat([dframe, pd.DataFrame(data)], axis=0)
-        violinplot.fine_coarse_violinplot(dframe)
+
+                    if level_id + 1 < n_levels:
+                        label = "{} F{} {} C".format(level_id, ' ' * label_n_spaces, level_id + 1)
+                        data = {'samples': samples[:, 0], 'type': 'fine', 'level': label}
+                        dframe = pd.concat([dframe, pd.DataFrame(data)], axis=0)
+            violinplot.fine_coarse_violinplot(dframe)
 
     def construct_density(self, tol=1e-8, reg_param=0.0, orth_moments_tol=1e-4, exact_pdf=None):
         """
