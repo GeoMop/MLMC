@@ -86,6 +86,11 @@ class SampleStorageHDF(SampleStorage):
         :param result_format: List[QuantitySpec]
         :return: None
         """
+        try:
+            if self.load_result_format() != result_format:
+                raise ValueError('You are setting a new different result format for an existing sample storage')
+        except AttributeError:
+            pass
         self._hdf_object.save_result_format(result_format, res_dtype)
 
     def load_result_format(self) -> List[QuantitySpec]:
