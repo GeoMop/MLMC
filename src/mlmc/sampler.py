@@ -121,6 +121,7 @@ class Sampler:
             2) get LevelSimulation instance by simulation factory
             3) schedule sample via sampling pool
             4) store scheduled samples in sample storage, separately for each level
+        :param timeout: int, get_finished - while break timeout in seconds
         :return: None
         """
         self.ask_sampling_pool_for_samples(timeout=timeout)
