@@ -23,11 +23,10 @@ class QuantitySpec:
 
 @attr.s(auto_attribs=True, frozen=True)
 class ChunkSpec:
-    level_id: int
+    data: np.ndarray
+    # Chunk data
+    level_id: int = 0
     # Level identifier
     chunk_id: int = 0
     # Chunk identifier
-    n_samples: int = None
-    # Number of samples which we want to retrieve
-    chunk_size: int = 512000000
-    # Chunk size in bytes in decimal, determines number of samples in chunk
+

@@ -156,23 +156,15 @@ class SampleStorageHDF(SampleStorage):
             levels_results[int(level.level_id)] = results
         return levels_results
 
-    def sample_pairs_level(self, chunk_spec):
+    def sample_pairs_level(self, level_id=None, chunk_size=None, n_samples=None):
         """
         Get result for particular level and chunk
         :param chunk_spec: ChunkSpec instance, contains level_id, chunk_id, possibly n_samples
         :return: np.ndarray
         """
-        sample_pairs = self._level_groups[int(chunk_spec.level_id)].collected(chunk_spec)
-
-        # Chunk is empty
-        if len(sample_pairs) == 0:
-            raise StopIteration
-
-        # Remove auxiliary zeros from level zero sample pairs
-        if chunk_spec.level_id == 0:
-            sample_pairs = sample_pairs[:, :1, :]
-
-        return sample_pairs.transpose((2, 0, 1))  # [M, chunk size, 2]
+        if level_id is None:
+            level_id = 0
+        return self._level_groups[int(level_id)].collected(level_id, chunk_size, n_samples)
 
     def n_finished(self):
         """

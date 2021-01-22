@@ -107,7 +107,6 @@ class SampleStorage(metaclass=ABCMeta):
         :return: list
         """
 
-
 class Memory(SampleStorage):
 
     def __init__(self):
@@ -228,25 +227,30 @@ class Memory(SampleStorage):
 
         return levels_results
 
-    def sample_pairs_level(self, chunk_spec):
+    def sample_pairs_level(self, level_id=None, chunk_size=None, n_samples=None):
         """
         Get samples for given level, chunks does not make sense in Memory storage so all data are retrieved at once
         :param chunk_spec: ChunkSpec instance, contains level_id, chunk_id, possibly n_samples
         :return: np.ndarray
         """
-        if chunk_spec.chunk_id != 0:
-            raise StopIteration
+        if level_id is None:
+            level_id = 0
+        results = self._results[int(level_id)]
 
-        results = self._results[int(chunk_spec.level_id)]
-        n_samples = chunk_spec.n_samples\
-            if chunk_spec.n_samples is not None and chunk_spec.n_samples < results.shape[0]\
-            else results.shape[0]
+        print("results.shape ", results.shape)
 
-        # Remove auxiliary zeros from level zero sample pairs
-        if chunk_spec.level_id == 0:
-            results = results[:, :1, :]
+        if n_samples is None and chunk_size is not None:
+            first_item = results[0]
+            item_byte_size = first_item.size * first_item.itemsize
+            n_samples = int(np.ceil(chunk_size / item_byte_size)) \
+                if int(np.ceil(chunk_size / item_byte_size)) < len(results) else len(results)
 
-        return results[:n_samples, ...].transpose((2, 0, 1))  # [M, N, 2]
+        for chunk_id, pos in enumerate(range(0, len(results), n_samples)):
+            chunk = results[pos: pos + n_samples]
+            if level_id == 0:
+                chunk = chunk[:, :1, :]
+
+            yield ChunkSpec(level_id=level_id, data=chunk.transpose((2, 0, 1)), chunk_id=chunk_id)
 
     def save_n_ops(self, n_ops):
         """
@@ -287,8 +291,8 @@ class Memory(SampleStorage):
         :return: List
         """
         n_collected = list(np.zeros(len(self._results)))
-        for level in self._results:
-            n_collected[int(level.level_id)] = level.collected_n_items()
+        for level_id in self.get_level_ids():
+            n_collected[int(level_id)] = len(self._results[int(level_id)])
         return n_collected
 
     def get_n_levels(self):

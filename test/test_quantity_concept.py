@@ -157,6 +157,7 @@ class QuantityTests(unittest.TestCase):
         y = position[1, 2]
         y_mean = estimate_mean(y)
         assert len(y_mean.mean) == 1
+        print("type(y) ", type(y))
         y_add = np.add(5, y)
         y_add_mean = estimate_mean(y_add)
         assert np.allclose(y_add_mean.mean, y_mean.mean + 5)
@@ -426,7 +427,7 @@ class QuantityTests(unittest.TestCase):
         q_and = np.logical_and(True, root_quantity)
         self.assertRaises(TypeError, estimate_mean, q_and)
 
-        cache_clear()
+        #cache_clear()
         x = np.ones((108, 5, 2))
         self.assertRaises(ValueError, np.add, x, root_quantity)
 
@@ -578,68 +579,70 @@ class QuantityTests(unittest.TestCase):
             n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                                 n_levels=sampler.n_levels)
 
-        # Moments values are at the bottom
-        moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
-        moments_mean = estimate_mean(moments_quantity)
-        length_mean = moments_mean['length']
-        time_mean = length_mean[1]
-        location_mean = time_mean['10']
-        values_mean = location_mean[0]
+        # # Moments values are at the bottom
+        # moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
+        # moments_mean = estimate_mean(moments_quantity)
+        # length_mean = moments_mean['length']
+        # time_mean = length_mean[1]
+        # location_mean = time_mean['10']
+        # values_mean = location_mean[0]
+        #
+        # assert np.allclose(values_mean.mean[:2], [1, 0.5], atol=1e-2)
+        # assert np.all(values_mean.var < target_var)
+        #
+        # new_moments = moments_quantity + moments_quantity
+        # new_moments_mean = estimate_mean(new_moments)
+        # assert np.allclose(moments_mean.mean + moments_mean.mean, new_moments_mean.mean)
+        #
+        # # Moments values are on the surface
+        # moments_quantity_2 = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=False)
+        # moments_mean = estimate_mean(moments_quantity_2)
+        # first_moment = moments_mean[0]
+        # second_moment = moments_mean[1]
+        # third_moment = moments_mean[2]
+        # assert np.allclose(values_mean.mean, [first_moment.mean[0], second_moment.mean[0], third_moment.mean[0]], atol=1e-4)
+        #
+        # # Central moments
+        # central_root_quantity = root_quantity - root_quantity_mean.mean
+        # monomial_mom_fn = Monomial(n_moments, domain=true_domain, ref_domain=true_domain)
+        # central_moments_quantity = moments(central_root_quantity, moments_fn=monomial_mom_fn, mom_at_bottom=True)
+        #
+        # central_moments_mean = estimate_mean(central_moments_quantity)
+        # length_mean = central_moments_mean['length']
+        # time_mean = length_mean[1]
+        # location_mean = time_mean['10']
+        # central_value_mean = location_mean[0]
+        #
+        # assert np.isclose(central_value_mean.mean[0], 1, atol=1e-10)
+        # assert np.isclose(central_value_mean.mean[1], 0, atol=1e-2)
+        #
+        # # Covariance
+        # covariance_quantity = covariance(root_quantity, moments_fn=moments_fn, cov_at_bottom=True)
+        # cov_mean = estimate_mean(covariance_quantity)
+        # length_mean = cov_mean['length']
+        # time_mean = length_mean[1]
+        # location_mean = time_mean['10']
+        # cov_mean = location_mean[0]
+        # assert np.allclose(values_mean.mean, cov_mean.mean[:, 0])
+        #
+        # # Single moment
+        # moment_quantity = moment(root_quantity, moments_fn=moments_fn, i=0)
+        # moment_mean = estimate_mean(moment_quantity)
+        # length_mean = moment_mean['length']
+        # time_mean = length_mean[1]
+        # location_mean = time_mean['10']
+        # value_mean = location_mean[0]
+        # assert len(value_mean.mean) == 1
 
-        assert np.allclose(values_mean.mean[:2], [1, 0.5], atol=1e-2)
-        assert np.all(values_mean.var < target_var)
-
-        new_moments = moments_quantity + moments_quantity
-        new_moments_mean = estimate_mean(new_moments)
-        assert np.allclose(moments_mean.mean + moments_mean.mean, new_moments_mean.mean)
-
-        # Moments values are on the surface
-        moments_quantity_2 = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=False)
-        moments_mean = estimate_mean(moments_quantity_2)
-        first_moment = moments_mean[0]
-        second_moment = moments_mean[1]
-        third_moment = moments_mean[2]
-        assert np.allclose(values_mean.mean, [first_moment.mean[0], second_moment.mean[0], third_moment.mean[0]], atol=1e-4)
-
-        # Central moments
-        central_root_quantity = root_quantity - root_quantity_mean.mean
-        monomial_mom_fn = Monomial(n_moments, domain=true_domain, ref_domain=true_domain)
-        central_moments_quantity = moments(central_root_quantity, moments_fn=monomial_mom_fn, mom_at_bottom=True)
-
-        central_moments_mean = estimate_mean(central_moments_quantity)
-        length_mean = central_moments_mean['length']
-        time_mean = length_mean[1]
-        location_mean = time_mean['10']
-        central_value_mean = location_mean[0]
-
-        assert np.isclose(central_value_mean.mean[0], 1, atol=1e-10)
-        assert np.isclose(central_value_mean.mean[1], 0, atol=1e-2)
-
-        # Covariance
-        covariance_quantity = covariance(root_quantity, moments_fn=moments_fn, cov_at_bottom=True)
-        cov_mean = estimate_mean(covariance_quantity)
-        length_mean = cov_mean['length']
-        time_mean = length_mean[1]
-        location_mean = time_mean['10']
-        cov_mean = location_mean[0]
-        assert np.allclose(values_mean.mean, cov_mean.mean[:, 0])
-
-        # Single moment
-        moment_quantity = moment(root_quantity, moments_fn=moments_fn, i=0)
-        moment_mean = estimate_mean(moment_quantity)
-        length_mean = moment_mean['length']
-        time_mean = length_mean[1]
-        location_mean = time_mean['10']
-        value_mean = location_mean[0]
-        assert len(value_mean.mean) == 1
-
-        iter = 500
+        iter = 1
         mult_chunks_means = []
         single_chunk_means = []
         mult_chunks_vars = []
         single_chunk_vars = []
         mult_chunks_subsamples = []
         single_chunk_subsamples = []
+        rm_samples = []
+
         for i in range(iter):
             sample_vec = [15, 10, 8, 6, 4]
             root_quantity_subsamples = root_quantity.subsample(sample_vec)  # out of [100, 80, 50, 30, 10]
@@ -654,24 +657,37 @@ class QuantityTests(unittest.TestCase):
             mult_chunks_vars.append(mult_chunks_value_mean.var)
             mult_chunks_subsamples.append(mult_chunks_value_mean.n_samples)
 
-            root_quantity_subsamples = root_quantity.subsample(sample_vec)  # out of [100, 80, 50, 30, 10]
-            moments_quantity = moments(root_quantity_subsamples, moments_fn=moments_fn, mom_at_bottom=True)
-            single_chunk_moments_mean = estimate_mean(moments_quantity, chunk_size=512000)  # single chunk
-            single_chunk_length_mean = single_chunk_moments_mean['length']
-            single_chunk_time_mean = single_chunk_length_mean[1]
-            single_chunk_location_mean = single_chunk_time_mean['10']
-            single_chunk_value_mean = single_chunk_location_mean[0]
+            rm_samples.append(mult_chunks_value_mean.n_rm_samples)
 
-            single_chunk_means.append(single_chunk_value_mean.mean)
-            single_chunk_vars.append(single_chunk_value_mean.var)
-            single_chunk_subsamples.append(single_chunk_value_mean.n_samples)
+            # root_quantity_subsamples = root_quantity.subsample(sample_vec)  # out of [100, 80, 50, 30, 10]
+            # moments_quantity = moments(root_quantity_subsamples, moments_fn=moments_fn, mom_at_bottom=True)
+            # single_chunk_moments_mean = estimate_mean(moments_quantity, chunk_size=512000)  # single chunk
+            # single_chunk_length_mean = single_chunk_moments_mean['length']
+            # single_chunk_time_mean = single_chunk_length_mean[1]
+            # single_chunk_location_mean = single_chunk_time_mean['10']
+            # single_chunk_value_mean = single_chunk_location_mean[0]
+            #
+            # single_chunk_means.append(single_chunk_value_mean.mean)
+            # single_chunk_vars.append(single_chunk_value_mean.var)
+            # single_chunk_subsamples.append(single_chunk_value_mean.n_samples)
 
-        assert np.allclose(np.mean(single_chunk_subsamples, axis=0), np.mean(mult_chunks_subsamples, axis=0), rtol=0.2)
-        assert np.allclose(np.mean(single_chunk_subsamples, axis=0), sample_vec, rtol=0.2)
-        assert np.allclose(np.mean(mult_chunks_means, axis=0), np.mean(single_chunk_means, axis=0), atol=5e-2)
-        assert np.allclose(np.mean(mult_chunks_means, axis=0), values_mean.mean, atol=5e-2)
-        assert np.allclose(np.mean(mult_chunks_vars, axis=0) / iter, np.mean(single_chunk_vars, axis=0) / iter, atol=1e-3)
-        assert np.allclose(np.mean(mult_chunks_vars, axis=0) / iter, values_mean.var, atol=1e-3)
+        #print("single chunk subsamples ", single_chunk_subsamples)
+        print("mult_chunks_subsamples ", mult_chunks_subsamples)
+        print("rm sumples ", rm_samples)
+
+        print("mean mult_chunks_subsamples ", np.mean(mult_chunks_subsamples, axis=0))
+        print("mean rm sumples ", np.mean(rm_samples, axis=0))
+        exit()
+
+        print("np.mean(single_chunk_subsamples, axis=0) ", np.mean(single_chunk_subsamples, axis=0))
+        print("np.mean(mult_chunks_subsamples, axis=0) ", np.mean(mult_chunks_subsamples, axis=0))
+        #
+        # assert np.allclose(np.mean(single_chunk_subsamples, axis=0), np.mean(mult_chunks_subsamples, axis=0), rtol=0.2)
+        # assert np.allclose(np.mean(single_chunk_subsamples, axis=0), sample_vec, rtol=0.2)
+        # assert np.allclose(np.mean(mult_chunks_means, axis=0), np.mean(single_chunk_means, axis=0), atol=5e-2)
+        # assert np.allclose(np.mean(mult_chunks_means, axis=0), values_mean.mean, atol=5e-2)
+        # assert np.allclose(np.mean(mult_chunks_vars, axis=0) / iter, np.mean(single_chunk_vars, axis=0) / iter, atol=1e-3)
+        # assert np.allclose(np.mean(mult_chunks_vars, axis=0) / iter, values_mean.var, atol=1e-3)
 
     def dev_memory_usage_test(self):
         work_dir = "/home/martin/Documents/MLMC_quantity"
@@ -680,3 +696,12 @@ class QuantityTests(unittest.TestCase):
         result_format = sample_storage.load_result_format()
         root_quantity = make_root_quantity(sample_storage, result_format)
         mean_root_quantity = estimate_mean(root_quantity)
+
+
+if __name__ == "__main__":
+    qt = QuantityTests()
+    qt.test_moments()
+    #qt.test_basics()
+    # qt.test_functions()
+    # qt.test_condition()
+    # qt.test_binary_operations()

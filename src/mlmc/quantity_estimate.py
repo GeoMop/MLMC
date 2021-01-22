@@ -30,29 +30,38 @@ def estimate_mean(quantity, chunk_size=512000000):
     :param chunk_size: chunk size in bytes in decimal, determines number of samples in chunk
     :return: QuantityMean which holds both mean and variance
     """
-    cache_clear()
+    #cache_clear()
     quantity_vec_size = quantity.size()
-    n_samples = None
-    n_rm_samples = None
     sums = None
     sums_of_squares = None
-    chunk_id = 0
-    level_chunks_none = np.zeros(1)  # if ones then the iteration through the chunks was terminated at each level
+    #chunk_id = 0
+    #level_chunks_none = np.zeros(1)  # if ones then the iteration through the chunks was terminated at each level
 
-    while not np.alltrue(level_chunks_none):
-        level_ids = quantity.get_quantity_storage().level_ids()
-        if n_samples is None:
-            # initialization
-            n_levels = len(level_ids)
-            n_samples = [0] * n_levels
-            n_rm_samples = [0] * n_levels
+    # initialization
+    level_ids = quantity.get_quantity_storage().level_ids()
+    n_levels = len(level_ids)
+    n_samples = [0] * n_levels
+    n_rm_samples = [0] * n_levels
 
-        level_chunks_none = np.zeros(n_levels)
-        for level_id in level_ids:
-            # Chunk of samples for given level id
-            try:
-                chunk = quantity.samples(ChunkSpec(level_id, chunk_id, chunk_size=chunk_size))
-                chunk, n_mask_samples = mask_nan_samples(chunk)
+    for level_id in level_ids:
+        try:
+            chunk_id = 0
+            # TODO: we should pass chunk_id to quantity.samples due to the use of CACHE
+            # TODO: Generators work well from direct storage access, but how to use it in for loop through input_quantites (see Quantity.sample)?
+            for chunk_spec in quantity.samples(level_id, chunk_size=chunk_size):
+                print("level_id: {}, chunk_id: {}".format(level_id, chunk_id))
+
+                # print("chunk_spec ", chunk_spec)
+                # print("type(chunk_spec) ", type(chunk_spec))
+                # print("chunk_spec.data.shape ", chunk_spec.data.shape)
+                #
+                # print("quantity.qtype.size() ", quantity.qtype.size())
+                # print("chunk_spec.data.shape[0] ", chunk_spec.data.shape[0])
+                # print("chunk_spec.data.shape", chunk_spec.data.shape)
+                # print("chunk_spec.data", chunk_spec.data)
+                # print("type(chunk_spec.data)", type(chunk_spec.data))
+
+                chunk, n_mask_samples = mask_nan_samples(chunk_spec.data)
                 # level_chunk is Numpy Array with shape [M, chunk_size, 2]
                 n_samples[level_id] += chunk.shape[1]
                 n_rm_samples[level_id] += n_mask_samples
@@ -74,9 +83,10 @@ def estimate_mean(quantity, chunk_size=512000000):
 
                 sums[level_id] += np.sum(chunk_diff, axis=1)
                 sums_of_squares[level_id] += np.sum(chunk_diff**2, axis=1)
-            except StopIteration:
-                level_chunks_none[level_id] = True
-        chunk_id += 1
+
+                chunk_id += 1
+        except StopIteration:
+            pass
 
     if sums is None:
         raise Exception("All samples were masked")
