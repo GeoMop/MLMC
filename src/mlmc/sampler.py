@@ -217,7 +217,7 @@ class Sampler:
         greater_items = np.where(np.greater(n_estimated, n_scheduled))[0]
 
         # Scheduled samples and wait until at least half of the samples are done
-        self.set_scheduled_and_wait(n_scheduled, greater_items, sleep, timeout)
+        self.set_scheduled_and_wait(n_scheduled, greater_items, sleep, timeout=timeout)
 
         return np.all(n_estimated[greater_items] == n_scheduled[greater_items])
 
@@ -255,10 +255,10 @@ class Sampler:
 
     def l_scheduled_samples(self):
         """
-        Get all levels target number of samples
+        Get all levels number of scheduled samples
         :return: list
         """
-        return self._n_target_samples
+        return self._n_scheduled_samples
 
     def renew_failed_samples(self):
         """
