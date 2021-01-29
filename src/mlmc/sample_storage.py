@@ -287,8 +287,8 @@ class Memory(SampleStorage):
         :return: List
         """
         n_collected = list(np.zeros(len(self._results)))
-        for level in self._results:
-            n_collected[int(level.level_id)] = level.collected_n_items()
+        for level_id, result in self._results.items():
+            n_collected[int(level_id)] = len(result)
         return n_collected
 
     def get_n_levels(self):
