@@ -4,8 +4,8 @@ from inspect import signature
 from memoization import cached
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.quantity_spec import QuantitySpec, ChunkSpec
-import mlmc.quantity_types as qt
+from mlmc.quantity.quantity_spec import QuantitySpec, ChunkSpec
+import mlmc.quantity.quantity_types as qt
 
 
 def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):

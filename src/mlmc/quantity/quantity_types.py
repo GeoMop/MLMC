@@ -3,7 +3,7 @@ import copy
 import numpy as np
 from scipy import interpolate
 from typing import List, Tuple
-import mlmc.quantity
+import mlmc.quantity.quantity
 
 
 class QType(metaclass=abc.ABCMeta):
@@ -171,7 +171,7 @@ class TimeSeriesType(QType):
             y = np.split(y, split_indeces, axis=-3)
             f = interpolate.interp1d(quantity.qtype._times, y, axis=0)
             return f(value)
-        return mlmc.quantity.Quantity(quantity_type=quantity.qtype._qtype, input_quantities=[quantity], operation=interp)
+        return mlmc.quantity.quantity.Quantity(quantity_type=quantity.qtype._qtype, input_quantities=[quantity], operation=interp)
 
 
 class FieldType(QType):

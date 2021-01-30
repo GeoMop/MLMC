@@ -2,8 +2,8 @@ import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
 from mlmc.plot import plots
-from mlmc.quantity_spec import ChunkSpec
-import mlmc.quantity_estimate as qe
+from mlmc.quantity.quantity_spec import ChunkSpec
+import mlmc.quantity.quantity_estimate as qe
 import mlmc.tool.simple_distribution
 
 

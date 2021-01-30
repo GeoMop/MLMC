@@ -1,7 +1,7 @@
 import numpy as np
-import mlmc.quantity
-import mlmc.quantity_types as qt
-from mlmc.quantity_spec import ChunkSpec
+import mlmc.quantity.quantity
+import mlmc.quantity.quantity_types as qt
+from mlmc.quantity.quantity_spec import ChunkSpec
 
 
 def mask_nan_samples(chunk):
@@ -16,8 +16,8 @@ def mask_nan_samples(chunk):
 
 
 def cache_clear():
-    mlmc.quantity.Quantity.samples.cache_clear()
-    mlmc.quantity.QuantityConst.samples.cache_clear()
+    mlmc.quantity.quantity.Quantity.samples.cache_clear()
+    mlmc.quantity.quantity.QuantityConst.samples.cache_clear()
 
 
 def estimate_mean(quantity, chunk_size=512000000):
@@ -82,8 +82,8 @@ def estimate_mean(quantity, chunk_size=512000000):
         else:
             l_vars.append(np.inf)
 
-    return mlmc.quantity.QuantityMean(quantity.qtype, l_means=l_means, l_vars=l_vars, n_samples=n_samples,
-                                      n_rm_samples=n_rm_samples)
+    return mlmc.quantity.quantity.QuantityMean(quantity.qtype, l_means=l_means, l_vars=l_vars, n_samples=n_samples,
+                                               n_rm_samples=n_rm_samples)
 
 
 def moment(quantity, moments_fn, i=0):
@@ -96,7 +96,7 @@ def moment(quantity, moments_fn, i=0):
     """
     def eval_moment(x):
         return moments_fn.eval_single_moment(i, value=x)
-    return mlmc.quantity.Quantity(quantity_type=quantity.qtype, input_quantities=[quantity], operation=eval_moment)
+    return mlmc.quantity.quantity.Quantity(quantity_type=quantity.qtype, input_quantities=[quantity], operation=eval_moment)
 
 
 def moments(quantity, moments_fn, mom_at_bottom=True):
@@ -121,7 +121,7 @@ def moments(quantity, moments_fn, mom_at_bottom=True):
     # Create quantity type that has moments_fn on the surface
     else:
         moments_qtype = qt.ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
-    return mlmc.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
+    return mlmc.quantity.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
 
 
 def covariance(quantity, moments_fn, cov_at_bottom=True):
@@ -157,4 +157,4 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
     # Create quantity type that has covariance matrices on the surface
     else:
         moments_qtype = qt.ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
-    return mlmc.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_cov)
+    return mlmc.quantity.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_cov)

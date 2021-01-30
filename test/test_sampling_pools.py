@@ -4,11 +4,11 @@ import numpy as np
 from scipy import stats
 import pytest
 import ruamel.yaml as yaml
-import mlmc.quantity
+import mlmc.quantity.quantity
 from test.synth_sim_for_tests import SynthSimulationWorkspaceForTests
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
+from mlmc.sampling_pool import OneProcessPool, ProcessPool
 from mlmc.moments import Legendre
 from mlmc.estimator import Estimate
 
@@ -70,8 +70,8 @@ def test_sampling_pools(sampling_pool, simulation_factory):
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    quantity = mlmc.quantity.make_root_quantity(storage=sample_storage,
-                                                q_specs=sample_storage.load_result_format())
+    quantity = mlmc.quantity.quantity.make_root_quantity(storage=sample_storage,
+                                                         q_specs=sample_storage.load_result_format())
     length = quantity['length']
     time = length[1]
     location = time['10']

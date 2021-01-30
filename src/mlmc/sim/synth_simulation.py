@@ -4,7 +4,7 @@ import numpy as np
 from typing import List
 import scipy.stats as stats
 from mlmc.sim.simulation import Simulation
-from mlmc.quantity_spec import QuantitySpec
+from mlmc.quantity.quantity_spec import QuantitySpec
 from mlmc.level_simulation import LevelSimulation
 
 

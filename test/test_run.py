@@ -3,15 +3,14 @@ import shutil
 import numpy as np
 from scipy import stats
 import pytest
-import copy
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
 from test.synth_sim_for_tests import SynthSimulationForTests
 from mlmc.sampler import Sampler
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
+from mlmc.sampling_pool import OneProcessPool, ProcessPool
 from mlmc.moments import Legendre
-from mlmc.quantity import make_root_quantity
+from mlmc.quantity.quantity import make_root_quantity
 import mlmc.estimator
 
 # Set work dir

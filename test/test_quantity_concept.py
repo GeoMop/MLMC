@@ -3,20 +3,17 @@ import shutil
 import unittest
 import numpy as np
 import random
-import pytest
 from scipy import stats
-from mlmc.quantity_spec import QuantitySpec
+from mlmc.quantity.quantity_spec import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc import quantity as q
-from mlmc.quantity import make_root_quantity
-from mlmc.quantity_estimate import estimate_mean, moment, moments, covariance, cache_clear
-from mlmc.quantity import Quantity, QuantityStorage, QuantityConst
-from mlmc.quantity_types import DictType, ScalarType
+from mlmc.quantity.quantity import make_root_quantity
+from mlmc.quantity.quantity_estimate import estimate_mean, moment, moments, covariance, cache_clear
+from mlmc import Quantity, QuantityConst
+from mlmc import ScalarType
 from mlmc.sampler import Sampler
-from mlmc.moments import Legendre, Monomial
-from mlmc.sampling_pool import OneProcessPool, ProcessPool
-from mlmc.sim.synth_simulation import SynthSimulationWorkspace
+from mlmc.moments import Monomial
+from mlmc.sampling_pool import OneProcessPool
 from test.synth_sim_for_tests import SynthSimulationForTests
 import mlmc.estimator
 
@@ -647,5 +644,5 @@ class QuantityTests(unittest.TestCase):
 
 if __name__ == '__main__':
     qt = QuantityTests()
-    qt.test_moments()
+    qt.test_basics()
     #unittest.main()
