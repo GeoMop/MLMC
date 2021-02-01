@@ -401,6 +401,12 @@ class LevelGroup:
             collected_n_items = len(dataset[()])
         return collected_n_items
 
+    def get_collected_ids(self):
+        collected_ids = []
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            collected_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.collected_ids_dset][()]]
+        return collected_ids
+
     def get_finished_ids(self):
         """
         Get collected and failed samples ids
@@ -408,8 +414,8 @@ class LevelGroup:
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             failed_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.failed_dset][()]]
-            successful_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.collected_ids_dset][()]]
-            return np.concatenate((np.array(successful_ids), np.array(failed_ids)), axis=0)
+            collected_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.collected_ids_dset][()]]
+            return np.concatenate((np.array(collected_ids), np.array(failed_ids)), axis=0)
 
     def get_unfinished_ids(self):
         """
