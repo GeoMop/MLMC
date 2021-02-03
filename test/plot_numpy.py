@@ -7,22 +7,9 @@ import numpy as np
 import scipy.stats as stats
 from scipy.interpolate import interp1d
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../src/')
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import mlmc.estimate
-import mlmc.distribution
-import mlmc.simple_distribution
-import mlmc.simple_distribution_total_var
-from mlmc import moments
-import test.benchmark_distributions as bd
+
 import mlmc.tool.plot as plot
-from test.fixtures.mlmc_test_run import MLMCTest
-import mlmc.spline_approx as spline_approx
-from mlmc.moments import Legendre
-from textwrap import wrap
-
-import pandas as pd
 import pickle
 
 
@@ -1515,7 +1502,73 @@ def plot_legendre():
     fig.savefig(file)
 
 
+def plot_sampling_data():
+    n_levels = [1]
+    for nl in n_levels:
+        sampling_info_path = "/home/martin/Sync/Documents/flow123d_results/flow_experiments/Exponential/" \
+                             "corr_length_0_3/sigma_2/L{}/sampling_info".format(nl)
+        sampling_info_path = "/home/martin/Sync/Documents/flow123d_results/flow_experiments/Exponential/" \
+                             "corr_length_0_1/sigma_2/L{}/sampling_info".format(nl)
+
+        n_target_samples = []
+        n_scheduled_samples = []
+        n_collected_samples = []
+        n_finished_samples = []
+        n_failed_samples = []
+        n_estimated = []
+        variances = []
+        n_ops = []
+        times = []
+
+        for i in range(0, 100):
+            sampling_info_path_iter = os.path.join(sampling_info_path, str(i))
+            if os.path.isdir(sampling_info_path_iter):
+                n_target_samples.append(np.load(os.path.join(sampling_info_path_iter, "n_target_samples.npy")))
+                n_scheduled_samples.append(np.load(os.path.join(sampling_info_path_iter, "n_scheduled_samples.npy")))
+                n_collected_samples.append(np.load(os.path.join(sampling_info_path_iter, "n_collected_samples.npy")))
+                n_finished_samples.append(np.load(os.path.join(sampling_info_path_iter, "n_finished_samples.npy")))
+                n_failed_samples.append(np.load(os.path.join(sampling_info_path_iter, "n_failed_samples.npy"), allow_pickle=True))
+                n_estimated.append(np.load(os.path.join(sampling_info_path_iter, "n_estimated.npy")))
+                variances.append(np.load(os.path.join(sampling_info_path_iter, "variances.npy")))
+                n_ops.append(np.load(os.path.join(sampling_info_path_iter, "n_ops.npy")))
+                times.append(np.load(os.path.join(sampling_info_path_iter, "time.npy")))
+            else:
+                break
+
+        sampling_plot = plot.SamplingPlots(title="Sampling algo", single_fig=True)
+
+
+
+        print("n_collected samples ", n_collected_samples)
+        print("n_finished_samples ", n_finished_samples)
+        print("n_failed_samples ", n_failed_samples)
+
+        sampling_plot.add_target_n(np.sum(n_target_samples, axis=1, keepdims=True))
+        sampling_plot.add_estimated_n(np.sum(n_estimated, axis=1, keepdims=True))
+        sampling_plot.add_collected_n(np.sum(n_finished_samples, axis=1, keepdims=True))
+
+
+        print("n_target_samples ", n_target_samples)
+        print("n_scheduled ", n_scheduled_samples)
+        print("n estimated ", n_estimated)
+        print("n_ops ", n_ops)
+
+        print("time ", times)
+
+        sampling_plot.show(None)
+        sampling_plot.show(file=os.path.join("sampling_algo".format(nl)))
+        sampling_plot.reset()
+
+
+
+
+
+
 if __name__ == "__main__":
+
+    plot_sampling_data()
+    exit()
+
     #plot_legendre()
 
     #plot_KL_div_exact()

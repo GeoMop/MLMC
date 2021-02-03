@@ -50,7 +50,6 @@ def plot_distr(x, density, distr):
 #     # fig.suptitle("Mu -> Lambda")
 #     axes = axes.flatten()
 #
-#
 #     for distr, ax in zip(distributions, axes):
 #         if hasattr(distr, "domain"):
 #             domain = distr.domain

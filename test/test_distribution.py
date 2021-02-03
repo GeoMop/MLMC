@@ -385,11 +385,11 @@ class DistributionDomainCase:
     def mlmc_conv(self, distr_plot=None):
         results = []
         kl_divergences = []
-        target_vars = [1e-6]
+        target_vars = [4e-6]
         distr_accuracy = 1e-8
         reg_params = [0]
         mom_class, min_mom, max_mom, mom_log = self.moments_data
-        n_levels = [1]#, 3, 5]
+        n_levels = [1, 2, 3, 5, 7]#, 3, 5]
         log_flag = self.log_flag
         a, b = self.domain
 
@@ -3656,12 +3656,12 @@ def run_distr():
         # (stats.dgamma(1,1), False) # not good
         # (stats.beta(0.5, 0.5), False) # Looks great
 
-        (stats.norm(loc=0, scale=10), False),
-        (bd.TwoGaussians(name='two-gaussians'), False),
-        (bd.FiveFingers(name='five-fingers'), False), # Covariance matrix decomposition failed
-        (bd.Cauchy(name='cauchy'), False),# pass, check exact
-        (bd.Discontinuous(name='discontinuous'), False),
-        (bd.Abyss(name="abyss"), False),
+        #(stats.norm(loc=0, scale=10), False),
+        #(bd.TwoGaussians(name='two-gaussians'), False),
+        #(bd.FiveFingers(name='five-fingers'), False), # Covariance matrix decomposition failed
+         (bd.Cauchy(name='cauchy'), False),# pass, check exact
+        # (bd.Discontinuous(name='discontinuous'), False),
+        # (bd.Abyss(name="abyss"), False),
         # # # # # # # # # # # # # # # # # # # #(bd.Gamma(name='gamma'), False) # pass
         # # # # # # # # # # # # # # # # # # # #(stats.norm(loc=1, scale=2), False),
 
@@ -3698,14 +3698,14 @@ def run_distr():
                          '1_eig0_diff_mu_line': False}
 
 
-    test_kl_estimates(mom[0], distribution_list, plot_requirements)
+    #test_kl_estimates(mom[0], distribution_list, plot_requirements)
     # #test_gauss_degree(mom[0], distribution_list[0], plot_requirements, degrees=[210, 220, 240, 260, 280, 300]) #  degrees=[10, 20, 40, 60, 80, 100], [110, 120, 140, 160, 180, 200]
     # test_gauss_degree(mom[0], distribution_list[0], plot_requirements, degrees=[10, 20, 40, 60, 80, 100])
-    # for m in mom:
-    #     for distr in enumerate(distribution_list):
-    #         #test_spline_approx(m, distr)
-    #         #splines_indicator_vs_smooth(m, distr)
-    #         test_pdf_approx_exact_moments(m, distr)
+    for m in mom:
+        for distr in enumerate(distribution_list):
+            #test_spline_approx(m, distr)
+            #splines_indicator_vs_smooth(m, distr)
+            test_pdf_approx_exact_moments(m, distr)
 
 @pytest.mark.skip
 def test_gauss_degree(moments, distr, plot_requirements, degrees=[100]):
@@ -3818,7 +3818,7 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
 
     reg_terms = []
 
-    for _ in range(100):
+    for _ in range(200):
         s = 3 * stats.uniform.rvs(size=1)[0]
         lambda_inex = exact_distr.multipliers + s*ratio_distribution.rvs(size)
         raw_distr._initialize_params(size)
@@ -3912,7 +3912,7 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
         #kl_divs = np.array(l_diffs)**2
 
         if plot_req['sqrt_kl_Cr']:
-            plot_scatter(ax, mu_diffs, dot_l_diff_mu_diff, title, ('log', 'log'), color='blue', s=scatter_size)
+            plot_scatter(ax, mu_diffs, np.sqrt(np.array(dot_l_diff_mu_diff) / barron_coef), title, ('log', 'log'), color='blue', s=scatter_size)
 
         # kl_divs = np.array(l_diffs)**2
         #

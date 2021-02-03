@@ -64,7 +64,71 @@ class ProcessSimple:
             self.run(renew=True) if args.command == 'renew' else self.run()
 
     def process(self):
-        sample_storage = SampleStorageHDF(file_path=os.path.join(self.work_dir, "mlmc_{}.hdf5".format(self.n_levels)))
+        """
+        Use collected data
+        :return: None
+        """
+        assert os.path.isdir(self.work_dir)
+        mlmc_estimators = {}
+        n_levels = [1,2,3,5]
+        # for nl in [ 1,3,5,7,9]:
+
+        for nl in n_levels:  # high resolution fields
+            print("LEVELS ", nl)
+            estimator = self.create_estimator(nl)
+            mlmc_estimators[nl] = estimator
+
+        #self.plot_moments(mlmc_estimators)
+        self.plot_distr(mlmc_estimators)
+
+    def plot_moments(self, mlmc_estimators):
+        moments_plot = mlmc.tool.plot.MomentsPlots(
+            title="Legendre {} moments".format(self.n_moments))
+
+        # moments_plot = mlmc.tool.plot.PlotMoments(
+        #     title="Monomial {} moments".format(self.n_moments), log_mean_y=False)
+
+        for nl, estimator in mlmc_estimators.items():
+
+
+            moments_mean = estimate_mean(moments(estimator._quantity, estimator._moments_fn))
+            est_moments = moments_mean.mean
+            est_vars = moments_mean.var
+
+            n_collected =  [str(n_c) for n_c in estimator._sample_storage.get_n_collected()]
+            moments_plot.add_moments((moments_mean.mean, moments_mean.var), label="#L{} N:".format(nl) + ", ".join(n_collected))
+
+            print("est moments ", est_moments)
+            print("est_vars ", est_vars)
+            print("np.max(est_vars) ", np.max(est_vars))
+
+        moments_plot.show(None)
+        moments_plot.show(file=os.path.join(self.work_dir, "{}_moments".format(self.n_moments)))
+        moments_plot.reset()
+
+    def plot_distr(self, mlmc_estimators, tol=1e-10):
+
+        # distr_plot = mlmc.tool.plot.ArticleDistribution(
+        #     title="{} levels, {} moments".format(self.n_levels, self.n_moments))
+
+        distr_plot = mlmc.tool.plot.ArticlePDF(
+            title="{} levels, {} moments".format(self.n_levels, self.n_moments))
+
+        for nl, estimator in mlmc_estimators.items():
+            distr_obj = self.construct_density(estimator, tol=tol)
+
+            distr_plot.add_distribution(distr_obj, label="#L{}".format(nl))
+
+            if nl == 1 and len(mlmc_estimators) == 1:
+                samples = estimator.get_level_samples(level_id=0)[..., 0]
+                distr_plot.add_raw_samples(np.squeeze(samples))
+
+        distr_plot.show(None)
+        distr_plot.show(file=os.path.join(self.work_dir, "pdf_cdf_{}_moments".format(self.n_moments)))
+        distr_plot.reset()
+
+    def create_estimator(self, nl):
+        sample_storage = SampleStorageHDF(file_path=os.path.join(self.work_dir, "L{0}/mlmc_{0}.hdf5".format(nl)))
         sample_storage.chunk_size = 1e8
         result_format = sample_storage.load_result_format()
         root_quantity = make_root_quantity(sample_storage, result_format)
@@ -74,32 +138,42 @@ class ProcessSimple:
         location = time['0']  # locations: ['0']
         q_value = location[0, 0]
 
+        # length = root_quantity['length']
+        # time = length[1]
+        # location = time['10']
+        # q_value = location[0]
+
         # @TODO: How to estimate true_domain?
         quantile = 0.001
         true_domain = mlmc.estimator.Estimate.estimate_domain(q_value, sample_storage, quantile=quantile)
+
+        #moments_fn = Monomial(self.n_moments, true_domain)
         moments_fn = Legendre(self.n_moments, true_domain)
 
-        estimator = mlmc.estimator.Estimate(quantity=q_value, sample_storage=sample_storage, moments_fn=moments_fn)
-        means, vars = estimator.estimate_moments(moments_fn)
+        return mlmc.estimator.Estimate(quantity=q_value, sample_storage=sample_storage, moments_fn=moments_fn)
 
-        moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
-        moments_mean = estimate_mean(moments_quantity)
-        conductivity_mean = moments_mean['conductivity']
-        time_mean = conductivity_mean[1]  # times: [1]
-        location_mean = time_mean['0']  # locations: ['0']
-        value_mean = location_mean[0]
-        assert value_mean.mean[0] == 1
-
-        # true_domain = [-10, 10]  # keep all values on the original domain
-        # central_moments = Monomial(self.n_moments, true_domain, ref_domain=true_domain, mean=means())
-        # central_moments_quantity = moments(root_quantity, moments_fn=central_moments, mom_at_bottom=True)
-        # central_moments_mean = estimate_mean(central_moments_quantity)
-
-        #estimator.sub_subselect(sample_vector=[10000])
-
-        #self.process_target_var(estimator)
-        self.construct_density(estimator, tol=1e-8)
-        self.data_plots(estimator)
+    # def process(self):
+    #     estimator = self.create_estimator(self.n_levels)
+    #     means, vars = estimator.estimate_moments(estimator._moments_fn)
+    #
+    #     moments_quantity = moments(estimator.quantity, moments_fn=estimator._moments_fn, mom_at_bottom=True)
+    #     moments_mean = estimate_mean(moments_quantity)
+    #     assert moments_mean.mean[0] == 1
+    #
+    #     # true_domain = [-10, 10]  # keep all values on the original domain
+    #     # central_moments = Monomial(self.n_moments, true_domain, ref_domain=true_domain, mean=means())
+    #     # central_moments_quantity = moments(root_quantity, moments_fn=central_moments, mom_at_bottom=True)
+    #     # central_moments_mean = estimate_mean(central_moments_quantity)
+    #
+    #     #estimator.sub_subselect(sample_vector=[10000])
+    #
+    #     #self.process_target_var(estimator)
+    #
+    #     # distr_plot = mlmc.tool.plot.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
+    #
+    #     self.plot_distr({self.n_levels: estimator}, tol=1e-8)
+    #
+    #     self.data_plots(estimator)
 
     def data_plots(self, estimator):
         estimator.fine_coarse_violinplot()
@@ -122,17 +196,7 @@ class ProcessSimple:
         :return: None
         """
         distr_obj, result, _, _ = estimator.construct_density(tol=tol, reg_param=reg_param)
-        #distr_plot = mlmc.tool.plot.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
-        distr_plot = mlmc.tool.plot.ArticleDistribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
-
-        distr_plot.add_distribution(distr_obj, label="#{}".format(self.n_moments))
-
-        if self.n_levels == 1:
-            samples = estimator.get_level_samples(level_id=0)[..., 0]
-            distr_plot.add_raw_samples(np.squeeze(samples))
-        distr_plot.show(None)
-        distr_plot.show(file=os.path.join(self.work_dir, "pdf_cdf_{}_moments".format(self.n_moments)))
-        distr_plot.reset()
+        return distr_obj
 
     def run(self, renew=False):
         """

@@ -79,11 +79,13 @@ class MLMCTest:
         simulation_factory = SynthSimulation(simulation_config)
         output_dir = os.path.dirname(os.path.realpath(__file__))
 
-        if os.path.exists(os.path.join(output_dir, "mlmc_test.hdf5")):
-            os.remove(os.path.join(output_dir, "mlmc_test.hdf5"))
+        hdf5_file_name = "mlmc_{}.hdf5".format(self.n_levels)
+
+        if os.path.exists(os.path.join(output_dir, hdf5_file_name)):
+            os.remove(os.path.join(output_dir, hdf5_file_name))
 
         # Create sample storages
-        sample_storage = SampleStorageHDF(file_path=os.path.join(output_dir, "mlmc_test.hdf5"))
+        sample_storage = SampleStorageHDF(file_path=os.path.join(output_dir, hdf5_file_name))
         # Create sampling pools
         sampling_pool = OneProcessPool()
         # sampling_pool_dir = OneProcessPool(work_dir=work_dir)
@@ -115,7 +117,6 @@ class MLMCTest:
                 variances, n_ops = self.estimator.estimate_diff_vars_regression(self.sampler._n_scheduled_samples)
                 n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                                     n_levels=self.sampler.n_levels)
-
 
                 # Loop until number of estimated samples is greater than the number of scheduled samples
                 while not self.sampler.process_adding_samples(n_estimated):

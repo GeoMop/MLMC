@@ -2,7 +2,7 @@ import numpy as np
 import scipy.stats as st
 from scipy import interpolate
 import matplotlib
-matplotlib.rcParams.update({'font.size': 38})
+matplotlib.rcParams.update({'font.size': 22})
 from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, FixedLocator
@@ -382,7 +382,7 @@ class Distribution:
         self.plot_matrix = []
         self.i_plot = 0
 
-        self.ax_cdf = None
+        self.ax_estimated_n = None
         self.ax_log_density = None
         self.ax_mult_mom_der = None
         self.ax_mult_mom_der_2 = None
@@ -396,13 +396,13 @@ class Distribution:
         if cdf_plot:
             self.fig, axes = plt.subplots(1, 2, figsize=(22, 10))
             self.fig_cdf = None
-            self.ax_pdf = axes[0]
-            self.ax_cdf = axes[1]
+            self.ax_target_n = axes[0]
+            self.ax_estimated_n = axes[1]
         else:
             if multipliers_plot:
                 self.fig, axes = plt.subplots(2, 2, figsize=(22, 14))
 
-                self.ax_pdf = axes[0, 0]
+                self.ax_target_n = axes[0, 0]
                 self.ax_log_density = axes[0, 1]
                 self.ax_mult_mom_der = axes[1, 0]
                 self.ax_mult_mom_der_2 = axes[1, 1]
@@ -436,27 +436,27 @@ class Distribution:
         x_axis_label = quantity_name
 
         # PDF axes
-        self.ax_pdf.set_title(r'$\rho$')
+        self.ax_target_n.set_title(r'$\rho$')
         #self.ax_pdf.set_ylabel("probability density")
-        self.ax_pdf.set_xlabel(x_axis_label)
+        self.ax_target_n.set_xlabel(x_axis_label)
         if self._log_x:
-            self.ax_pdf.set_xscale('log')
+            self.ax_target_n.set_xscale('log')
             x_axis_label = "log " + x_axis_label
         # if self._log_density:
         #     self.ax_pdf.set_yscale('log')
 
         if cdf_plot:
             # CDF axes
-            self.ax_cdf.set_title("CDF approximations")
-            self.ax_cdf.set_ylabel("probability")
-            self.ax_cdf.set_xlabel(x_axis_label)
+            self.ax_estimated_n.set_title("CDF approximations")
+            self.ax_estimated_n.set_ylabel("probability")
+            self.ax_estimated_n.set_xlabel(x_axis_label)
             if self._log_x:
-                self.ax_cdf.set_xscale('log')
+                self.ax_estimated_n.set_xscale('log')
 
         if error_plot:
-            self.ax_pdf_err = self.ax_pdf.twinx()
-            self.ax_pdf.set_zorder(10)
-            self.ax_pdf.patch.set_visible(False)
+            self.ax_pdf_err = self.ax_target_n.twinx()
+            self.ax_target_n.set_zorder(10)
+            self.ax_target_n.patch.set_visible(False)
 
             pdf_err_title = "error - dashed"
             if error_plot == 'kl':
@@ -466,9 +466,9 @@ class Distribution:
             self.ax_pdf_err.set_yscale('log')
 
             if cdf_plot:
-                self.ax_cdf_err = self.ax_cdf.twinx()
-                self.ax_cdf.set_zorder(10)
-                self.ax_cdf.patch.set_visible(False)
+                self.ax_cdf_err = self.ax_estimated_n.twinx()
+                self.ax_estimated_n.set_zorder(10)
+                self.ax_estimated_n.patch.set_visible(False)
                 #self.ax_cdf_err.set_ylabel("error - dashed")
                 self.ax_cdf_err.set_yscale('log')
 
@@ -483,14 +483,14 @@ class Distribution:
         N = len(samples)
         print("N samples ", N)
         bins = self._grid(int(0.5 * np.sqrt(N)))
-        self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
+        self.ax_target_n.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
 
         # Ecdf
         X = np.sort(samples)
         Y = (np.arange(len(X)) + 0.5) / float(len(X))
         X, Y = make_monotone(X, Y)
-        if self.ax_cdf is not None:
-            self.ax_cdf.plot(X, Y, 'red', label="ecdf")
+        if self.ax_estimated_n is not None:
+            self.ax_estimated_n.plot(X, Y, 'red', label="ecdf")
 
         # PDF approx as derivative of Bspline CDF approx
         size_8 = int(N / 8)
@@ -526,7 +526,7 @@ class Distribution:
         plots = []
 
         Y_pdf = distr_object.density(X)
-        self.ax_pdf.plot(X[distr_object.mask], Y_pdf, label=label, color=color)
+        self.ax_target_n.plot(X[distr_object.mask], Y_pdf, label=label, color=color)
         #self._plot_borders(self.ax_pdf, color, domain)
 
         # if self.i_plot >= len(line_styles):
@@ -590,9 +590,9 @@ class Distribution:
         # else:
         Y_cdf = distr_object.cdf(X)
 
-        if self.ax_cdf is not None:
-            self.ax_cdf.plot(X[distr_object.distr_mask], Y_cdf, color=color, label=label)
-            self._plot_borders(self.ax_cdf, color, domain)
+        if self.ax_estimated_n is not None:
+            self.ax_estimated_n.plot(X[distr_object.distr_mask], Y_cdf, color=color, label=label)
+            self._plot_borders(self.ax_estimated_n, color, domain)
 
         self.i_plot += 1
 
@@ -619,7 +619,7 @@ class Distribution:
         plots = []
 
         Y_pdf = distr_object.density(X)
-        self.ax_pdf.plot(X, Y_pdf, label=label, color=color)
+        self.ax_target_n.plot(X, Y_pdf, label=label, color=color)
         #self._plot_borders(self.ax_pdf, color, domain)
 
         # if self.i_plot >= len(line_styles):
@@ -662,8 +662,8 @@ class Distribution:
             #pdf = distr_object.density(X)
 
             #print("Y_cdf ", Y_cdf)
-            if self.ax_cdf is not None:
-                self.ax_cdf.scatter(X, Y_cdf, color=color, label="reg term")
+            if self.ax_estimated_n is not None:
+                self.ax_estimated_n.scatter(X, Y_cdf, color=color, label="reg term")
 
             beta_reg = []
             #for x in X:
@@ -683,9 +683,9 @@ class Distribution:
         else:
             Y_cdf = distr_object.cdf(X)
 
-        if self.ax_cdf is not None:
-            self.ax_cdf.plot(X, Y_cdf, color=color, label=label)
-            self._plot_borders(self.ax_cdf, color, domain)
+        if self.ax_estimated_n is not None:
+            self.ax_estimated_n.plot(X, Y_cdf, color=color, label=label)
+            self._plot_borders(self.ax_estimated_n, color, domain)
 
         self.i_plot += 1
 
@@ -698,10 +698,10 @@ class Distribution:
         :param file: None, or filename, default name is same as plot title.
         """
         self._add_exact_distr()
-        self.ax_pdf.legend(title=self._legend_title)#, loc='upper right', bbox_to_anchor=(0.5, -0.05))
+        self.ax_target_n.legend(title=self._legend_title)#, loc='upper right', bbox_to_anchor=(0.5, -0.05))
 
-        if self.ax_cdf is not None:
-            self.ax_cdf.legend()
+        if self.ax_estimated_n is not None:
+            self.ax_estimated_n.legend()
 
         if self.ax_log_density is not None:
             self.ax_mult_mom_der.legend()
@@ -749,15 +749,15 @@ class Distribution:
         Y = self._exact_distr.pdf(X)#[self.distr_object.density_mask])
         # if self._log_density:
         #     Y = np.log(Y)
-        self.ax_pdf.set_ylim([np.min(Y) - (np.max(Y) - np.min(Y)) * 0.1, np.max(Y) + (np.max(Y) - np.min(Y)) * 0.1])
-        self.ax_pdf.plot(X, Y, c='black', label="exact", linestyle=":")
+        self.ax_target_n.set_ylim([np.min(Y) - (np.max(Y) - np.min(Y)) * 0.1, np.max(Y) + (np.max(Y) - np.min(Y)) * 0.1])
+        self.ax_target_n.plot(X, Y, c='black', label="exact", linestyle=":")
 
         if self.ax_log_density is not None:
             self.ax_log_density.plot(X, np.log(Y), c='black', linestyle=":")
 
-        if self.reg_plot is False and self.ax_cdf is not None:
+        if self.reg_plot is False and self.ax_estimated_n is not None:
             Y = self._exact_distr.cdf(X)#self.distr_object.distr_mask])
-            self.ax_cdf.plot(X, Y, c='black')
+            self.ax_estimated_n.plot(X, Y, c='black')
 
     def _grid(self, size, domain=None):
         """
@@ -779,7 +779,7 @@ class ArticleDistribution(Distribution):
     Class for plotting distribution approximation: PDF and CDF (optional)
     Provides methods to: add more plots, add exact PDF, add ECDF/histogram from single level MC
     """
-    def __init__(self, exact_distr=None, title="", quantity_name="X", legend_title="",
+    def __init__(self, exact_distr=None, title="", quantity_name="Y", legend_title="",
                  log_density=False, cdf_plot=True, log_x=False, error_plot='l2', reg_plot=False, multipliers_plot=True):
         """
         Plot configuration
@@ -793,6 +793,7 @@ class ArticleDistribution(Distribution):
         integrand of KL divergence: exact_pdf * log(exact_pdf / approx_pdf).
         Simple difference is used for CDF for both options.
         """
+        matplotlib.rcParams.update({'font.size': 38})
         self._exact_distr = exact_distr
         self._log_density = log_density
         self._log_x = log_x
@@ -807,8 +808,11 @@ class ArticleDistribution(Distribution):
         self.ax_log_density = None
         self.x_lim = None
 
-        self.pdf_color = "brown"
-        self.cdf_color = "blue"
+        pdf_colors = ["brown", "salmon", "orange", "goldenrod", "red"]
+        cdf_colors = ["blue", "slateblue", "indigo", "darkseagreen", "green"]
+
+        self.pdf_color = iter(pdf_colors)
+        self.cdf_color = iter(cdf_colors)
 
         self.reg_plot = reg_plot
 
@@ -820,10 +824,10 @@ class ArticleDistribution(Distribution):
         x_axis_label = quantity_name
 
         # PDF axes
-        self.ax_pdf.set_ylabel("PDF", color=self.pdf_color)
+        self.ax_pdf.set_ylabel("PDF", color=pdf_colors[0])
         #self.ax_pdf.set_ylabel("probability density")
         self.ax_pdf.set_xlabel(x_axis_label)
-        self.ax_pdf.tick_params(axis='y', labelcolor=self.pdf_color)
+        self.ax_pdf.tick_params(axis='y', labelcolor=pdf_colors[0])
         if self._log_x:
             self.ax_pdf.set_xscale('log')
             x_axis_label = "log " + x_axis_label
@@ -833,8 +837,8 @@ class ArticleDistribution(Distribution):
         if cdf_plot:
             # CDF axes
             #self.ax_cdf.set_title("CDF approximations")
-            self.ax_cdf.set_ylabel("CDF", color=self.cdf_color)
-            self.ax_cdf.tick_params(axis='y', labelcolor=self.cdf_color)
+            self.ax_cdf.set_ylabel("CDF", color=cdf_colors[0])
+            self.ax_cdf.tick_params(axis='y', labelcolor=cdf_colors[0])
             self.ax_cdf.set_xlabel(x_axis_label)
             if self._log_x:
                 self.ax_cdf.set_xscale('log')
@@ -906,12 +910,12 @@ class ArticleDistribution(Distribution):
         plots = []
 
         Y_pdf = distr_object.density(X)
-        self.ax_pdf.plot(X, Y_pdf, color=self.pdf_color)
+        self.ax_pdf.plot(X, Y_pdf, color=next(self.pdf_color))
 
         Y_cdf = distr_object.cdf(X)
 
         if self.ax_cdf is not None:
-            self.ax_cdf.plot(X, Y_cdf, color=self.cdf_color)
+            self.ax_cdf.plot(X, Y_cdf, color=next(self.cdf_color))
             #self._plot_borders(self.ax_cdf, self.cdf_color, domain)
 
         self.i_plot += 1
@@ -931,6 +935,248 @@ class ArticleDistribution(Distribution):
             self.ax_cdf.legend()
 
         _show_and_save(self.fig, file, self._title)
+
+
+class ArticlePDF(Distribution):
+    """
+    mlmc.plot.Distribution
+
+    Class for plotting distribution approximation: PDF and CDF (optional)
+    Provides methods to: add more plots, add exact PDF, add ECDF/histogram from single level MC
+    """
+    def __init__(self, exact_distr=None, title="", quantity_name="Y", legend_title="",
+                 log_density=False, log_x=False):
+        """
+        Plot configuration
+        :param exact_distr:  Optional exact domain (for adding to plot and computing error)
+        :param title: Figure title.
+        :param quantity_name: Quantity for X axis label.
+        :param log_density: Plot logarithm of density value.
+        :param log_x: Use logarithmic scale for X axis.
+        Simple difference is used for CDF for both options.
+        """
+        self._exact_distr = exact_distr
+        self._log_density = log_density
+        self._log_x = log_x
+        self._domain = None
+        self._title = title
+        self._legend_title = legend_title
+        self.plot_matrix = []
+        self.i_plot = 0
+
+        self.ax_cdf = None
+        self.ax_log_density = None
+        self.x_lim = None
+
+
+        self.fig, self.ax_pdf = plt.subplots(1, 1, figsize=(22, 10))
+
+        self.pdf_color = plt.cm.tab10#create_color_bar(5, 'moments', self.ax_pdf)
+        x_axis_label = quantity_name
+
+
+        # PDF axes
+        self.ax_pdf.set_ylabel("PDF")
+        #self.ax_pdf.set_ylabel("probability density")
+        self.ax_pdf.set_xlabel(x_axis_label)
+        #self.ax_pdf.tick_params(axis='y', labelcolor=pdf_colors[0])
+        if self._log_x:
+            self.ax_pdf.set_xscale('log')
+
+        self.x_lim = [-0.5, 5]
+        self.ax_pdf.set_xlim(*self.x_lim)
+
+    def add_raw_samples(self, samples):
+        """
+        Add histogram and ecdf for raw samples.
+        :param samples:
+        """
+        # Histogram
+        domain = (np.min(samples), np.max(samples))
+        self.adjust_domain(domain)
+        if self.x_lim is not None:
+            self._domain = self.x_lim
+        N = len(samples)
+        print("N samples ", N)
+        bins = self._grid(int(0.5 * np.sqrt(N)) * 2)
+        self.ax_pdf.hist(samples, density=True, color='red', bins=bins, alpha=0.3)
+
+    def add_distribution(self, distr_object, label=None):
+        """
+        Add plot for distribution 'distr_object' with given label.
+        :param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain
+        :param label: string label for legend
+        :return:
+        """
+        if label is None:
+           label = "size {}".format(distr_object.moments_fn.size)
+        domain = distr_object.domain
+        self.adjust_domain(domain)
+        X = self._grid(10000, domain=domain)
+        Y_pdf = distr_object.density(X)
+        self.ax_pdf.plot(X, Y_pdf, color=self.pdf_color(self.i_plot), label=label)
+        self.i_plot += 1
+
+    def show(self, file=""):
+        """
+        Set colors according to the number of added plots.
+        Set domain from all plots.
+        Plot exact distribution.
+        show, possibly save to file.
+        :param file: None, or filename, default name is same as plot title.
+        """
+        self._add_exact_distr()
+        self.ax_pdf.legend(title=self._legend_title)#, loc='upper right', bbox_to_anchor=(0.5, -0.05))
+
+        _show_and_save(self.fig, file, self._title)
+
+
+class MomentsPlots(Distribution):
+    def __init__(self, title="", quantity_name="i-th moment", legend_title="", log_mean_y=False, log_var_y=False):
+        """
+        """
+        self._domain = None
+        self._title = title
+        self._legend_title = legend_title
+        self.plot_matrix = []
+        self.i_plot = 0
+
+        self.cmap = plt.cm.tab20
+        self.ax_var = None
+        self.ax_log_density = None
+        self.x_lim = None
+
+        # mean_colors = ["brown", "salmon", "orange", "goldenrod", "red"]
+        # var_colors = ["blue", "slateblue", "indigo", "darkseagreen", "green"]
+        #
+        # self.mean_color = iter(mean_colors)
+        # self.cdf_color = iter(var_colors)
+
+        self.fig, axes = plt.subplots(1, 2, figsize=(22, 10))
+        self.ax_mean = axes[0]
+        self.ax_var = axes[1]
+
+        #self.fig.suptitle(title, y=0.99)
+        x_axis_label = quantity_name
+
+        self.ax_mean.set_ylabel("Mean")
+        self.ax_mean.set_xlabel(x_axis_label)
+        self.ax_mean.tick_params(axis='y')
+
+        self.ax_var.set_ylabel("Var")
+        self.ax_var.tick_params(axis='y')
+        self.ax_var.set_xlabel(x_axis_label)
+
+        if log_mean_y:
+            self.ax_mean.set_yscale('log')
+
+        if log_var_y:
+            self.ax_var.set_yscale('log')
+
+    def add_moments(self, moments, label=None):
+        means, vars = moments
+        X = range(0, len(means))
+
+        self.ax_mean.scatter(X, means, color=self.cmap(self.i_plot), label=label)
+        self.ax_var.scatter(X, vars, color=self.cmap(self.i_plot), label=label)
+        #self._plot_borders(self.ax_cdf, self.cdf_color, domain)
+        self.i_plot += 1
+
+    def show(self, file=""):
+        self.ax_mean.legend()
+        self.ax_var.legend()
+
+        _show_and_save(self.fig, file, self._title)
+
+
+class SamplingPlots(Distribution):
+    def __init__(self, title="", quantity_name="i-th iteration", legend_title="", log_mean_y=False, log_var_y=False, single_fig=False):
+        """
+        """
+        self._domain = None
+        self._title = title
+        self._legend_title = legend_title
+        self.cmap = plt.cm.tab20
+        self.axes = None
+        x_axis_label = quantity_name
+
+        if single_fig:
+            self.fig, self.axes = plt.subplots(1, 1, figsize=(22, 10))
+            self.axes.set_xlabel(x_axis_label)
+            self._plot_i = 0
+        else:
+            self.fig, axes = plt.subplots(1, 3, figsize=(22, 10))
+            self.ax_target_n = axes[0]
+            self.ax_estimated_n = axes[1]
+            self.ax_collected_n = axes[2]
+
+            self.i_ax_target = 0
+            self.i_ax_estimated = 0
+            self.i_ax_collected = 0
+
+            self.ax_target_n.set_ylabel("N target samples")
+            self.ax_target_n.set_xlabel(x_axis_label)
+            self.ax_target_n.tick_params(axis='y')
+
+            self.ax_estimated_n.set_ylabel("N estimated samples")
+            self.ax_estimated_n.tick_params(axis='y')
+            self.ax_estimated_n.set_xlabel(x_axis_label)
+
+            self.ax_collected_n.set_ylabel("N collected samples")
+            self.ax_collected_n.tick_params(axis='y')
+            self.ax_collected_n.set_xlabel(x_axis_label)
+
+            if log_mean_y:
+                self.ax_target_n.set_yscale('log')
+
+            if log_var_y:
+                self.ax_estimated_n.set_yscale('log')
+
+    def add_target_n(self, target_n, label=None):
+        if self.axes is not None:
+            self.plot_data(self.axes, (range(0, len(target_n)), target_n), color=self.cmap(self._plot_i), label="T")
+            self._plot_i += 1
+        else:
+            self.plot_list_data(self.ax_target_n, target_n, self.i_ax_target, label=label)
+
+    def add_estimated_n(self, estimated_n, label=None):
+        if self.axes is not None:
+            self.plot_data(self.axes, (range(0, len(estimated_n)), estimated_n), color=self.cmap(self._plot_i), label="E")
+            self._plot_i += 1
+        else:
+            self.plot_list_data(self.ax_estimated_n, estimated_n, self.i_ax_estimated, label=label)
+
+    def add_collected_n(self, collected_n, label=None):
+        print("collected_n ", collected_n)
+        if self.axes is not None:
+            self.plot_data(self.axes, (range(0, len(collected_n)), collected_n), color=self.cmap(self._plot_i), label="C")
+            self._plot_i += 1
+        else:
+            self.plot_list_data(self.ax_collected_n, collected_n, self.i_ax_collected, label=label)
+
+    def plot_data(self, ax, data, color, label, marker='o'):
+        ax.scatter(data[0], data[1], color=color, label=label, marker=marker)
+
+    def plot_list_data(self, ax, data, ax_index, label):
+        X = range(0, len(data))
+        markers = ['o', 'x', 's', 'v', 'D', 'p', '*']
+        for j, iter_n in enumerate(data):
+            color = self.cmap(ax_index)
+            for i, level_n in enumerate(iter_n):
+                self.plot_data(ax, (X[j], level_n), color=color, label=label, marker=markers[i])
+        ax_index += 1
+
+    def show(self, file=""):
+        if self.axes is not None:
+            self.axes.legend()
+        else:
+            self.ax_target_n.legend()
+            self.ax_estimated_n.legend()
+            self.ax_collected_n.legend()
+
+        _show_and_save(self.fig, file, self._title)
+
+
 
 
 class Eigenvalues:
