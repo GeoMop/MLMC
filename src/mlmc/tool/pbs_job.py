@@ -6,7 +6,8 @@ import numpy as np
 import ruamel.yaml as yaml
 import pickle
 from mlmc.sampling_pool import SamplingPool
-from ruamel.yaml.error import ReusedAnchorWarning
+from ruamel.yaml.error import ReusedAnchorWarning, UnsafeLoaderWarning
+warnings.simplefilter("ignore", UnsafeLoaderWarning)
 warnings.simplefilter("ignore", ReusedAnchorWarning)
 
 

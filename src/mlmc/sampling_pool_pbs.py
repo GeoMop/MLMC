@@ -356,7 +356,7 @@ class SamplingPoolPBS(SamplingPool):
         """
         file_name = os.path.join(sample_dir, PbsJob.PERMANENT_SAMPLE.format("*"))
         file = glob.glob(file_name)[0]
-        job_id = re.findall(r'._(\d+)', file)[0]
+        job_id = re.findall(r'.jobID_(\d+)', file)[0]
 
         return job_id
 
