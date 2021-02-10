@@ -288,36 +288,3 @@ class TransformedMoments(Moments):
         orig_moments = self._origin.eval_diff2(value, self._origin.size)
         x1 = np.matmul(orig_moments, self._transform.T)
         return x1[..., :size]
-
-
-class TransformedMomentsDerivative(Moments):
-    def __init__(self, other_moments, matrix, degree=2, mean=0):
-        """
-        Set a new moment functions as linear combination of the previous.
-        new_moments = matrix . old_moments
-
-        We assume that new_moments[0] is still == 1. That means
-        first row of the matrix must be (1, 0 , ...).
-        :param other_moments: Original _moments_fn.
-        :param matrix: Linear combinations of the original _moments_fn.
-        """
-        n, m = matrix.shape
-        assert m == other_moments.size
-        self.size = n
-        self.domain = other_moments.domain
-        self.mean = mean
-        self._origin = other_moments
-        self._transform = matrix
-        self._degree = degree
-
-    def __eq__(self, other):
-        return type(self) is type(other) \
-                and self.size == other.size \
-                and self._origin == other._origin \
-                and np.all(self._transform == other._transform)
-
-    def _eval_all(self, value, size):
-        value = np.squeeze(value)
-        orig_moments = self._origin._eval_all_der(value, self._origin.size, degree=self._degree)
-        x1 = np.matmul(orig_moments, self._transform.T)
-        return x1[..., :size]
