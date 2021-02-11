@@ -7,13 +7,12 @@ class Moments:
     """
     Class for _moments_fn of random distribution
     """
-    def __init__(self, size, domain, log=False, safe_eval=True, mean=0):
+    def __init__(self, size, domain, log=False, safe_eval=True):
         assert size > 0
         self.size = size
         self.domain = domain
         self._is_log = log
         self._is_clip = safe_eval
-        self.mean = mean
 
         if log:
             lin_domain = (np.log(domain[0]), np.log(domain[1]))
@@ -77,7 +76,6 @@ class Moments:
         return self._eval_all(value, self.size)
 
     def eval(self, i, value):
-        value = self._center(value)
         return self._eval_all(value, i+1)[:, -1]
 
     def eval_single_moment(self, i, value):
@@ -87,56 +85,36 @@ class Moments:
         :param value: float
         :return: np.ndarray
         """
-        value = self._center(value)
         return self._eval_all(value, i+1)[..., i]
 
     def eval_all(self, value, size=None):
         if size is None:
             size = self.size
-
-        value = self._center(value)
         return self._eval_all(value, size)
 
-    def _center(self, value):
-        if isinstance(value, (int, float)):
-            return value - self.mean
-
-        if not isinstance(self.mean, int):
-            value[...] = value[...] - self.mean[:, None, None]
-        else:
-            if isinstance(value, (float, int)):
-                value = value - self.mean
-            else:
-                value[...] = value[...] - self.mean
-
-        return value
-
     def eval_all_der(self, value, size=None, degree=1):
-        value = self._center(value)
         if size is None:
             size = self.size
         return self._eval_all_der(value, size, degree)
 
     def eval_diff(self, value, size=None):
-        value = self._center(value)
         if size is None:
             size = self.size
         return self._eval_diff(value, size)
 
     def eval_diff2(self, value, size=None):
-        value = self._center(value)
         if size is None:
             size = self.size
         return self._eval_diff2(value, size)
 
 
 class Monomial(Moments):
-    def __init__(self, size, domain=(0, 1), ref_domain=None, log=False, safe_eval=True, mean=0):
+    def __init__(self, size, domain=(0, 1), ref_domain=None, log=False, safe_eval=True):
         if ref_domain is not None:
             self.ref_domain = ref_domain
         else:
             self.ref_domain = (0, 1)
-        super().__init__(size, domain, log=log, safe_eval=safe_eval, mean=mean)
+        super().__init__(size, domain, log=log, safe_eval=safe_eval)
 
     def _eval_all(self, value, size):
         # Create array from values and transform values outside the ref domain
@@ -150,13 +128,13 @@ class Monomial(Moments):
 
 
 class Fourier(Moments):
-    def __init__(self, size, domain=(0, 2*np.pi), ref_domain=None, log=False, safe_eval=True, mean=0):
+    def __init__(self, size, domain=(0, 2*np.pi), ref_domain=None, log=False, safe_eval=True):
         if ref_domain is not None:
             self.ref_domain = ref_domain
         else:
             self.ref_domain = (0, 2*np.pi)
 
-        super().__init__(size, domain, log=log, safe_eval=safe_eval, mean=mean)
+        super().__init__(size, domain, log=log, safe_eval=safe_eval)
 
     def _eval_all(self, value, size):
         # Transform values
@@ -189,7 +167,7 @@ class Fourier(Moments):
 
 class Legendre(Moments):
 
-    def __init__(self, size, domain, ref_domain=None, log=False, safe_eval=True, mean=0):
+    def __init__(self, size, domain, ref_domain=None, log=False, safe_eval=True):
         if ref_domain is not None:
             self.ref_domain = ref_domain
         else:
@@ -200,8 +178,7 @@ class Legendre(Moments):
             self.diff_mat[n, n + 1::2] = 2 * n + 1
         self.diff2_mat = self.diff_mat @ self.diff_mat
 
-        self.mean = mean
-        super().__init__(size, domain, log, safe_eval, mean)
+        super().__init__(size, domain, log, safe_eval)
 
     def _eval_value(self, x, size):
         return np.polynomial.legendre.legvander(x, deg=size-1)
@@ -244,7 +221,7 @@ class Legendre(Moments):
 
 
 class TransformedMoments(Moments):
-    def __init__(self, other_moments, matrix, mean=0):
+    def __init__(self, other_moments, matrix):
         """
         Set a new moment functions as linear combination of the previous.
         new_moments = matrix . old_moments
@@ -256,10 +233,8 @@ class TransformedMoments(Moments):
         """
         n, m = matrix.shape
         assert m == other_moments.size
-        self.mean = 0
         self.size = n
         self.domain = other_moments.domain
-        self.mean = mean
         self._origin = other_moments
         self._transform = matrix
 

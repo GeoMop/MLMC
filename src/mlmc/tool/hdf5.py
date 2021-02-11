@@ -147,8 +147,6 @@ class HDF5:
                     dtype=result_format_dtype,
                     maxshape=(None,),
                     chunks=True)
-            else:
-                raise ValueError('You are setting a new result format for an existing sample storage')
 
         # Format data
         result_array = np.empty((len(result_format),), dtype=result_format_dtype)
@@ -171,7 +169,7 @@ class HDF5:
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             if self.result_format_dset_name not in hdf_file:
-                raise FileNotFoundError
+                raise AttributeError
 
             dataset = hdf_file[self.result_format_dset_name]
             return dataset[()]
