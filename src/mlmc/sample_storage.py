@@ -255,9 +255,10 @@ class Memory(SampleStorage):
         :return: None
         """
         for level, (time, n_samples) in n_ops:
-            if level not in self._n_ops or n_samples == 0:
+            if level not in self._n_ops:
                 self._n_ops[level] = 0
-            else:
+
+            if n_samples != 0:
                 self._n_ops[level] += time/n_samples
 
     def get_n_ops(self):
@@ -280,31 +281,14 @@ class Memory(SampleStorage):
     def get_level_ids(self):
         return list(self._results.keys())
 
-    def get_chunks_info(self, level_id, i_chunk):
-        """
-        The start and end index of a chunk from a whole dataset point of view
-        :param level_id: level id
-        :param i_chunk: chunk id
-        :return: List[int, int]
-        """
-        return [0, len(self._results[level_id])-1]
-
-    def level_chunk_n_samples(self, level_id):
-        """
-        Number of items in one chunk
-        :param level_id: level id
-        :return: int
-        """
-        return len(self._results[level_id])
-
     def get_n_collected(self):
         """
         Number of collected samples at each level
         :return: List
         """
         n_collected = list(np.zeros(len(self._results)))
-        for level in self._results:
-            n_collected[int(level.level_id)] = level.collected_n_items()
+        for level_id, result in self._results.items():
+            n_collected[int(level_id)] = len(result)
         return n_collected
 
     def get_n_levels(self):

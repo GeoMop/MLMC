@@ -41,7 +41,7 @@ def estimate_mean(quantity, chunk_size=512000000):
 
     while not np.alltrue(level_chunks_none):
         level_ids = quantity.get_quantity_storage().level_ids()
-        if chunk_id == 0:
+        if n_samples is None:
             # initialization
             n_levels = len(level_ids)
             n_samples = [0] * n_levels
@@ -56,13 +56,18 @@ def estimate_mean(quantity, chunk_size=512000000):
                 # level_chunk is Numpy Array with shape [M, chunk_size, 2]
                 n_samples[level_id] += chunk.shape[1]
                 n_rm_samples[level_id] += n_mask_samples
+
+                # No samples in chunk
+                if chunk.shape[1] == 0:
+                    continue
                 assert (chunk.shape[0] == quantity_vec_size)
 
+                # Set variables for level sums and sums of squares
+                if sums is None:
+                    sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+                    sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+
                 if level_id == 0:
-                    # Set variables for level sums and sums of powers
-                    if chunk_id == 0:
-                        sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-                        sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
                     chunk_diff = chunk[:, :, 0]
                 else:
                     chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
@@ -73,6 +78,9 @@ def estimate_mean(quantity, chunk_size=512000000):
                 level_chunks_none[level_id] = True
         chunk_id += 1
 
+    if sums is None:
+        raise Exception("All samples were masked")
+
     l_means = []
     l_vars = []
     for s, sp, n in zip(sums, sums_of_squares, n_samples):
@@ -80,7 +88,7 @@ def estimate_mean(quantity, chunk_size=512000000):
         if n > 1:
             l_vars.append((sp - (s ** 2 / n)) / (n-1))
         else:
-            l_vars.append(np.inf)
+            l_vars.append(np.full(len(s), np.inf))
 
     return mlmc.quantity.QuantityMean(quantity.qtype, l_means=l_means, l_vars=l_vars, n_samples=n_samples,
                                       n_rm_samples=n_rm_samples)

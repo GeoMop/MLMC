@@ -1,5 +1,6 @@
-import numpy as np
 import operator
+import random
+import numpy as np
 from inspect import signature
 from memoization import cached
 from typing import List
@@ -48,7 +49,6 @@ class Quantity:
         self._selection_id = self.set_selection_id()
         # Identifier of selection, should be set in select() method
         self._check_selection_ids()
-        self._op_additional_params()
 
     def get_quantity_storage(self):
         """
@@ -93,16 +93,6 @@ class Quantity:
             if sel_id != self.selection_id():
                 raise AssertionError("Not all input quantities come from the same quantity storage")
 
-    def _op_additional_params(self):
-        """
-        Handle operation additional params
-        There are level_id a i_chunk params used in the sampling method and during the selection procedure
-        """
-        self._additional_params = {}
-        sig_params = signature(self._operation).parameters
-        if 'chunk_spec' in sig_params:
-            self._additional_params['chunk_spec'] = None
-
     def selection_id(self):
         """
         Get storage ids of all input quantities
@@ -140,12 +130,7 @@ class Quantity:
         :return: np.ndarray or None
         """
         chunks_quantity_level = [q.samples(chunk_spec) for q in self._input_quantities]
-
-        if bool(self._additional_params):  # dictionary is empty
-            if 'chunk_spec' in self._additional_params:
-                self._additional_params['chunk_spec'] = chunk_spec
-
-        return self._operation(*chunks_quantity_level, **self._additional_params)
+        return self._operation(*chunks_quantity_level)
 
     def _reduction_op(self, quantities, operation):
         """
@@ -318,30 +303,61 @@ class Quantity:
             return self._process_mask(x, y, operator.ne)
         return self._mask_quantity(other, ne_op)
 
-    def subsample(self, sample_vec):
+    @staticmethod
+    def pick_samples(chunk, subsample_params):
         """
-        Random subsampling
-        :param sample_vec: list of number of samples at each level
+        Pick samples some samples from chunk in order to have 'k' samples from 'n' after all chunks are processed
+        Note that it is not guaranteed to receive the exact number of 'k' samples
+        :param chunk: np.ndarray, shape M, N, 2, where N denotes number of samples in chunk
+        :param subsample_params: instance of SubsampleParams class, it has two parameters:
+                        k: number of samples which we want to get from all chunks
+                        n: number of all samples among all chunks
         :return: np.ndarray
         """
-        quantity_storage = self.get_quantity_storage()
-        n_collected = quantity_storage.n_collected()
+        out = []
+        for _ in range(chunk.shape[1]):
+            i = random.randint(0, subsample_params.n)
+            if i < subsample_params.k and i < chunk.shape[1]:
+                out.append(chunk[:, i, :])
+                subsample_params.k -= 1
+            subsample_params.n -= 1
 
-        rnd_indices = {}
-        for level_id in self.get_quantity_storage().level_ids():
-            rnd_indices[level_id] = np.sort(np.random.choice(n_collected[level_id], size=sample_vec[level_id]))
+        if not out:
+            out = np.array(out)[:, np.newaxis, np.newaxis]
+        return np.array(out).transpose((1, 0, 2))  # M, N, 2
 
-        def mask_gen(x, chunk_spec):
-            chunks_info = quantity_storage.get_chunks_info(chunk_spec)  # start and end index in collected values
-            chunk_indices = list(range(*chunks_info))
-            indices = np.intersect1d(rnd_indices[level_id], chunk_indices)
-            final_indices = np.where(np.isin(chunk_indices, indices))[0]
-            mask = np.zeros(x.shape[1], bool)
-            mask[final_indices[:x.shape[1]]] = True
-            return mask
+    def subsample(self, sample_vec):
+        """
+        Subsampling
+        :param sample_vec: list of number of samples at each level
+        :return: Quantity
+        """
+        class SubsampleParams:
+            def __init__(self, num_subsample, num_collected):
+                """
+                Auxiliary object for subsampling
+                :param num_subsample: the number of samples we want to obtain from all samples
+                :param num_collected: total number of samples
+                """
+                self.k = num_subsample
+                self.n = num_collected
+
+        # SubsampleParams for each level
+        subsample_level_params = {key: SubsampleParams(sample_vec[key], value)
+                                  for key, value in enumerate(self.get_quantity_storage().n_collected())}
+        # Create a QuantityConst of dictionary in the sense of hashing dictionary items
+        quantity_subsample_params = Quantity.wrap(hash(frozenset(subsample_level_params.items())))
+
+        def adjust_value(values, chunk_spec):
+            """
+            Custom implementation of QuantityConst.adjust_value()
+            It allows us to get different parameters for different levels
+            """
+            return subsample_level_params[chunk_spec.level_id]
+        quantity_subsample_params._adjust_value = adjust_value
 
         return Quantity(quantity_type=self.qtype.replace_scalar(qt.BoolType()),
-                        input_quantities=[self], operation=mask_gen)
+                        input_quantities=[self, quantity_subsample_params], operation=Quantity.pick_samples)
 
     def __getitem__(self, key):
         """
@@ -517,7 +533,7 @@ class QuantityConst(Quantity):
         :param chunk_spec: ChunkSpec instance
         :return: tuple
         """
-        return id(self)
+        return (chunk_spec.level_id, chunk_spec.chunk_id, chunk_spec.n_samples, chunk_spec.chunk_size, id(self))  # redundant parentheses needed due to py36, py37
 
     def selection_id(self):
         """
@@ -526,6 +542,16 @@ class QuantityConst(Quantity):
         """
         return self._selection_id
 
+    def _adjust_value(self, value, chunk_spec=None):
+        """
+        Allows process value based on chunk_epc params (such as level_id, ...).
+        The custom implementation is used in Qunatity.subsample method
+        :param value: np.ndarray
+        :param chunk_spec: ChunkSpec instance
+        :return: np.ndarray, particular type depends on implementation
+        """
+        return value
+
     @cached(custom_key_maker=get_cache_key)
     def samples(self, chunk_spec):
         """
@@ -533,7 +559,7 @@ class QuantityConst(Quantity):
         :param chunk_spec: ChunkSpec instance
         :return: np.ndarray
         """
-        return self._value
+        return self._adjust_value(self._value, chunk_spec)
 
 
 class QuantityMean:
@@ -562,11 +588,6 @@ class QuantityMean:
         """
         self._mean = np.sum(self._l_means, axis=0)
         self._var = np.sum(self._l_vars / self._n_samples[:, None], axis=0)
-
-        # Sums full of zeros leads to NaN
-        if np.isnan(self._mean).all():
-            self._mean = []
-            self._var = []
 
     @property
     def mean(self):
@@ -665,9 +686,6 @@ class QuantityStorage(Quantity):
         level_chunk = self._storage.sample_pairs_level(chunk_spec)  # Array[M, chunk size, 2]
         assert self.qtype.size() == level_chunk.shape[0]
         return level_chunk
-
-    def get_chunks_info(self, chunk_spec):
-        return self._storage.get_chunks_info(chunk_spec)
 
     def n_collected(self):
         return self._storage.get_n_collected()
