@@ -1,8 +1,9 @@
+import itertools
 import numpy as np
 from abc import ABCMeta
 from abc import abstractmethod
 from typing import List, Dict
-from mlmc.quantity_spec import QuantitySpec, ChunkSpec
+from mlmc.quantity_spec import QuantitySpec
 
 
 class SampleStorage(metaclass=ABCMeta):
@@ -106,6 +107,7 @@ class SampleStorage(metaclass=ABCMeta):
         Get number of collected results at each evel
         :return: list
         """
+
 
 class Memory(SampleStorage):
 
@@ -222,35 +224,47 @@ class Memory(SampleStorage):
         levels_results = list(np.empty(len(np.max(self._results.keys()))))
 
         for level_id in self.get_level_ids():
-            results = self.sample_pairs_level(ChunkSpec(level_id))
+            results = self.sample_pairs_level(level_id=level_id)
             levels_results[level_id] = results
 
         return levels_results
 
-    def sample_pairs_level(self, level_id=None, chunk_size=None, n_samples=None):
+    def chunks(self, level_id=None):
+        """
+        Create chunks generator
+        :param level_id: int, if not None return chunks for a given level
+        :return: generator
+        """
+        if level_id is not None:
+            return self._results[int(level_id)].chunks()
+        return itertools.chain(*[self.level_chunks(level_id) for level_id in self.get_level_ids()])  # concatenate generators
+
+    def level_chunks(self, level_id):
+        yield 0, slice(0, len(self._results[level_id]), 1), level_id
+
+    def sample_pairs_level(self, level_id=None, chunk_slice=None, n_samples=None):
         """
         Get samples for given level, chunks does not make sense in Memory storage so all data are retrieved at once
-        :param chunk_spec: ChunkSpec instance, contains level_id, chunk_id, possibly n_samples
+        :param level_id: int, level identifier
+        :param chunk_slice: slice() object
+        :param n_samples: int, number of samples to retrieve
         :return: np.ndarray
         """
         if level_id is None:
             level_id = 0
         results = self._results[int(level_id)]
 
-        print("results.shape ", results.shape)
+        if n_samples is None and chunk_slice is not None:
+            chunk = results[chunk_slice]
+        elif n_samples is not None and n_samples < len(results):
+            chunk = results[:n_samples]
+        else:
+            chunk = results
 
-        if n_samples is None and chunk_size is not None:
-            first_item = results[0]
-            item_byte_size = first_item.size * first_item.itemsize
-            n_samples = int(np.ceil(chunk_size / item_byte_size)) \
-                if int(np.ceil(chunk_size / item_byte_size)) < len(results) else len(results)
-
-        for chunk_id, pos in enumerate(range(0, len(results), n_samples)):
-            chunk = results[pos: pos + n_samples]
-            if level_id == 0:
-                chunk = chunk[:, :1, :]
-
-            yield ChunkSpec(level_id=level_id, data=chunk.transpose((2, 0, 1)), chunk_id=chunk_id)
+        # Remove auxiliary zeros from level zero sample pairs
+        if level_id == 0:
+            chunk = chunk[:, :1, :]
+        return chunk.transpose((2, 0, 1))  # [M, chunk size, 2]
 
     def save_n_ops(self, n_ops):
         """

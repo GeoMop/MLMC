@@ -19,14 +19,3 @@ class QuantitySpec:
                 and not (set(self.locations) - set(other.locations)):
             return True
         return False
-
-
-@attr.s(auto_attribs=True, frozen=True)
-class ChunkSpec:
-    data: np.ndarray
-    # Chunk data
-    level_id: int = 0
-    # Level identifier
-    chunk_id: int = 0
-    # Chunk identifier
-

@@ -5,7 +5,7 @@ from inspect import signature
 from memoization import cached
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.quantity_spec import QuantitySpec, ChunkSpec
+from mlmc.quantity_spec import QuantitySpec
 import mlmc.quantity_types as qt
 
 
@@ -112,43 +112,34 @@ class Quantity:
         """
         return self.qtype.size()
 
-    def get_cache_key(self, level_id, chunk_size=None, n_samples=None):
+    def get_cache_key(self, level_id=None, chunk_id=None, chunk_slice=None, n_samples=None):
         """
         Create cache key
-        :param chunk_spec: ChunkSpec instance
-        :return: tuple
         """
-        return (level_id, chunk_size, n_samples, id(self))  # redundant parentheses needed due to py36, py37
+        chunk_size = None
+        if chunk_slice is not None:
+            chunk_size = chunk_slice.stop - chunk_slice.start
+        return (level_id, chunk_id, chunk_size, n_samples, id(self))  # redundant parentheses needed due to py36, py37
 
-    #@cached(custom_key_maker=get_cache_key)
-    def samples(self, level_id=None, chunk_size=None, n_samples=None):
+    @cached(custom_key_maker=get_cache_key)
+    def samples(self, level_id=None, chunk_id=None, chunk_slice=None, n_samples=None):
         """
-        Yields list of sample chunks for individual levels.
+        Return list of sample chunks for individual levels.
         Possibly calls underlying quantities.
+        :param level_id: int, level identifier
+        :param chunk_id: int, chunk identifier
+        :param chunk_slice: slice() object
+        :param n_samples: int, number of samples to retrieve
         :return: np.ndarray or None
         """
-        try:
-
-
-            chunks_quantity_level = [next(q.samples(level_id, chunk_size, n_samples)).data for q in self._input_quantities]
-
-            #
-            # print("len(chunk_quantity_level) ", len(chunks_quantity_level))
-            # print("chunks quantity level[0].shape ", chunks_quantity_level[0].shape)
-            #
-            # print("self._operation ", self._operation)
-
-            yield ChunkSpec(level_id=level_id, data=self._operation(*chunks_quantity_level))
-        except StopIteration:
-
-            pass
-        #return self._operation(*chunks_quantity_level)
+        chunks_quantity_level = [q.samples(level_id, chunk_id, chunk_slice, n_samples) for q in self._input_quantities]
+        return self._operation(*chunks_quantity_level)
 
     def _reduction_op(self, quantities, operation):
         """
         :param quantities: List[Quantity]
         :param operation: function which is run with given quantities
-        :return: Quantity
+        :return: Quantity or QuantityConst
         """
         for quantity in quantities:
             if not isinstance(quantity, QuantityConst):
@@ -231,7 +222,6 @@ class Quantity:
                 return Quantity(quantity.qtype, operation=operation, input_quantities=quantities)
         # Quantity from QuantityConst instances
         return QuantityConst(quantities[0].qtype, value=operation(*[q._value for q in quantities]))
-
 
     @staticmethod
     def add_op(x, y):
@@ -326,9 +316,6 @@ class Quantity:
                         n: number of all samples among all chunks
         :return: np.ndarray
         """
-        print("subsample params total n ", subsample_params.total_n)
-        print("pick samples chunk shape ", chunk.shape)
-
         out = []
         for _ in range(chunk.shape[1]):
             i = random.randint(0, subsample_params.n)
@@ -440,14 +427,10 @@ class Quantity:
         :return: Quantity
         """
         def _ufunc_call(*input_quantities_chunks):
-            print("input quantittes chunks ", input_quantities_chunks)
             return getattr(ufunc, method)(*input_quantities_chunks, **kwargs)
-
         quantities = []
         for arg in args:
             quantities.append(Quantity.wrap(arg))
-
-        print("quantities ", quantities)
         result_qtype = Quantity._result_qtype(_ufunc_call, quantities)
         return Quantity(quantity_type=result_qtype, input_quantities=list(quantities), operation=_ufunc_call)
 
@@ -480,10 +463,7 @@ class Quantity:
         :param method: ufunc function
         :return: QType
         """
-        try:
-            chunks_quantity_level = [next(q.samples(chunk_size=None, level_id=0, n_samples=10)).data for q in quantities]
-        except StopIteration:
-            pass
+        chunks_quantity_level = [q.samples(level_id=0, chunk_id=0, n_samples=10) for q in quantities]
         result = method(*chunks_quantity_level)  # numpy array of [M, <=10, 2]
         qtype = qt.ArrayType(shape=result.shape[0], qtype=Quantity._get_base_qtype(quantities))
         return qtype
@@ -548,13 +528,14 @@ class QuantityConst(Quantity):
             value = np.array([value])
         return value[:, np.newaxis, np.newaxis]
 
-    def get_cache_key(self, level_id, chunk_size=None, n_samples=None):
+    def get_cache_key(self, level_id=None, chunk_id=None, chunk_slice=None, n_samples=None):
         """
         Create cache key
-        :param chunk_spec: ChunkSpec instance
-        :return: tuple
         """
-        return (level_id, chunk_size, n_samples, id(self))  # redundant parentheses needed due to py36, py37
+        chunk_size = None
+        if chunk_slice is not None:
+            chunk_size = chunk_slice.stop - chunk_slice.start
+        return (level_id, chunk_id, chunk_size, n_samples, id(self))  # redundant parentheses needed due to py36, py37
 
     def selection_id(self):
         """
@@ -568,19 +549,22 @@ class QuantityConst(Quantity):
         Allows process value based on chunk_epc params (such as level_id, ...).
         The custom implementation is used in Qunatity.subsample method
         :param value: np.ndarray
-        :param chunk_spec: ChunkSpec instance
+        :param level_id: int
         :return: np.ndarray, particular type depends on implementation
         """
         return value
 
-    #@cached(custom_key_maker=get_cache_key)
-    def samples(self, level_id=None, chunk_size=None, n_samples=None):
+    @cached(custom_key_maker=get_cache_key)
+    def samples(self, level_id=None, chunk_id=None, chunk_slice=None, n_samples=None):
         """
         Get constant values with an enlarged number of axes
-        :param chunk_spec: ChunkSpec instance
+        :param level_id: int, level identifier
+        :param chunk_id: int, chunk identifier
+        :param chunk_slice: slice() object
+        :param n_samples: int, number of samples to retrieve
         :return: np.ndarray
         """
-        yield ChunkSpec(level_id=level_id, data=self._adjust_value(self._value, level_id))
+        return self._adjust_value(self._value, level_id)
 
 
 class QuantityMean:
@@ -698,13 +682,19 @@ class QuantityStorage(Quantity):
     def get_quantity_storage(self):
         return self
 
-    def samples(self, level_id, chunk_size=None, n_samples=None):
+    def chunks(self):
+        return self._storage.chunks()
+
+    def samples(self, level_id=None, chunk_id=None, chunk_slice=None, n_samples=None):
         """
         Get results for given level id and chunk id
-        :param chunk_spec: mlmc.quantity_spec.ChunkSpec instance
+        :param level_id: int, level identifier
+        :param chunk_id: int, chunk identifier
+        :param chunk_slice: slice() object
+        :param n_samples: int, number of samples to retrieve
         :return: Array[M, chunk size, 2]
         """
-        return self._storage.sample_pairs_level(level_id, chunk_size, n_samples)  # Array[M, chunk size, 2]
+        return self._storage.sample_pairs_level(level_id=level_id, chunk_slice=chunk_slice, n_samples=n_samples)  # Array[M, chunk size, 2]
 
     def n_collected(self):
         return self._storage.get_n_collected()

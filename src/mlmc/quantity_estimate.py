@@ -1,7 +1,6 @@
 import numpy as np
 import mlmc.quantity
 import mlmc.quantity_types as qt
-from mlmc.quantity_spec import ChunkSpec
 
 
 def mask_nan_samples(chunk):
@@ -20,73 +19,51 @@ def cache_clear():
     mlmc.quantity.QuantityConst.samples.cache_clear()
 
 
-def estimate_mean(quantity, chunk_size=512000000):
+def estimate_mean(quantity):
     """
     MLMC mean estimator.
     The MLMC method is used to compute the mean estimate to the Quantity dependent on the collected samples.
     The squared error of the estimate (the estimator variance) is estimated using the central limit theorem.
     Data is processed by chunks, so that it also supports big data processing
     :param quantity: Quantity
-    :param chunk_size: chunk size in bytes in decimal, determines number of samples in chunk
     :return: QuantityMean which holds both mean and variance
     """
-    #cache_clear()
+    cache_clear()
     quantity_vec_size = quantity.size()
     sums = None
     sums_of_squares = None
-    #chunk_id = 0
-    #level_chunks_none = np.zeros(1)  # if ones then the iteration through the chunks was terminated at each level
 
     # initialization
-    level_ids = quantity.get_quantity_storage().level_ids()
-    n_levels = len(level_ids)
+    quantity_storage = quantity.get_quantity_storage()
+    level_ids = quantity_storage.level_ids()
+    n_levels = np.max(level_ids) + 1
     n_samples = [0] * n_levels
     n_rm_samples = [0] * n_levels
 
-    for level_id in level_ids:
-        try:
-            chunk_id = 0
-            # TODO: we should pass chunk_id to quantity.samples due to the use of CACHE
-            # TODO: Generators work well from direct storage access, but how to use it in for loop through input_quantites (see Quantity.sample)?
-            for chunk_spec in quantity.samples(level_id, chunk_size=chunk_size):
-                print("level_id: {}, chunk_id: {}".format(level_id, chunk_id))
+    for chunk_id, chunk_slice, level_id in quantity_storage.chunks():
+        samples = quantity.samples(level_id=level_id, chunk_id=chunk_id, chunk_slice=chunk_slice)
+        chunk, n_mask_samples = mask_nan_samples(samples)
+        n_samples[level_id] += chunk.shape[1]
+        n_rm_samples[level_id] += n_mask_samples
 
-                # print("chunk_spec ", chunk_spec)
-                # print("type(chunk_spec) ", type(chunk_spec))
-                # print("chunk_spec.data.shape ", chunk_spec.data.shape)
-                #
-                # print("quantity.qtype.size() ", quantity.qtype.size())
-                # print("chunk_spec.data.shape[0] ", chunk_spec.data.shape[0])
-                # print("chunk_spec.data.shape", chunk_spec.data.shape)
-                # print("chunk_spec.data", chunk_spec.data)
-                # print("type(chunk_spec.data)", type(chunk_spec.data))
+        # No samples in chunk
+        if chunk.shape[1] == 0:
+            continue
+        assert (chunk.shape[0] == quantity_vec_size)
 
-                chunk, n_mask_samples = mask_nan_samples(chunk_spec.data)
-                # level_chunk is Numpy Array with shape [M, chunk_size, 2]
-                n_samples[level_id] += chunk.shape[1]
-                n_rm_samples[level_id] += n_mask_samples
+        # Set variables for level sums and sums of squares
+        if sums is None:
+            sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+            sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
 
-                # No samples in chunk
-                if chunk.shape[1] == 0:
-                    continue
-                assert (chunk.shape[0] == quantity_vec_size)
+        if level_id == 0:
+            chunk_diff = chunk[:, :, 0]
+        else:
+            chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
 
-                # Set variables for level sums and sums of squares
-                if sums is None:
-                    sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-                    sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-
-                if level_id == 0:
-                    chunk_diff = chunk[:, :, 0]
-                else:
-                    chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
-
-                sums[level_id] += np.sum(chunk_diff, axis=1)
-                sums_of_squares[level_id] += np.sum(chunk_diff**2, axis=1)
-
-                chunk_id += 1
-        except StopIteration:
-            pass
+        sums[level_id] += np.sum(chunk_diff, axis=1)
+        sums_of_squares[level_id] += np.sum(chunk_diff**2, axis=1)
+        chunk_id += 1
 
     if sums is None:
         raise Exception("All samples were masked")

@@ -2,7 +2,6 @@ import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
 from mlmc.tool import plot
-from mlmc.quantity_spec import ChunkSpec
 import mlmc.quantity_estimate as qe
 import mlmc.tool.simple_distribution
 
@@ -305,7 +304,7 @@ class Estimate:
         label_n_spaces = 5
         n_levels = self._sample_storage.get_n_levels()
         for level_id in range(n_levels):
-            samples = np.squeeze(self._quantity.samples(ChunkSpec(level_id=level_id)), axis=0)
+            samples = np.squeeze(self._quantity.samples(level_id=level_id), axis=0)
             if level_id == 0:
                 label = "{} F{} {} C".format(level_id, ' ' * label_n_spaces, level_id + 1)
                 data = {'samples': samples[:, 0], 'type': 'fine', 'level': label}

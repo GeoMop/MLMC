@@ -157,7 +157,6 @@ class QuantityTests(unittest.TestCase):
         y = position[1, 2]
         y_mean = estimate_mean(y)
         assert len(y_mean.mean) == 1
-        print("type(y) ", type(y))
         y_add = np.add(5, y)
         y_add_mean = estimate_mean(y_add)
         assert np.allclose(y_add_mean.mean, y_mean.mean + 5)
@@ -427,7 +426,7 @@ class QuantityTests(unittest.TestCase):
         q_and = np.logical_and(True, root_quantity)
         self.assertRaises(TypeError, estimate_mean, q_and)
 
-        #cache_clear()
+        cache_clear()
         x = np.ones((108, 5, 2))
         self.assertRaises(ValueError, np.add, x, root_quantity)
 
@@ -441,8 +440,7 @@ class QuantityTests(unittest.TestCase):
         z = x + y
         assert isinstance(z, QuantityConst)
 
-    def fill_sample_storage(self, sample_storage, chunk_size=512000000):
-        sample_storage.chunk_size = chunk_size  # bytes in decimal
+    def fill_sample_storage(self, sample_storage):
         np.random.seed(123)
         n_levels = 3
         res_length = 3
@@ -647,7 +645,7 @@ class QuantityTests(unittest.TestCase):
             sample_vec = [15, 10, 8, 6, 4]
             root_quantity_subsamples = root_quantity.subsample(sample_vec)  # out of [100, 80, 50, 30, 10]
             moments_quantity = moments(root_quantity_subsamples, moments_fn=moments_fn, mom_at_bottom=True)
-            mult_chunks_moments_mean = estimate_mean(moments_quantity, chunk_size=5120)  # about 6 chunks
+            mult_chunks_moments_mean = estimate_mean(moments_quantity)
             mult_chunks_length_mean = mult_chunks_moments_mean['length']
             mult_chunks_time_mean = mult_chunks_length_mean[1]
             mult_chunks_location_mean = mult_chunks_time_mean['10']
@@ -677,7 +675,7 @@ class QuantityTests(unittest.TestCase):
 
         print("mean mult_chunks_subsamples ", np.mean(mult_chunks_subsamples, axis=0))
         print("mean rm sumples ", np.mean(rm_samples, axis=0))
-        exit()
+
 
         print("np.mean(single_chunk_subsamples, axis=0) ", np.mean(single_chunk_subsamples, axis=0))
         print("np.mean(mult_chunks_subsamples, axis=0) ", np.mean(mult_chunks_subsamples, axis=0))
@@ -700,8 +698,8 @@ class QuantityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     qt = QuantityTests()
-    qt.test_moments()
-    #qt.test_basics()
-    # qt.test_functions()
-    # qt.test_condition()
-    # qt.test_binary_operations()
+    #qt.test_moments()
+    qt.test_basics()
+    qt.test_functions()
+    qt.test_condition()
+    qt.test_binary_operations()

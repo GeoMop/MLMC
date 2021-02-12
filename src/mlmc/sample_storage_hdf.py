@@ -1,8 +1,9 @@
 import os
+import itertools
 import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.quantity_spec import QuantitySpec, ChunkSpec
+from mlmc.quantity_spec import QuantitySpec
 import mlmc.tool.hdf5 as hdf
 
 
@@ -136,6 +137,16 @@ class SampleStorageHDF(SampleStorage):
         """
         self._level_groups[level_id].append_scheduled(samples)
 
+    def chunks(self, level_id=None):
+        """
+        Create chunks generator
+        :param level_id: int, if not None return chunks for a given level
+        :return: generator
+        """
+        if level_id is not None:
+            return self._level_groups[level_id].chunks()
+        return itertools.chain(*[level.chunks() for level in self._level_groups])  # concatenate generators
+
     def sample_pairs(self):
         """
         Load results from hdf file
@@ -149,22 +160,30 @@ class SampleStorageHDF(SampleStorage):
         levels_results = list(np.empty(len(self._level_groups)))
 
         for level in self._level_groups:
-            results = self.sample_pairs_level(ChunkSpec(level_id=level.level_id))  # return all samples no chunks
+            results = self.sample_pairs_level(level_id=level.level_id)  # return all samples no chunks
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue
             levels_results[int(level.level_id)] = results
         return levels_results
 
-    def sample_pairs_level(self, level_id=None, chunk_size=None, n_samples=None):
+    def sample_pairs_level(self, level_id=None, chunk_slice=None, n_samples=None):
         """
         Get result for particular level and chunk
-        :param chunk_spec: ChunkSpec instance, contains level_id, chunk_id, possibly n_samples
+        :param level_id: int, level identifier
+        :param chunk_slice: slice() object
+        :param n_samples: int, number of samples to retrieve
         :return: np.ndarray
         """
         if level_id is None:
             level_id = 0
-        return self._level_groups[int(level_id)].collected(level_id, chunk_size, n_samples)
+        chunk = self._level_groups[int(level_id)].collected(chunk_slice, n_samples)
+
+        # Remove auxiliary zeros from level zero sample pairs
+        if level_id == 0:
+            chunk = chunk[:, :1, :]
+
+        return chunk.transpose((2, 0, 1))  # [M, chunk size, 2]
 
     def n_finished(self):
         """
