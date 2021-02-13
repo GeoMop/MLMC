@@ -1,12 +1,13 @@
 import operator
-import random
 import numpy as np
-from inspect import signature
+import scipy.stats
+import mlmc.quantity_types as qt
 from memoization import cached
 from typing import List
 from mlmc.sample_storage import SampleStorage
 from mlmc.quantity_spec import QuantitySpec
-import mlmc.quantity_types as qt
+
+RNG = np.random.default_rng()
 
 
 def make_root_quantity(storage: SampleStorage, q_specs: List[QuantitySpec]):
@@ -309,24 +310,19 @@ class Quantity:
     def pick_samples(chunk, subsample_params):
         """
         Pick samples some samples from chunk in order to have 'k' samples from 'n' after all chunks are processed
-        Note that it is not guaranteed to receive the exact number of 'k' samples
+        Inspired by https://dl.acm.org/doi/10.1145/23002.23003 method S
+
         :param chunk: np.ndarray, shape M, N, 2, where N denotes number of samples in chunk
         :param subsample_params: instance of SubsampleParams class, it has two parameters:
                         k: number of samples which we want to get from all chunks
                         n: number of all samples among all chunks
         :return: np.ndarray
         """
-        out = []
-        for _ in range(chunk.shape[1]):
-            i = random.randint(0, subsample_params.n)
-            if i < subsample_params.k and i < chunk.shape[1]:
-                out.append(chunk[:, i, :])
-                subsample_params.k -= 1
-            subsample_params.n -= 1
-
-        if not out:
-            out = np.array(out)[:, np.newaxis, np.newaxis]
-        return np.array(out).transpose((1, 0, 2))  # M, N, 2
+        size = scipy.stats.hypergeom(subsample_params.n, subsample_params.k, chunk.shape[1]).rvs(size=1)
+        out = RNG.choice(chunk, size=size, axis=1)
+        subsample_params.k -= out.shape[1]
+        subsample_params.n -= chunk.shape[1]
+        return out
 
     def subsample(self, sample_vec):
         """
