@@ -1,6 +1,6 @@
 import os
 import shutil
-import time
+import time as t
 import numpy as np
 from scipy import stats
 import pytest
@@ -89,4 +89,4 @@ def test_sampling_pools(sampling_pool, simulation_factory):
     if sampling_pool._debug:
         assert 'output' in next(os.walk(work_dir))[1]
 
-    time.sleep(5)
+    t.sleep(5)
