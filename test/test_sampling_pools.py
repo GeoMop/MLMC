@@ -49,6 +49,7 @@ sim_config_workspace = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.
 def test_sampling_pools(sampling_pool, simulation_factory):
     n_moments = 5
     np.random.seed(123)
+    t.sleep(5)
 
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
     if os.path.exists(work_dir):
@@ -88,5 +89,3 @@ def test_sampling_pools(sampling_pool, simulation_factory):
 
     if sampling_pool._debug:
         assert 'output' in next(os.walk(work_dir))[1]
-
-    t.sleep(5)
