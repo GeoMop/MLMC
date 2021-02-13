@@ -51,7 +51,7 @@ def test_sampling_pools(sampling_pool, simulation_factory):
 
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
     if os.path.exists(work_dir):
-        shutil.rmtree(work_dir)
+        shutil.rmtree(work_dir, ignore_errors=True)
     os.makedirs(work_dir)
 
     if simulation_factory.need_workspace:

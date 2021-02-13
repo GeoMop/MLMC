@@ -334,8 +334,7 @@ class Estimate:
             quantile = 0.01
 
         for level_id in range(sample_storage.get_n_levels()):
-            fine_samples = quantity.samples(ChunkSpec(level_id=level_id,
-                                                  n_samples=sample_storage.get_n_collected()[0]))[..., 0]
+            fine_samples = quantity.samples(level_id=level_id, n_samples=sample_storage.get_n_collected()[0])[..., 0]
 
             fine_samples = np.squeeze(fine_samples)
             ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
@@ -348,7 +347,7 @@ class Estimate:
         Construct approximation of the density using given moment functions.
         """
         cov_mean = qe.estimate_mean(qe.covariance(self._quantity, self._moments_fn))
-        cov_mat = cov_mean()
+        cov_mat = cov_mean.mean
         moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(self._moments_fn,
                                                                                                      cov_mat,
                                                                                                      tol=orth_moments_tol)
@@ -370,5 +369,4 @@ class Estimate:
         return distr_obj, info, result, moments_obj
 
     def get_level_samples(self, level_id):
-        return self._quantity.samples(ChunkSpec(level_id=level_id,
-                                                n_samples=self._sample_storage.get_n_collected()[level_id]))
+        return self._quantity.samples(level_id=level_id, n_samples=self._sample_storage.get_n_collected()[level_id])
