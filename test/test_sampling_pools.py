@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 import numpy as np
 from scipy import stats
 import pytest
@@ -51,7 +52,7 @@ def test_sampling_pools(sampling_pool, simulation_factory):
 
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
     if os.path.exists(work_dir):
-        shutil.rmtree(work_dir, ignore_errors=True)
+        shutil.rmtree(work_dir)
     os.makedirs(work_dir)
 
     if simulation_factory.need_workspace:
@@ -88,3 +89,4 @@ def test_sampling_pools(sampling_pool, simulation_factory):
     if sampling_pool._debug:
         assert 'output' in next(os.walk(work_dir))[1]
 
+    time.sleep(5)
