@@ -682,8 +682,8 @@ class QuantityStorage(Quantity):
     def get_quantity_storage(self):
         return self
 
-    def chunks(self):
-        return self._storage.chunks()
+    def chunks(self, level_id=None, n_samples=None):
+        return self._storage.chunks(level_id, n_samples)
 
     def samples(self, level_id=None, chunk_id=None, chunk_slice=None, n_samples=None):
         """

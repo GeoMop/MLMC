@@ -349,14 +349,17 @@ class LevelGroup:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             return scheduled_dset[()]
 
-    def chunks(self):
+    def chunks(self, n_samples=None):
         with h5py.File(self.file_name, 'r') as hdf_file:
             if 'collected_values' not in hdf_file[self.level_group_path]:
                 raise AttributeError("No collected values in level group ".format(self.level_id))
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
 
-            for chunk_id, chunk in enumerate(dataset.iter_chunks()):
-                 yield chunk_id, chunk[0], int(self.level_id)  # slice, level_id
+            if n_samples is not None:
+                yield 0, slice(0, n_samples, 1), int(self.level_id)
+            else:
+                for chunk_id, chunk in enumerate(dataset.iter_chunks()):
+                    yield chunk_id, chunk[0], int(self.level_id)  # slice, level_id
 
     def collected(self, chunk_slice=None, n_samples=None):
         """

@@ -229,7 +229,7 @@ class Memory(SampleStorage):
 
         return levels_results
 
-    def chunks(self, level_id=None):
+    def chunks(self, level_id=None, n_samples=None):
         """
         Create chunks generator
         :param level_id: int, if not None return chunks for a given level
@@ -237,10 +237,13 @@ class Memory(SampleStorage):
         """
         if level_id is not None:
             return self._results[int(level_id)].chunks()
-        return itertools.chain(*[self.level_chunks(level_id) for level_id in self.get_level_ids()])  # concatenate generators
+        return itertools.chain(*[self.level_chunks(level_id, n_samples) for level_id in self.get_level_ids()])  # concatenate generators
 
-    def level_chunks(self, level_id):
-        yield 0, slice(0, len(self._results[level_id]), 1), level_id
+    def level_chunks(self, level_id, n_samples=None):
+        if n_samples is not None:
+            yield 0, slice(0, n_samples, 1), level_id
+        else:
+            yield 0, slice(0, len(self._results[level_id]), 1), level_id
 
     def sample_pairs_level(self, level_id=None, chunk_slice=None, n_samples=None):
         """

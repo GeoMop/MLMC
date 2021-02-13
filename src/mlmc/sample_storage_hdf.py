@@ -137,7 +137,7 @@ class SampleStorageHDF(SampleStorage):
         """
         self._level_groups[level_id].append_scheduled(samples)
 
-    def chunks(self, level_id=None):
+    def chunks(self, level_id=None, n_samples=None):
         """
         Create chunks generator
         :param level_id: int, if not None return chunks for a given level
@@ -145,7 +145,7 @@ class SampleStorageHDF(SampleStorage):
         """
         if level_id is not None:
             return self._level_groups[level_id].chunks()
-        return itertools.chain(*[level.chunks() for level in self._level_groups])  # concatenate generators
+        return itertools.chain(*[level.chunks(n_samples) for level in self._level_groups])  # concatenate generators
 
     def sample_pairs(self):
         """
