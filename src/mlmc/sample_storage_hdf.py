@@ -215,9 +215,7 @@ class SampleStorageHDF(SampleStorage):
         :return: None
         """
         for level_id, (time, n_samples) in n_ops:
-            if n_samples == 0:
-                self._level_groups[level_id].n_ops_estimate = 0
-            else:
+            if n_samples > 0:
                 self._level_groups[level_id].n_ops_estimate = time/n_samples
 
     def get_n_ops(self):
