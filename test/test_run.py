@@ -25,13 +25,9 @@ os.makedirs(work_dir)
 failed_fraction = 0.1
 distr = stats.norm()
 simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
-simulation = SynthSimulationForTests(simulation_config)
-shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
-simulation_config = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
-simulation_workspace = SynthSimulationWorkspace(simulation_config)
 
-# Create sample storages
-storage_memory = Memory()
+shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
+simulation_config_workspace = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
 
 
 def hdf_storage_factory():
@@ -45,27 +41,18 @@ def hdf_storage_factory():
     return SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_test.hdf5"))
 
 
-# Create sampling pools
-sampling_pool_single_process = OneProcessPool()
-sampling_pool_processes = ProcessPool(4)
-sampling_pool_thread = ThreadPool(4)
-sampling_pool_single_process_dir = OneProcessPool(work_dir=work_dir)
-sampling_pool_processes_dir = ProcessPool(4, work_dir=work_dir)
-sampling_pool_thread_dir = ThreadPool(4, work_dir=work_dir)
-
-
-@pytest.mark.parametrize("test_case", [(simulation, storage_memory, sampling_pool_single_process),
-                                       (simulation, storage_memory, sampling_pool_processes),
-                                       # (simulation, storage_memory, sampling_pool_thread),
-                                       (simulation, hdf_storage_factory(), sampling_pool_single_process),
-                                       (simulation, hdf_storage_factory(), sampling_pool_processes),
-                                       #(simulation, hdf_storage_factory(), sampling_pool_thread),
-                                       (simulation_workspace, storage_memory, sampling_pool_single_process_dir),
-                                       (simulation_workspace, storage_memory, sampling_pool_processes_dir),
-                                       #(simulation_workspace, storage_memory, sampling_pool_thread_dir),
-                                       (simulation_workspace, hdf_storage_factory(), sampling_pool_single_process_dir),
-                                       (simulation_workspace, hdf_storage_factory(), sampling_pool_processes_dir),
-                                       #(simulation_workspace, hdf_storage_factory(), sampling_pool_thread_dir)
+@pytest.mark.parametrize("test_case", [(SynthSimulationForTests(simulation_config), Memory(), OneProcessPool()),
+                                       (SynthSimulationForTests(simulation_config), Memory(), ProcessPool(4)),
+                                       # (SynthSimulationForTests(simulation_config), Memory(), ThreadPool(4)),
+                                       (SynthSimulationForTests(simulation_config), hdf_storage_factory(), OneProcessPool()),
+                                       (SynthSimulationForTests(simulation_config), hdf_storage_factory(), ProcessPool(4)),
+                                       #(SynthSimulationForTests(simulation_config), hdf_storage_factory(), ThreadPool(4)),
+                                       (SynthSimulationWorkspace(simulation_config_workspace), Memory(), OneProcessPool(work_dir=work_dir)),
+                                       (SynthSimulationWorkspace(simulation_config_workspace), Memory(), ProcessPool(4, work_dir=work_dir)),
+                                       #(SynthSimulationWorkspace(simulation_config), storage_memory,  ThreadPool(4, work_dir=work_dir)),
+                                       (SynthSimulationWorkspace(simulation_config_workspace), hdf_storage_factory(), OneProcessPool(work_dir=work_dir)),
+                                       (SynthSimulationWorkspace(simulation_config_workspace), hdf_storage_factory(), ProcessPool(4, work_dir=work_dir)),
+                                       #(SynthSimulationWorkspace(simulation_config), hdf_storage_factory(),  ThreadPool(4, work_dir=work_dir))
                                        ]
                          )
 def test_mlmc(test_case):
@@ -75,10 +62,6 @@ def test_mlmc(test_case):
 
     simulation_factory, sample_storage, sampling_pool = test_case
 
-    if sampling_pool._output_dir is not None:
-        if os.path.exists(work_dir):
-            shutil.rmtree(work_dir)
-        os.makedirs(work_dir)
     if simulation_factory.need_workspace:
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
         shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
@@ -126,7 +109,7 @@ def test_mlmc(test_case):
 
 
 if __name__ == "__main__":
-    test_mlmc((simulation, storage_memory, sampling_pool_single_process))
+    test_mlmc((SynthSimulationForTests(simulation_config), Memory(), OneProcessPool()))
     #multiproces_sampler_test()
     #threads_sampler_test()
 

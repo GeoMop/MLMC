@@ -83,7 +83,7 @@ class ProcessSimple:
         means, vars = estimator.estimate_moments(moments_fn)
 
         moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
-        moments_mean = estimate_mean(moments_quantity, level_means=True)
+        moments_mean = estimate_mean(moments_quantity)
         conductivity_mean = moments_mean['conductivity']
         time_mean = conductivity_mean[1]  # times: [1]
         location_mean = time_mean['0']  # locations: ['0']

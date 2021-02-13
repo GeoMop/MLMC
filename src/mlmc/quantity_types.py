@@ -1,4 +1,5 @@
 import abc
+import copy
 import numpy as np
 from scipy import interpolate
 from typing import List, Tuple
@@ -18,35 +19,16 @@ class QType(metaclass=abc.ABCMeta):
     def base_qtype(self):
         return self._qtype.base_qtype()
 
-    @staticmethod
-    def replace_scalar(original_qtype, substitute_qtype):
+    def replace_scalar(self, substitute_qtype):
         """
-        Find ScalarType and replace it with new_qtype
-        :param substitute_qtype: QType, replace ScalarType
-        :return: None
+        Find ScalarType and replace it with substitute_qtype
+        :param substitute_qtype: QType, replaces ScalarType
+        :return: QType
         """
-        qtypes = []
-        current_qtype = original_qtype
-        while True:
-            if isinstance(current_qtype, DictType):
-                qtypes.append(DictType.replace_scalar(current_qtype, substitute_qtype))
-                break
-
-            if isinstance(current_qtype, (ScalarType, BoolType)):
-                if isinstance(current_qtype, (ScalarType, BoolType)):
-                    qtypes.append(substitute_qtype)
-                    break
-
-            qtypes.append(current_qtype)
-            current_qtype = current_qtype._qtype
-
-        first_qtype = qtypes[0]
-        new_qtype = first_qtype
-
-        for i in range(1, len(qtypes)):
-            new_qtype._qtype = qtypes[i]
-            new_qtype = new_qtype._qtype
-        return first_qtype
+        inner_qtype = self._qtype.replace_scalar(substitute_qtype)
+        new_qtype = copy.deepcopy(self)
+        new_qtype._qtype = inner_qtype
+        return new_qtype
 
     @staticmethod
     def keep_dims(chunk):
@@ -75,6 +57,9 @@ class QType(metaclass=abc.ABCMeta):
         """
         return QType.keep_dims(chunk[key])
 
+    def reshape(self, data):
+        return data
+
 
 class ScalarType(QType):
     def __init__(self, qtype=float):
@@ -90,6 +75,14 @@ class ScalarType(QType):
             return self._qtype.size()
         return 1
 
+    def replace_scalar(self, substitute_qtype):
+        """
+        Find ScalarType and replace it with substitute_qtype
+        :param substitute_qtype: QType, replaces ScalarType
+        :return: QType
+        """
+        return substitute_qtype
+
 
 class BoolType(ScalarType):
     pass
@@ -97,13 +90,17 @@ class BoolType(ScalarType):
 
 class ArrayType(QType):
     def __init__(self, shape, qtype: QType):
+
+        if isinstance(shape, int):
+            shape = (shape,)
+
         self._shape = shape
         self._qtype = qtype
 
     def size(self) -> int:
         return np.prod(self._shape) * self._qtype.size()
 
-    def __getitem__(self, key):
+    def get_key(self, key):
         """
         ArrayType indexing
         :param key: int, tuple of ints or slice objects
@@ -136,6 +133,12 @@ class ArrayType(QType):
         chunk = chunk.reshape((*self._shape, chunk.shape[-2], chunk.shape[-1]))
         return QType.keep_dims(chunk[key])
 
+    def reshape(self, data):
+        if isinstance(self._qtype, ScalarType):
+            return data.reshape(self._shape)
+        else:
+            return data.reshape((*self._shape, np.prod(data.shape) // np.prod(self._shape)))
+
 
 class TimeSeriesType(QType):
     def __init__(self, times, qtype):
@@ -147,7 +150,7 @@ class TimeSeriesType(QType):
     def size(self) -> int:
         return len(self._times) * self._qtype.size()
 
-    def __getitem__(self, key):
+    def get_key(self, key):
         q_type = self._qtype
         try:
             position = self._times.index(key)
@@ -184,7 +187,7 @@ class FieldType(QType):
     def size(self) -> int:
         return len(self._dict.keys()) * self._qtype.size()
 
-    def __getitem__(self, key):
+    def get_key(self, key):
         q_type = self._qtype
         try:
             position = list(self._dict.keys()).index(key)
@@ -217,17 +220,19 @@ class DictType(QType):
     def get_qtypes(self):
         return self._dict.values()
 
-    @staticmethod
-    def replace_scalar(original_qtype, substitute_qtype):
+    def replace_scalar(self, substitute_qtype):
+        """
+        Find ScalarType and replace it with substitute_qtype
+        :param substitute_qtype: QType, replaces ScalarType
+        :return: DictType
+        """
         dict_items = []
-        for key, qtype in original_qtype._dict.items():
-            if isinstance(qtype, ScalarType):
-                dict_items.append((key, substitute_qtype))
-            else:
-                dict_items.append((key,  QType.replace_scalar(qtype, substitute_qtype)))
+        for key, qtype in self._dict.items():
+            new_qtype = qtype.replace_scalar(substitute_qtype)
+            dict_items.append((key,  new_qtype))
         return DictType(dict_items)
 
-    def __getitem__(self, key):
+    def get_key(self, key):
         try:
             q_type = self._dict[key]
         except KeyError:
