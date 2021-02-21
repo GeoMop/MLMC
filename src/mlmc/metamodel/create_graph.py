@@ -1,12 +1,17 @@
 import os
 import os.path
 import numpy as np
+import networkx as nx
+import matplotlib.pyplot as plt
 from mlmc.tool import gmsh_io
+from mlmc.tool.hdf5 import HDF5
+
 
 MESH = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
 #FIELDS_SAMPLE_MESH = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/output/L00_S0000000/fine_fields_sample.msh"
 FIELDS_SAMPLE = "fine_fields_sample.msh"
-OUTPUT_DIR = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/output/"
+OUTPUT_DIR = "/home/martin/Documents/metamodels/data/1000_ele/test/01_cond_field/output/"
+HDF_PATH = "/home/martin/Documents/metamodels/data/1000_ele/test/01_cond_field/mlmc_1.hdf5"
 
 
 def extract_mesh_gmsh_io(mesh_file):
@@ -56,17 +61,19 @@ def get_node_features(fields_mesh):
 
 
 def create_adjacency_matrix(ele_nodes):
+
     adjacency_matrix = np.zeros((len(ele_nodes), len(ele_nodes)))
     #adjacency_matrix = sparse.csr_matrix((len(ele_nodes), len(ele_nodes)))  #
 
     nodes = list(ele_nodes.values())
     for i in range(adjacency_matrix.shape[0]):
         ele_nodes = nodes[i]
+
         for j in range(i+1, len(nodes)):
-            #print("i: {}, j: {}".format(i, j))
             if i == j:
                 continue
             ele_n = nodes[j]
+
             if len(list(set(ele_nodes).intersection(ele_n))) == 2:
                 adjacency_matrix[j][i] = adjacency_matrix[i][j] = 1
 
@@ -75,21 +82,35 @@ def create_adjacency_matrix(ele_nodes):
     return adjacency_matrix
 
 
+def plot_graph(adjacency_matrix):
+    #G = nx.from_scipy_sparse_matrix(adjacency_matrix)
+    G = nx.from_numpy_matrix(adjacency_matrix)
+    nx.draw_kamada_kawai(G, with_labels=True, node_size=1, font_size=6)
+    plt.axis('equal')
+    plt.show()
+
+
 def extract_mesh():
     adjacency_matrix = create_adjacency_matrix(extract_mesh_gmsh_io(MESH))
     np.save(os.path.join(OUTPUT_DIR, "adjacency_matrix"), adjacency_matrix, allow_pickle=True)
     loaded_adjacency_matrix = np.load(os.path.join(OUTPUT_DIR, "adjacency_matrix.npy"), allow_pickle=True)
 
-    print("loaded adjacency matrix ", loaded_adjacency_matrix)
-    ele_nodes = extract_mesh_gmsh_io(MESH)
+    plot_graph(loaded_adjacency_matrix)
 
-    for s_dir in os.listdir(OUTPUT_DIR):
-        if os.path.isdir(os.path.join(OUTPUT_DIR, s_dir)):
-            sample_dir = os.path.join(OUTPUT_DIR, s_dir)
-            field_mesh = os.path.join(sample_dir, FIELDS_SAMPLE)
+    hdf = HDF5(file_path=HDF_PATH,
+               load_from_file=True)
+    level_group = hdf.add_level_group(level_id=str(0))
+    collected = zip(level_group.get_collected_ids(), level_group.collected())
+
+    for sample_id, col_values in collected:
+        output_value = col_values[0, 0]
+        sample_dir = os.path.join(OUTPUT_DIR, sample_id)
+        field_mesh = os.path.join(sample_dir, FIELDS_SAMPLE)
+        if os.path.exists(field_mesh):
             features = get_node_features(field_mesh)
-
             np.save(os.path.join(sample_dir, "nodes_features"), features)
+            np.save(os.path.join(sample_dir, "output"), output_value)
+
             #loaded_features = np.load(os.path.join(sample_dir, "nodes_features.npy"))
             #print("loaded features ", loaded_features)
 

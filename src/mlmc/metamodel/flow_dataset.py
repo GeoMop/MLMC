@@ -6,7 +6,7 @@ from spektral.data import Dataset, Graph
 
 MESH = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
 FIELDS_SAMPLE = "fine_fields_sample.msh"
-OUTPUT_DIR = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/output/"
+OUTPUT_DIR = "/home/martin/Documents/metamodels/data/1000_ele/test/01_cond_field/output/"
 
 
 class FlowDataset(Dataset):

@@ -124,7 +124,7 @@ def run():
 
     print("len test(output) ", len(test_output))
 
-    dnn = DNN(loss=loss, optimizer=optimizer, output_activation=abs_activation)
+    dnn = DNN(loss=loss, optimizer=optimizer, output_activation=abs_activation, hidden_activation='relu')
     dnn.fit(train_input, train_output)
 
     predictions = dnn.predict(test_input)
@@ -132,17 +132,18 @@ def run():
 
     print("len(predictions) ", len(predictions))
 
-    plot_loss(dnn.history)
+    plot_loss(dnn.history.history['loss'], dnn.history.history['val_loss'])
     analyze_results(test_output, predictions)
 
     estimate_density(test_output)
     estimate_density(predictions)
 
+
 def bootstrap():
-    loss = "mean_squared_error"
+    loss = "mean_absolute_error"
     optimizer = tf.optimizers.Adam(learning_rate=0.001)
-    n_subsamples = 5
-    size = 5000
+    n_subsamples = 10
+    size = 10000
 
     train_losses = []
     val_losses = []
@@ -156,13 +157,12 @@ def bootstrap():
 
     for i in range(n_subsamples):
         dset = dataset.sample(size, replace=True)
-        print("len dset ", len(dset))
         train_input, train_output, test_input, test_output = prepare_dataset(dset)
 
         print("Size TRAIN in: {}, out: {}, TEST in: {}, out: {}".format(len(train_input), len(train_output),
                                                                         len(test_input), len(test_output)))
 
-        dnn = DNN(loss=loss, optimizer=optimizer, output_activation=abs_activation)
+        dnn = DNN(loss=loss, optimizer=optimizer, output_activation=abs_activation, hidden_activation='relu')
         dnn.fit(train_input, train_output)
 
         predictions = dnn.predict(test_input)
@@ -178,18 +178,11 @@ def bootstrap():
         ks_statistics.append(statistics)
         ks_p_values.append(pvalue)
 
-
     analyze_results(np.mean(all_test_outputs, axis=0), np.mean(all_predictions, axis=0))
+    analyze_results(np.var(all_test_outputs, axis=0), np.var(all_predictions, axis=0))
     #
-    estimate_density(np.mean(all_test_outputs, axis=0), title="Test outputs")
-    estimate_density(np.mean(all_predictions, axis=0), title="Predictions")
-
-    print("len(dataset) ", len(dataset))
-    print("dataset[:10] ", dataset[:10])
-
-
-
-
+    # estimate_density(np.mean(all_test_outputs, axis=0), title="Test outputs")
+    # estimate_density(np.mean(all_predictions, axis=0), title="Predictions")
 
 
 if __name__ == "__main__":

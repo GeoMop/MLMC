@@ -78,6 +78,7 @@ class DNN:
         self._verbose = kwargs.get('verbose', False)
 
         self._hidden_activation = kwargs.get('hidden_activation', 'relu')
+        self._hidden_regularizer = kwargs.get('hidden_reqularizer', None)
         self._output_activation = kwargs.get('output_activation', 'linear')
         self._n_hidden_layers = kwargs.get('n_hidden_layers', 1)
         self._n_hidden_neurons = kwargs.get('n_hidden_neurons', [64])  # Number of hidden neurons for each hidden layer
@@ -92,7 +93,14 @@ class DNN:
     def _create_model(self):
         hidden_layers = []
         for i in range(self._n_hidden_layers):
-            hidden_layers.append(layers.Dense(self._n_hidden_neurons[i], activation=self._hidden_activation))
+            if self._hidden_regularizer is not None:
+                hidden_layers.append(
+                    layers.Dense(self._n_hidden_neurons[i],
+                                 kernel_regularizer=self._hidden_regularizer,
+                                 activation=self._hidden_activation))
+            else:
+                hidden_layers.append(
+                    layers.Dense(self._n_hidden_neurons[i],activation=self._hidden_activation))
 
         self._model = keras.Sequential([
             self._normalizer,
