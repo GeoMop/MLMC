@@ -3,7 +3,7 @@ import mlmc.estimator
 from mlmc.sampler import Sampler
 from mlmc.sample_storage import Memory
 from mlmc.sampling_pool import OneProcessPool
-from examples.shooting.new_simulation_shooting import ShootingSimulation
+from examples.shooting.simulation_shooting_1D import ShootingSimulation1D
 from mlmc.quantity import make_root_quantity
 from mlmc.quantity_estimate import moments, estimate_mean
 from mlmc.moments import Legendre
@@ -14,7 +14,7 @@ from mlmc.moments import Legendre
 class ProcessShooting:
 
     def __init__(self):
-        n_levels = 2
+        n_levels = 1
         # Number of MLMC levels
         step_range = [0.05, 0.005]
         # step_range [simulation step at the coarsest level, simulation step at the finest level]
@@ -29,17 +29,17 @@ class ProcessShooting:
         sampler = self.create_sampler(level_parameters=level_parameters)
         # Schedule samples
         self.generate_jobs(sampler, n_samples=None, target_var=1e-5)
-        #self.generate_jobs(sampler, n_samples=[500, 500], renew=renew, target_var=1e-5)
+        self.generate_jobs(sampler, n_samples=[1000],  target_var=1e-5)
         self.all_collect(sampler)  # Check if all samples are finished
 
         print("sampler self._n_scheduled_samples ", sampler._n_scheduled_samples)
         print("sampler.n_finished_samples ", sampler.n_finished_samples)
 
-        self.process_results(sampler)
+        self.process_results(sampler, n_levels)
 
-    def process_results(self, sampler):
+    def process_results(self, sampler, n_levels):
 
-        n_moments = 25
+        n_moments = 10
 
         sample_storage = sampler.sample_storage
         # Load result format from sample storage
@@ -48,12 +48,10 @@ class ProcessShooting:
         root_quantity = make_root_quantity(sample_storage, result_format)
 
         # You can access item of quantity according to result format
-        conductivity = root_quantity['position']
-        time = conductivity[10]  # times: [1]
-        location = time['y']  # locations: ['0']
-        q_value = location[0]
-
-        print("q value ", q_value)
+        target = root_quantity['target']
+        time = target[10]  # times: [1]
+        position = time['0']  # locations: ['0']
+        q_value = position[0]
 
         # Compute moments
         quantile = 0.001
@@ -67,12 +65,16 @@ class ProcessShooting:
         print("means ", means)
         print("vars ", vars)
 
+        # Generally root quantity has different domain than its items
+        root_quantity_estimated_domain = mlmc.estimator.Estimate.estimate_domain(root_quantity, sample_storage, quantile=quantile)
+        root_quantity_moments_fn = Legendre(n_moments, root_quantity_estimated_domain)
+
         # There is another possible approach to calculating all moments at once and then choose quantity
-        moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
+        moments_quantity = moments(root_quantity, moments_fn=root_quantity_moments_fn, mom_at_bottom=True)
         moments_mean = estimate_mean(moments_quantity)
-        conductivity_mean = moments_mean['position']
-        time_mean = conductivity_mean[10]  # times: [1]
-        location_mean = time_mean['y']  # locations: ['0']
+        target_mean = moments_mean['target']
+        time_mean = target_mean[10]  # times: [1]
+        location_mean = time_mean['0']  # locations: ['0']
         value_mean = location_mean[0]  # result shape: (1,)
         assert value_mean.mean[0] == 1
 
@@ -82,6 +84,26 @@ class ProcessShooting:
         # central_moments_mean = estimate_mean(central_moments_quantity)
 
         # estimator.sub_subselect(sample_vector=[10000])
+        self.construct_density(estimator, n_levels, tol=1e-8)
+
+    def construct_density(self, estimator, n_levels, tol=1.95, reg_param=0.0):
+        """
+        Construct approximation of the density using given moment functions.
+        :param estimator: mlmc.estimator.Estimate instance, it contains quantity for which the density is reconstructed
+        :param tol: Tolerance of the fitting problem, with account for variances in moments.
+                    Default value 1.95 corresponds to the two tail confidence 0.95.
+        :param reg_param: regularization parameter
+        :return: None
+        """
+        distr_obj, result, _, _ = estimator.construct_density(tol=tol, reg_param=reg_param)
+        distr_plot = mlmc.tool.plot.Distribution(title="distribution")
+        distr_plot.add_distribution(distr_obj)
+
+        if n_levels == 1:
+            samples = estimator.get_level_samples(level_id=0)[..., 0]
+            distr_plot.add_raw_samples(np.squeeze(samples))
+        distr_plot.show(None)
+        distr_plot.reset()
 
     def create_sampler(self, level_parameters):
         """
@@ -101,7 +123,7 @@ class ProcessShooting:
         }
 
         # Create simulation factory
-        simulation_factory = ShootingSimulation(config=simulation_config)
+        simulation_factory = ShootingSimulation1D(config=simulation_config)
 
         # Create HDF sample storage
         sample_storage = Memory()

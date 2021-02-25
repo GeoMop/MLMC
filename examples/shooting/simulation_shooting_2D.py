@@ -1,10 +1,7 @@
-import os
-import ruamel.yaml as yaml
 import numpy as np
 import mlmc.random.correlated_field as cf
 import gstools
 from typing import List
-import scipy.stats as stats
 from mlmc.sim.simulation import Simulation
 from mlmc.quantity_spec import QuantitySpec
 from mlmc.level_simulation import LevelSimulation
@@ -31,7 +28,7 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=1, sigma=1, log=True
     return cf.Field('conductivity', cf.GSToolsSpatialCorrelatedField(model, log=log))
 
 
-class ShootingSimulation(Simulation):
+class ShootingSimulation2D(Simulation):
 
     n_nans = 0
     nan_fraction = 0
@@ -49,9 +46,9 @@ class ShootingSimulation(Simulation):
         """
         super().__init__()
         self.config = config
-        ShootingSimulation.n_nans = 0
-        ShootingSimulation.nan_fraction = config.get('nan_fraction', 0.0)
-        ShootingSimulation.len_results = 0
+        ShootingSimulation2D.n_nans = 0
+        ShootingSimulation2D.nan_fraction = config.get('nan_fraction', 0.0)
+        ShootingSimulation2D.len_results = 0
         # This attribute is obligatory
         self.need_workspace: bool = False
 
@@ -73,7 +70,7 @@ class ShootingSimulation(Simulation):
         else:
             self.config["coarse"]["n_elements"] = 0
 
-        return LevelSimulation(config_dict=self.config, calculate=ShootingSimulation.calculate,
+        return LevelSimulation(config_dict=self.config, calculate=ShootingSimulation2D.calculate,
                                task_size=self.n_ops_estimate(fine_level_params[0]))
 
     @staticmethod
@@ -85,30 +82,27 @@ class ShootingSimulation(Simulation):
         :return: np.ndarray, np.ndarray
         """
         # Create random field structure
-        field = create_corr_field(**config['fields_params'])
-        points, n_fine_points = ShootingSimulation.create_points(config)
-        field.set_points(points)
+        field_x = create_corr_field(**config['fields_params'])
+        field_y = create_corr_field(**config['fields_params'])
 
+        points, n_fine_points = ShootingSimulation2D.create_points(config)
+        field_x.set_points(points)
+        field_y.set_points(points)
 
-        fine_input_sample, coarse_input_sample = ShootingSimulation.generate_random_sample(field,
-                                                                                           coarse_step=config["coarse"]["step"],
-                                                                                n_fine_elements=n_fine_points)
+        fine_input_sample, coarse_input_sample = ShootingSimulation2D.generate_random_sample(field_x, field_y,
+                                                                                             coarse_step=config["coarse"]["step"],
+                                                                                             n_fine_elements=n_fine_points)
 
-        fine_res = ShootingSimulation._run_sample(config, fine_input_sample, config["fine"]["n_elements"])
-        coarse_res = ShootingSimulation._run_sample(config, fine_input_sample, config["fine"]["n_elements"])
-
-        # print("fine res ", fine_res)
-        # print("coarse res ", coarse_res)
+        fine_res = ShootingSimulation2D._run_sample(config, fine_input_sample, config["fine"]["n_elements"])
+        coarse_res = ShootingSimulation2D._run_sample(config, fine_input_sample, config["fine"]["n_elements"])
 
         return fine_res, coarse_res
-
 
     @staticmethod
     def _run_sample(config, rnd_input_samples, n_elements):
         """
         Simulation of 2D shooting
         """
-        x, y, time, n = 0, 0, 0, 0
         X = config["start_position"]
         V = config['start_velocity']
 
@@ -129,7 +123,7 @@ class ShootingSimulation(Simulation):
 
             if x > config['area_borders'][1] or x < config['area_borders'][0] or\
                     y > config['area_borders'][3] or y < config['area_borders'][2]:
-                y = np.nan
+                X = [np.nan, np.nan]
                 break
 
             time = dt * (i + 1)
@@ -137,8 +131,7 @@ class ShootingSimulation(Simulation):
             # End simulation if time is bigger then maximum time
             if time >= config['max_time']:
                 break
-
-        return float(y)
+        return X
 
     @staticmethod
     def create_points(config):
@@ -151,20 +144,25 @@ class ShootingSimulation(Simulation):
                                                    n_fine_elements),
                                        np.linspace(0, config["start_velocity"][0]*config["max_time"],
                                                    n_coarse_elements)))
-
         return points, n_fine_elements
 
     @staticmethod
-    def generate_random_sample(field, coarse_step, n_fine_elements):
+    def generate_random_sample(field_x, field_y, coarse_step, n_fine_elements):
         """
         Generate random field, both fine and coarse part.
         :return: List, List
         """
-        field_sample = field.sample()
-        fine_input_sample = field_sample[:n_fine_elements]
-        coarse_input_sample = []
+        field_sample_x = field_x.sample()
+        field_sample_y = field_y.sample()
+
+        fine_input_sample = np.empty((n_fine_elements, 2))
+        fine_input_sample[:, 0] = field_sample_x[:n_fine_elements]
+        fine_input_sample[:, 1] = field_sample_y[:n_fine_elements]
+
+        coarse_input_sample = np.empty((len(field_sample_x) - n_fine_elements, 2))
         if coarse_step != 0:
-            coarse_input_sample = field_sample[n_fine_elements:]
+            coarse_input_sample[:, 0] = field_sample_x[n_fine_elements:]
+            coarse_input_sample[:, 1] = field_sample_y[n_fine_elements:]
         return fine_input_sample, coarse_input_sample
 
     def n_ops_estimate(self, step):
@@ -175,9 +173,6 @@ class ShootingSimulation(Simulation):
         Result format
         :return:
         """
-        spec1 = QuantitySpec(name="position", unit="m", shape=(1, ), times=[10], locations=['y'])
-        #spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40'])
-        # spec1 = QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=[(1, 2, 3), (4, 5, 6)])
-        # spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=[(7, 8, 9), (10, 11, 12)])
+        spec1 = QuantitySpec(name="target", unit="m", shape=(2,), times=[10], locations=['0'])
         return [spec1]
 

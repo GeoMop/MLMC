@@ -339,9 +339,12 @@ class Estimate:
                                                   n_samples=sample_storage.get_n_collected()[0]))[..., 0]
 
             fine_samples = np.squeeze(fine_samples)
+            fine_samples = fine_samples[~np.isnan(fine_samples)]  # remove NaN
             ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
 
         ranges = np.array(ranges)
+
+        print("ranges ", ranges)
         return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
     def construct_density(self, tol=1e-8, reg_param=0.0, orth_moments_tol=1e-4, exact_pdf=None):
@@ -349,10 +352,10 @@ class Estimate:
         Construct approximation of the density using given moment functions.
         """
         cov_mean = qe.estimate_mean(qe.covariance(self._quantity, self._moments_fn))
-        cov_mat = cov_mean()
+        cov_mat = cov_mean.mean
         moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(self._moments_fn,
-                                                                                                     cov_mat,
-                                                                                                     tol=orth_moments_tol)
+                                                                                      cov_mat,
+                                                                                      tol=orth_moments_tol)
         moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_obj))
         est_moments = moments_mean.mean
         est_vars = moments_mean.var
@@ -371,5 +374,6 @@ class Estimate:
         return distr_obj, info, result, moments_obj
 
     def get_level_samples(self, level_id):
-        return self._quantity.samples(ChunkSpec(level_id=level_id,
-                                                n_samples=self._sample_storage.get_n_collected()[level_id]))
+        samples = self._quantity.samples(ChunkSpec(level_id=level_id,
+                                                   n_samples=self._sample_storage.get_n_collected()[level_id]))
+        return samples[..., ~np.any(np.isnan(samples), axis=0).any(axis=1), :]
