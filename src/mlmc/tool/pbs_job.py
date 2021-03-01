@@ -194,6 +194,7 @@ class PbsJob:
             success = []
             failed = []
             current_samples = []
+            times = []
 
         self._save_to_file(success, failed, times, current_samples)
 
