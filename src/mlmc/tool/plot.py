@@ -955,6 +955,7 @@ class ArticlePDF(Distribution):
         :param log_x: Use logarithmic scale for X axis.
         Simple difference is used for CDF for both options.
         """
+        matplotlib.rcParams.update({'font.size': 38})
         self._exact_distr = exact_distr
         self._log_density = log_density
         self._log_x = log_x
@@ -1098,33 +1099,61 @@ class SamplingPlots(Distribution):
         self._legend_title = legend_title
         self.cmap = plt.cm.tab20
         self.axes = None
+        y_axis_label = "$t(s)$"
         x_axis_label = quantity_name
 
         if single_fig:
             self.fig, self.axes = plt.subplots(1, 1, figsize=(22, 10))
             self.axes.set_xlabel(x_axis_label)
+            self.axes.set_ylabel(y_axis_label)
             self._plot_i = 0
+
+            # self.axes2 = self.axes.twiny()
+            # self.axes2.xaxis.set_ticks_position("bottom")
+            # self.axes2.xaxis.set_label_position("bottom")
+            # self.axes2.spines["bottom"].set_position(("axes", -0.15))
+            # self.axes2.set_xlabel(r"time $(s)$")
+            # """adjust ax2 ylimit so that v2 in ax2 is aligned to v1 in ax1"""
+            # x1, _ = self.axes.transData.transform((0, 0))
+            # x2, _ = self.axes2.transData.transform((0, 0))
+            # inv = self.axes.transData.inverted()
+            # dx, d0 = inv.transform((0, 0)) - inv.transform((x1 - x2, 0))
+            # minx, maxx = self.axes2.get_ylim()
+            # self.axes2.set_xlim(minx + dx, maxx + dx)
+
         else:
-            self.fig, axes = plt.subplots(1, 3, figsize=(22, 10))
+            self.fig, axes = plt.subplots(1, 5, figsize=(22, 10))
             self.ax_target_n = axes[0]
             self.ax_estimated_n = axes[1]
             self.ax_collected_n = axes[2]
+            self.ax_scheduled_n = axes[3]
+            self.ax_total_time = axes[4]
 
             self.i_ax_target = 0
             self.i_ax_estimated = 0
             self.i_ax_collected = 0
+            self.i_ax_scheduled = 0
+            self.i_ax_total_time = 0
 
-            self.ax_target_n.set_ylabel("N target samples")
+            self.ax_target_n.set_ylabel(y_axis_label)
             self.ax_target_n.set_xlabel(x_axis_label)
             self.ax_target_n.tick_params(axis='y')
 
-            self.ax_estimated_n.set_ylabel("N estimated samples")
+            self.ax_estimated_n.set_ylabel(y_axis_label)
             self.ax_estimated_n.tick_params(axis='y')
             self.ax_estimated_n.set_xlabel(x_axis_label)
 
-            self.ax_collected_n.set_ylabel("N collected samples")
+            self.ax_collected_n.set_ylabel(y_axis_label)
             self.ax_collected_n.tick_params(axis='y')
             self.ax_collected_n.set_xlabel(x_axis_label)
+
+            self.ax_scheduled_n.set_ylabel(y_axis_label)
+            self.ax_scheduled_n.tick_params(axis='y')
+            self.ax_scheduled_n.set_xlabel(x_axis_label)
+
+            self.ax_total_time.set_ylabel(y_axis_label)
+            self.ax_total_time.tick_params(axis='y')
+            self.ax_total_time.set_xlabel(x_axis_label)
 
             if log_mean_y:
                 self.ax_target_n.set_yscale('log')
@@ -1132,27 +1161,55 @@ class SamplingPlots(Distribution):
             if log_var_y:
                 self.ax_estimated_n.set_yscale('log')
 
-    def add_target_n(self, target_n, label=None):
+    def add_target_n(self, target_n, label="T"):
         if self.axes is not None:
-            self.plot_data(self.axes, (range(0, len(target_n)), target_n), color=self.cmap(self._plot_i), label="T")
+            self.plot_data(self.axes, (range(0, len(target_n)), target_n), color=self.cmap(self._plot_i), label=label)
             self._plot_i += 1
         else:
             self.plot_list_data(self.ax_target_n, target_n, self.i_ax_target, label=label)
 
-    def add_estimated_n(self, estimated_n, label=None):
+    def add_estimated_n(self, estimated_total_time, estimated_sub_time=None, label="E", sub_label=""):
         if self.axes is not None:
-            self.plot_data(self.axes, (range(0, len(estimated_n)), estimated_n), color=self.cmap(self._plot_i), label="E")
+            self.plot_data(self.axes, (range(0, len(estimated_total_time)), estimated_total_time), color=self.cmap(self._plot_i), label=label)
+            if estimated_sub_time is not None:
+                self.plot_data(self.axes, (range(0, len(estimated_total_time)), estimated_sub_time), color=self.cmap(self._plot_i),
+                               label=sub_label, marker="x")
             self._plot_i += 1
         else:
-            self.plot_list_data(self.ax_estimated_n, estimated_n, self.i_ax_estimated, label=label)
+            if estimated_sub_time is not None:
+                self.plot_list_data(self.ax_collected_n, estimated_sub_time, self.i_ax_scheduled, label=label + " flow")
+            self.plot_list_data(self.ax_estimated_n, estimated_total_time, self.i_ax_estimated, label=label)
 
-    def add_collected_n(self, collected_n, label=None):
-        print("collected_n ", collected_n)
+    def add_collected_n(self, collected_total_time, collected_sub_time=None, label="C", sub_label=""):
         if self.axes is not None:
-            self.plot_data(self.axes, (range(0, len(collected_n)), collected_n), color=self.cmap(self._plot_i), label="C")
+            self.plot_data(self.axes, (range(0, len(collected_total_time)), collected_total_time), color=self.cmap(self._plot_i), label=label)
+            if collected_sub_time is not None:
+                self.plot_data(self.axes, (range(0, len(collected_total_time)), collected_sub_time), color=self.cmap(self._plot_i),
+                               label=sub_label, marker="x")
             self._plot_i += 1
         else:
-            self.plot_list_data(self.ax_collected_n, collected_n, self.i_ax_collected, label=label)
+            if collected_sub_time is not None:
+                self.plot_list_data(self.ax_collected_n, collected_sub_time, self.i_ax_scheduled, label=label + " flow")
+            self.plot_list_data(self.ax_collected_n, collected_total_time, self.i_ax_collected, label=label)
+
+    def add_scheduled_n(self, scheduled_total_time, scheduled_sub_time=None, label="S", sub_label=""):
+        if self.axes is not None:
+            self.plot_data(self.axes, (range(0, len(scheduled_total_time)), scheduled_total_time), color=self.cmap(self._plot_i), label=label)
+            if scheduled_sub_time is not None:
+                self.plot_data(self.axes, (range(0, len(scheduled_total_time)), scheduled_sub_time), color=self.cmap(self._plot_i),
+                               label=sub_label, marker="x")
+            self._plot_i += 1
+        else:
+            if scheduled_sub_time is not None:
+                self.plot_list_data(self.ax_collected_n, scheduled_sub_time, self.i_ax_scheduled, label=label + " flow")
+            self.plot_list_data(self.ax_collected_n, scheduled_total_time, self.i_ax_scheduled, label=label)
+
+    def add_total_time(self, total_time, label="Time"):
+        if self.axes is not None:
+            self.plot_data(self.axes, (range(0, len(total_time)), total_time), color=self.cmap(self._plot_i), label=label)
+            self._plot_i += 1
+        else:
+            self.plot_list_data(self.ax_total_time, total_time, self.i_ax_total_time, label=label)
 
     def plot_data(self, ax, data, color, label, marker='o'):
         ax.scatter(data[0], data[1], color=color, label=label, marker=marker)
@@ -1173,6 +1230,7 @@ class SamplingPlots(Distribution):
             self.ax_target_n.legend()
             self.ax_estimated_n.legend()
             self.ax_collected_n.legend()
+            self.ax_total_time.legend()
 
         _show_and_save(self.fig, file, self._title)
 

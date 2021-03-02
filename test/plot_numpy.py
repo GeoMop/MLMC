@@ -4,10 +4,9 @@ import time
 import pytest
 
 import numpy as np
+import ruamel.yaml as yaml
 import scipy.stats as stats
 from scipy.interpolate import interp1d
-
-
 
 import mlmc.tool.plot as plot
 import pickle
@@ -1502,23 +1501,69 @@ def plot_legendre():
     fig.savefig(file)
 
 
+def plot_overall_times(sampling_info_path, estimated_times, scheduled_times, finished_times):
+    sampling_plot = plot.SamplingPlots(title="Sampling algo", single_fig=True)
+
+    sampling_plot.add_estimated_n(estimated_times)
+    sampling_plot.add_scheduled_n(scheduled_times)
+    sampling_plot.add_collected_n(finished_times)
+
+    sampling_plot.show(None)
+    sampling_plot.show(file=os.path.join(sampling_info_path, "sampling_algo_times_overall"))
+    sampling_plot.reset()
+
+
+def plot_overall_times_sim_times(sampling_info_path, estimated_times, scheduled_times, finished_times, sim_estimated,
+                                 sim_scheduled, sim_collected):
+        estimated_sub_label = "E sim"
+        scheduled_sub_label = "S sim"
+        collected_sub_label = "C sim"
+
+        sampling_plot = plot.SamplingPlots(title="Sampling algo", single_fig=True)
+
+        sampling_plot.add_estimated_n(estimated_times, estimated_sub_time=sim_estimated, sub_label=estimated_sub_label)
+        sampling_plot.add_scheduled_n(scheduled_times, scheduled_sub_time=sim_scheduled, sub_label=scheduled_sub_label)
+        sampling_plot.add_collected_n(finished_times, collected_sub_time=sim_collected, sub_label=collected_sub_label)
+
+        sampling_plot.show(None)
+        sampling_plot.show(file=os.path.join(sampling_info_path, "sampling_algo_times_overall_sim_times"))
+        sampling_plot.reset()
+
+
+def plot_overall_times_flow_times(sampling_info_path, estimated_times, scheduled_times, finished_times, flow_estimated, flow_scheduled, flow_collected):
+    estimated_sub_label = "E flow"
+    scheduled_sub_label = "S flow"
+    collected_sub_label = "C flow"
+
+    sampling_plot = plot.SamplingPlots(title="Sampling algo", single_fig=True)
+
+    sampling_plot.add_estimated_n(estimated_times, estimated_sub_time=flow_estimated, sub_label=estimated_sub_label)
+    sampling_plot.add_scheduled_n(scheduled_times, scheduled_sub_time=flow_scheduled, sub_label=scheduled_sub_label)
+    sampling_plot.add_collected_n(finished_times, collected_sub_time=flow_collected, sub_label=collected_sub_label)
+
+    sampling_plot.show(None)
+    sampling_plot.show(file=os.path.join(sampling_info_path, "sampling_algo_times_overall_flow_times"))
+    sampling_plot.reset()
+
+
 def plot_sampling_data():
-    n_levels = [1]
+    n_levels = [5]
     for nl in n_levels:
-        sampling_info_path = "/home/martin/Sync/Documents/flow123d_results/flow_experiments/Exponential/" \
-                             "corr_length_0_3/sigma_2/L{}/sampling_info".format(nl)
-        sampling_info_path = "/home/martin/Sync/Documents/flow123d_results/flow_experiments/Exponential/" \
-                             "corr_length_0_1/sigma_2/L{}/sampling_info".format(nl)
+        sampling_info_path = "/home/martin/Documents/MLMC_article/data/sampling_info"
 
         n_target_samples = []
         n_scheduled_samples = []
         n_collected_samples = []
-        n_finished_samples = []
+        n_finished_samples = [] # n finished samples is same as n collected samples
         n_failed_samples = []
         n_estimated = []
         variances = []
         n_ops = []
         times = []
+
+        times_scheduled_samples = []
+        running_times = []
+        flow_running_times = []
 
         for i in range(0, 100):
             sampling_info_path_iter = os.path.join(sampling_info_path, str(i))
@@ -1532,43 +1577,119 @@ def plot_sampling_data():
                 variances.append(np.load(os.path.join(sampling_info_path_iter, "variances.npy")))
                 n_ops.append(np.load(os.path.join(sampling_info_path_iter, "n_ops.npy")))
                 times.append(np.load(os.path.join(sampling_info_path_iter, "time.npy")))
+
+                running_times.append(np.load(os.path.join(sampling_info_path_iter, "running_times.npy")))
+                flow_running_times.append(np.load(os.path.join(sampling_info_path_iter, "flow_running_times.npy")))
+                if os.path.exists(os.path.join(sampling_info_path_iter, "scheduled_samples_time.npy")):
+                    times_scheduled_samples.append(np.load(os.path.join(sampling_info_path_iter, "scheduled_samples_time.npy")))
             else:
                 break
 
-        sampling_plot = plot.SamplingPlots(title="Sampling algo", single_fig=True)
+        def time_for_sample_func(data):
+            new_n_ops = []
+            for nop in data:
+                nop = np.squeeze(nop)
+                if len(nop) > 0:
+                    new_n_ops.append(nop[:, 0]/nop[:, 1])
+            return new_n_ops
+
+        n_ops = time_for_sample_func(n_ops)
+        running_times = time_for_sample_func(running_times)
+        flow_running_times = time_for_sample_func(flow_running_times)
+        time_for_sample = n_ops
 
 
+        n_scheduled_times = time_for_sample * np.array(n_scheduled_samples) # Scheduled is the same as Target
+        n_estimated_times = time_for_sample * np.array(n_estimated)
+        n_finished_times = time_for_sample * np.array(n_collected_samples)
 
-        print("n_collected samples ", n_collected_samples)
-        print("n_finished_samples ", n_finished_samples)
-        print("n_failed_samples ", n_failed_samples)
+        estimated_times = np.add(np.sum(n_estimated_times, axis=1), np.array(times))
+        scheduled_times = np.sum(n_scheduled_times, axis=1) + np.squeeze(times)
+        finished_times = np.sum(n_finished_times, axis=1) + np.squeeze(times)
 
-        sampling_plot.add_target_n(np.sum(n_target_samples, axis=1, keepdims=True))
-        sampling_plot.add_estimated_n(np.sum(n_estimated, axis=1, keepdims=True))
-        sampling_plot.add_collected_n(np.sum(n_finished_samples, axis=1, keepdims=True))
+        # Flow execution times from profiler
+        flow_n_scheduled_times = flow_running_times * np.array(n_scheduled_samples)  # Scheduled is the same as Target
+        flow_n_estimated_times = flow_running_times * np.array(n_estimated)
+        flow_n_finished_times = flow_running_times * np.array(n_collected_samples)
+
+        flow_scheduled = np.sum(flow_n_scheduled_times, axis=1)
+        flow_collected = np.sum(flow_n_finished_times, axis=1)
+        flow_estimated = np.sum(flow_n_estimated_times, axis=1)
+
+        # Simulation CPU times
+        sim_n_scheduled_times = (np.array(running_times) - np.array(flow_running_times)) * np.array(
+            n_scheduled_samples)  # Scheduled is the same as Target
+        sim_n_estimated_times = (np.array(running_times) - np.array(flow_running_times)) * np.array(n_estimated)
+        sim_n_collected_times = (np.array(running_times) - np.array(flow_running_times)) * np.array(n_collected_samples)
+
+        sim_scheduled_times = np.sum(sim_n_scheduled_times, axis=1)
+        sim_collected_times = np.sum(sim_n_collected_times, axis=1)
+        sim_estimated_times = np.sum(sim_n_estimated_times, axis=1)
+
+        # Plots
+        plot_overall_times(sampling_info_path, estimated_times, scheduled_times, finished_times)
+        plot_overall_times_sim_times(sampling_info_path, estimated_times, scheduled_times, finished_times,
+                                     sim_estimated_times, sim_scheduled_times, sim_collected_times)
+        plot_overall_times_flow_times(sampling_info_path, estimated_times, scheduled_times, finished_times, flow_estimated, flow_scheduled, flow_collected)
 
 
-        print("n_target_samples ", n_target_samples)
-        print("n_scheduled ", n_scheduled_samples)
-        print("n estimated ", n_estimated)
-        print("n_ops ", n_ops)
+        #sampling_plot.add_total_time(np.squeeze(times) + np.sum(np.squeeze(n_ops), axis=1))
 
-        print("time ", times)
+        #print("n_target_samples ", n_target_samples)
+        # print("n estimated ", n_estimated)
+        # print("n_scheduled ", n_scheduled_samples)
+        # print("n_collected ", n_collected_samples)
+        #
+        # print("sum n_scheduled ", np.sum(n_scheduled_samples, axis=1))
+        # print("sum n_collected ", np.sum(n_collected_samples, axis=1))
 
-        sampling_plot.show(None)
-        sampling_plot.show(file=os.path.join("sampling_algo".format(nl)))
-        sampling_plot.reset()
+        # print("n_ops ", n_ops)
+        # print("n collected times ", n_collected_times)
+        # print("time ", times[:len(times_scheduled_samples)])
+        # print("np.sum(np.squeeze(n_ops), axis=1) ", np.sum(np.squeeze(n_ops), axis=1))
+        # print("np.sum(np.squeeze(running_times), axis=1) ", np.sum(np.squeeze(running_times), axis=1))
+        # print("np.sum(np.squeeze(flow_running_times), axis=1) ", np.sum(np.squeeze(flow_running_times), axis=1))
+        # field_generating_time = np.sum(np.squeeze(running_times), axis=1) - 2*np.sum(np.squeeze(flow_running_times), axis=1)
 
 
-
-
+# def analyze_n_ops():
+#     cl = 1
+#     sigma = 1
+#     levels = 3
+#     sampling_info_path = "/home/martin/Sync/Documents/flow123d_results/flow_experiments/Exponential/" \
+#                          "corr_length_0_{}/sigma_{}/L{}/jobs".format(cl, sigma, levels)
+#
+#     directory = os.fsencode(sampling_info_path)
+#
+#     print("os.listdir(directory) ", os.listdir(directory))
+#
+#     for file in os.listdir(directory):
+#         filename = os.fsdecode(file)
+#         if filename.endswith(".yaml"):
+#             print("file name ", filename)
+#             time = {}
+#             with open(os.path.join(sampling_info_path, filename)) as file:
+#                 times = yaml.load(file, yaml.Loader)
+#
+#                 for level_id, t, n_samples in times:
+#                     time.setdefault(level_id, []).append((t, n_samples))
+#
+#             for l_id in range(levels):
+#                 if l_id != 0:
+#                     continue
+#                 if l_id in time:
+#                     print("level id ", l_id)
+#                     print("time ", time[l_id])
+#                 #print(time[l_id][-1][0]/time[l_id][-1][1])
 
 
 if __name__ == "__main__":
 
+
+    #analyze_n_ops()
+
     plot_sampling_data()
     exit()
-
     #plot_legendre()
 
     #plot_KL_div_exact()
