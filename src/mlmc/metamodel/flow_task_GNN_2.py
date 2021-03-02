@@ -7,7 +7,7 @@ from tensorflow.keras.metrics import mean_squared_error, kl_divergence
 from tensorflow.keras.callbacks import History
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import l2
-from mlmc.metamodel.postprocessing import analyze_results, plot_loss
+from mlmc.metamodel.postprocessing import analyze_results, plot_loss, estimate_density
 from spektral.data import MixedLoader
 from mlmc.metamodel.flow_dataset import FlowDataset
 from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv
@@ -41,6 +41,8 @@ class GNN:
         self._train_loss = []
         self._val_loss = []
 
+        self.val_targets = []
+
         self._model = Net1(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
                            output_activation=self._output_activation,
                            kernel_regularization=self._hidden_regularizer)
@@ -54,6 +56,9 @@ class GNN:
         current_patience = self._patience
         step = 0
 
+        train_targets = True
+        train_targets_list = []
+
         # Training loop
         results_tr = []
         for batch in loader_tr:
@@ -61,6 +66,11 @@ class GNN:
 
             # Training step
             inputs, target = batch
+
+            if train_targets:
+                train_targets_list.extend(target)
+                print("len(train targets ", len(train_targets_list))
+
             loss, acc = self.train_on_batch(inputs, target)
             self._train_loss.append(loss)
             results_tr.append((loss, acc, len(target)))
@@ -69,6 +79,7 @@ class GNN:
             self._val_loss.append(results_va[0])
 
             if step == loader_tr.steps_per_epoch: # step_per_epoch = int(np.ceil(len(self.dataset) / self.batch_size))
+                train_targets = False
                 # results_va = self.evaluate(loader_va)
                 # self._val_loss.append(results_va[0])
                 if results_va[0] < best_val_loss:
@@ -95,6 +106,8 @@ class GNN:
                 results_tr = []
                 step = 0
 
+        return train_targets_list
+
     # Training function
     @tf.function
     def train_on_batch(self, inputs, target):
@@ -106,15 +119,25 @@ class GNN:
             acc = tf.reduce_mean(self._accuracy_func(target, predictions))
 
         gradients = tape.gradient(loss, self._model.trainable_variables)
-        optimizer.apply_gradients(zip(gradients, self._model.trainable_variables))
+        self._optimizer.apply_gradients(zip(gradients, self._model.trainable_variables))
         return loss, acc
 
     def evaluate(self, loader):
         step = 0
         results = []
+
+        if len(self.val_targets) > 0:
+            val_targets = False
+        else:
+            val_targets = True
+
         for batch in loader:
             step += 1
             inputs, target = batch
+
+            if val_targets:
+                self.val_targets.extend(target)
+
             predictions = self._model(inputs, training=False)
 
             loss = self._loss(target, predictions)
@@ -131,12 +154,7 @@ class GNN:
         for batch in loader:
             step += 1
 
-
-            print("predict")
             inputs, target = batch
-            print("len(inputs) ", len(inputs[0]))
-
-            print("step ", step)
 
             targets.extend(target)
             predictions.extend(self._model(inputs, training=False))
@@ -145,52 +163,55 @@ class GNN:
                 return targets, predictions
 
 
-if __name__ == "__main__":
-    # Parameters
-    #conv_layer = GCNConv
-    conv_layer = ChebConv  # Seems better than GCNConv, good distribution of predictions
-    # # conv_layer = GraphSageConv  # Seems better than ChebConv, good loss but very narrow distribution of predictions
-    # # conv_layer = ARMAConv  # Seems worse than GraphSageConv
-    # # conv_layer = GATConv  # Slow and not better than GraphSageConv
-    # # conv_layer = APPNPConv  # Not bad but worse than GraphSageConv
-    # # conv_layer = GINConv  # it is comparable to APPNPConv
-    # act_func = "relu"  # "tanh"#"elu"  # ReLU keep predictions above zero
-    loss = MeanSquaredError()
-    optimizer = tf.optimizers.Adam(learning_rate=0.001)
-    batch_size = 1000
-    epochs = 100
-
-    # Load data
-    data = FlowDataset()
-    data = data[:10000]
-    data.a = conv_layer.preprocess(data.a)
-    data.a = sp_matrix_to_sp_tensor(data.a)
-
-    train_data_len = int(len(data) * 0.8)
-
-    # Train/valid/test split
-    data_tr, data_te = data[:train_data_len], data[train_data_len:],
-    np.random.shuffle(data_tr)
-
-    val_data_len = int(len(data_tr) * 0.2)
-    data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
-
-    print("data_tr len ", len(data_tr))
-    print("data_va len ", len(data_va))
-    print("data_te len ", len(data_te))
-
-    # We use a MixedLoader since the dataset is in mixed mode
-    loader_tr = MixedLoader(data_tr, batch_size=batch_size, epochs=epochs)
-    loader_va = MixedLoader(data_va, batch_size=batch_size)
-    loader_te = MixedLoader(data_te, batch_size=batch_size)
-
-
-    gnn = GNN(loss=loss, optimizer=optimizer, conv_layer=conv_layer, output_activation=abs_activation,
-              hidden_activation='relu', patience=10)
-    gnn.fit(loader_tr, loader_va, loader_te)
-
-    targets, predictions = gnn.predict(loader_te)
-    predictions = np.squeeze(predictions)
-
-    plot_loss(gnn._train_loss, gnn._val_loss)
-    analyze_results(targets, predictions)
+# if __name__ == "__main__":
+#     # Parameters
+#     #conv_layer = GCNConv
+#     conv_layer = ChebConv  # Seems better than GCNConv, good distribution of predictions
+#     # # conv_layer = GraphSageConv  # Seems better than ChebConv, good loss but very narrow distribution of predictions
+#     # # conv_layer = ARMAConv  # Seems worse than GraphSageConv
+#     # # conv_layer = GATConv  # Slow and not better than GraphSageConv
+#     # # conv_layer = APPNPConv  # Not bad but worse than GraphSageConv
+#     # # conv_layer = GINConv  # it is comparable to APPNPConv
+#     # act_func = "relu"  # "tanh"#"elu"  # ReLU keep predictions above zero
+#     loss = MeanSquaredError()
+#     optimizer = tf.optimizers.Adam(learning_rate=0.001)
+#     batch_size = 500
+#     epochs = 100
+#
+#     # Load data
+#     data = FlowDataset()
+#     data = data#[:10000]
+#     #data.a = conv_layer.preprocess(data.a)
+#     data.a = sp_matrix_to_sp_tensor(data.a)
+#
+#     train_data_len = int(len(data) * 0.8)
+#     train_data_len = 10000
+#
+#     # Train/valid/test split
+#     data_tr, data_te = data[:train_data_len], data[train_data_len:],
+#     np.random.shuffle(data_tr)
+#
+#     val_data_len = int(len(data_tr) * 0.2)
+#     data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
+#
+#     print("data_tr len ", len(data_tr))
+#     print("data_va len ", len(data_va))
+#     print("data_te len ", len(data_te))
+#
+#     # We use a MixedLoader since the dataset is in mixed mode
+#     loader_tr = MixedLoader(data_tr, batch_size=batch_size, epochs=epochs)
+#     loader_va = MixedLoader(data_va, batch_size=batch_size)
+#     loader_te = MixedLoader(data_te, batch_size=batch_size)
+#
+#     gnn = GNN(loss=loss, optimizer=optimizer, conv_layer=conv_layer, output_activation=abs_activation,
+#               hidden_activation='relu', patience=20)
+#     gnn.fit(loader_tr, loader_va, loader_te)
+#
+#     targets, predictions = gnn.predict(loader_te)
+#     predictions = np.squeeze(predictions)
+#
+#     plot_loss(gnn._train_loss, gnn._val_loss)
+#     analyze_results(targets, predictions)
+#
+#     estimate_density(targets)
+#     estimate_density(predictions)
