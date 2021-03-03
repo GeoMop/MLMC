@@ -1,9 +1,10 @@
 import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
-from mlmc.tool import plot
 import mlmc.quantity_estimate as qe
 import mlmc.tool.simple_distribution
+from mlmc.tool import plot
+from mlmc.quantity_spec import ChunkSpec
 
 
 def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_ops, n_levels):
@@ -304,7 +305,7 @@ class Estimate:
         label_n_spaces = 5
         n_levels = self._sample_storage.get_n_levels()
         for level_id in range(n_levels):
-            samples = np.squeeze(self._quantity.samples(level_id=level_id), axis=0)
+            samples = np.squeeze(self._quantity.samples(ChunkSpec(level_id=level_id)), axis=0)
             if level_id == 0:
                 label = "{} F{} {} C".format(level_id, ' ' * label_n_spaces, level_id + 1)
                 data = {'samples': samples[:, 0], 'type': 'fine', 'level': label}
@@ -334,7 +335,7 @@ class Estimate:
             quantile = 0.01
 
         for level_id in range(sample_storage.get_n_levels()):
-            fine_samples = quantity.samples(level_id=level_id, n_samples=sample_storage.get_n_collected()[0])[..., 0]
+            fine_samples = quantity.samples(ChunkSpec(level_id=0))[..., 0]  # Fine samples at level 0
 
             fine_samples = np.squeeze(fine_samples)
             ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
@@ -369,4 +370,4 @@ class Estimate:
         return distr_obj, info, result, moments_obj
 
     def get_level_samples(self, level_id):
-        return self._quantity.samples(level_id=level_id, n_samples=self._sample_storage.get_n_collected()[level_id])
+        return self._quantity.samples(ChunkSpec(level_id=level_id))
