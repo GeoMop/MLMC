@@ -1,7 +1,9 @@
 import os
 import numpy as np
+import time
 import random
 #os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
+from mlmc.metamodel.create_graph import graph_creator
 from mlmc.metamodel.flow_dataset import FlowDataset
 # Make numpy printouts easier to read.
 
@@ -18,6 +20,7 @@ from mlmc.metamodel.flow_task_CNN import CNN
 from mlmc.metamodel.flow_task_GNN_2 import GNN
 from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv
 from tensorflow.keras.losses import MeanSquaredError
+from tensorflow.keras.regularizers import l2
 from spektral.data import MixedLoader
 from spektral.layers.ops import sp_matrix_to_sp_tensor
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
@@ -243,23 +246,11 @@ def bootstrap_GNN():
 
 
 def run_GNN():
-    loss = "mean_absolute_error"
-    optimizer = tf.optimizers.Adam(learning_rate=0.001)
-    n_subsamples = 10
-    size = 10000
-
-    train_losses = []
-    val_losses = []
-    all_test_outputs = []
-    all_predictions = []
-    ks_statistics = []
-    ks_p_values = []
-
-    data = FlowDataset()
-    dataset = data.dataset.dropna()
+    output_dir = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1/test/01_cond_field/output/"
+    hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1/mlmc_1.hdf5"
 
     # Parameters
-    #conv_layer = GCNConv
+    conv_layer = GCNConv
     conv_layer = ChebConv  # Seems better than GCNConv, good distribution of predictions
     # # conv_layer = GraphSageConv  # Seems better than ChebConv, good loss but very narrow distribution of predictions
     # # conv_layer = ARMAConv  # Seems worse than GraphSageConv
@@ -268,18 +259,22 @@ def run_GNN():
     # # conv_layer = GINConv  # it is comparable to APPNPConv
     # act_func = "relu"  # "tanh"#"elu"  # ReLU keep predictions above zero
     loss = MeanSquaredError()
-    optimizer = tf.optimizers.Adam(learning_rate=0.001)
+    optimizer = tf.optimizers.Adam(learning_rate=0.01)
     batch_size = 1000
     epochs = 100
+    hidden_regularization = None#l2(2e-10)
+
+
+    graph_creator(output_dir, hdf_path)
 
     # Load data
-    data = FlowDataset()
+    data = FlowDataset(output_dir=output_dir)
     data = data  # [:10000]
     # data.a = conv_layer.preprocess(data.a)
     data.a = sp_matrix_to_sp_tensor(data.a)
 
     train_data_len = int(len(data) * 0.8)
-    train_data_len = 10000
+    train_data_len = 2000
 
     # Train/valid/test split
     data_tr, data_te = data[:train_data_len], data[train_data_len:],
@@ -298,7 +293,7 @@ def run_GNN():
     loader_te = MixedLoader(data_te, batch_size=batch_size)
 
     gnn = GNN(loss=loss, optimizer=optimizer, conv_layer=conv_layer, output_activation=abs_activation,
-              hidden_activation='relu', patience=20)
+              hidden_activation='relu', patience=20, hidden_reqularizer=hidden_regularization)
     train_targets = gnn.fit(loader_tr, loader_va, loader_te)
 
     val_targets = gnn.val_targets
@@ -324,17 +319,33 @@ def run_GNN():
     # print("diff_means ", diff_means)
     # print("diff vars ", diff_vars)
 
-    diff_moments(targets, predictions)
-
-    save_load_data(False, targets, predictions, train_targets, val_targets)
+    #diff_moments(targets, predictions)
 
 
-def save_load_data(load=False, targets=None, predictions=None, train_targets=None, val_targets=None):
+    l_0_targets, l_0_predictions = predict_level_zero(gnn, batch_size)
+
+    save_load_data(False, targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions)
+
+
+def predict_level_zero(nn, batch_size=1000):
+    output_dir = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1/test/01_cond_field/output/"
+    # Load data
+    data = FlowDataset(output_dir=output_dir)
+    data = data  # [:10000]
+    # data.a = conv_layer.preprocess(data.a)
+    data.a = sp_matrix_to_sp_tensor(data.a)
+
+    loader_te = MixedLoader(data, batch_size=batch_size)
+
+    targets, predictions = nn.predict(loader_te)
+    return targets, predictions
+
+
+def save_load_data(load=False, targets=None, predictions=None, train_targets=None, val_targets=None, l_0_targets=None,
+                   l_0_predictions=None):
     path = "/home/martin/Documents/metamodels/data/"
 
     if load:
-        targets = None
-        predictions = None
         if os.path.exists(os.path.join(path, "targets.npy")):
             targets = np.load(os.path.join(path, "targets.npy"))
         if os.path.exists(os.path.join(path, "predictions.npy")):
@@ -343,7 +354,11 @@ def save_load_data(load=False, targets=None, predictions=None, train_targets=Non
             train_targets = np.load(os.path.join(path, "train_targets.npy"))
         if os.path.exists(os.path.join(path, "val_targets.npy")):
             val_targets = np.load(os.path.join(path, "val_targets.npy"))
-        return targets, predictions, train_targets, val_targets
+        if os.path.exists(os.path.join(path, "l_0_targets.npy")):
+            l_0_targets = np.load(os.path.join(path, "l_0_targets.npy"))
+        if os.path.exists(os.path.join(path, "l_0_predictions.npy")):
+            l_0_predictions = np.load(os.path.join(path, "l_0_predictions.npy"))
+        return targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions
     else:
         if targets is not None:
             np.save(os.path.join(path, "targets"), targets)
@@ -353,10 +368,14 @@ def save_load_data(load=False, targets=None, predictions=None, train_targets=Non
             np.save(os.path.join(path, "train_targets"), train_targets)
         if val_targets is not None:
             np.save(os.path.join(path, "val_targets"), val_targets)
+        if l_0_targets is not None:
+            np.save(os.path.join(path, "l_0_targets"), l_0_targets)
+        if l_0_predictions is not None:
+            np.save(os.path.join(path, "l_0_predictions"), l_0_predictions)
 
 
 def process_results():
-    targets, predictions, train_targets, val_targets = save_load_data(load=True)
+    targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions = save_load_data(load=True)
 
     print("len targets ", len(targets))
     print("len predictions ", len(predictions))
@@ -364,25 +383,25 @@ def process_results():
     print("len train targets ", len(train_targets))
     print("len val targets ", len(val_targets))
 
-    process_mlmc(targets, predictions, train_targets, val_targets)
+    process_mlmc(targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions)
 
 
 if __name__ == "__main__":
 
-    # import cProfile
-    # import pstats
-    # pr = cProfile.Profile()
-    # pr.enable()
-    #
-    # my_result = run_GNN()
-    #
-    # pr.disable()
-    # ps = pstats.Stats(pr).sort_stats('cumtime')
-    # ps.print_stats()
+    import cProfile
+    import pstats
+    pr = cProfile.Profile()
+    pr.enable()
 
-    #run_GNN()
+    my_result = run_GNN()
 
-    process_results()
+    pr.disable()
+    ps = pstats.Stats(pr).sort_stats('cumtime')
+    ps.print_stats()
+
+    # run_GNN()
+    #
+    # process_results()
     #bootstrap_GNN()
     #run()
 
