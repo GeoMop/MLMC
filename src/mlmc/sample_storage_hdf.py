@@ -1,5 +1,4 @@
 import os
-import itertools
 import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
@@ -137,15 +136,8 @@ class SampleStorageHDF(SampleStorage):
         """
         self._level_groups[level_id].append_scheduled(samples)
 
-    def chunks(self, level_id=None):
-        """
-        Create chunks generator
-        :param level_id: int, if not None return chunks for a given level
-        :return: generator
-        """
-        if level_id is not None:
-            return self._level_groups[level_id].chunks()
-        return itertools.chain(*[level.chunks() for level in self._level_groups])  # concatenate generators
+    def _level_chunks(self, level_id, n_samples=None):
+        return self._level_groups[level_id].chunks(n_samples)
 
     def sample_pairs(self):
         """
@@ -160,7 +152,9 @@ class SampleStorageHDF(SampleStorage):
         levels_results = list(np.empty(len(self._level_groups)))
 
         for level in self._level_groups:
-            results = self.sample_pairs_level(ChunkSpec(level_id=level.level_id))  # return all samples no chunks
+            chunk_spec = next(self.chunks(level_id=int(level.level_id),
+                                          n_samples=self.get_n_collected()[int(level.level_id)]))
+            results = self.sample_pairs_level(chunk_spec)  # return all samples no chunks
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue

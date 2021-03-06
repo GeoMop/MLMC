@@ -52,12 +52,24 @@ class SampleStorage(metaclass=ABCMeta):
         :return: List[Array[M, N, 2]]
         """
 
-    @abstractmethod
-    def chunks(self, level_id=None):
+    def chunks(self, level_id=None, n_samples=None):
         """
         Create chunks generator
         :param level_id: int, if not None return chunks for a given level
+        :param n_samples: int, number of samples to retrieve
         :return: generator
+        """
+        assert isinstance(n_samples, (type(None), int)), "n_samples param must be int"
+        level_ids = self.get_level_ids()
+        if level_id is not None:
+            level_ids = [level_id]
+        return itertools.chain(*[self._level_chunks(level_id, n_samples) for level_id in level_ids])  # concatenate generators
+
+    @abstractmethod
+    def _level_chunks(self, level_id, n_samples=None):
+        """
+        Info about chunks of level's collected data
+        :return: generator of ChunkSpec objects
         """
 
     @abstractmethod
@@ -237,18 +249,8 @@ class Memory(SampleStorage):
 
         return levels_results
 
-    def chunks(self, level_id=None):
-        """
-        Create chunks generator
-        :param level_id: int, if not None return chunks for a given level
-        :return: generator
-        """
-        if level_id is not None:
-            return self._results[int(level_id)].chunks()
-        return itertools.chain(*[self.level_chunks(level_id) for level_id in self.get_level_ids()])  # concatenate generators
-
-    def level_chunks(self, level_id):
-        yield ChunkSpec(chunk_id=0, chunk_slice=slice(0, len(self._results[level_id]), 1), level_id=level_id)
+    def _level_chunks(self, level_id, n_samples=None):
+        yield ChunkSpec(chunk_id=0, chunk_slice=slice(0, len(self._results[level_id][:n_samples]), 1), level_id=level_id)
 
     def sample_pairs_level(self, chunk_spec):
         """
