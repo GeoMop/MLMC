@@ -5,13 +5,24 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from mlmc.tool import gmsh_io
 from mlmc.tool.hdf5 import HDF5
+from spektral.data import Graph
+from mlmc.metamodel.flow_dataset import FlowDataset
 
 
 MESH = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
 #FIELDS_SAMPLE_MESH = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/output/L00_S0000000/fine_fields_sample.msh"
 FIELDS_SAMPLE = "fine_fields_sample.msh"
-OUTPUT_DIR = "/home/martin/Documents/metamodels/data/1000_ele/test/01_cond_field/output/"
-HDF_PATH = "/home/martin/Documents/metamodels/data/1000_ele/test/01_cond_field/mlmc_1.hdf5"
+# OUTPUT_DIR = "/home/martin/Documents/metamodels/data/1000_ele/test/01_cond_field/output/"
+# HDF_PATH = "/home/martin/Documents/metamodels/data/1000_ele/test/01_cond_field/mlmc_1.hdf5"
+
+# OUTPUT_DIR = "/home/martin/Documents/metamodels/data/cl_0_3_s_4/L5/test/01_cond_field/output/"
+# HDF_PATH = "/home/martin/Documents/metamodels/data/cl_0_3_s_4/L5/mlmc_5.hdf5"
+
+# OUTPUT_DIR = "/home/martin/Documents/metamodels/data/cl_0_1_s_1/L5/test/01_cond_field/output/"
+# HDF_PATH = "/home/martin/Documents/metamodels/data/cl_0_1_s_1/L5/mlmc_5.hdf5"
+
+# OUTPUT_DIR = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L5/test/01_cond_field/output/"
+# HDF_PATH = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L5/mlmc_5.hdf5"
 
 
 def extract_mesh_gmsh_io(mesh_file):
@@ -90,29 +101,39 @@ def plot_graph(adjacency_matrix):
     plt.show()
 
 
-def extract_mesh():
+def graph_creator(output_dir, hdf_path):
     adjacency_matrix = create_adjacency_matrix(extract_mesh_gmsh_io(MESH))
-    np.save(os.path.join(OUTPUT_DIR, "adjacency_matrix"), adjacency_matrix, allow_pickle=True)
-    loaded_adjacency_matrix = np.load(os.path.join(OUTPUT_DIR, "adjacency_matrix.npy"), allow_pickle=True)
+    np.save(os.path.join(output_dir, "adjacency_matrix"), adjacency_matrix, allow_pickle=True)
+    loaded_adjacency_matrix = np.load(os.path.join(output_dir, "adjacency_matrix.npy"), allow_pickle=True)
 
     plot_graph(loaded_adjacency_matrix)
 
-    hdf = HDF5(file_path=HDF_PATH,
+    hdf = HDF5(file_path=hdf_path,
                load_from_file=True)
     level_group = hdf.add_level_group(level_id=str(0))
     collected = zip(level_group.get_collected_ids(), level_group.collected())
 
+    graphs = []
+    data = []
+
     for sample_id, col_values in collected:
         output_value = col_values[0, 0]
-        sample_dir = os.path.join(OUTPUT_DIR, sample_id)
+        sample_dir = os.path.join(output_dir, sample_id)
         field_mesh = os.path.join(sample_dir, FIELDS_SAMPLE)
         if os.path.exists(field_mesh):
             features = get_node_features(field_mesh)
             np.save(os.path.join(sample_dir, "nodes_features"), features)
             np.save(os.path.join(sample_dir, "output"), output_value)
 
+            #graphs.append(Graph(x=features, y=output_value))  # , a=self.adjacency_matrix))
+            # Save data for pandas dataframe creation, not used with Graph neural network
+            #data.append({'x': features, 'y': output_value})
+
             #loaded_features = np.load(os.path.join(sample_dir, "nodes_features.npy"))
             #print("loaded features ", loaded_features)
+
+    #FlowDataset.pickle_data(graphs, FlowDataset.GRAPHS_FILE)
+    #FlowDataset.pickle_data(data, FlowDataset.DATA_FILE)
 
 
 if __name__ == "__main__":
@@ -121,7 +142,7 @@ if __name__ == "__main__":
     pr = cProfile.Profile()
     pr.enable()
 
-    my_result = extract_mesh()
+    my_result = graph_creator()
 
     pr.disable()
     ps = pstats.Stats(pr).sort_stats('cumtime')

@@ -3,17 +3,25 @@ import numpy as np
 import pandas as pd
 from mlmc.tool import gmsh_io
 from spektral.data import Dataset, Graph
+import pickle
 
 MESH = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
 FIELDS_SAMPLE = "fine_fields_sample.msh"
-OUTPUT_DIR = "/home/martin/Documents/metamodels/data/1000_ele/test/01_cond_field/output/"
+#OUTPUT_DIR = "/home/martin/Documents/metamodels/data/1000_ele/test/01_cond_field/output/"
+#OUTPUT_DIR = "/home/martin/Documents/metamodels/data/cl_0_3_s_4/L5/test/01_cond_field/output/"
+#OUTPUT_DIR = "/home/martin/Documents/metamodels/data/cl_0_1_s_1/L5/test/01_cond_field/output/"
+OUTPUT_DIR = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L5/test/01_cond_field/output/"
 
 
 class FlowDataset(Dataset):
-    """
-    """
-    def __init__(self, **kwargs):
-        self.adjacency_matrix = np.load(os.path.join(OUTPUT_DIR, "adjacency_matrix.npy"), allow_pickle=True)  # adjacency matrix
+    GRAPHS_FILE = "graphs"
+    DATA_FILE = "data"
+
+    def __init__(self, output_dir=None, **kwargs):
+        self._output_dir = output_dir
+        if self._output_dir is None:
+            self._output_dir = OUTPUT_DIR
+        self.adjacency_matrix = np.load(os.path.join(self._output_dir, "adjacency_matrix.npy"), allow_pickle=True)  # adjacency matrix
         self.data = []
         super().__init__(**kwargs)
         self.a = self.adjacency_matrix
@@ -21,10 +29,19 @@ class FlowDataset(Dataset):
         self.dataset = pd.DataFrame(self.data)
 
     def read(self):
+        # with open(os.path.join(OUTPUT_DIR, FlowDataset.GRAPHS_FILE), 'rb') as reader:
+        #     graphs = pickle.loads(reader)
+        #
+        # if os.path.exists(os.path.join(OUTPUT_DIR, FlowDataset.DATA_FILE)):
+        #     with open(os.path.join(OUTPUT_DIR, FlowDataset.DATA_FILE), 'rb') as reader:
+        #         self.data = pickle.loads(reader)
+        #
+        # return graphs
+
         graphs = []
-        for s_dir in os.listdir(OUTPUT_DIR):
-            if os.path.isdir(os.path.join(OUTPUT_DIR, s_dir)):
-                sample_dir = os.path.join(OUTPUT_DIR, s_dir)
+        for s_dir in os.listdir(self._output_dir):
+            if os.path.isdir(os.path.join(self._output_dir, s_dir)):
+                sample_dir = os.path.join(self._output_dir, s_dir)
                 if os.path.exists(os.path.join(sample_dir, "nodes_features.npy")):
                     features = np.load(os.path.join(sample_dir, "nodes_features.npy"))
                     output = np.load(os.path.join(sample_dir, "output.npy"))
@@ -34,7 +51,10 @@ class FlowDataset(Dataset):
                     self.data.append({'x': features, 'y': output})
         return graphs
 
-
+    @staticmethod
+    def pickle_data(data, file_path):
+        with open(os.path.join(OUTPUT_DIR, file_path), 'wb') as writer:
+            pickle.dump(data, writer)
 
 
 def extract_mesh_gmsh_io(mesh_file):

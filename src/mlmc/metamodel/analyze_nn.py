@@ -245,10 +245,7 @@ def bootstrap_GNN():
     estimate_density(np.mean(all_predictions, axis=0), title="Predictions")
 
 
-def run_GNN():
-    output_dir = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1/test/01_cond_field/output/"
-    hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1/mlmc_1.hdf5"
-
+def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path):
     # Parameters
     conv_layer = GCNConv
     conv_layer = ChebConv  # Seems better than GCNConv, good distribution of predictions
@@ -264,12 +261,15 @@ def run_GNN():
     epochs = 100
     hidden_regularization = None#l2(2e-10)
 
-
+    preprocess_start_time = time.process_time()
     graph_creator(output_dir, hdf_path)
 
     # Load data
     data = FlowDataset(output_dir=output_dir)
     data = data  # [:10000]
+    preprocess_time = time.process_time() - preprocess_start_time
+
+    learning_time_start = time.process_time()
     # data.a = conv_layer.preprocess(data.a)
     data.a = sp_matrix_to_sp_tensor(data.a)
 
@@ -283,9 +283,9 @@ def run_GNN():
     val_data_len = int(len(data_tr) * 0.2)
     data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
 
-    print("data_tr len ", len(data_tr))
-    print("data_va len ", len(data_va))
-    print("data_te len ", len(data_te))
+    # print("data_tr len ", len(data_tr))
+    # print("data_va len ", len(data_va))
+    # print("data_te len ", len(data_te))
 
     # We use a MixedLoader since the dataset is in mixed mode
     loader_tr = MixedLoader(data_tr, batch_size=batch_size, epochs=epochs)
@@ -300,11 +300,12 @@ def run_GNN():
 
     targets, predictions = gnn.predict(loader_te)
     predictions = np.squeeze(predictions)
+    learning_time = time.process_time() - learning_time_start
 
-    print("np.var(target-predictions) ", np.var(targets - predictions))
+    #print("np.var(target-predictions) ", np.var(targets - predictions))
 
-    plot_loss(gnn._train_loss, gnn._val_loss)
-    analyze_results(targets, predictions)
+    #plot_loss(gnn._train_loss, gnn._val_loss)
+    #analyze_results(targets, predictions)
 
     # target_means, target_vars = estimate_density(targets, title="Test outputs")
     # pred_means, pred_vars = estimate_density(predictions, title="Predictions")
@@ -321,14 +322,17 @@ def run_GNN():
 
     #diff_moments(targets, predictions)
 
+    predict_l_0_start_time = time.process_time()
+    l_0_targets, l_0_predictions = predict_level_zero(gnn, l_0_output_dir, l_0_hdf_path, batch_size)
+    predict_l_0_time = time.process_time() - predict_l_0_start_time
 
-    l_0_targets, l_0_predictions = predict_level_zero(gnn, batch_size)
+    save_times(save_path, False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
+    save_load_data(save_path, False, targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions)
 
-    save_load_data(False, targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions)
 
+def predict_level_zero(nn, output_dir, hdf_path, batch_size=1000):
+    graph_creator(output_dir, hdf_path)
 
-def predict_level_zero(nn, batch_size=1000):
-    output_dir = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1/test/01_cond_field/output/"
     # Load data
     data = FlowDataset(output_dir=output_dir)
     data = data  # [:10000]
@@ -338,12 +342,41 @@ def predict_level_zero(nn, batch_size=1000):
     loader_te = MixedLoader(data, batch_size=batch_size)
 
     targets, predictions = nn.predict(loader_te)
+    predictions = np.squeeze(predictions)
+    #analyze_results(targets, predictions)
     return targets, predictions
 
 
-def save_load_data(load=False, targets=None, predictions=None, train_targets=None, val_targets=None, l_0_targets=None,
+def save_times(path, load=False, preprocess=None, learning_time=None, predict_l_0=None):
+    if load:
+        preprocess_time = None
+        preprocess_n = None
+        predict_time = None
+        predict_n = None
+        if os.path.exists(os.path.join(path, "preprocess_time.npy")):
+            preprocess_time = np.load(os.path.join(path, "preprocess_time.npy"))
+        if os.path.exists(os.path.join(path, "preprocess_n.npy")):
+            preprocess_n = np.load(os.path.join(path, "preprocess_n.npy"))
+        if os.path.exists(os.path.join(path, "learning_time.npy")):
+            learning_time = np.load(os.path.join(path, "learning_time.npy"))
+        if os.path.exists(os.path.join(path, "predict_l_0_time.npy")):
+            predict_time = np.load(os.path.join(path, "predict_l_0_time.npy"))
+        if os.path.exists(os.path.join(path, "predict_l_0_n.npy")):
+            predict_n = np.load(os.path.join(path, "predict_l_0_n.npy"))
+        return preprocess_time, preprocess_n, learning_time, predict_time, predict_n
+    else:
+        if preprocess is not None:
+            np.save(os.path.join(path, "preprocess_time"), preprocess[0])
+            np.save(os.path.join(path, "preprocess_n"), preprocess[1])
+        if learning_time is not None:
+            np.save(os.path.join(path, "learning_time"), learning_time)
+        if preprocess is not None:
+            np.save(os.path.join(path, "predict_l_0_time"), predict_l_0[0])
+            np.save(os.path.join(path, "predict_l_0_n"), predict_l_0[1])
+
+
+def save_load_data(path, load=False, targets=None, predictions=None, train_targets=None, val_targets=None, l_0_targets=None,
                    l_0_predictions=None):
-    path = "/home/martin/Documents/metamodels/data/"
 
     if load:
         if os.path.exists(os.path.join(path, "targets.npy")):
@@ -374,8 +407,21 @@ def save_load_data(load=False, targets=None, predictions=None, train_targets=Non
             np.save(os.path.join(path, "l_0_predictions"), l_0_predictions)
 
 
-def process_results():
-    targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions = save_load_data(load=True)
+def process_results(hdf_path, sampling_info_path, save_path):
+    targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions = save_load_data(save_path, load=True)
+    preprocess_time, preprocess_n, learning_time, predict_l_0_time, predict_l_0_n = save_times(save_path, load=True)
+
+    l1_sample_time = preprocess_time / preprocess_n + learning_time / preprocess_n
+    l0_sample_time = predict_l_0_time / predict_l_0_n
+
+    print("preprocess_time ", preprocess_time)
+    print("preprocess_n ", preprocess_n)
+    print("learning_time ", learning_time)
+    print("predict_l_0_time ", predict_l_0_time)
+    print("predict_l_0_n ", predict_l_0_n)
+
+    print("l1 sample time ", l1_sample_time)
+    print("l0 sample time ", l0_sample_time)
 
     print("len targets ", len(targets))
     print("len predictions ", len(predictions))
@@ -383,25 +429,34 @@ def process_results():
     print("len train targets ", len(train_targets))
     print("len val targets ", len(val_targets))
 
-    process_mlmc(targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions)
+    process_mlmc(hdf_path, sampling_info_path, targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time)
 
 
 if __name__ == "__main__":
+    output_dir = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L5/test/01_cond_field/output/"
+    hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L5/mlmc_5.hdf5"
 
-    import cProfile
-    import pstats
-    pr = cProfile.Profile()
-    pr.enable()
+    save_path = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1"
 
-    my_result = run_GNN()
+    l_0_output_dir = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1/test/01_cond_field/output/"
+    l_0_hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1/mlmc_1.hdf5"
 
-    pr.disable()
-    ps = pstats.Stats(pr).sort_stats('cumtime')
-    ps.print_stats()
+    sampling_info_path = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/sampling_info"
 
-    # run_GNN()
+    # import cProfile
+    # import pstats
+    # pr = cProfile.Profile()
+    # pr.enable()
     #
-    # process_results()
+    # my_result = run_GNN()
+    #
+    # pr.disable()
+    # ps = pstats.Stats(pr).sort_stats('cumtime')
+    # ps.print_stats()
+
+    #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path)
+    #
+    process_results(hdf_path, sampling_info_path, save_path)
     #bootstrap_GNN()
     #run()
 
