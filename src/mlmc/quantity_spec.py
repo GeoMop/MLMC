@@ -19,3 +19,10 @@ class QuantitySpec:
                 and not (set(self.locations) - set(other.locations)):
             return True
         return False
+
+
+@attr.s(auto_attribs=True)
+class ChunkSpec:
+    chunk_id: int = None
+    chunk_slice: slice = None
+    level_id: int = None

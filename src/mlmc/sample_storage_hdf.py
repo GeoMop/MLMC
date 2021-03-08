@@ -1,9 +1,8 @@
 import os
-import itertools
 import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.quantity_spec import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec, ChunkSpec
 import mlmc.tool.hdf5 as hdf
 
 
@@ -137,15 +136,8 @@ class SampleStorageHDF(SampleStorage):
         """
         self._level_groups[level_id].append_scheduled(samples)
 
-    def chunks(self, level_id=None, n_samples=None):
-        """
-        Create chunks generator
-        :param level_id: int, if not None return chunks for a given level
-        :return: generator
-        """
-        if level_id is not None:
-            return self._level_groups[level_id].chunks()
-        return itertools.chain(*[level.chunks(n_samples) for level in self._level_groups])  # concatenate generators
+    def _level_chunks(self, level_id, n_samples=None):
+        return self._level_groups[level_id].chunks(n_samples)
 
     def sample_pairs(self):
         """
@@ -160,24 +152,25 @@ class SampleStorageHDF(SampleStorage):
         levels_results = list(np.empty(len(self._level_groups)))
 
         for level in self._level_groups:
-            results = self.sample_pairs_level(level_id=level.level_id)  # return all samples no chunks
+            chunk_spec = next(self.chunks(level_id=int(level.level_id),
+                                          n_samples=self.get_n_collected()[int(level.level_id)]))
+            results = self.sample_pairs_level(chunk_spec)  # return all samples no chunks
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue
             levels_results[int(level.level_id)] = results
         return levels_results
 
-    def sample_pairs_level(self, level_id=None, chunk_slice=None, n_samples=None):
+    def sample_pairs_level(self, chunk_spec):
         """
         Get result for particular level and chunk
-        :param level_id: int, level identifier
-        :param chunk_slice: slice() object
-        :param n_samples: int, number of samples to retrieve
+        :param chunk_spec: object containing chunk identifier level identifier and chunk_slice - slice() object
         :return: np.ndarray
         """
-        if level_id is None:
+        level_id = chunk_spec.level_id
+        if chunk_spec.level_id is None:
             level_id = 0
-        chunk = self._level_groups[int(level_id)].collected(chunk_slice, n_samples)
+        chunk = self._level_groups[int(level_id)].collected(chunk_spec.chunk_slice)
 
         # Remove auxiliary zeros from level zero sample pairs
         if level_id == 0:

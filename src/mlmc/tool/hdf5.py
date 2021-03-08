@@ -1,5 +1,6 @@
 import numpy as np
 import h5py
+from mlmc.quantity_spec import ChunkSpec
 
 
 class HDF5:
@@ -356,30 +357,23 @@ class LevelGroup:
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
 
             if n_samples is not None:
-                yield 0, slice(0, n_samples, 1), int(self.level_id)
+                yield ChunkSpec(chunk_id=0, chunk_slice=slice(0, n_samples, 1), level_id=int(self.level_id))
             else:
                 for chunk_id, chunk in enumerate(dataset.iter_chunks()):
-                    yield chunk_id, chunk[0], int(self.level_id)  # slice, level_id
+                    yield ChunkSpec(chunk_id=chunk_id, chunk_slice=chunk[0], level_id=int(self.level_id))  # slice, level_id
 
-    def collected(self, chunk_slice=None, n_samples=None):
+    def collected(self, chunk_slice):
         """
         Read collected data by chunks,
         number of items in chunk is determined by LevelGroup.chunk_size (number of bytes)
         :param chunk_slice: slice() object
-        :param n_samples: number of samples to retrieve
         :return: np.ndarray
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             if 'collected_values' not in hdf_file[self.level_group_path]:
                 return None
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
-
-            if n_samples is None and chunk_slice is not None:
-                return dataset[chunk_slice]
-            elif n_samples is not None and n_samples < dataset.size:
-                return dataset[:n_samples]
-            else:
-                return dataset[()]
+            return dataset[chunk_slice]
 
     def collected_n_items(self):
         """

@@ -3,7 +3,7 @@ import numpy as np
 from abc import ABCMeta
 from abc import abstractmethod
 from typing import List, Dict
-from mlmc.quantity_spec import QuantitySpec
+from mlmc.quantity_spec import QuantitySpec, ChunkSpec
 
 
 class SampleStorage(metaclass=ABCMeta):
@@ -33,7 +33,7 @@ class SampleStorage(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def save_scheduled_samples(self):
+    def save_scheduled_samples(self, level_id, samples):
         """
         Save scheduled samples ids
         """
@@ -50,6 +50,26 @@ class SampleStorage(metaclass=ABCMeta):
         """
         Get results from storage
         :return: List[Array[M, N, 2]]
+        """
+
+    def chunks(self, level_id=None, n_samples=None):
+        """
+        Create chunks generator
+        :param level_id: int, if not None return chunks for a given level
+        :param n_samples: int, number of samples to retrieve
+        :return: generator
+        """
+        assert isinstance(n_samples, (type(None), int)), "n_samples param must be int"
+        level_ids = self.get_level_ids()
+        if level_id is not None:
+            level_ids = [level_id]
+        return itertools.chain(*[self._level_chunks(level_id, n_samples) for level_id in level_ids])  # concatenate generators
+
+    @abstractmethod
+    def _level_chunks(self, level_id, n_samples=None):
+        """
+        Info about chunks of level's collected data
+        :return: generator of ChunkSpec objects
         """
 
     @abstractmethod
@@ -221,51 +241,32 @@ class Memory(SampleStorage):
         Sample results split to numpy arrays
         :return: List[Array[M, N, 2]]
         """
-        levels_results = list(np.empty(len(np.max(self._results.keys()))))
+        levels_results = list(np.empty(len(self._results)))
 
         for level_id in self.get_level_ids():
-            results = self.sample_pairs_level(level_id=level_id)
+            results = self.sample_pairs_level(ChunkSpec(level_id=level_id))
             levels_results[level_id] = results
 
         return levels_results
 
-    def chunks(self, level_id=None, n_samples=None):
-        """
-        Create chunks generator
-        :param level_id: int, if not None return chunks for a given level
-        :return: generator
-        """
-        if level_id is not None:
-            return self._results[int(level_id)].chunks()
-        return itertools.chain(*[self.level_chunks(level_id, n_samples) for level_id in self.get_level_ids()])  # concatenate generators
+    def _level_chunks(self, level_id, n_samples=None):
+        yield ChunkSpec(chunk_id=0, chunk_slice=slice(0, len(self._results[level_id][:n_samples]), 1), level_id=level_id)
 
-    def level_chunks(self, level_id, n_samples=None):
-        if n_samples is not None:
-            yield 0, slice(0, n_samples, 1), level_id
-        else:
-            yield 0, slice(0, len(self._results[level_id]), 1), level_id
-
-    def sample_pairs_level(self, level_id=None, chunk_slice=None, n_samples=None):
+    def sample_pairs_level(self, chunk_spec):
         """
         Get samples for given level, chunks does not make sense in Memory storage so all data are retrieved at once
-        :param level_id: int, level identifier
-        :param chunk_slice: slice() object
-        :param n_samples: int, number of samples to retrieve
+        :param chunk_spec: object containing chunk identifier level identifier and chunk_slice - slice() object
         :return: np.ndarray
         """
-        if level_id is None:
-            level_id = 0
-        results = self._results[int(level_id)]
+        results = self._results[int(chunk_spec.level_id)]
 
-        if n_samples is None and chunk_slice is not None:
-            chunk = results[chunk_slice]
-        elif n_samples is not None and n_samples < len(results):
-            chunk = results[:n_samples]
+        if chunk_spec.chunk_slice is not None:
+            chunk = results[chunk_spec.chunk_slice]
         else:
             chunk = results
 
         # Remove auxiliary zeros from level zero sample pairs
-        if level_id == 0:
+        if chunk_spec.level_id == 0:
             chunk = chunk[:, :1, :]
         return chunk.transpose((2, 0, 1))  # [M, chunk size, 2]
 

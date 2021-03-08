@@ -40,11 +40,11 @@ def estimate_mean(quantity):
     n_samples = [0] * n_levels
     n_rm_samples = [0] * n_levels
 
-    for chunk_id, chunk_slice, level_id in quantity_storage.chunks():
-        samples = quantity.samples(level_id=level_id, chunk_id=chunk_id, chunk_slice=chunk_slice)
+    for chunk_spec in quantity_storage.chunks():
+        samples = quantity.samples(chunk_spec)
         chunk, n_mask_samples = mask_nan_samples(samples)
-        n_samples[level_id] += chunk.shape[1]
-        n_rm_samples[level_id] += n_mask_samples
+        n_samples[chunk_spec.level_id] += chunk.shape[1]
+        n_rm_samples[chunk_spec.level_id] += n_mask_samples
 
         # No samples in chunk
         if chunk.shape[1] == 0:
@@ -56,14 +56,13 @@ def estimate_mean(quantity):
             sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
             sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
 
-        if level_id == 0:
+        if chunk_spec.level_id == 0:
             chunk_diff = chunk[:, :, 0]
         else:
             chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
 
-        sums[level_id] += np.sum(chunk_diff, axis=1)
-        sums_of_squares[level_id] += np.sum(chunk_diff**2, axis=1)
-        chunk_id += 1
+        sums[chunk_spec.level_id] += np.sum(chunk_diff, axis=1)
+        sums_of_squares[chunk_spec.level_id] += np.sum(chunk_diff**2, axis=1)
 
     if sums is None:
         raise Exception("All samples were masked")
