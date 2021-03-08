@@ -258,11 +258,11 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path):
     loss = MeanSquaredError()
     optimizer = tf.optimizers.Adam(learning_rate=0.01)
     batch_size = 1000
-    epochs = 100
+    epochs = 500
     hidden_regularization = None#l2(2e-10)
 
     preprocess_start_time = time.process_time()
-    graph_creator(output_dir, hdf_path)
+    #graph_creator(output_dir, hdf_path)
 
     # Load data
     data = FlowDataset(output_dir=output_dir)
@@ -274,7 +274,7 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path):
     data.a = sp_matrix_to_sp_tensor(data.a)
 
     train_data_len = int(len(data) * 0.8)
-    train_data_len = 2000
+    train_data_len = 10000#2000
 
     # Train/valid/test split
     data_tr, data_te = data[:train_data_len], data[train_data_len:],
@@ -293,7 +293,7 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path):
     loader_te = MixedLoader(data_te, batch_size=batch_size)
 
     gnn = GNN(loss=loss, optimizer=optimizer, conv_layer=conv_layer, output_activation=abs_activation,
-              hidden_activation='relu', patience=20, hidden_reqularizer=hidden_regularization)
+              hidden_activation='relu', patience=35, hidden_reqularizer=hidden_regularization)
     train_targets = gnn.fit(loader_tr, loader_va, loader_te)
 
     val_targets = gnn.val_targets
@@ -304,8 +304,8 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path):
 
     #print("np.var(target-predictions) ", np.var(targets - predictions))
 
-    #plot_loss(gnn._train_loss, gnn._val_loss)
-    #analyze_results(targets, predictions)
+    plot_loss(gnn._train_loss, gnn._val_loss)
+    analyze_results(targets, predictions)
 
     # target_means, target_vars = estimate_density(targets, title="Test outputs")
     # pred_means, pred_vars = estimate_density(predictions, title="Predictions")
@@ -331,7 +331,7 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path):
 
 
 def predict_level_zero(nn, output_dir, hdf_path, batch_size=1000):
-    graph_creator(output_dir, hdf_path)
+    #graph_creator(output_dir, hdf_path)
 
     # Load data
     data = FlowDataset(output_dir=output_dir)
@@ -407,7 +407,7 @@ def save_load_data(path, load=False, targets=None, predictions=None, train_targe
             np.save(os.path.join(path, "l_0_predictions"), l_0_predictions)
 
 
-def process_results(hdf_path, sampling_info_path, save_path):
+def process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path):
     targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions = save_load_data(save_path, load=True)
     preprocess_time, preprocess_n, learning_time, predict_l_0_time, predict_l_0_n = save_times(save_path, load=True)
 
@@ -429,19 +429,22 @@ def process_results(hdf_path, sampling_info_path, save_path):
     print("len train targets ", len(train_targets))
     print("len val targets ", len(val_targets))
 
-    process_mlmc(hdf_path, sampling_info_path, targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time)
+    process_mlmc(hdf_path, sampling_info_path, ref_mlmc_file, targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time)
 
 
 if __name__ == "__main__":
-    output_dir = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L5/test/01_cond_field/output/"
-    hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L5/mlmc_5.hdf5"
+    cl = "cl_0_3_s_4"
+    output_dir = "/home/martin/Documents/metamodels/data/1000_ele/{}/L5/test/01_cond_field/output/".format(cl)
+    hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/L5/mlmc_5.hdf5".format(cl)
 
-    save_path = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1"
+    save_path = "/home/martin/Documents/metamodels/data/1000_ele/{}".format(cl)
 
-    l_0_output_dir = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1/test/01_cond_field/output/"
-    l_0_hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1/mlmc_1.hdf5"
+    l_0_output_dir = "/home/martin/Documents/metamodels/data/1000_ele/{}/L1/test/01_cond_field/output/".format(cl)
+    l_0_hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/L1/mlmc_1.hdf5".format(cl)
 
-    sampling_info_path = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/sampling_info"
+    sampling_info_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/sampling_info".format(cl)
+
+    ref_mlmc_file = "/home/martin/Documents/metamodels/data/1000_ele/{}/L1_benchmark/mlmc_1.hdf5".format(cl)
 
     # import cProfile
     # import pstats
@@ -454,9 +457,9 @@ if __name__ == "__main__":
     # ps = pstats.Stats(pr).sort_stats('cumtime')
     # ps.print_stats()
 
-    #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path)
+    run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path)
     #
-    process_results(hdf_path, sampling_info_path, save_path)
+    process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path)
     #bootstrap_GNN()
     #run()
 
