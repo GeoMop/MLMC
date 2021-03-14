@@ -13,7 +13,7 @@ from mlmc.metamodel.flow_dataset import FlowDataset
 from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv
 from spektral.layers.ops import sp_matrix_to_sp_tensor
 from tensorflow.keras.layers.experimental import preprocessing
-from mlmc.metamodel.custom_methods import abs_activation
+from mlmc.metamodel.custom_methods import abs_activation, var_loss_function
 
 from mlmc.metamodel.graph_models import Net1
 
@@ -40,12 +40,14 @@ class GNN:
 
         self._train_loss = []
         self._val_loss = []
+        self._test_loss = []
 
         self.val_targets = []
 
         self._model = Net1(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
                            output_activation=self._output_activation,
-                           kernel_regularization=self._hidden_regularizer)
+                           kernel_regularization=self._hidden_regularizer,
+                           normalizer=self._normalizer)
 
     def fit(self, loader_tr, loader_va, loader_te):
         """
@@ -86,6 +88,7 @@ class GNN:
                     best_val_loss = results_va[0]
                     current_patience = self._patience
                     results_te = self.evaluate(loader_te)
+                    self._test_loss.append(results_te[0])
                 else:
                     current_patience -= 1
                     if current_patience == 0:
@@ -115,7 +118,11 @@ class GNN:
             predictions = self._model(inputs, training=True)
             # @TODO: try to add KLDivergence to loss
             # print(KLDivergence(target, predictions))
-            loss = self._loss(target, predictions) + sum(self._model.losses)  # + KLDivergence(target, predictions)#+ sum(model.losses)
+            # print("self._loss(target, predictions) ", self._loss(target, predictions))
+            # print("sum(self._model.losses) ", sum(self._model.losses))
+            # print("var_loss_function(target, predictions) ", var_loss_function(target, predictions))
+            loss = self._loss(target, predictions) + sum(self._model.losses) #+ 5 * var_loss_function(target, predictions)
+            #loss = 100 * var_loss_function(target, predictions)
             acc = tf.reduce_mean(self._accuracy_func(target, predictions))
 
         gradients = tape.gradient(loss, self._model.trainable_variables)

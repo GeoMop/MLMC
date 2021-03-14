@@ -1,5 +1,6 @@
 import os
 import random
+import copy
 import matplotlib.pyplot as plt
 from scipy.stats import ks_2samp
 from mlmc.tool import plot
@@ -13,6 +14,8 @@ from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.moments import Legendre, Monomial
 from mlmc.quantity import make_root_quantity
 import mlmc.tool.simple_distribution
+
+QUANTILE = 0.01
 
 
 def plot_loss(train_loss, val_loss):
@@ -90,7 +93,7 @@ def estimate_density(values, title="Density"):
     location = time['0']
     value_quantity = location[0]
 
-    quantile = 0.001
+    quantile = QUANTILE
     true_domain = mlmc.estimator.Estimate.estimate_domain(value_quantity, sample_storage, quantile=quantile)
     moments_fn = Legendre(n_moments, true_domain)
 
@@ -166,7 +169,7 @@ def diff_moments(target, predictions):
     n_moments = 25
     quantity, target_sample_storage = create_quantity(target, predictions)
 
-    quantile = 0.001
+    quantile = QUANTILE
     true_domain = mlmc.estimator.Estimate.estimate_domain(quantity, target_sample_storage, quantile=quantile)
 
     moments_fn = Legendre(n_moments, true_domain)
@@ -185,22 +188,16 @@ def diff_moments(target, predictions):
     print("moments var ", moments_mean.var)
 
 
-def create_quantity_mlmc(data, level_parameters=None):
+def create_quantity_mlmc(data, level_parameters, num_ops=None):
     sample_storage = Memory()
     n_levels = len(data)
 
     result_format = [QuantitySpec(name="conductivity", unit="m", shape=(1, 1), times=[1], locations=['0'])]
-
-    if level_parameters is None:
-        level_parameters = np.ones(n_levels)
-
     sample_storage.save_global_data(result_format=result_format, level_parameters=level_parameters)
 
     successful_samples = {}
     failed_samples = {}
     n_ops = {}
-    n_successful = 15
-    sizes = []
     for l_id in range(n_levels):
         n_successful = data[l_id].shape[1]
         sizes = []
@@ -216,11 +213,22 @@ def create_quantity_mlmc(data, level_parameters=None):
                 coarse_result = (np.zeros((np.sum(sizes),)))
             else:
                 coarse_result = data[l_id][:, sample_id, 1]
+
             successful_samples[l_id].append((str(sample_id), (fine_result, coarse_result)))
 
+        # if num_ops is not None:
+        #     n_ops[l_id] = [num_ops[l_id], n_successful]
+        # else:
         n_ops[l_id] = [random.random(), n_successful]
 
         sample_storage.save_scheduled_samples(l_id, samples=["S{:07d}".format(i) for i in range(n_successful)])
+
+    #
+    # print("successful samples ")
+    # print("l 0", successful_samples[0][:10])
+    # print("l 1", successful_samples[1][:10])
+    # print("l 2", successful_samples[2][:10])
+    # print("l 3", successful_samples[3][:10])
 
     sample_storage.save_samples(successful_samples, failed_samples)
     sample_storage.save_n_ops(list(n_ops.items()))
@@ -239,9 +247,8 @@ def estimate_moments(sample_storage, true_domain=None):
     q_value = location[0, 0]
 
     if true_domain is None:
-        quantile = 0.001
+        quantile = QUANTILE
         true_domain = mlmc.estimator.Estimate.estimate_domain(q_value, sample_storage, quantile=quantile)
-    print("true domain ", true_domain)
     moments_fn = Legendre(n_moments, true_domain)
 
     estimator = mlmc.estimator.Estimate(quantity=q_value, sample_storage=sample_storage, moments_fn=moments_fn)
@@ -268,19 +275,18 @@ def get_largest_domain(storages):
         q_value = location[0, 0]
 
         # @TODO: How to estimate true_domain?
-        quantile = 0.001
+        quantile = QUANTILE
         domain = mlmc.estimator.Estimate.estimate_domain(q_value, storage, quantile=quantile)
-        print("domain ", domain)
 
         true_domains.append([domain[0], domain[1]])
 
     true_domains = np.array(true_domains)
 
-    print("true domains ", true_domains)
+    #print("true domains ", true_domains)
     true_domain = [np.min(true_domains[:, 0]), np.max(true_domains[:, 1])]
     #true_domain = [np.max(true_domains[:, 0]), np.min(true_domains[:, 1])]
     #true_domain = [np.mean(true_domains[:, 0]), np.mean(true_domains[:, 1])]
-    print("true domain ", true_domain)
+
 
     #true_domain = true_domain[-1]
 
@@ -297,23 +303,26 @@ def compare_moments(original_q_estimator, predict_q_estimator, ref_estimator):
     ref_estimator.estimate_moments()
     ref_moments_mean = ref_estimator.moments_mean
 
-    print("ref moments mean ", ref_moments_mean.mean)
+    #print("ref moments mean ", ref_moments_mean.mean)
     print("orig moments mean ", orig_moments_mean.mean)
     print("predict moments mean ", predict_moments_mean.mean)
 
-    print("ref orig mean SSE ", np.sum((ref_moments_mean.mean - orig_moments_mean.mean)**2))
-    print("ref predict mean SSE ", np.sum((ref_moments_mean.mean - predict_moments_mean.mean) ** 2))
-
+    # print("ref orig mean SSE ", np.sum((ref_moments_mean.mean - orig_moments_mean.mean)**2))
+    # print("ref predict mean SSE ", np.sum((ref_moments_mean.mean - predict_moments_mean.mean) ** 2))
+    #
     print("ref orig mean SE ", np.sum(np.abs((ref_moments_mean.mean - orig_moments_mean.mean))))
     print("ref predict mean SE ", np.sum(np.abs((ref_moments_mean.mean - predict_moments_mean.mean))))
 
-    print("ref moments var ", ref_moments_mean.var)
+    #print("ref moments var ", ref_moments_mean.var)
     print("orig moments var ", orig_moments_mean.var)
     print("predict moments var ", predict_moments_mean.var)
 
-    print("ref orig var SSE ", np.sum((ref_moments_mean.var - orig_moments_mean.var) ** 2))
-    print("ref predict var SSE ", np.sum((ref_moments_mean.var - predict_moments_mean.var) ** 2))
+    print("MAX orig moments var ", np.max(orig_moments_mean.l_vars, axis=1))
+    print("MAX predict moments var ", np.max(predict_moments_mean.l_vars, axis=1))
 
+    # print("ref orig var SSE ", np.sum((ref_moments_mean.var - orig_moments_mean.var) ** 2))
+    # print("ref predict var SSE ", np.sum((ref_moments_mean.var - predict_moments_mean.var) ** 2))
+    #
     print("ref orig var SE ", np.sum(np.abs((ref_moments_mean.var - orig_moments_mean.var))))
     print("ref predict var SE ", np.sum(np.abs((ref_moments_mean.var - predict_moments_mean.var))))
 
@@ -361,7 +370,7 @@ def get_quantity_estimator(sample_storage, true_domain=None):
     quantity = location[0, 0]
 
     if true_domain is None:
-        quantile = 0.001
+        quantile = QUANTILE
         true_domain = mlmc.estimator.Estimate.estimate_domain(quantity, sample_storage, quantile=quantile)
 
     moments_fn = Legendre(n_moments, true_domain)
@@ -369,44 +378,274 @@ def get_quantity_estimator(sample_storage, true_domain=None):
     return mlmc.estimator.Estimate(quantity=quantity, sample_storage=sample_storage, moments_fn=moments_fn)
 
 
+def get_n_estimated(sample_storage, estimator, n_ops=None):
+    target_var = 1e-5
+    #moments, estimator, _, quantity = estimate_moments(sample_storage, true_domain=true_domain)
+
+    n_level_samples = sample_storage.get_n_collected()
+    # New estimation according to already finished samples
+
+    print("n level samples ", n_level_samples)
+    variances, n_samples = estimator.estimate_diff_vars()
+    #variances, est_n_ops = estimator.estimate_diff_vars_regression(n_level_samples)
+
+    if n_ops is None:
+        n_ops = n_samples
+    print("get n estimated n ops ", n_ops)
+    n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                        n_levels=len(n_level_samples))
+    return n_estimated, variances, n_samples
+
+
+def get_storage_info(sample_storage):
+    moments, estimator, _, _ = estimate_moments(sample_storage)
+    print("n collected ", sample_storage.get_n_collected())
+    print("moments.l_vars max ", np.max(moments.l_vars, axis=1))
+
+
+def cut_samples(data, sample_storage, new_n_collected):
+    new_data = []
+    for d, n_est in zip(data, new_n_collected):
+        new_data.append(d[:, :n_est, :])
+    sample_storage = create_quantity_mlmc(new_data, level_parameters=sample_storage.get_level_parameters())
+
+    return sample_storage
+
+
 def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predictions, train_targets, val_targets, l_0_targets=None, l_0_predictions=None,
-                 l1_sample_time=None, l0_sample_time=None):
-    n_levels = 5
-    #mlmc_file = "/home/martin/Documents/metamodels/data/cl_0_3_s_4/L5/mlmc_5.hdf5"
-    # mlmc_file = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L5/mlmc_5.hdf5"
-    # sampling_info_path = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/sampling_info"
+                 l1_sample_time=None, l0_sample_time=None, nn_level=0, replace_level=False):
+    #level_zero = False
 
-    level_zero = False
+    print("nn_level ", nn_level)
+    print("replace level ", replace_level)
 
+    #######
+    ### Create storage fromm original MLMC data
+    ######
     sample_storage = SampleStorageHDF(file_path=mlmc_file)
+    n_levels = len(sample_storage.get_level_ids())
     original_moments, estimator, original_true_domain, _ = estimate_moments(sample_storage)
-
     # Test storage creation
-    data = []
+    data_mlmc = []
     for l_id in range(n_levels):
         level_samples = estimator.get_level_samples(level_id=l_id)
-        data.append(level_samples)
-    sample_storage_2 = create_quantity_mlmc(data)
-    moments_2, estimator_2, _, _ = estimate_moments(sample_storage_2)
-    assert np.allclose(original_moments.mean, moments_2.mean)
-    assert np.allclose(original_moments.var, moments_2.var)
+        data_mlmc.append(level_samples)
+    sample_storage = create_quantity_mlmc(data_mlmc, level_parameters=sample_storage.get_level_parameters())
+    print("Original storage")
+    get_storage_info(sample_storage)
 
-    print("moments_2.l_vars max ", np.max(moments_2.l_vars, axis=1))
-
+    ######
+    ### Get n ops
+    ######
     n_ops, field_times, flow_times = get_sample_times(sampling_info_path)
+    print("n ops ", n_ops)
 
-    n_collected_times = n_ops * np.array(sample_storage_2.get_n_collected())
-    # print("n collected times ", n_collected_times)
-    # print("total time ", np.sum(n_collected_times))
-    # print("n ops ", n_ops)
-    # print("field_times ", field_times)
-    # print("flow_times ", flow_times)
-    # exit()
+    if replace_level:
+        n_lev = n_levels
+        level_params = [*sample_storage.get_level_parameters()]
+    else:
+        n_lev = n_levels - nn_level + 1
+        level_params = [sample_storage.get_level_parameters()[nn_level], *sample_storage.get_level_parameters()[nn_level:]]
 
-    n_ops_predict = [l0_sample_time + field_times[0], n_ops[0] + l1_sample_time, *n_ops[1:]]
+    print("n lev ", n_lev)
+    print("level params ", level_params)
 
+    # Use predicted data as zero level results and level one coarse results
+    data_nn = []
+    n_ops_predict = []
+
+    for l_id in range(n_lev):
+        if l_id == 0:
+            level_samples = l_0_predictions.reshape(1, len(l_0_predictions), 1)
+            n_ops_predict.append(l0_sample_time + field_times[nn_level])
+            #level_samples = level_samples[:, :50000, :]
+        else:
+            if replace_level:
+                level_id = l_id
+                level_samples = estimator.get_level_samples(level_id=level_id)
+                n_ops_predict.append(n_ops[level_id])
+            else:
+                if l_id == 1:
+                    print("l id replaced level ", l_id)
+                    print("len(predictions ) ", len(predictions))
+                    coarse_level_samples = predictions.reshape(1, len(predictions), 1)
+                    fine_level_samples = targets.reshape(1, len(targets), 1)
+                    # coarse_level_samples = coarse_level_samples[:, :len(predictions)//2, :]
+                    # fine_level_samples = fine_level_samples[:, :len(predictions)//2, :]
+                    level_samples = np.concatenate((fine_level_samples, coarse_level_samples), axis=2)
+                    n_ops_predict.append(n_ops[nn_level] + l1_sample_time)
+                else:
+                    if replace_level:
+                        level_id = l_id #- 1
+                    else:
+                        level_id = l_id + nn_level - 1
+                    print("level id ", level_id)
+                    level_samples = estimator.get_level_samples(level_id=level_id)
+                    n_ops_predict.append(n_ops[level_id])
+        data_nn.append(level_samples)
+
+    sample_storage_predict = create_quantity_mlmc(data_nn, level_parameters=level_params)
+    print("n ops predict ", n_ops_predict)
+
+    print("Storage predict info")
+    get_storage_info(sample_storage_predict)
+
+
+
+    ######
+    ### Create estimators
+    ######
+    ref_sample_storage = ref_storage(ref_mlmc_file)
+    domain = get_largest_domain([sample_storage, sample_storage_predict, ref_sample_storage])
+    original_q_estimator = get_quantity_estimator(sample_storage, true_domain=domain)
+    predict_q_estimator = get_quantity_estimator(sample_storage_predict, true_domain=domain)
+    #ref_estimator = get_quantity_estimator(ref_sample_storage, true_domain=domain)
+
+    #######
+    ### Calculate N estimated samples
+    #######
     print("n ops ", n_ops)
     print("n ops predict ", n_ops_predict)
+
+    #### Original data
+    n_estimated_orig, l_vars_orig, n_samples_orig = get_n_estimated(sample_storage, original_q_estimator, n_ops=n_ops)
+    print("n estimated orig ", n_estimated_orig)
+    sample_storage = cut_samples(data_mlmc, sample_storage, n_estimated_orig)
+    #
+    # sample_storage_predict = cut_samples(data_nn, sample_storage_predict, [sample_storage_predict.get_n_collected()[0],
+    #                                                                          *n_estimated_orig])
+    #
+    # predict_q_estimator = get_quantity_estimator(sample_storage_predict, true_domain=domain)
+    #
+    # print("sample storage predict n collected ", sample_storage_predict.get_n_collected())
+    # print("sample storage n collected ", sample_storage.get_n_collected())
+
+    n_ops_predict_orig = copy.deepcopy(n_ops_predict)
+    #n_ops_predict_orig[0] = n_ops_predict_orig[0] /5
+    #n_ops_predict = np.array(n_ops_predict)**2
+    n_ops_predict[0] = n_ops_predict[0] / 1000
+    #print("n ops predict for estimate ", n_ops_predict)
+    # n_samples = [10000, 2000, 500, 150, 40, 11]
+
+    n_estimated_nn, l_var_nn, n_samples_nn = get_n_estimated(sample_storage_predict, predict_q_estimator,
+                                                             n_ops=n_ops_predict)
+
+    #n_estimated_nn = [50000, 10000, 850]
+    sample_storage_predict = cut_samples(data_nn, sample_storage_predict, n_estimated_nn)
+
+    # print("N estimated orig ", n_estimated_orig)
+    # print("n sampels nn ", n_samples_nn)
+    # print("N estimated nn ", n_estimated_nn)
+    # print("est time ", np.sum(n_ops_predict_orig * n_estimated_nn))
+    # print("time ", np.sum(n_ops_predict_orig * n_samples_nn))
+    # print("orig time ", np.sum(n_ops * n_estimated_orig))
+    # exit()
+    #sample_storage_predict = cut_samples(data_nn, sample_storage_predict, n_estimated_nn)
+
+    # print("l vars orig [-1] ", l_vars_orig[0])
+    # print("l var nn[-1] ", l_var_nn[:2])
+
+    #print("l vars orig ", l_vars_orig)
+    # print("l vars nn ", l_var_nn[:2])
+    # print("l vars orig ", np.max(l_vars_orig, axis=1))
+    # print("l vars nn ", np.max(l_var_nn, axis=1))
+    #
+    # orig_total_var = np.sum(l_vars_orig / n_samples_orig[:, None], axis=0)
+    # orig_total_var_max = np.max(np.sum(l_vars_orig / n_samples_orig[:, None], axis=0))
+    # print("orig total var ", orig_total_var)
+    # print("orig total var max ", orig_total_var_max)
+    # nn_total_var = np.sum(l_var_nn / n_samples_nn[:, None], axis=0)
+    # nn_total_var_max = np.max(np.sum(l_var_nn / n_samples_nn[:, None], axis=0))
+    # print("nn total var ", nn_total_var)
+    # print("nn total var max ", nn_total_var_max)
+    # exit()
+    #
+    #
+    # print("np.sum(l_var_nn[:2], axis=0) ", np.sum(l_var_nn[:2], axis=0))
+    # print(" l_vars_orig[0] - np.sum(l_var_nn[:2], axis=0) ", l_vars_orig[0] - np.sum(l_var_nn[:2], axis=0))
+    #
+    # print("l_vars orig - l_var_nn ", l_vars_orig[-1] - l_var_nn[-1])
+    # print("l_vars orig - l_var_nn ", np.sum(l_vars_orig[1:] - l_var_nn[2:], axis=0))
+    #
+    # print("MAX l vars orig [0] ", np.max(l_vars_orig[0]))
+    # print("MAX l var nn[:2] ", np.max(l_var_nn[:2], axis=1))
+    #
+    # print("n samples orig ", n_samples_orig)
+    # print("n samples nn ", n_samples_nn)
+    #
+    # vars_n_orig = l_vars_orig / n_samples_orig[:, None]
+    # vars_n_nn = l_var_nn / n_samples_nn[:, None]
+    #
+    # print("vars n orig ", vars_n_orig)
+    # print("vars n nn ", vars_n_nn)
+    #
+    # # max_vars_n_orig = np.max(vars_n_orig, axis=1)
+    # max_vars_n_nn = np.max(vars_n_nn, axis=1)
+    #
+    # # print("vars vars n orig ", max_vars_n_orig)
+    # # print("vars vars n nn ", max_vars_n_nn)
+    #
+    # print("np.sum(l_var_nn[1:, ...] / n_samples_nn[1:, None], axis=0) ", np.sum(l_var_nn[1:, ...] / n_samples_nn[1:, None], axis=0))
+    # n0_samples = l_var_nn[0] / np.abs(orig_total_var - np.sum(l_var_nn[1:, ...] / n_samples_nn[1:, None], axis=0))
+    #
+    # print("n0_samples ", n0_samples)
+    # print("max n0_samples ", int(np.max(n0_samples[1:])))
+
+    # sample_storage_pred_cut = cut_samples(data_nn, sample_storage_predict, [int(np.max(n0_samples[1:])), *n_samples_nn[1:]])
+    # predict_q_estimator_cut = get_quantity_estimator(sample_storage_pred_cut)#, true_domain=domain)
+    # n_estimated_nn, l_var_nn, n_samples_nn = get_n_estimated(sample_storage_pred_cut, predict_q_estimator_cut,
+    #                                                          n_ops=n_ops_predict)
+    #
+    # nn_total_var = np.max(np.sum(l_var_nn / n_samples_nn[:, None], axis=0))
+    # print("nn total var ", nn_total_var)
+    # print("n samples nn ", n_samples_nn)
+    # exit()
+
+
+    # com_levels = np.max(np.sum(vars_n_orig[:2], axis=0))#(np.max(l_vars_orig[0])/n_samples_orig[0]) +  (np.max(l_vars_orig[1])/n_samples_orig[1])
+    # print("com levels ", com_levels)
+    # print("(np.max(l_var_nn[1])/n_samples_nn[1]) ", (np.max(l_var_nn[1])/n_samples_nn[1]))
+    # print("np.max(l_var_nn[0]) ", np.max(l_var_nn[0]))
+    # print("np.max(np.sum(vars_n_nn[1:2], axis=0)) ", np.max(np.sum(vars_n_nn[1:2], axis=0)))
+    # nn_l_0_n = np.max(l_var_nn[0]) / (com_levels - np.max(np.sum(vars_n_nn[1:2], axis=0)))  #(np.max(l_var_nn[1])/n_samples_nn[1]))
+    #
+    # print("nn_l_0_n ", nn_l_0_n)
+    #
+    # print("MAX l vars orig ", np.max(l_vars_orig, axis=1))
+    # print("MAX l var nn ", np.max(l_var_nn, axis=1))
+    #
+    # nn_vars = np.max(l_var_nn[0])/nn_l_0_n + np.max(np.sum(vars_n_nn[1:2], axis=0))
+    #
+    #
+    # print("nn vars ", nn_vars)
+    # print("rogi vars ", com_levels)
+
+
+
+
+    # orig_sample_l_5 = original_q_estimator.get_level_samples(4)
+    # nn_sample_l_5 = predict_q_estimator.get_level_samples(5)
+    #
+    # print("orig samples l 5 ", orig_sample_l_5)
+    # print("nn sample l 5 ", nn_sample_l_5)
+    #
+    # assert np.allclose(orig_sample_l_5, nn_sample_l_5)
+
+
+
+    #######
+    ## Estimate total time
+    #######
+    print("NN estimated ", n_estimated_nn)
+    print("MLMC estimated ", n_estimated_orig)
+    NN_time_levels = n_ops_predict_orig * np.array(n_estimated_nn)
+    n_collected_times = n_ops * np.array(n_estimated_orig)
+    print("NN time levels ", NN_time_levels)
+    print("MLMC time levels", n_collected_times)
+    print("NN total time ", np.sum(NN_time_levels))
+    print("MLMC total time ", np.sum(n_collected_times))
+
+    #original_moments, estimator, original_true_domain, _ = estimate_moments(sample_storage)
 
     # # Use train and test data without validation data
     # data = []
@@ -419,37 +658,7 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
     # sample_storage_nn = create_quantity_mlmc(data)
     # moments_nn, estimator_nn, _, _ = estimate_moments(sample_storage_nn, true_domain=original_true_domain)
 
-    if level_zero is True:
-        n_lev = n_levels
-        n_ops_predict = [l0_sample_time + field_times[0], *n_ops[1:]]
-        level_params = sample_storage.get_level_parameters()
-    else:
-        n_lev = n_levels + 1
-        level_params = [sample_storage.get_level_parameters()[0], *sample_storage.get_level_parameters()]
 
-    # Use predicted data as zero level results and level one coarse results
-
-    if l_0_targets is not None and l_0_predictions is not None:
-        data = []
-        for l_id in range(n_lev):
-            if l_id == 0:
-                level_samples = l_0_predictions.reshape(1, len(l_0_predictions), 1)
-                #level_samples = level_samples[:, :100000, :]
-            else:
-                if level_zero is True:
-                    level_id = l_id
-                    level_samples = estimator.get_level_samples(level_id=level_id)
-                else:
-                    level_id = l_id - 1
-                    level_samples = estimator.get_level_samples(level_id=level_id)
-                    if l_id == 1:
-                        coarse_level_samples = predictions.reshape(1, len(predictions), 1)
-                        fine_level_samples = targets.reshape(1, len(targets), 1)
-                        level_samples = np.concatenate((fine_level_samples, coarse_level_samples), axis=2)
-
-
-
-            data.append(level_samples)
 
         # n0 = 100
         # nL = 10
@@ -462,45 +671,7 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
         #         print("data[i].shape ", data[i].shape)
 
         #level_params = [sample_storage.get_level_parameters()[0], *sample_storage.get_level_parameters()]
-        sample_storage_predict = create_quantity_mlmc(data, level_parameters=level_params)
 
-        moments_predict, estimator_predict, _, quantity = estimate_moments(sample_storage_predict, true_domain=original_true_domain)
-        target_var = 1e-5
-
-        #n_level_samples = initial_n_samples #sample_storage_predict.get_n_collected()
-        n_level_samples = sample_storage_predict.get_n_collected()
-        # custom_n_ops = [sample_storage.get_n_ops()[0], *sample_storage.get_n_ops()]
-        # print("custom n ops ", custom_n_ops)
-
-        print("n level samples ", n_level_samples)
-
-        # @TODO: test
-        # New estimation according to already finished samples
-        variances, n_ops = estimator_predict.estimate_diff_vars_regression(n_level_samples)
-        #print("variances ", variances)
-        print("level max var ", np.max(variances, axis=1))
-        print("n ops ", n_ops)
-        n_ops = n_ops_predict
-        n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-                                                                            n_levels=len(n_level_samples))
-        print("n estimated ", n_estimated)
-        print("original collected ", sample_storage_2.get_n_collected())
-
-        est_times = n_ops_predict * np.array(n_estimated)
-
-        print("est times ", est_times)
-        print("original n collected times ", n_collected_times)
-        print("total est times ", np.sum(est_times))
-        print("original total collected times ", np.sum(n_collected_times))
-
-
-        ref_sample_storage = ref_storage(ref_mlmc_file)
-        domain = get_largest_domain([sample_storage, sample_storage_predict, ref_sample_storage])
-        #domain = [0.001, 5]
-
-        original_q_estimator = get_quantity_estimator(sample_storage, true_domain=domain)
-        predict_q_estimator = get_quantity_estimator(sample_storage_predict, true_domain=domain)
-        ref_estimator = get_quantity_estimator(ref_sample_storage, true_domain=domain)
 
         # print("means nn ", moments_nn.mean)
         # print("means_predict ", moments_predict.mean)
@@ -522,10 +693,14 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
         # for l_id, (l_mom, l_mom_pred) in enumerate(zip(moments_nn.l_means, moments_predict.l_means)):
         #     print("L id: {}, mom diff: {}".format(l_id, l_mom - l_mom_pred))
 
-        compare_moments(original_q_estimator, predict_q_estimator, ref_estimator)
+    original_q_estimator = get_quantity_estimator(sample_storage, true_domain=domain)
+    predict_q_estimator = get_quantity_estimator(sample_storage_predict, true_domain=domain)
+    ref_estimator = get_quantity_estimator(ref_sample_storage, true_domain=domain)
 
-        compare_densities(original_q_estimator, predict_q_estimator, ref_estimator, label_1="orig N: {}".format(moments_2.n_samples),
-                          label_2="gnn N: {}".format(moments_predict.n_samples))
+    compare_moments(original_q_estimator, predict_q_estimator, ref_estimator)
+
+    compare_densities(original_q_estimator, predict_q_estimator, ref_estimator, label_1="orig N: {}".format(sample_storage.get_n_collected()),
+                      label_2="gnn N: {}".format(sample_storage_predict.get_n_collected()))
 
 
 def analyze_mlmc_data():
@@ -559,9 +734,6 @@ def analyze_mlmc_data():
 def get_sample_times(sampling_info_path):
     n_levels = [5]
     for nl in n_levels:
-        # sampling_info_path = "/home/martin/Documents/MLMC_article/data/sampling_info"
-        #sampling_info_path = "/home/martin/Documents/metamodels/data/1000_ele/sampling_info"
-
         variances = []
         n_ops = []
         times = []
@@ -597,12 +769,21 @@ def get_sample_times(sampling_info_path):
         running_times = time_for_sample_func(running_times)
         flow_running_times = time_for_sample_func(flow_running_times)
 
+
         field_times = np.mean(np.array(running_times) - np.array(flow_running_times) - np.array(flow_running_times),
                               axis=0)
 
         flow_times = np.mean(np.array(flow_running_times), axis=0)
         n_ops = np.mean(n_ops, axis=0)
 
+        # print("n ops ", n_ops)
+        # print("running times ", np.mean(running_times, axis=0))
+        # print("flow running times ", flow_times)
+        # exit()
+
+        #n_ops = np.mean(running_times, axis=0)  # CPU time of simulation (fields + flow for both coarse and fine sample)
+
+        print("field times ", field_times)
         return n_ops, field_times, flow_times
 
 

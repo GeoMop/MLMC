@@ -1,4 +1,5 @@
 import os
+import re
 import numpy as np
 import pandas as pd
 from mlmc.tool import gmsh_io
@@ -17,15 +18,15 @@ class FlowDataset(Dataset):
     GRAPHS_FILE = "graphs"
     DATA_FILE = "data"
 
-    def __init__(self, output_dir=None, **kwargs):
+    def __init__(self, output_dir=None, level=0, **kwargs):
         self._output_dir = output_dir
         if self._output_dir is None:
             self._output_dir = OUTPUT_DIR
+        self.level = level
         self.adjacency_matrix = np.load(os.path.join(self._output_dir, "adjacency_matrix.npy"), allow_pickle=True)  # adjacency matrix
         self.data = []
         super().__init__(**kwargs)
         self.a = self.adjacency_matrix
-
         self.dataset = pd.DataFrame(self.data)
 
     def read(self):
@@ -38,13 +39,40 @@ class FlowDataset(Dataset):
         #
         # return graphs
 
+        i = 0
+
         graphs = []
         for s_dir in os.listdir(self._output_dir):
+            try:
+                l = re.findall(r'L(\d+)_S', s_dir)[0]
+                if int(l) != self.level:
+                    continue
+            except IndexError:
+                continue
+
+            #print("s dir ", s_dir)
+
             if os.path.isdir(os.path.join(self._output_dir, s_dir)):
                 sample_dir = os.path.join(self._output_dir, s_dir)
                 if os.path.exists(os.path.join(sample_dir, "nodes_features.npy")):
                     features = np.load(os.path.join(sample_dir, "nodes_features.npy"))
                     output = np.load(os.path.join(sample_dir, "output.npy"))
+                    # if i < 10:
+                    #     print("output ", output)
+                    # else:
+                    #     exit()
+                    # i += 1
+                    maximum = np.max(features)
+                    minimum = np.min(features)
+
+                    #features = (features - minimum) / (maximum - minimum)
+                    # print("max ", maximum)
+                    # print("max ", minimum)
+                    #
+                    # print("new featuers max ", np.max(new_features))
+                    # print("new featuers min ", np.min(new_features))
+                    # exit()
+
                     graphs.append(Graph(x=features, y=output))#, a=self.adjacency_matrix))
 
                     # Save data for pandas dataframe creation, not used with Graph neural network
