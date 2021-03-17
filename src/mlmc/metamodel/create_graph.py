@@ -101,26 +101,44 @@ def plot_graph(adjacency_matrix):
     plt.show()
 
 
-def graph_creator(output_dir, hdf_path):
-    adjacency_matrix = create_adjacency_matrix(extract_mesh_gmsh_io(MESH))
+def reject_outliers(data, m=2):
+    #print("abs(data - np.mean(data)) < m * np.std(data) ", abs(data - np.mean(data)) < m * np.std(data))
+    #return data[abs(data - np.mean(data)) < m * np.std(data)]
+    return abs(data - np.mean(data)) < m * np.std(data)
+
+
+def graph_creator(output_dir, hdf_path, mesh, level=0):
+    adjacency_matrix = create_adjacency_matrix(extract_mesh_gmsh_io(mesh))
     np.save(os.path.join(output_dir, "adjacency_matrix"), adjacency_matrix, allow_pickle=True)
     loaded_adjacency_matrix = np.load(os.path.join(output_dir, "adjacency_matrix.npy"), allow_pickle=True)
 
-    plot_graph(loaded_adjacency_matrix)
+    #plot_graph(loaded_adjacency_matrix)
 
-    hdf = HDF5(file_path=hdf_path,
-               load_from_file=True)
-    level_group = hdf.add_level_group(level_id=str(0))
+    hdf = HDF5(file_path=hdf_path, load_from_file=True)
+    level_group = hdf.add_level_group(level_id=str(level))
+
+    # print("collected ", level_group.collected()[:, 0, :])
+    # indices = reject_outliers(np.squeeze(level_group.collected()[:, 0, :]), m=6)
+    # print("removed outliers ", np.count_nonzero(~indices))
+    indices = np.ones(len(level_group.collected()))
+
     collected = zip(level_group.get_collected_ids(), level_group.collected())
 
     graphs = []
     data = []
-
-    for sample_id, col_values in collected:
+    i = 0
+    for keep, (sample_id, col_values) in zip(indices, collected):
+        if not keep:
+            continue
         output_value = col_values[0, 0]
+
         sample_dir = os.path.join(output_dir, sample_id)
         field_mesh = os.path.join(sample_dir, FIELDS_SAMPLE)
         if os.path.exists(field_mesh):
+            # i += 1
+            # if i > 150:
+            #     break
+
             features = get_node_features(field_mesh)
             np.save(os.path.join(sample_dir, "nodes_features"), features)
             np.save(os.path.join(sample_dir, "output"), output_value)
@@ -137,12 +155,17 @@ def graph_creator(output_dir, hdf_path):
 
 
 if __name__ == "__main__":
+
+    mesh = "/home/martin/Documents/metamodels/data/5_ele/cl_0_1_s_1/L5/l_step_0.020196309484414757_common_files/mesh.msh"
+    output_dir = "/home/martin/Documents/metamodels/data/5_ele/cl_0_3_s_4/L1_3/test/01_cond_field/output/"
+    hdf_path = "/home/martin/Documents/metamodels/data/5_ele/cl_0_1_s_1/L1_3/mlmc_1.hdf5"
+
     import cProfile
     import pstats
     pr = cProfile.Profile()
     pr.enable()
 
-    my_result = graph_creator()
+    my_result = graph_creator(output_dir, hdf_path, mesh)
 
     pr.disable()
     ps = pstats.Stats(pr).sort_stats('cumtime')

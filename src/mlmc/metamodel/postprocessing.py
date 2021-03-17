@@ -326,6 +326,23 @@ def compare_moments(original_q_estimator, predict_q_estimator, ref_estimator):
     print("ref orig var SE ", np.sum(np.abs((ref_moments_mean.var - orig_moments_mean.var))))
     print("ref predict var SE ", np.sum(np.abs((ref_moments_mean.var - predict_moments_mean.var))))
 
+    # l_0_samples = predict_q_estimator.get_level_samples(level_id=0)
+    # l_1_samples = predict_q_estimator.get_level_samples(level_id=1)
+    # l_2_samples = predict_q_estimator.get_level_samples(level_id=2)
+    #
+    # print("l 0 samples shape ", np.squeeze(l_0_samples).shape)
+    # print("l 1 samples shape ", np.squeeze(l_1_samples[..., 0]).shape)
+    #
+    # print("l_0_samples.var ", np.var(np.squeeze(l_0_samples)))
+    # print("l_1_samples ", l_1_samples)
+    #
+    # diff = l_1_samples[..., 0] - l_1_samples[..., 1]
+    #
+    # print("l1 diff ", diff)
+    # print("var l1 diff ", np.var(diff))
+    # print("fine l_1_samples.var ", np.var(np.squeeze(l_1_samples[..., 0])))
+    # print("fine l_2_samples.var ", np.var(np.squeeze(l_2_samples[..., 0])))
+
 
 def compare_densities(estimator_1, estimator_2, ref_estimator, label_1="", label_2=""):
 
@@ -333,12 +350,15 @@ def compare_densities(estimator_1, estimator_2, ref_estimator, label_1="", label
     tol = 1e-10
     reg_param = 0
 
+    print("orig estimator")
     distr_obj_1, result, _, _ = estimator_1.construct_density(tol=tol, reg_param=reg_param)
     #distr_plot.add_distribution(distr_obj_1, label=label_1, color="blue")
 
+    print("predict estimator")
     distr_obj_2, result, _, _ = estimator_2.construct_density(tol=tol, reg_param=reg_param)
     #distr_plot.add_distribution(distr_obj_2, label=label_2, color="red", line_style="--")
 
+    print("Ref estimator")
     ref_distr_obj, result, _, _ = ref_estimator.construct_density(tol=tol, reg_param=reg_param)
     #distr_plot.add_distribution(ref_distr_obj, label="MC reference", color="black", line_style=":")
 
@@ -403,21 +423,51 @@ def get_storage_info(sample_storage):
     print("moments.l_vars max ", np.max(moments.l_vars, axis=1))
 
 
-def cut_samples(data, sample_storage, new_n_collected):
+def cut_samples(data, sample_storage, new_n_collected, new_l_0=0):
     new_data = []
-    for d, n_est in zip(data, new_n_collected):
-        new_data.append(d[:, :n_est, :])
+    for l_id, (d, n_est) in enumerate(zip(data, new_n_collected)):
+        if n_est > 0:
+            if l_id == new_l_0:
+                print(d.shape)
+                print("np.min(d.shape[1], n_est) ", np.min([d.shape[1], n_est]))
+                fine_samples = d[:, :np.min([d.shape[1], n_est]), 0].reshape(1, np.min([d.shape[1], n_est]), 1)
+                coarse_samples = np.zeros(fine_samples.shape)
+                new_data.append(np.concatenate((fine_samples, coarse_samples), axis=2))
+            else:
+                new_data.append(d[:, :np.min([d.shape[1], n_est]), :])
     sample_storage = create_quantity_mlmc(new_data, level_parameters=sample_storage.get_level_parameters())
 
     return sample_storage
 
 
-def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predictions, train_targets, val_targets, l_0_targets=None, l_0_predictions=None,
+def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predictions, train_targets, train_predictions,
+                 val_targets, l_0_targets=None, l_0_predictions=None,
                  l1_sample_time=None, l0_sample_time=None, nn_level=0, replace_level=False):
     #level_zero = False
 
     print("nn_level ", nn_level)
     print("replace level ", replace_level)
+
+    print("targets ", targets)
+    print("predictions ", predictions)
+    plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
+    plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
+
+    #plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+    plt.legend(loc='upper right')
+    #plt.xlim(-0.5, 1000)
+    plt.yscale('log')
+    plt.show()
+
+    # targets = np.exp(targets)
+    # predictions = np.exp(predictions)
+
+    # # Creating plot
+    # plt.boxplot(targets)
+    # plt.boxplot(predictions)
+    # # show plot
+    # plt.show()
+    #exit()
 
     #######
     ### Create storage fromm original MLMC data
@@ -454,10 +504,22 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
     data_nn = []
     n_ops_predict = []
 
+
+    nn_lev_sim_time = 0
+    for l_id in range(nn_level):
+        nn_lev_sim_time = n_ops[l_id] - nn_lev_sim_time
+
+    print("nn lev sim time ", nn_lev_sim_time)
+
     for l_id in range(n_lev):
         if l_id == 0:
+            print("np.mean(l 0 predictions) ", np.mean(l_0_predictions))
             level_samples = l_0_predictions.reshape(1, len(l_0_predictions), 1)
-            n_ops_predict.append(l0_sample_time + field_times[nn_level])
+            #level_samples = np.ones((1, len(l_0_predictions), 1))
+            ft_index = nn_level
+            if nn_level > 0:
+                ft_index = nn_level - 1
+            n_ops_predict.append(l0_sample_time + field_times[ft_index] / 2)
             #level_samples = level_samples[:, :50000, :]
         else:
             if replace_level:
@@ -468,12 +530,23 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
                 if l_id == 1:
                     print("l id replaced level ", l_id)
                     print("len(predictions ) ", len(predictions))
+
                     coarse_level_samples = predictions.reshape(1, len(predictions), 1)
+                    #coarse_level_samples = np.ones((1, len(predictions), 1))
                     fine_level_samples = targets.reshape(1, len(targets), 1)
+
+                    # coarse_level_samples = np.concatenate((coarse_level_samples,
+                    #                 train_predictions.reshape(1, len(train_predictions), 1)), axis=1)
+                    #
+                    # fine_level_samples = np.concatenate((fine_level_samples,
+                    #                                      train_targets.reshape(1, len(train_targets), 1)), axis=1)
+
                     # coarse_level_samples = coarse_level_samples[:, :len(predictions)//2, :]
                     # fine_level_samples = fine_level_samples[:, :len(predictions)//2, :]
                     level_samples = np.concatenate((fine_level_samples, coarse_level_samples), axis=2)
-                    n_ops_predict.append(n_ops[nn_level] + l1_sample_time)
+
+                    n_ops_predict.append(n_ops[nn_level] - nn_lev_sim_time
+                                         + l1_sample_time)
                 else:
                     if replace_level:
                         level_id = l_id #- 1
@@ -490,8 +563,6 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
     print("Storage predict info")
     get_storage_info(sample_storage_predict)
 
-
-
     ######
     ### Create estimators
     ######
@@ -507,8 +578,20 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
     print("n ops ", n_ops)
     print("n ops predict ", n_ops_predict)
 
+    # remove levels
+    # #@TODO: remove asap
+    new_n_samples = [0, 0, sample_storage.get_n_collected()[-3], sample_storage.get_n_collected()[-2], sample_storage.get_n_collected()[-1]]
+    sample_storage = cut_samples(data_mlmc, sample_storage, new_n_samples, new_l_0=2)
+    print("Cut storage info")
+    get_storage_info(sample_storage)
+    original_q_estimator = get_quantity_estimator(sample_storage, true_domain=domain)
+    n_ops = n_ops[2:]
+    # #####
+
     #### Original data
-    n_estimated_orig, l_vars_orig, n_samples_orig = get_n_estimated(sample_storage, original_q_estimator, n_ops=n_ops)
+    n_ops_est = copy.deepcopy(n_ops)
+    n_ops_est[0] = n_ops_est[0] / 1000
+    n_estimated_orig, l_vars_orig, n_samples_orig = get_n_estimated(sample_storage, original_q_estimator, n_ops=n_ops_est)
     print("n estimated orig ", n_estimated_orig)
     sample_storage = cut_samples(data_mlmc, sample_storage, n_estimated_orig)
     #
@@ -699,8 +782,39 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
 
     compare_moments(original_q_estimator, predict_q_estimator, ref_estimator)
 
+    plot_moments({"ref": ref_estimator, "orig": original_q_estimator, "nn": predict_q_estimator})
+
     compare_densities(original_q_estimator, predict_q_estimator, ref_estimator, label_1="orig N: {}".format(sample_storage.get_n_collected()),
                       label_2="gnn N: {}".format(sample_storage_predict.get_n_collected()))
+
+
+def plot_moments(mlmc_estimators):
+    n_moments = 25
+    moments_plot = mlmc.tool.plot.MomentsPlots(
+        title="Legendre {} moments".format(n_moments))
+
+    # moments_plot = mlmc.tool.plot.PlotMoments(
+    #     title="Monomial {} moments".format(self.n_moments), log_mean_y=False)
+
+    for nl, estimator in mlmc_estimators.items():
+
+        moments_mean = qe.estimate_mean(qe.moments(estimator._quantity, estimator._moments_fn))
+        est_moments = moments_mean.mean
+        est_vars = moments_mean.var
+
+        n_collected = [str(n_c) for n_c in estimator._sample_storage.get_n_collected()]
+        moments_plot.add_moments((moments_mean.mean, moments_mean.var), label="#{} N:".format(nl) + ", ".join(n_collected))
+
+        # print("moments level means ", moments_mean.l_means)
+        # print("moments level vars ", moments_mean.l_vars)
+        # print("moments level max vars ", np.max(moments_mean.l_vars, axis=1))
+        # print("est moments ", est_moments)
+        # print("est_vars ", est_vars)
+        # print("np.max(est_vars) ", np.max(est_vars))
+
+    moments_plot.show(None)
+    #moments_plot.show(file=os.path.join(self.work_dir, "{}_moments".format(self.n_moments)))
+    moments_plot.reset()
 
 
 def analyze_mlmc_data():

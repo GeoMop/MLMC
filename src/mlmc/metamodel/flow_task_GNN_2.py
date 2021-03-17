@@ -44,10 +44,17 @@ class GNN:
 
         self.val_targets = []
 
-        self._model = Net1(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
-                           output_activation=self._output_activation,
-                           kernel_regularization=self._hidden_regularizer,
-                           normalizer=self._normalizer)
+        model = kwargs.get('model')
+        if model is None:
+            self._model = Net1(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
+                               output_activation=self._output_activation,
+                               kernel_regularization=self._hidden_regularizer,
+                               normalizer=self._normalizer)
+        else:
+            self._model = model(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
+                               output_activation=self._output_activation,
+                               kernel_regularization=self._hidden_regularizer,
+                               normalizer=self._normalizer)
 
     def fit(self, loader_tr, loader_va, loader_te):
         """
@@ -159,15 +166,16 @@ class GNN:
         predictions = []
         step = 0
         for batch in loader:
+
             step += 1
-
             inputs, target = batch
-
             targets.extend(target)
             predictions.extend(self._model(inputs, training=False))
 
             if step == loader.steps_per_epoch:
                 return targets, predictions
+
+        return targets, predictions
 
 
 # if __name__ == "__main__":

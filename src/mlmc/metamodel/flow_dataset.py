@@ -39,7 +39,37 @@ class FlowDataset(Dataset):
         #
         # return graphs
 
-        i = 0
+        # i = 0
+        all_outputs = []
+        all_features = []
+        #
+        # for s_dir in os.listdir(self._output_dir):
+        #     try:
+        #         l = re.findall(r'L(\d+)_S', s_dir)[0]
+        #         if int(l) != self.level:
+        #             continue
+        #     except IndexError:
+        #             continue
+        #     if os.path.isdir(os.path.join(self._output_dir, s_dir)):
+        #         sample_dir = os.path.join(self._output_dir, s_dir)
+        #         if os.path.exists(os.path.join(sample_dir, "nodes_features.npy")):
+        #             features = np.load(os.path.join(sample_dir, "nodes_features.npy"))
+        #             output = np.load(os.path.join(sample_dir, "output.npy"))
+        #             all_outputs.append(output)
+        #             all_features.append(features)
+        #
+        # #print("all outputs ", np.array(all_outputs).shape)
+        # min_output = np.min(all_outputs)
+        # max_output = np.max(all_outputs)
+        #
+        # maximum = np.max(all_features)
+        # minimum = np.min(all_features)
+        #
+        # self.min_output = min_output
+        # self.max_output = max_output
+        # self.min_feature = minimum
+        # # self.max_output = maximum
+
 
         graphs = []
         for s_dir in os.listdir(self._output_dir):
@@ -52,6 +82,7 @@ class FlowDataset(Dataset):
 
             #print("s dir ", s_dir)
 
+
             if os.path.isdir(os.path.join(self._output_dir, s_dir)):
                 sample_dir = os.path.join(self._output_dir, s_dir)
                 if os.path.exists(os.path.join(sample_dir, "nodes_features.npy")):
@@ -62,16 +93,17 @@ class FlowDataset(Dataset):
                     # else:
                     #     exit()
                     # i += 1
-                    maximum = np.max(features)
-                    minimum = np.min(features)
 
                     #features = (features - minimum) / (maximum - minimum)
+                    #
+                    # output = (output - min_output) / (max_output - min_output)
                     # print("max ", maximum)
                     # print("max ", minimum)
                     #
                     # print("new featuers max ", np.max(new_features))
                     # print("new featuers min ", np.min(new_features))
                     # exit()
+
 
                     graphs.append(Graph(x=features, y=output))#, a=self.adjacency_matrix))
 
