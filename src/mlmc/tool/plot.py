@@ -1002,7 +1002,23 @@ class ArticlePDF(Distribution):
         bins = self._grid(int(0.5 * np.sqrt(N)) * 2)
         self.ax_pdf.hist(samples, density=True, color='red', bins=bins, alpha=0.3)
 
-    def add_distribution(self, distr_object, label=None):
+    def add_raw_samples_log(self, samples):
+        """
+        Add histogram and ecdf for raw samples.
+        :param samples:
+        """
+        samples = np.exp(samples)
+        # Histogram
+        domain = (np.min(samples), np.max(samples))
+        self.adjust_domain(domain)
+        if self.x_lim is not None:
+            self._domain = self.x_lim
+        N = len(samples)
+        print("N samples ", N)
+        bins = self._grid(int(0.5 * np.sqrt(N)) * 2)
+        self.ax_pdf.hist(samples, density=True, color='red', bins=bins, alpha=0.3)
+
+    def add_distribution(self, distr_object, label=None, color=None, linestyle=None):
         """
         Add plot for distribution 'distr_object' with given label.
         :param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain
@@ -1011,11 +1027,57 @@ class ArticlePDF(Distribution):
         """
         if label is None:
            label = "size {}".format(distr_object.moments_fn.size)
+        if color is None:
+            color = self.pdf_color(self.i_plot)
+        if linestyle is None:
+            linestyle = "-"
+
         domain = distr_object.domain
         self.adjust_domain(domain)
         X = self._grid(10000, domain=domain)
         Y_pdf = distr_object.density(X)
-        self.ax_pdf.plot(X, Y_pdf, color=self.pdf_color(self.i_plot), label=label)
+
+        self.ax_pdf.plot(X, Y_pdf, color=color, label=label, linestyle=linestyle)
+        self.i_plot += 1
+
+    def add_distribution_log(self, distr_object, label=None, color=None, linestyle=None):
+        """
+        Add plot for distribution 'distr_object' with given label.
+        :param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain
+        :param label: string label for legend
+        :return:
+        """
+        if label is None:
+           label = "size {}".format(distr_object.moments_fn.size)
+        if label is None:
+           label = "size {}".format(distr_object.moments_fn.size)
+        if color is None:
+            color = self.pdf_color(self.i_plot)
+        if linestyle is None:
+            linestyle = "-"
+
+        domain = distr_object.domain
+
+        self.adjust_domain(domain)
+        X = self._grid(10000, domain=domain)
+        X = np.exp(X)
+
+        Y_pdf = distr_object.density_exp(X)
+
+        import copy
+        X_div = copy.deepcopy(X)
+        X_div[X_div < 0.0005] = 1/X_div[X_div < 0.0005]
+        X_div = np.array(X_div)
+
+        print("Y[:10] ", Y_pdf[:10])
+        print("X_div[:10] ", X_div[:10])
+
+        Y_pdf /= X_div
+
+        print("Y pdf[X_div == 1][-10:] ", Y_pdf[X_div == 1])
+        #@TODO: rm asap
+        # Y_pdf[Y_pdf > 3] = 1
+        self.ax_pdf.plot(X, Y_pdf, color=color, label=label, linestyle=linestyle)
         self.i_plot += 1
 
     def show(self, file=""):
@@ -1091,22 +1153,35 @@ class MomentsPlots(Distribution):
 
 
 class SamplingPlots(Distribution):
-    def __init__(self, title="", quantity_name="i-th iteration", legend_title="", log_mean_y=False, log_var_y=False, single_fig=False):
+    def __init__(self, title="", quantity_name="i-th iteration", legend_title="", log_y=False, single_fig=False):
         """
         """
+        matplotlib.rcParams.update({'font.size': 26})
+        matplotlib.rcParams.update({'lines.markersize': 12})
+
         self._domain = None
         self._title = title
         self._legend_title = legend_title
-        self.cmap = plt.cm.tab20
+        colors = ["blue", "green", "red"]
+
+        def get_color(index):
+            return colors[index]
+        self.cmap = get_color#plt.cm.tab20
         self.axes = None
-        y_axis_label = "$t(s)$"
+        y_axis_label = "CPU time $(s)$"
         x_axis_label = quantity_name
+
+        log_y = True
 
         if single_fig:
             self.fig, self.axes = plt.subplots(1, 1, figsize=(22, 10))
             self.axes.set_xlabel(x_axis_label)
             self.axes.set_ylabel(y_axis_label)
             self._plot_i = 0
+
+            if log_y:
+                self.axes.set_yscale('log')
+
 
             # self.axes2 = self.axes.twiny()
             # self.axes2.xaxis.set_ticks_position("bottom")
@@ -1155,11 +1230,10 @@ class SamplingPlots(Distribution):
             self.ax_total_time.tick_params(axis='y')
             self.ax_total_time.set_xlabel(x_axis_label)
 
-            if log_mean_y:
+            if log_y:
                 self.ax_target_n.set_yscale('log')
-
-            if log_var_y:
                 self.ax_estimated_n.set_yscale('log')
+                self.ax_collected_n.set_yscale('log')
 
     def add_target_n(self, target_n, label="T"):
         if self.axes is not None:
