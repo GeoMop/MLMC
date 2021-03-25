@@ -21,13 +21,8 @@ class QuantitySpec:
         return False
 
 
-@attr.s(auto_attribs=True, frozen=True)
+@attr.s(auto_attribs=True)
 class ChunkSpec:
-    level_id: int
-    # Level identifier
-    chunk_id: int = 0
-    # Chunk identifier
-    n_samples: int = None
-    # Number of samples which we want to retrieve
-    chunk_size: int = 512000000
-    # Chunk size in bytes in decimal, determines number of samples in chunk
+    chunk_id: int = None
+    chunk_slice: slice = None
+    level_id: int = None
