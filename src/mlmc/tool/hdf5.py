@@ -1,6 +1,6 @@
 import numpy as np
 import h5py
-import warnings
+from mlmc.quantity_spec import ChunkSpec
 
 
 class HDF5:
@@ -210,8 +210,6 @@ class LevelGroup:
         # HDF Group object (h5py.Group)
         self._n_items_in_chunk = None
         # Collected items in one chunk
-        self._chunks_info = {}
-        # Basic info about chunks, use in quantity subsampling
         self._chunk_size_items = {}
         # Chunk size and corresponding number of items
 
@@ -352,42 +350,30 @@ class LevelGroup:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             return scheduled_dset[()]
 
-    def collected(self, chunk_spec=None):
+    def chunks(self, n_samples=None):
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            if 'collected_values' not in hdf_file[self.level_group_path]:
+                raise AttributeError("No collected values in level group ".format(self.level_id))
+            dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
+
+            if n_samples is not None:
+                yield ChunkSpec(chunk_id=0, chunk_slice=slice(0, n_samples, 1), level_id=int(self.level_id))
+            else:
+                for chunk_id, chunk in enumerate(dataset.iter_chunks()):
+                    yield ChunkSpec(chunk_id=chunk_id, chunk_slice=chunk[0], level_id=int(self.level_id))  # slice, level_id
+
+    def collected(self, chunk_slice):
         """
         Read collected data by chunks,
         number of items in chunk is determined by LevelGroup.chunk_size (number of bytes)
-        :param chunk_spec: ChunkSpec instance
+        :param chunk_slice: slice() object
         :return: np.ndarray
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             if 'collected_values' not in hdf_file[self.level_group_path]:
                 return None
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
-
-            if chunk_spec is not None:
-                if chunk_spec.n_samples is not None and chunk_spec.n_samples < np.inf:
-                    return dataset[:chunk_spec.n_samples]
-
-                if chunk_spec.chunk_size is not None:
-                    if chunk_spec.chunk_size in self._chunk_size_items:
-                        n_items = self._chunk_size_items[chunk_spec.chunk_size]
-                    else:
-                        first_item = dataset[0]
-                        item_byte_size = first_item.size * first_item.itemsize
-                        n_items = self._chunk_size_items[chunk_spec.chunk_size] = int(np.ceil(chunk_spec.chunk_size / item_byte_size)) \
-                            if int(np.ceil(chunk_spec.chunk_size / item_byte_size)) < len(dataset[()]) else len(dataset[()])
-
-                    self._chunks_info[chunk_spec] = [chunk_spec.chunk_id * n_items, (chunk_spec.chunk_id + 1) * n_items]
-                    return dataset[chunk_spec.chunk_id * n_items: (chunk_spec.chunk_id + 1) * n_items]
-            return dataset[()]
-
-    def get_chunks_info(self, chunk_spec):
-        """
-        The start and end index of a chunk from a whole dataset point of view
-        :param chunk_spec: ChunkSpec instance
-        :return: List[int, int]
-        """
-        return self._chunks_info[chunk_spec]
+            return dataset[chunk_slice]
 
     def collected_n_items(self):
         """
@@ -462,16 +448,3 @@ class LevelGroup:
             if 'n_ops_estimate' not in hdf_file[self.level_group_path].attrs:
                 hdf_file[self.level_group_path].attrs['n_ops_estimate'] = 0
             hdf_file[self.level_group_path].attrs['n_ops_estimate'] += n_ops_estimate
-
-    @property
-    def n_items_in_chunk(self):
-        """
-        Number of items in chunk
-        :return:
-        """
-        return self._n_items_in_chunk
-
-    @n_items_in_chunk.setter
-    def n_items_in_chunk(self, n_items):
-        if self._n_items_in_chunk is None:
-            self._n_items_in_chunk = n_items

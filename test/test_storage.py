@@ -99,17 +99,18 @@ def test_hdf_append():
     storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5"))
     n_levels = 4
     format_quant = add_samples(storage, n_levels)
-    results = np.array(storage.sample_pairs())
+    results = storage.sample_pairs()
 
     storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5"))
-    loaded_results = np.array(storage.sample_pairs())
+    loaded_results = storage.sample_pairs()
 
     assert len(results) == n_levels
-    for level_res, level_res_loaded in zip(results, loaded_results):
-        assert np.allclose(level_res[:, :, 0], 1)
-        assert np.allclose(level_res[:, :, 1], 0)
-        assert np.allclose(level_res[:, :, 0], level_res_loaded[:, :, 0])
-        assert np.allclose(level_res[:, :, 1], level_res_loaded[:, :, 1])
+    for l_id, (level_res, level_res_loaded) in enumerate(zip(results, loaded_results)):
+        assert np.allclose(np.array(level_res)[:, :, 0], 1)
+        assert np.allclose(np.array(level_res)[:, :, 0], np.array(level_res_loaded)[:, :, 0])
+        if l_id > 0:
+            assert np.allclose(np.array(level_res)[:, :, 1], 0)
+            assert np.allclose(np.array(level_res)[:, :, 1], np.array(level_res_loaded)[:, :, 1])
 
     n_ops = storage.get_n_ops()
     assert len(n_ops) == n_levels
