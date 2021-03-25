@@ -1,10 +1,9 @@
 import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
-from mlmc.tool import plot
-from mlmc.quantity_spec import ChunkSpec
 import mlmc.quantity_estimate as qe
 import mlmc.tool.simple_distribution
+from mlmc.tool import plot
 
 
 def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_ops, n_levels):
@@ -305,7 +304,8 @@ class Estimate:
         label_n_spaces = 5
         n_levels = self._sample_storage.get_n_levels()
         for level_id in range(n_levels):
-            samples = np.squeeze(self._quantity.samples(ChunkSpec(level_id=level_id)), axis=0)
+            chunk_spec = next(self._sample_storage.chunks(level_id=level_id, n_samples=self._sample_storage.get_n_collected()[level_id]))
+            samples = np.squeeze(self._quantity.samples(chunk_spec, axis=0))
             if level_id == 0:
                 label = "{} F{} {} C".format(level_id, ' ' * label_n_spaces, level_id + 1)
                 data = {'samples': samples[:, 0], 'type': 'fine', 'level': label}
@@ -335,8 +335,8 @@ class Estimate:
             quantile = 0.01
 
         for level_id in range(sample_storage.get_n_levels()):
-            fine_samples = quantity.samples(ChunkSpec(level_id=level_id,
-                                                  n_samples=sample_storage.get_n_collected()[0]))[..., 0]
+            chunk_spec = next(sample_storage.chunks(n_samples=sample_storage.get_n_collected()[level_id]))
+            fine_samples = quantity.samples(chunk_spec)[..., 0]  # Fine samples at level 0
 
             fine_samples = np.squeeze(fine_samples)
             ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
@@ -349,7 +349,7 @@ class Estimate:
         Construct approximation of the density using given moment functions.
         """
         cov_mean = qe.estimate_mean(qe.covariance(self._quantity, self._moments_fn))
-        cov_mat = cov_mean()
+        cov_mat = cov_mean.mean
         moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(self._moments_fn,
                                                                                                      cov_mat,
                                                                                                      tol=orth_moments_tol)
@@ -370,6 +370,12 @@ class Estimate:
 
         return distr_obj, info, result, moments_obj
 
-    def get_level_samples(self, level_id):
-        return self._quantity.samples(ChunkSpec(level_id=level_id,
-                                                n_samples=self._sample_storage.get_n_collected()[level_id]))
+    def get_level_samples(self, level_id, n_samples=None):
+        """
+        Get level samples from storage
+        :param level_id: int, level identifier
+        :param n_samples> int, number of samples to retrieve, if None first chunk of data is retrieved
+        :return: level samples, shape: (M, N, 1) for level 0, (M, N, 2) otherwise
+        """
+        chunk_spec = next(self._sample_storage.chunks(level_id=level_id, n_samples=n_samples))
+        return self._quantity.samples(chunk_spec=chunk_spec)

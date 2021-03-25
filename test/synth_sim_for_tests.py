@@ -13,7 +13,7 @@ class SynthSimulationForTests(SynthSimulation):
         :param config: dictionary containing simulation configuration
         :return:
         """
-        sleep(random()*2)
+        sleep(random()/10)
         return SynthSimulation.calculate(config, seed)
 
 
@@ -26,5 +26,5 @@ class SynthSimulationWorkspaceForTests(SynthSimulationWorkspace):
         :param config: dictionary containing simulation configuration
         :return:
         """
-        sleep(random()*2)
+        sleep(random()/10)
         return SynthSimulationWorkspace.calculate(config, seed)

@@ -78,7 +78,7 @@ def test_mlmc(test_case):
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    target_var = 1e-4
+    target_var = 1e-3
     sleep = 0
     add_coef = 0.1
 
