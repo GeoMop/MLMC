@@ -8,6 +8,8 @@ from mlmc.sim.simulation import Simulation
 
 class Sampler:
 
+    ADDING_SAMPLES_TIMEOUT = 1e-15
+
     def __init__(self, sample_storage: SampleStorage, sampling_pool: SamplingPool, sim_factory: Simulation,
                  level_parameters: List[List[float]], seed=1234):
         """
@@ -187,13 +189,15 @@ class Sampler:
         self.sample_storage.save_samples(successful_samples, failed_samples)
         self.sample_storage.save_n_ops(n_ops)
 
-    def process_adding_samples(self, n_estimated, sleep=0, add_coef=0.1, timeout=1e-7):
+    def process_adding_samples(self, n_estimated, sleep=0, add_coeff=0.1, timeout=ADDING_SAMPLES_TIMEOUT):
         """
         Process adding samples
         Note: n_estimated are wrong if n_ops is similar through all levels
         :param n_estimated: Number of estimated samples on each level, list
         :param sleep: Sample waiting time
-        :param add_coef: default value 0.1
+        :param add_coeff: default value 0.1, The number of scheduled samples would be 'add_coef' fraction of difference
+         between current number of target samples and new estimated number of target samples
+        :param timeout: ask sampling pool for finished samples timeout
         :return: bool, if True adding samples is complete
         """
         self.ask_sampling_pool_for_samples(timeout=timeout)
@@ -205,9 +209,9 @@ class Sampler:
         # between current number of target samples and new estimated one
         # If 10 percent of estimated samples is greater than difference between estimated and scheduled samples,
         # set scheduled samples to estimated samples
-        new_scheduled = np.where((n_estimated * add_coef) > (n_estimated - n_scheduled),
+        new_scheduled = np.where((n_estimated * add_coeff) > (n_estimated - n_scheduled),
                                  n_estimated,
-                                 n_scheduled + (n_estimated - n_scheduled) * add_coef)
+                                 n_scheduled + (n_estimated - n_scheduled) * add_coeff)
 
         n_scheduled = np.ceil(np.where(n_estimated < n_scheduled,
                                        n_scheduled,

@@ -173,18 +173,15 @@ class PbsJob:
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
-                if not self._debug:
-                    # Store few successful samples
-                    if int(sample_id[-7:]) < SamplingPool.N_SUCCESSFUL:
-                        SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
-                                              dest_dir=successful_dest_dir)
-                    SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
-
+                if self._debug:
+                    SamplingPool.move_successful_rm(sample_id, level_sim,
+                                                    output_dir=self._output_dir,
+                                                    dest_dir=SamplingPool.SEVERAL_SUCCESSFUL_DIR)
             else:
                 failed.append((current_level, sample_id, err_msg))
-                SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
-                                      dest_dir=SamplingPool.FAILED_DIR)
-                SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
+                SamplingPool.move_failed_rm(sample_id, level_sim,
+                                            output_dir=self._output_dir,
+                                            dest_dir=SamplingPool.FAILED_DIR)
 
             current_samples.append(sample_id)
             n_times += 1

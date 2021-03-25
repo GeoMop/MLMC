@@ -220,8 +220,14 @@ class SampleStorageHDF(SampleStorage):
         :return: None
         """
         for level_id, (time, n_samples) in n_ops:
+            if self._level_groups[level_id].n_ops_estimate is None:
+                self._level_groups[level_id].n_ops_estimate = [0., 0.]
+
             if n_samples > 0:
-                self._level_groups[level_id].n_ops_estimate = time/n_samples
+                n_ops_saved = self._level_groups[level_id].n_ops_estimate
+                n_ops_saved[0] += time
+                n_ops_saved[1] += n_samples
+                self._level_groups[level_id].n_ops_estimate = n_ops_saved
 
     def get_n_ops(self):
         """
@@ -230,8 +236,10 @@ class SampleStorageHDF(SampleStorage):
         """
         n_ops = list(np.zeros(len(self._level_groups)))
         for level in self._level_groups:
-            n_ops[int(level.level_id)] = level.n_ops_estimate
-
+            if level.n_ops_estimate[1] > 0:
+                n_ops[int(level.level_id)] = level.n_ops_estimate[0] / level.n_ops_estimate[1]
+            else:
+                n_ops[int(level.level_id)] = 0
         return n_ops
 
     def get_level_ids(self):

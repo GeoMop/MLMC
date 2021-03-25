@@ -159,6 +159,17 @@ class SamplingPool(ABC):
             os.chdir(sample_dir)
 
     @staticmethod
+    def move_successful_rm(sample_id, level_sim, output_dir, dest_dir):
+        if int(sample_id[-7:]) < SamplingPool.N_SUCCESSFUL:
+            SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, output_dir, dest_dir=dest_dir)
+        SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, output_dir)
+
+    @staticmethod
+    def move_failed_rm(sample_id, level_sim, output_dir, dest_dir):
+        SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, output_dir, dest_dir=dest_dir)
+        SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, output_dir)
+
+    @staticmethod
     def move_dir(sample_id, sample_workspace, work_dir, dest_dir):
         """
         Move failed sample dir to failed directory
@@ -228,15 +239,10 @@ class OneProcessPool(SamplingPool):
         if not err_msg:
             self._queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
             if not self._debug:
-                if int(sample_id[-7:]) < SamplingPool.N_SUCCESSFUL:
-                    SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
-                                          dest_dir=self._successful_dir)
-                SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
+                SamplingPool.move_successful_rm(sample_id, level_sim, output_dir=self._output_dir, dest_dir=self._successful_dir)
         else:
             self._failed_queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, err_msg))
-            SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
-                                  dest_dir=SamplingPool.FAILED_DIR)
-            SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
+            SamplingPool.move_failed_rm(sample_id, level_sim, output_dir=self._output_dir, dest_dir=SamplingPool.FAILED_DIR)
 
     def _save_running_time(self, level_id, running_time):
         """

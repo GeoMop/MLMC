@@ -460,7 +460,7 @@ class LevelGroup:
         """
         with h5py.File(self.file_name, 'a') as hdf_file:
             if 'n_ops_estimate' not in hdf_file[self.level_group_path].attrs:
-                hdf_file[self.level_group_path].attrs['n_ops_estimate'] = 0
+                hdf_file[self.level_group_path].attrs['n_ops_estimate'] = [0., 0.]
             hdf_file[self.level_group_path].attrs['n_ops_estimate'] = n_ops_estimate
 
     @property
