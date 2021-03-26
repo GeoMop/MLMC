@@ -21,7 +21,7 @@ from mlmc.metamodel.graph_models import NetGCN
 
 from mlmc.metamodel.flow_task_GNN_2 import GNN
 from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv
-from tensorflow.keras.losses import MeanSquaredError, KLDivergence
+from tensorflow.keras.losses import MeanSquaredError, KLDivergence, MeanAbsoluteError, MeanSquaredLogarithmicError
 from tensorflow.keras.regularizers import l2
 from spektral.data import MixedLoader
 from spektral.layers.ops import sp_matrix_to_sp_tensor
@@ -174,6 +174,142 @@ def bootstrap():
     # estimate_density(np.mean(all_predictions, axis=0), title="Predictions")
 
 
+def run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level, conv_layer=None, stats=False,
+            gnn=None, model=None, log=False):
+    from sklearn.svm import SVR
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.model_selection import train_test_split
+
+    batch_size = 2000
+    epochs = 1000
+    hidden_regularization = None  # l2(2e-10)
+
+    preprocess_start_time = time.process_time()
+    #graph_creator(output_dir, hdf_path, mesh, level=level)
+
+    # Load data
+    data = FlowDataset(output_dir=output_dir, level=level, log=log)
+    dataset = data.dataset
+
+    dataset = dataset.sample(frac=1)
+
+    train = dataset[:2000]
+    test = dataset[2000:]
+
+    train_input, train_output = train.x, train.y
+    test_input, test_output = test.x, test.y
+
+    train_input = prepare_data(train_input)
+    train_output = prepare_data(train_output)
+
+    test_input = prepare_data(test_input)
+    test_output = prepare_data(test_output)
+
+    # sc_X = StandardScaler()
+    # sc_y = StandardScaler()
+    # train_input = sc_X.fit_transform(train_input)
+    # train_output = sc_y.fit_transform(train_output.reshape(-1,1))
+    # test_input = sc_X.fit_transform(test_input)
+    # test_output = sc_y.fit_transform(test_output.reshape(-1,1))
+
+
+    #train_input, train_output, test_input, test_output = split_dataset(dataset)
+
+
+    preprocess_time = time.process_time() - preprocess_start_time
+    learning_time_start = time.process_time()
+
+
+    print("train input ", train_input.shape)
+    print("train output ", train_output.shape)
+
+    svr_rbf = SVR(kernel='rbf', verbose=True)  # 'linear' kernel fitting is never-ending and 'poly' kernel gives very bad score (e.g. -2450), sigmoid gives also bad score (e.g. -125)
+    svr_rbf.fit(train_input, train_output)
+    train_error = svr_rbf.score(train_input, train_output)
+
+    #test_input = sc_X.fit_transform(test_input)
+    test_error = svr_rbf.score(test_input, test_output)
+
+    targets = test_output
+
+    # test_y = sc_y.fit_transform(test.y.to_numpy().reshape(-1,1))
+
+    predictions = svr_rbf.predict(test_input)
+
+    print("train error ", train_error)
+    print("test error ", test_error)
+
+    train_predictions = svr_rbf.predict(train_input)
+    #train_predictions = np.squeeze(train_predictions)
+
+    learning_time = time.process_time() - learning_time_start
+
+    if stats is True:
+        return gnn, targets, predictions, learning_time
+
+    if log:
+        targets = np.exp(targets)
+        predictions = np.exp(predictions)
+
+    print("np.var(target-predictions) ", np.var(targets - predictions))
+
+    #plot_loss(gnn._train_loss, gnn._val_loss)
+    analyze_results(targets, predictions)
+
+    import matplotlib.pyplot as plt
+
+    # plt.hist(train_output, bins=50, alpha=0.5, label='train target', density=True)
+    # plt.hist(train_predictions, bins=50, alpha=0.5, label='train predictions', density=True)
+    #
+    # # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+    # plt.legend(loc='upper right')
+    # # plt.xlim(-0.5, 1000)
+    # plt.yscale('log')
+    # plt.show()
+
+    plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
+    plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
+
+    # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+    plt.legend(loc='upper right')
+    # plt.xlim(-0.5, 1000)
+    plt.yscale('log')
+    plt.show()
+
+    predict_l_0_start_time = time.process_time()
+    l_0_targets, l_0_predictions = predict_level_zero_SVR(svr_rbf, l_0_output_dir, l_0_hdf_path, mesh, batch_size, log)
+    predict_l_0_time = time.process_time() - predict_l_0_start_time
+
+    save_times(save_path, False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
+    save_load_data(save_path, False, targets, predictions, train_output, train_predictions, test_output, l_0_targets,
+                   l_0_predictions)
+
+
+def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=False):
+    #graph_creator(output_dir, hdf_path, mesh, level=0)
+
+    # Load data
+    data = FlowDataset(output_dir=output_dir, log=log)
+    dataset = data.dataset[:]
+
+    test_input = prepare_data(dataset.x)
+    targets = prepare_data(dataset.y)
+    print("data prepared")
+
+    predictions = []
+    for i in range(0, len(test_input), batch_size):
+        predictions.extend(nn.predict(test_input[i:i + batch_size]))
+    predictions = np.array(predictions)
+    print("predictison shape ", predictions.shape)
+    predictions = np.squeeze(predictions)
+
+    if log:
+        targets = np.exp(targets)
+        predictions = np.exp(predictions)
+    # analyze_results(targets, predictions)
+    return targets, predictions
+
+
 def statistics(run_method, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level):
     n_subsamples = 3
     train_losses = []
@@ -283,33 +419,36 @@ def analyze_statistics(save_path):
 
 
 def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level, conv_layer=None, stats=False,
-            gnn=None, model=None):
+            gnn=None, model=None, log=False):
     # Parameters
     if conv_layer is None:
-        conv_layer = GCNConv
+        #conv_layer = GCNConv
         conv_layer = ChebConv  # Seems better than GCNConv, good distribution of predictions
-        # conv_layer = GraphSageConv  # Seems better than ChebConv, good loss but very narrow distribution of predictions
+        #conv_layer = OwnChebConv
+        #conv_layer = GraphSageConv  # Seems better than ChebConv, good loss but very narrow distribution of predictions
         # # conv_layer = ARMAConv  # Seems worse than GraphSageConv
         # conv_layer = GATConv  # Slow and not better than GraphSageConv
         # # conv_layer = APPNPConv  # Not bad but worse than GraphSageConv
         # # conv_layer = GINConv  # it is comparable to APPNPConv
-        # act_func = "relu"  # "tanh"#"elu"  # ReLU keep predictions above zero
+        # act_func = "relu"  # "tanh"#"elu"
 
     loss = MeanSquaredError()  # var_loss_function#
+    # loss = MeanAbsoluteError()
+    # loss = MeanSquaredLogarithmicError()
     #loss = KLDivergence()
     # loss = total_loss_function
     optimizer = tf.optimizers.Adam(learning_rate=0.001)
     batch_size = 2000#2000
-    epochs = 500
+    epochs = 1000
     hidden_regularization = None  # l2(2e-10)
 
     preprocess_start_time = time.process_time()
     #graph_creator(output_dir, hdf_path, mesh, level=level)
 
     # Load data
-    data = FlowDataset(output_dir=output_dir, level=level)
+    data = FlowDataset(output_dir=output_dir, level=level, log=log)
     data = data#[:15000]
-    print("lev data ", len(data))
+    print("len data ", len(data))
 
     preprocess_time = time.process_time() - preprocess_start_time
 
@@ -361,8 +500,33 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
     if stats is True:
         return gnn, targets, predictions, learning_time
 
+    if log:
+        targets = np.exp(targets)
+        predictions = np.exp(predictions)
+
     plot_loss(gnn._train_loss, gnn._val_loss)
     analyze_results(targets, predictions)
+
+    import matplotlib.pyplot as plt
+
+    plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
+    plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
+
+    # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+    plt.legend(loc='upper right')
+    # plt.xlim(-0.5, 1000)
+    plt.yscale('log')
+    plt.show()
+
+
+    # plt.hist(np.exp(targets), bins=50, alpha=0.5, label='target', density=True)
+    # plt.hist(np.exp(predictions), bins=50, alpha=0.5, label='predictions', density=True)
+    #
+    # # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+    # plt.legend(loc='upper right')
+    # # plt.xlim(-0.5, 1000)
+    # plt.yscale('log')
+    # plt.show()
 
     # print("np.max(targets) ", np.max(targets))
     # print("np.min(targets) ", np.min(targets))
@@ -399,7 +563,7 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
     # diff_moments(targets, predictions)
 
     predict_l_0_start_time = time.process_time()
-    l_0_targets, l_0_predictions = predict_level_zero(gnn, l_0_output_dir, l_0_hdf_path, mesh, batch_size)
+    l_0_targets, l_0_predictions = predict_level_zero(gnn, l_0_output_dir, l_0_hdf_path, mesh, batch_size, log)
     predict_l_0_time = time.process_time() - predict_l_0_start_time
 
     save_times(save_path, False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
@@ -407,11 +571,11 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
                    l_0_predictions)
 
 
-def predict_level_zero(nn, output_dir, hdf_path, mesh, batch_size=1000, ):
-    # graph_creator(output_dir, hdf_path, mesh, level=0)
+def predict_level_zero(nn, output_dir, hdf_path, mesh, batch_size=1000, log=False):
+    #graph_creator(output_dir, hdf_path, mesh, level=0)
 
     # Load data
-    data = FlowDataset(output_dir=output_dir)
+    data = FlowDataset(output_dir=output_dir, log=log)
     data = data  # [:10000]
     # data.a = conv_layer.preprocess(data.a)
     data.a = sp_matrix_to_sp_tensor(data.a)
@@ -420,6 +584,10 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, batch_size=1000, ):
 
     targets, predictions = nn.predict(loader_te)
     predictions = np.squeeze(predictions)
+
+    if log:
+        targets = np.exp(targets)
+        predictions = np.exp(predictions)
     # analyze_results(targets, predictions)
     return targets, predictions
 
@@ -518,7 +686,7 @@ def process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_l
 
 def get_config(case=0):
     if case == 0:
-        cl = "cl_0_3_s_4"
+        cl = "cl_0_1_s_1"
         nn_level = 0
         replace_level = False
         mesh = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
@@ -534,13 +702,13 @@ def get_config(case=0):
         cl = "cl_0_3_s_4"
         nn_level = 1
         replace_level = False
-        mesh = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
-        #mesh = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L2/l_step_0.027624156655057155_common_files/mesh.msh"
+        #mesh = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
+        mesh = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L2/l_step_0.027624156655057155_common_files/mesh.msh"
         output_dir = "/home/martin/Documents/metamodels/data/1000_ele/{}/L5/test/01_cond_field/output/".format(cl)
         hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/L5/mlmc_5.hdf5".format(cl)
         save_path = "/home/martin/Documents/metamodels/data/1000_ele/{}".format(cl)
         l_0_output_dir = "/home/martin/Documents/metamodels/data/1000_ele/{}/L{}/test/01_cond_field/output/".format(cl, nn_level + 1)
-        l_0_hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/L{}/mlmc_{}.hdf5".format(cl, nn_level + 1, nn_level + 1)
+        l_0_hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/L{}/mlmc_{}.hdf5".format(cl, nn_level + 1, nn_level)
         sampling_info_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/sampling_info".format(cl)
         ref_mlmc_file = "/home/martin/Documents/metamodels/data/1000_ele/{}/L1_benchmark/mlmc_1.hdf5".format(cl)
 
@@ -592,7 +760,7 @@ def get_config(case=0):
 
 
 if __name__ == "__main__":
-    case = 4
+    case = 1
     output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level = get_config(
         case)
 
@@ -614,9 +782,10 @@ if __name__ == "__main__":
 
     #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, conv_layer=GCNConv, model=NetGCN)  # , gnn=gnn)
 
-    #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level)  # , gnn=gnn)
+    #run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
+    #exit()
 
-    # run_CNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level)
+    run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
     process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
 
     # analyze_bootstrap(save_path)
