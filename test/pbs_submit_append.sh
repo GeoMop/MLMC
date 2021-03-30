@@ -30,7 +30,7 @@ python3.8 -m pip install attrs numpy scipy h5py gstools ruamel.yaml sklearn memo
 
 cd ${script_path}
 
-python3.8 ${py_script} run ${work_dir} --clean
+python3.8 ${py_script} run ${work_dir} --debug
 deactivate
 EOF
 
