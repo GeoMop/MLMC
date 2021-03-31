@@ -1,7 +1,6 @@
 import numpy as np
 import mlmc.quantity.quantity
 import mlmc.quantity.quantity_types as qt
-from mlmc.quantity.quantity_spec import ChunkSpec
 
 
 def mask_nan_samples(chunk):
@@ -20,58 +19,53 @@ def cache_clear():
     mlmc.quantity.quantity.QuantityConst.samples.cache_clear()
 
 
-def estimate_mean(quantity, chunk_size=512000000):
+def estimate_mean(quantity):
     """
     MLMC mean estimator.
     The MLMC method is used to compute the mean estimate to the Quantity dependent on the collected samples.
     The squared error of the estimate (the estimator variance) is estimated using the central limit theorem.
     Data is processed by chunks, so that it also supports big data processing
     :param quantity: Quantity
-    :param chunk_size: chunk size in bytes in decimal, determines number of samples in chunk
     :return: QuantityMean which holds both mean and variance
     """
     cache_clear()
     quantity_vec_size = quantity.size()
-    n_samples = None
-    n_rm_samples = None
     sums = None
     sums_of_squares = None
-    chunk_id = 0
-    level_chunks_none = np.zeros(1)  # if ones then the iteration through the chunks was terminated at each level
 
-    while not np.alltrue(level_chunks_none):
-        level_ids = quantity.get_quantity_storage().level_ids()
-        if chunk_id == 0:
-            # initialization
-            n_levels = len(level_ids)
-            n_samples = [0] * n_levels
-            n_rm_samples = [0] * n_levels
+    # initialization
+    quantity_storage = quantity.get_quantity_storage()
+    level_ids = quantity_storage.level_ids()
+    n_levels = np.max(level_ids) + 1
+    n_samples = [0] * n_levels
+    n_rm_samples = [0] * n_levels
 
-        level_chunks_none = np.zeros(n_levels)
-        for level_id in level_ids:
-            # Chunk of samples for given level id
-            try:
-                chunk = quantity.samples(ChunkSpec(level_id, chunk_id, chunk_size=chunk_size))
-                chunk, n_mask_samples = mask_nan_samples(chunk)
-                # level_chunk is Numpy Array with shape [M, chunk_size, 2]
-                n_samples[level_id] += chunk.shape[1]
-                n_rm_samples[level_id] += n_mask_samples
-                assert (chunk.shape[0] == quantity_vec_size)
+    for chunk_spec in quantity_storage.chunks():
+        samples = quantity.samples(chunk_spec)
+        chunk, n_mask_samples = mask_nan_samples(samples)
+        n_samples[chunk_spec.level_id] += chunk.shape[1]
+        n_rm_samples[chunk_spec.level_id] += n_mask_samples
 
-                if level_id == 0:
-                    # Set variables for level sums and sums of powers
-                    if chunk_id == 0:
-                        sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-                        sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-                    chunk_diff = chunk[:, :, 0]
-                else:
-                    chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
+        # No samples in chunk
+        if chunk.shape[1] == 0:
+            continue
+        assert (chunk.shape[0] == quantity_vec_size)
 
-                sums[level_id] += np.sum(chunk_diff, axis=1)
-                sums_of_squares[level_id] += np.sum(chunk_diff**2, axis=1)
-            except StopIteration:
-                level_chunks_none[level_id] = True
-        chunk_id += 1
+        # Set variables for level sums and sums of squares
+        if sums is None:
+            sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+            sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+
+        if chunk_spec.level_id == 0:
+            chunk_diff = chunk[:, :, 0]
+        else:
+            chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
+
+        sums[chunk_spec.level_id] += np.sum(chunk_diff, axis=1)
+        sums_of_squares[chunk_spec.level_id] += np.sum(chunk_diff**2, axis=1)
+
+    if sums is None:
+        raise Exception("All samples were masked")
 
     l_means = []
     l_vars = []
@@ -80,7 +74,7 @@ def estimate_mean(quantity, chunk_size=512000000):
         if n > 1:
             l_vars.append((sp - (s ** 2 / n)) / (n-1))
         else:
-            l_vars.append(np.inf)
+            l_vars.append(np.full(len(s), np.inf))
 
     return mlmc.quantity.quantity.QuantityMean(quantity.qtype, l_means=l_means, l_vars=l_vars, n_samples=n_samples,
                                                n_rm_samples=n_rm_samples)

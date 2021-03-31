@@ -178,7 +178,8 @@ class QuantityTests(unittest.TestCase):
         """
         Test quantity binary operations
         """
-        sample_storage = Memory()
+        work_dir = _prepare_work_dir()
+        sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc.hdf5"))
         result_format, sizes = self.fill_sample_storage(sample_storage)
         root_quantity = make_root_quantity(sample_storage, result_format)
         const = 5
@@ -217,7 +218,7 @@ class QuantityTests(unittest.TestCase):
         # Mod
         const_mod_quantity = root_quantity % const
         const_mod_mean = estimate_mean(const_mod_quantity)
-        assert np.allclose((means.mean % const).tolist(), const_mod_mean.mean.tolist())
+        const_mod_mean.mean
 
         # Further tests
         length = quantity_add['length']
@@ -276,8 +277,8 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose(root_quantity_mean.mean, all_root_quantity_mean.mean)
 
         selected_quantity = root_quantity.select(root_quantity < 0)
-        selected_quantity_mean = estimate_mean(selected_quantity)
-        assert len(selected_quantity_mean.mean) == 0
+        with self.assertRaises(Exception):
+            estimate_mean(selected_quantity)
 
         all_root_quantity = root_quantity.select(0 < root_quantity)
         all_root_quantity_mean = estimate_mean(all_root_quantity)
@@ -288,8 +289,8 @@ class QuantityTests(unittest.TestCase):
         assert np.allclose(root_quantity_mean.mean, root_quantity_comp_mean.mean)
 
         root_quantity_comp = root_quantity.select(root_quantity < root_quantity)
-        root_quantity_comp_mean = estimate_mean(root_quantity_comp)
-        assert len(root_quantity_comp_mean.mean) == 0
+        with self.assertRaises(Exception):
+            estimate_mean(root_quantity_comp)
 
         #new_quantity = selected_quantity + root_quantity
         #self.assertRaises(AssertionError, (selected_quantity + root_quantity))
@@ -320,8 +321,8 @@ class QuantityTests(unittest.TestCase):
         assert len(means_add_bounded_3.mean) == len(root_quantity_mean.mean)
 
         q_add_bounded_4 = quantity_add.select(root_quantity > quantity_add)
-        means_add_bounded_4 = estimate_mean(q_add_bounded_4)
-        assert len(means_add_bounded_4.mean) == 0
+        with self.assertRaises(Exception):
+            estimate_mean(q_add_bounded_4)
 
         q_add_bounded_5 = quantity_add.select(root_quantity < quantity_add, root_quantity < 10)
         means_add_bounded_5 = estimate_mean(q_add_bounded_5)
@@ -334,8 +335,8 @@ class QuantityTests(unittest.TestCase):
         assert len(mean_length.mean) == len(means_lt.mean)
 
         q_add_bounded_6 = quantity_add.select(root_quantity < quantity_add, length < 1)
-        means_add_bounded_6 = estimate_mean(q_add_bounded_6)
-        assert len(means_add_bounded_6.mean) == 0
+        with self.assertRaises(Exception):
+            estimate_mean(q_add_bounded_6)
 
         q_add_bounded_7 = quantity_add.select(root_quantity < quantity_add, length < 10)
         means_add_bounded_7 = estimate_mean(q_add_bounded_7)
@@ -346,24 +347,24 @@ class QuantityTests(unittest.TestCase):
         assert len(mean_length.mean) == len(means_le.mean)
 
         quantity_lt = length.select(length < 1)  # no sample matches condition
-        means_lt = estimate_mean(quantity_lt)
-        assert len(means_lt.mean) == 0
+        with self.assertRaises(Exception):
+            estimate_mean(quantity_lt)
 
         quantity_lt_gt = length.select(9 < length, length < 20)  # one sample matches condition
         means_lt_gt = estimate_mean(quantity_lt_gt)
         assert len(mean_length.mean) == len(means_lt_gt.mean)
 
-        quantity_gt = length.select(100 < length)  # no sample matches condition
-        means_gt = estimate_mean(quantity_gt)
-        assert len(means_gt.mean) == 0
+        quantity_gt = length.select(10**5 < length)  # no sample matches condition
+        with self.assertRaises(Exception):
+            estimate_mean(quantity_gt)
 
-        quantity_ge = length.select(100 <= length)  # no sample matches condition
-        means_ge = estimate_mean(quantity_ge)
-        assert len(means_ge.mean) == 0
+        quantity_ge = length.select(10**5 <= length)  # no sample matches condition
+        with self.assertRaises(Exception):
+            estimate_mean(quantity_ge)
 
         quantity_eq = length.select(1 == length)
-        means_eq = estimate_mean(quantity_eq)
-        assert len(means_eq.mean) == 0
+        with self.assertRaises(Exception):
+             estimate_mean(quantity_eq)
 
         quantity_ne = length.select(-1 != length)
         means_ne = estimate_mean(quantity_ne)
@@ -420,6 +421,9 @@ class QuantityTests(unittest.TestCase):
         sin_means_length = estimate_mean(sin_length)
         assert np.allclose((sin_means.mean[sizes[0]:sizes[0]+sizes[1]]).tolist(), sin_means_length.mean.tolist())
 
+        q_and = np.logical_and(True, root_quantity)
+        self.assertRaises(TypeError, estimate_mean, q_and)
+
         cache_clear()
         x = np.ones((108, 5, 2))
         self.assertRaises(ValueError, np.add, x, root_quantity)
@@ -427,8 +431,6 @@ class QuantityTests(unittest.TestCase):
         x = np.ones((108, 5, 2))
         self.assertRaises(ValueError, np.divide, x, root_quantity)
 
-        q_and = np.logical_and(True, root_quantity)
-        self.assertRaises(TypeError, estimate_mean, q_and)
 
     def test_quantity_const(self):
         x = QuantityConst(ScalarType(), 5)
@@ -436,8 +438,7 @@ class QuantityTests(unittest.TestCase):
         z = x + y
         assert isinstance(z, QuantityConst)
 
-    def fill_sample_storage(self, sample_storage, chunk_size=512000000):
-        sample_storage.chunk_size = chunk_size  # bytes in decimal
+    def fill_sample_storage(self, sample_storage):
         np.random.seed(123)
         n_levels = 3
         res_length = 3
@@ -451,7 +452,7 @@ class QuantityTests(unittest.TestCase):
         successful_samples = {}
         failed_samples = {}
         n_ops = {}
-        n_successful = 15
+        n_successful = 150
         sizes = []
         for l_id in range(n_levels):
             sizes = []
@@ -621,17 +622,31 @@ class QuantityTests(unittest.TestCase):
         value_mean = location_mean[0]
         assert len(value_mean.mean) == 1
 
-        root_quantity_subsamples = root_quantity.subsample(sample_vec=[10, 8, 5, 3, 2])
-        root_quantity_subsamples_select = root_quantity.select(root_quantity_subsamples)
+        iter = 1000
+        chunks_means = []
+        chunks_vars = []
+        chunks_subsamples = []
+        rm_samples = []
 
-        # Moments values are at the bottom
-        moments_quantity = moments(root_quantity_subsamples_select, moments_fn=moments_fn, mom_at_bottom=True)
-        moments_mean = estimate_mean(moments_quantity)
-        length_mean = moments_mean['length']
-        time_mean = length_mean[1]
-        location_mean = time_mean['10']
-        value_mean_select = location_mean[0]
-        assert np.all(np.array(values_mean.var[1:]) < np.array(value_mean_select.var[1:]))
+        for i in range(iter):
+            sample_vec = [15, 10, 8, 6, 4]
+            root_quantity_subsamples = root_quantity.subsample(sample_vec)  # out of [100, 80, 50, 30, 10]
+            moments_quantity = moments(root_quantity_subsamples, moments_fn=moments_fn, mom_at_bottom=True)
+            mult_chunks_moments_mean = estimate_mean(moments_quantity)
+            mult_chunks_length_mean = mult_chunks_moments_mean['length']
+            mult_chunks_time_mean = mult_chunks_length_mean[1]
+            mult_chunks_location_mean = mult_chunks_time_mean['10']
+            mult_chunks_value_mean =mult_chunks_location_mean[0]
+
+            chunks_means.append(mult_chunks_value_mean.mean)
+            chunks_vars.append(mult_chunks_value_mean.var)
+            chunks_subsamples.append(mult_chunks_value_mean.n_samples)
+
+            rm_samples.append(mult_chunks_value_mean.n_rm_samples)
+
+        assert np.allclose(np.mean(chunks_subsamples, axis=0), sample_vec, rtol=0.5)
+        assert np.allclose(np.mean(chunks_means, axis=0), values_mean.mean, atol=1e-2)
+        assert np.allclose(np.mean(chunks_vars, axis=0) / iter, values_mean.var, atol=1e-3)
 
     def dev_memory_usage_test(self):
         work_dir = "/home/martin/Documents/MLMC_quantity"
@@ -640,9 +655,3 @@ class QuantityTests(unittest.TestCase):
         result_format = sample_storage.load_result_format()
         root_quantity = make_root_quantity(sample_storage, result_format)
         mean_root_quantity = estimate_mean(root_quantity)
-
-
-if __name__ == '__main__':
-    qt = QuantityTests()
-    qt.test_basics()
-    #unittest.main()
