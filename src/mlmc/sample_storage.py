@@ -1,8 +1,9 @@
+import itertools
 import numpy as np
 from abc import ABCMeta
 from abc import abstractmethod
 from typing import List, Dict
-from mlmc.quantity_spec import QuantitySpec, ChunkSpec
+from mlmc.quantity.quantity_spec import QuantitySpec, ChunkSpec
 
 
 class SampleStorage(metaclass=ABCMeta):
@@ -32,7 +33,7 @@ class SampleStorage(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def save_scheduled_samples(self):
+    def save_scheduled_samples(self, level_id, samples):
         """
         Save scheduled samples ids
         """
@@ -49,6 +50,26 @@ class SampleStorage(metaclass=ABCMeta):
         """
         Get results from storage
         :return: List[Array[M, N, 2]]
+        """
+
+    def chunks(self, level_id=None, n_samples=None):
+        """
+        Create chunks generator
+        :param level_id: int, if not None return chunks for a given level
+        :param n_samples: int, number of samples to retrieve
+        :return: generator
+        """
+        assert isinstance(n_samples, (type(None), int)), "n_samples param must be int"
+        level_ids = self.get_level_ids()
+        if level_id is not None:
+            level_ids = [level_id]
+        return itertools.chain(*[self._level_chunks(level_id, n_samples) for level_id in level_ids])  # concatenate generators
+
+    @abstractmethod
+    def _level_chunks(self, level_id, n_samples=None):
+        """
+        Info about chunks of level's collected data
+        :return: generator of ChunkSpec objects
         """
 
     @abstractmethod
@@ -220,27 +241,29 @@ class Memory(SampleStorage):
         Sample results split to numpy arrays
         :return: List[Array[M, N, 2]]
         """
-        levels_results = list(np.empty(len(np.max(self._results.keys()))))
+        levels_results = list(np.empty(len(self._results)))
 
         for level_id in self.get_level_ids():
-            results = self.sample_pairs_level(ChunkSpec(level_id))
+            results = self.sample_pairs_level(ChunkSpec(level_id=level_id))
             levels_results[level_id] = results
 
         return levels_results
 
+    def _level_chunks(self, level_id, n_samples=None):
+        yield ChunkSpec(chunk_id=0, chunk_slice=slice(0, len(self._results[level_id][:n_samples]), 1), level_id=level_id)
+
     def sample_pairs_level(self, chunk_spec):
         """
         Get samples for given level, chunks does not make sense in Memory storage so all data are retrieved at once
-        :param chunk_spec: ChunkSpec instance, contains level_id, chunk_id, possibly n_samples
+        :param chunk_spec: object containing chunk identifier level identifier and chunk_slice - slice() object
         :return: np.ndarray
         """
-        if chunk_spec.chunk_id != 0:
-            raise StopIteration
-
         results = self._results[int(chunk_spec.level_id)]
-        n_samples = chunk_spec.n_samples\
-            if chunk_spec.n_samples is not None and chunk_spec.n_samples < results.shape[0]\
-            else results.shape[0]
+
+        if chunk_spec.chunk_slice is not None:
+            chunk = results[chunk_spec.chunk_slice]
+        else:
+            chunk = results
 
         # Handle scalar simulation result
         #@TODO: think it over again
@@ -251,9 +274,8 @@ class Memory(SampleStorage):
 
         # Remove auxiliary zeros from level zero sample pairs
         if chunk_spec.level_id == 0:
-            results = results[:, :1, :]
-
-        return results[:n_samples, ...].transpose((2, 0, 1))  # [M, N, 2]
+            chunk = chunk[:, :1, :]
+        return chunk.transpose((2, 0, 1))  # [M, chunk size, 2]
 
     def save_n_ops(self, n_ops):
         """
@@ -294,8 +316,8 @@ class Memory(SampleStorage):
         :return: List
         """
         n_collected = list(np.zeros(len(self._results)))
-        for level_id, result in self._results.items():
-            n_collected[int(level_id)] = len(result)
+        for level_id in self.get_level_ids():
+            n_collected[int(level_id)] = len(self._results[int(level_id)])
         return n_collected
 
     def get_n_levels(self):

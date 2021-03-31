@@ -2,8 +2,10 @@ import os
 import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.quantity_spec import QuantitySpec, ChunkSpec
+from mlmc.quantity.quantity_spec import QuantitySpec, ChunkSpec
 import mlmc.tool.hdf5 as hdf
+import warnings
+warnings.simplefilter("ignore", np.VisibleDeprecationWarning)
 
 
 class SampleStorageHDF(SampleStorage):
@@ -136,6 +138,9 @@ class SampleStorageHDF(SampleStorage):
         """
         self._level_groups[level_id].append_scheduled(samples)
 
+    def _level_chunks(self, level_id, n_samples=None):
+        return self._level_groups[level_id].chunks(n_samples)
+
     def sample_pairs(self):
         """
         Load results from hdf file
@@ -149,7 +154,9 @@ class SampleStorageHDF(SampleStorage):
         levels_results = list(np.empty(len(self._level_groups)))
 
         for level in self._level_groups:
-            results = self.sample_pairs_level(ChunkSpec(level_id=level.level_id))  # return all samples no chunks
+            chunk_spec = next(self.chunks(level_id=int(level.level_id),
+                                          n_samples=self.get_n_collected()[int(level.level_id)]))
+            results = self.sample_pairs_level(chunk_spec)  # return all samples no chunks
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue
@@ -159,20 +166,19 @@ class SampleStorageHDF(SampleStorage):
     def sample_pairs_level(self, chunk_spec):
         """
         Get result for particular level and chunk
-        :param chunk_spec: ChunkSpec instance, contains level_id, chunk_id, possibly n_samples
+        :param chunk_spec: object containing chunk identifier level identifier and chunk_slice - slice() object
         :return: np.ndarray
         """
-        sample_pairs = self._level_groups[int(chunk_spec.level_id)].collected(chunk_spec)
-
-        # Chunk is empty
-        if len(sample_pairs) == 0:
-            raise StopIteration
+        level_id = chunk_spec.level_id
+        if chunk_spec.level_id is None:
+            level_id = 0
+        chunk = self._level_groups[int(level_id)].collected(chunk_spec.chunk_slice)
 
         # Remove auxiliary zeros from level zero sample pairs
-        if chunk_spec.level_id == 0:
-            sample_pairs = sample_pairs[:, :1, :]
+        if level_id == 0:
+            chunk = chunk[:, :1, :]
 
-        return sample_pairs.transpose((2, 0, 1))  # [M, chunk size, 2]
+        return chunk.transpose((2, 0, 1))  # [M, chunk size, 2]
 
     def n_finished(self):
         """
@@ -218,10 +224,14 @@ class SampleStorageHDF(SampleStorage):
         :return: None
         """
         for level_id, (time, n_samples) in n_ops:
-            if n_samples == 0:
-                self._level_groups[level_id].n_ops_estimate = 0
-            else:
-                self._level_groups[level_id].n_ops_estimate = time/n_samples
+            if self._level_groups[level_id].n_ops_estimate is None:
+                self._level_groups[level_id].n_ops_estimate = [0., 0.]
+
+            if n_samples > 0:
+                n_ops_saved = self._level_groups[level_id].n_ops_estimate
+                n_ops_saved[0] += time
+                n_ops_saved[1] += n_samples
+                self._level_groups[level_id].n_ops_estimate = n_ops_saved
 
     def get_n_ops(self):
         """
@@ -230,8 +240,10 @@ class SampleStorageHDF(SampleStorage):
         """
         n_ops = list(np.zeros(len(self._level_groups)))
         for level in self._level_groups:
-            n_ops[int(level.level_id)] = level.n_ops_estimate
-
+            if level.n_ops_estimate[1] > 0:
+                n_ops[int(level.level_id)] = level.n_ops_estimate[0] / level.n_ops_estimate[1]
+            else:
+                n_ops[int(level.level_id)] = 0
         return n_ops
 
     def get_level_ids(self):

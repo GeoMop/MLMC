@@ -1,7 +1,6 @@
 import numpy as np
-import mlmc.quantity
-import mlmc.quantity_types as qt
-from mlmc.quantity_spec import ChunkSpec
+import mlmc.quantity.quantity
+import mlmc.quantity.quantity_types as qt
 
 
 def mask_nan_samples(chunk):
@@ -16,67 +15,54 @@ def mask_nan_samples(chunk):
 
 
 def cache_clear():
-    mlmc.quantity.Quantity.samples.cache_clear()
-    mlmc.quantity.QuantityConst.samples.cache_clear()
+    mlmc.quantity.quantity.Quantity.samples.cache_clear()
+    mlmc.quantity.quantity.QuantityConst.samples.cache_clear()
 
 
-def estimate_mean(quantity, chunk_size=512000000):
+def estimate_mean(quantity):
     """
     MLMC mean estimator.
     The MLMC method is used to compute the mean estimate to the Quantity dependent on the collected samples.
     The squared error of the estimate (the estimator variance) is estimated using the central limit theorem.
     Data is processed by chunks, so that it also supports big data processing
     :param quantity: Quantity
-    :param chunk_size: chunk size in bytes in decimal, determines number of samples in chunk
     :return: QuantityMean which holds both mean and variance
     """
     cache_clear()
     quantity_vec_size = quantity.size()
-    n_samples = None
-    n_rm_samples = None
     sums = None
     sums_of_squares = None
-    chunk_id = 0
-    level_chunks_none = np.zeros(1)  # if ones then the iteration through the chunks was terminated at each level
 
-    while not np.alltrue(level_chunks_none):
-        level_ids = quantity.get_quantity_storage().level_ids()
-        if n_samples is None:
-            # initialization
-            n_levels = len(level_ids)
-            n_samples = [0] * n_levels
-            n_rm_samples = [0] * n_levels
+    # initialization
+    quantity_storage = quantity.get_quantity_storage()
+    level_ids = quantity_storage.level_ids()
+    n_levels = np.max(level_ids) + 1
+    n_samples = [0] * n_levels
+    n_rm_samples = [0] * n_levels
 
-        level_chunks_none = np.zeros(n_levels)
-        for level_id in level_ids:
-            # Chunk of samples for given level id
-            try:
-                chunk = quantity.samples(ChunkSpec(level_id, chunk_id, chunk_size=chunk_size))
-                chunk, n_mask_samples = mask_nan_samples(chunk)
-                # level_chunk is Numpy Array with shape [M, chunk_size, 2]
-                n_samples[level_id] += chunk.shape[1]
-                n_rm_samples[level_id] += n_mask_samples
+    for chunk_spec in quantity_storage.chunks():
+        samples = quantity.samples(chunk_spec)
+        chunk, n_mask_samples = mask_nan_samples(samples)
+        n_samples[chunk_spec.level_id] += chunk.shape[1]
+        n_rm_samples[chunk_spec.level_id] += n_mask_samples
 
-                # No samples in chunk
-                if chunk.shape[1] == 0:
-                    continue
-                assert (chunk.shape[0] == quantity_vec_size)
+        # No samples in chunk
+        if chunk.shape[1] == 0:
+            continue
+        assert (chunk.shape[0] == quantity_vec_size)
 
-                # Set variables for level sums and sums of squares
-                if sums is None:
-                    sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
-                    sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+        # Set variables for level sums and sums of squares
+        if sums is None:
+            sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
+            sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
 
-                if level_id == 0:
-                    chunk_diff = chunk[:, :, 0]
-                else:
-                    chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
+        if chunk_spec.level_id == 0:
+            chunk_diff = chunk[:, :, 0]
+        else:
+            chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
 
-                sums[level_id] += np.sum(chunk_diff, axis=1)
-                sums_of_squares[level_id] += np.sum(chunk_diff**2, axis=1)
-            except StopIteration:
-                level_chunks_none[level_id] = True
-        chunk_id += 1
+        sums[chunk_spec.level_id] += np.sum(chunk_diff, axis=1)
+        sums_of_squares[chunk_spec.level_id] += np.sum(chunk_diff**2, axis=1)
 
     if sums is None:
         raise Exception("All samples were masked")
@@ -90,8 +76,8 @@ def estimate_mean(quantity, chunk_size=512000000):
         else:
             l_vars.append(np.full(len(s), np.inf))
 
-    return mlmc.quantity.QuantityMean(quantity.qtype, l_means=l_means, l_vars=l_vars, n_samples=n_samples,
-                                      n_rm_samples=n_rm_samples)
+    return mlmc.quantity.quantity.QuantityMean(quantity.qtype, l_means=l_means, l_vars=l_vars, n_samples=n_samples,
+                                               n_rm_samples=n_rm_samples)
 
 
 def moment(quantity, moments_fn, i=0):
@@ -104,7 +90,7 @@ def moment(quantity, moments_fn, i=0):
     """
     def eval_moment(x):
         return moments_fn.eval_single_moment(i, value=x)
-    return mlmc.quantity.Quantity(quantity_type=quantity.qtype, input_quantities=[quantity], operation=eval_moment)
+    return mlmc.quantity.quantity.Quantity(quantity_type=quantity.qtype, input_quantities=[quantity], operation=eval_moment)
 
 
 def moments(quantity, moments_fn, mom_at_bottom=True):
@@ -129,7 +115,7 @@ def moments(quantity, moments_fn, mom_at_bottom=True):
     # Create quantity type that has moments_fn on the surface
     else:
         moments_qtype = qt.ArrayType(shape=(moments_fn.size,), qtype=quantity.qtype)
-    return mlmc.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
+    return mlmc.quantity.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_moments)
 
 
 def covariance(quantity, moments_fn, cov_at_bottom=True):
@@ -165,4 +151,4 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
     # Create quantity type that has covariance matrices on the surface
     else:
         moments_qtype = qt.ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
-    return mlmc.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_cov)
+    return mlmc.quantity.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_cov)

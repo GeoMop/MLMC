@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
+from typing import List
 from mlmc.level_simulation import LevelSimulation
-from mlmc.quantity_spec import QuantitySpec
+from mlmc.quantity.quantity_spec import QuantitySpec
 
 
 class Simulation(ABC):
