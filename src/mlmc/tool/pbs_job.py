@@ -6,7 +6,8 @@ import numpy as np
 import ruamel.yaml as yaml
 import pickle
 from mlmc.sampling_pool import SamplingPool
-from ruamel.yaml.error import ReusedAnchorWarning
+from ruamel.yaml.error import ReusedAnchorWarning, UnsafeLoaderWarning
+warnings.simplefilter("ignore", UnsafeLoaderWarning)
 warnings.simplefilter("ignore", ReusedAnchorWarning)
 
 
@@ -24,7 +25,6 @@ class PbsJob:
     CLASS_FILE = "pbs_process_serialized.txt"
     # Serialized data which are "passed" from sampling pool to pbs process
     PERMANENT_SAMPLE = "permanent_jobID_{}"
-
     # Indicates that sample is stored in _successful_results.yaml or _failed_results.yaml
 
     def __init__(self, output_dir, jobs_dir, job_id, level_sim_file, debug):
@@ -173,16 +173,15 @@ class PbsJob:
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
-                SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
-                                      dest_dir=successful_dest_dir)
-                if not self._debug:
-                    SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
-
+                if self._debug:
+                    SamplingPool.move_successful_rm(sample_id, level_sim,
+                                                    output_dir=self._output_dir,
+                                                    dest_dir=SamplingPool.SEVERAL_SUCCESSFUL_DIR)
             else:
                 failed.append((current_level, sample_id, err_msg))
-                SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
-                                      dest_dir=SamplingPool.FAILED_DIR)
-                SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
+                SamplingPool.move_failed_rm(sample_id, level_sim,
+                                            output_dir=self._output_dir,
+                                            dest_dir=SamplingPool.FAILED_DIR)
 
             current_samples.append(sample_id)
             n_times += 1
@@ -192,6 +191,7 @@ class PbsJob:
             success = []
             failed = []
             current_samples = []
+            times = []
 
         self._save_to_file(success, failed, times, current_samples)
 

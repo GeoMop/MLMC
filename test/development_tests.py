@@ -8,7 +8,7 @@ from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import ProcessPool, ThreadPool, OneProcessPool
 from mlmc.moments import Legendre
-from mlmc.quantity_estimate import QuantityEstimate
+from mlmc.quantity.quantity_estimate import QuantityEstimate
 import mlmc.estimator as new_estimator
 
 """

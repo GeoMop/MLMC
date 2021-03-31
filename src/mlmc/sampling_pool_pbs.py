@@ -49,7 +49,9 @@ class SamplingPoolPBS(SamplingPool):
     OUTPUT_DIR = "output"
     JOBS_DIR = "jobs"
     LEVEL_SIM_CONFIG = "level_{}_simulation_config"  # Serialized level simulation
-    JOB = "{}_job.sh"  # Pbs process file
+    JOB = "{}_job.sh"  # Pbs process
+    QSUB_FAILED_MAX_N = 10  # Ignore 10 consecutive ''qsub' command failures
+    QSTAT_FAILED_MAX_N = 10  # Ignore 10 consecutive 'qstat' command failures
 
     def __init__(self, work_dir, debug=False):
         """
@@ -81,6 +83,9 @@ class SamplingPoolPBS(SamplingPool):
         self._jobs_dir = self._create_dir(directory=SamplingPoolPBS.JOBS_DIR)
         self._job_count = self._get_job_count()
         # Current number of jobs - sort of jobID
+        self._qsub_failed_n = 0
+        self._qstat_failed_n = 0
+        # Number of failed execution of commands qsub, qstat
 
     def _get_job_count(self):
         """
@@ -208,26 +213,30 @@ class SamplingPoolPBS(SamplingPool):
             # Write pbs script
             job_file = os.path.join(self._jobs_dir, SamplingPoolPBS.JOB.format(job_id))
             script_content = "\n".join(self.pbs_script)
-
             self.write_script(script_content, job_file)
-            # Write current job count
-            self._job_count += 1
-
-            # subprocess.call(job_file)
 
             process = subprocess.run(['qsub', job_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            if process.returncode != 0:
-                raise Exception(process.stderr.decode('ascii'))
+            try:
+                if process.returncode != 0:
+                    raise Exception(process.stderr.decode('ascii'))
+                # Find all finished jobs
+                self._qsub_failed_n = 0
+                # Write current job count
+                self._job_count += 1
 
-            # Get pbs_id from qsub output
-            pbs_id = process.stdout.decode("ascii").split(".")[0]
-            # Store pbs id for future qstat calls
-            self._pbs_ids.append(pbs_id)
-            pbs_process.write_pbs_id(pbs_id)
+                # Get pbs_id from qsub output
+                pbs_id = process.stdout.decode("ascii").split(".")[0]
+                # Store pbs id for future qstat calls
+                self._pbs_ids.append(pbs_id)
+                pbs_process.write_pbs_id(pbs_id)
 
-        self._current_job_weight = 0
-        self._n_samples_in_job = 0
-        self._scheduled = []
+                self._current_job_weight = 0
+                self._n_samples_in_job = 0
+                self._scheduled = []
+            except:
+                self._qsub_failed_n += 1
+                if self._qsub_failed_n > SamplingPoolPBS.QSUB_FAILED_MAX_N:
+                    raise Exception(process.stderr.decode("ascii"))
 
     def _create_script(self):
         """
@@ -276,18 +285,31 @@ class SamplingPoolPBS(SamplingPool):
 
             # qstat call
             process = subprocess.run(qstat_call, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            if process.returncode != 0:
-                raise Exception(process.stderr.decode("ascii"))
-
-            output = process.stdout.decode("ascii")
-            # Find all finished jobs
-            finished_pbs_jobs = re.findall(r"(\d+)\..*\d+ F", output)
+            try:
+                if process.returncode != 0:
+                    raise Exception(process.stderr.decode("ascii"))
+                output = process.stdout.decode("ascii")
+                # Find all finished jobs
+                finished_pbs_jobs = re.findall(r"(\d+)\..*\d+ F", output)
+                self._qstat_failed_n = 0
+            except:
+                self._qstat_failed_n += 1
+                if self._qstat_failed_n > SamplingPoolPBS.QSTAT_FAILED_MAX_N:
+                    raise Exception(process.stderr.decode("ascii"))
+                finished_pbs_jobs = []
 
         # Get unfinished as diff between planned and finished
         unfinished_pbs_jobs = []
         for pbs_id in self._pbs_ids:
             if pbs_id not in finished_pbs_jobs:
                 unfinished_pbs_jobs.append(pbs_id)
+            else:
+                # Remove finished ids from all saved pbs_ids
+                # It prevents qstat exception: "Unknown Job Id",
+                # that occurs because there is some kind of qstat 'forgetfulness' of terminated jobs
+                # It is a very rare phenomenon, which is observed only during the long run (e.g. 8 hours for a job)
+                # of many (e.g. 2500) simulations, here it happened after around a day and a half of running MLMC.
+                self._pbs_ids.remove(pbs_id)
 
         return finished_pbs_jobs, unfinished_pbs_jobs
 
