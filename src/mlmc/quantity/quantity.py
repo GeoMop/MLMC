@@ -1,7 +1,6 @@
 import operator
 import numpy as np
 import scipy.stats
-import mlmc.quantity_types as qt
 from memoization import cached
 from typing import List
 from mlmc.sample_storage import SampleStorage
