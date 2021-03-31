@@ -163,7 +163,7 @@ class Distribution:
         domain = (np.min(samples), np.max(samples))
         self.adjust_domain(domain)
         N = len(samples)
-        bins = self._grid(0.5 * np.sqrt(N))
+        bins = self._grid(int(0.5 * np.sqrt(N)))
         self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
 
         # Ecdf
@@ -378,7 +378,6 @@ class ArticleDistribution(Distribution):
         if self.x_lim is not None:
             self._domain = self.x_lim
         N = len(samples)
-        print("N samples ", N)
         bins = self._grid(int(0.5 * np.sqrt(N)))
         self.ax_pdf.hist(samples, density=True, color='red', bins=bins, alpha=0.3)
 
@@ -388,16 +387,6 @@ class ArticleDistribution(Distribution):
         X, Y = make_monotone(X, Y)
         if self.ax_cdf is not None:
             self.ax_cdf.plot(X, Y, ':', color='midnightblue', label="ecdf")
-
-        # PDF approx as derivative of Bspline CDF approx
-        size_8 = int(N / 8)
-        w = np.ones_like(X)
-        w[:size_8] = 1 / (Y[:size_8])
-        w[N - size_8:] = 1 / (1 - Y[N - size_8:])
-        spl = interpolate.UnivariateSpline(X, Y, w, k=3, s=1)
-        sX = np.linspace(domain[0], domain[1], 1000)
-        # if self._reg_param == 0:
-        #     self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4, label="derivative of Bspline CDF")
 
     def add_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0):
         """

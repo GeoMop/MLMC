@@ -229,10 +229,13 @@ class OneProcessPool(SamplingPool):
             if not self._debug:
                 SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
         else:
-            self._failed_queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, err_msg))
-            SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
-                                  dest_dir=SamplingPool.FAILED_DIR)
-            SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
+            if not level_sim.need_sample_workspace:
+                print("Error: ", err_msg)
+            else:
+                self._failed_queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, err_msg))
+                SamplingPool.move_dir(sample_id, level_sim.need_sample_workspace, self._output_dir,
+                                      dest_dir=SamplingPool.FAILED_DIR)
+                SamplingPool.remove_sample_dir(sample_id, level_sim.need_sample_workspace, self._output_dir)
 
     def _save_running_time(self, level_id, running_time):
         """
