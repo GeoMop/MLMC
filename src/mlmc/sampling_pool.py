@@ -242,10 +242,10 @@ class OneProcessPool(SamplingPool):
                 SamplingPool.move_successful_rm(sample_id, level_sim, output_dir=self._output_dir, dest_dir=self._successful_dir)
         else:
             if not level_sim.need_sample_workspace:
-                print("Error: ", err_msg)
+                print("Sample {} error: {}".format(sample_id, err_msg))
             else:
-                self._failed_queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, err_msg))
                 SamplingPool.move_failed_rm(sample_id, level_sim, output_dir=self._output_dir, dest_dir=SamplingPool.FAILED_DIR)
+            self._failed_queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, err_msg))
 
     def _save_running_time(self, level_id, running_time):
         """

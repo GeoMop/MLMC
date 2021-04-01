@@ -63,9 +63,9 @@ class Estimate:
             if moments_fn is None:
                 moments_fn = self._moments_fn
             raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
+
         sim_steps = np.squeeze(self._sample_storage.get_level_parameters())
         vars = self._all_moments_variance_regression(raw_vars, sim_steps)
-
         # We need to get n_ops_estimate from storage
         return vars, self._sample_storage.get_n_ops()
 
@@ -100,7 +100,7 @@ class Estimate:
         """
         L, = raw_vars.shape
         L1 = L - 1
-        if L < 3:
+        if L < 3 or np.allclose(raw_vars, 0):
             return raw_vars
 
         # estimate of variances of variances, compute scaling
@@ -120,13 +120,13 @@ class Estimate:
         X[:, 2] = np.full(L1, log_step ** 2)
 
         WX = X * W[:, None]    # scale
-
         log_vars = np.log(raw_vars[1:])     # omit first variance
         log_vars = W * log_vars       # scale RHS
-
         params, res, rank, sing_vals = np.linalg.lstsq(WX, log_vars)
+
         new_vars = raw_vars.copy()
         new_vars[1:] = np.exp(np.dot(X, params))
+
         return new_vars
 
     def _variance_of_variance(self, n_samples=None):

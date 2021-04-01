@@ -529,8 +529,8 @@ class GSToolsSpatialCorrelatedField(RandomFieldBase):
         """
         if self.dim == 1:
             x = self.points
-            x.reshape(len(x), 1)
-            field = self.srf((x))
+            x.reshape(len(x))
+            field = self.srf((x,))
         elif self.dim == 2:
             x, y = self.points.T
             x = x.reshape(len(x), 1)
