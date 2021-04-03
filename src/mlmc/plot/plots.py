@@ -167,20 +167,20 @@ class Distribution:
         bins = self._grid(int(0.5 * np.sqrt(N)))
         self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
 
-        # Ecdf
-        X = np.sort(samples)
-        Y = (np.arange(len(X)) + 0.5) / float(len(X))
-        X, Y = make_monotone(X, Y)
-        self.ax_cdf.plot(X, Y, 'red')
-
-        # PDF approx as derivative of Bspline CDF approx
-        size_8 = int(N / 8)
-        w = np.ones_like(X)
-        w[:size_8] = 1 / (Y[:size_8])
-        w[N - size_8:] = 1 / (1 - Y[N - size_8:])
-        spl = interpolate.UnivariateSpline(X, Y, w, k=3, s=1)
-        sX = np.linspace(domain[0], domain[1], 1000)
-        self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4)
+        # # Ecdf
+        # X = np.sort(samples)
+        # Y = (np.arange(len(X)) + 0.5) / float(len(X))
+        # X, Y = make_monotone(X, Y)
+        # self.ax_cdf.plot(X, Y, 'red')
+        #
+        # # PDF approx as derivative of Bspline CDF approx
+        # size_8 = int(N / 8)
+        # w = np.ones_like(X)
+        # w[:size_8] = 1 / (Y[:size_8])
+        # w[N - size_8:] = 1 / (1 - Y[N - size_8:])
+        # spl = interpolate.UnivariateSpline(X, Y, w, k=3, s=1)
+        # sX = np.linspace(domain[0], domain[1], 1000)
+        # self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4)
 
     def add_distribution(self, distr_object, label=None):
         """

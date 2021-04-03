@@ -1,9 +1,10 @@
+import copy
 import gstools
 import numpy as np
 import mlmc.random.correlated_field as cf
 from typing import List
 from mlmc.sim.simulation import Simulation
-from mlmc.quantity_spec import QuantitySpec
+from mlmc.quantity.quantity_spec import QuantitySpec
 from mlmc.level_simulation import LevelSimulation
 
 
@@ -45,7 +46,7 @@ class ShootingSimulation1D(Simulation):
                 sim_method=used method for calculating sample result
         """
         super().__init__()
-        self.config = config
+        self._config = config
         ShootingSimulation1D.n_nans = 0
         ShootingSimulation1D.nan_fraction = config.get('nan_fraction', 0.0)
         ShootingSimulation1D.len_results = 0
@@ -54,23 +55,24 @@ class ShootingSimulation1D(Simulation):
 
     def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]) -> LevelSimulation:
         """
-
-        :param fine_level_params:
-        :param coarse_level_params:
-        :return:
+        Called from mlmc.Sampler, it creates single instance of LevelSimulation (mlmc.level_simulation)
+        :param fine_level_params: fine simulation step at particular level
+        :param coarse_level_params: coarse simulation step at particular level
+        :return: mlmc.LevelSimulation object
         """
-        self.config["fine"] = {}
-        self.config["coarse"] = {}
-        self.config["fine"]["step"] = fine_level_params[0]
-        self.config["coarse"]["step"] = coarse_level_params[0]
-        self.config["res_format"] = self.result_format()
-        self.config["fine"]["n_elements"] = int(self.config["complexity"] / self.config["fine"]["step"])
-        if self.config["coarse"]["step"] > 0:
-            self.config["coarse"]["n_elements"] = int(self.config["complexity"] / self.config["coarse"]["step"])
+        config = copy.deepcopy(self._config)
+        config["fine"] = {}
+        config["coarse"] = {}
+        config["fine"]["step"] = fine_level_params[0]
+        config["coarse"]["step"] = coarse_level_params[0]
+        config["res_format"] = self.result_format()
+        config["fine"]["n_elements"] = int(config["complexity"] / config["fine"]["step"])
+        if config["coarse"]["step"] > 0:
+            config["coarse"]["n_elements"] = int(config["complexity"] / config["coarse"]["step"])
         else:
-            self.config["coarse"]["n_elements"] = 0
+            config["coarse"]["n_elements"] = 0
 
-        return LevelSimulation(config_dict=self.config, calculate=ShootingSimulation1D.calculate,
+        return LevelSimulation(config_dict=config, calculate=ShootingSimulation1D.calculate,
                                task_size=self.n_ops_estimate(fine_level_params[0]))
 
     @staticmethod
@@ -91,7 +93,7 @@ class ShootingSimulation1D(Simulation):
                                                                                            n_fine_elements=n_fine_points)
 
         fine_res = ShootingSimulation1D._run_sample(config, fine_input_sample, config["fine"]["n_elements"])
-        coarse_res = ShootingSimulation1D._run_sample(config, fine_input_sample, config["fine"]["n_elements"])
+        coarse_res = ShootingSimulation1D._run_sample(config, coarse_input_sample, config["coarse"]["n_elements"])
 
         return fine_res, coarse_res
 
@@ -159,7 +161,7 @@ class ShootingSimulation1D(Simulation):
         return fine_input_sample, coarse_input_sample
 
     def n_ops_estimate(self, step):
-        return (1 / step) ** self.config['complexity'] * np.log(max(1 / step, 2.0))
+        return (1 / step) ** self._config['complexity'] * np.log(max(1 / step, 2.0))
 
     def result_format(self) -> List[QuantitySpec]:
         """
