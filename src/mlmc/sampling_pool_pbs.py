@@ -353,7 +353,11 @@ class SamplingPoolPBS(SamplingPool):
                 for level_id, results in failed.items():
                     failed_results.setdefault(level_id, []).extend(results)
                 for level_id, results in time.items():
-                    times[level_id] = results[-1]
+                    if level_id in times:
+                        times[level_id][0] += results[-1][0]
+                        times[level_id][1] += results[-1][1]
+                    else:
+                        times[level_id] = list(results[-1])
 
                 # Delete pbsID file - it means job is finished
                 SamplingPoolPBS.delete_pbs_id_file(file)
