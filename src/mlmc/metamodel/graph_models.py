@@ -14,12 +14,18 @@ class Net1(Model):
         super().__init__(**kwargs)
         #self.normalizer = normalizer
         #self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
-        self.conv1 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        #self.conv2 = conv_layer(32, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        self.conv1 = conv_layer(256,  activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv2 = conv_layer(128, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv3 = conv_layer(16, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv4 = conv_layer(8,  K=2,activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv2 = conv_layer(32, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv3 = conv_layer(16, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv3 = conv_layer(8, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv4 = conv_layer(4, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         #self.conv3 = conv_layer(64, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         self.flatten = GlobalSumPool()
         #self.fc1 = Dense(32, activation=hidden_activation)
-        self.fc2 = Dense(1, activation=output_activation)  # linear activation for output neuron
+        self.fc2 = Dense(1)#, activation=output_activation)  # linear activation for output neuron
 
     def call(self, inputs):
         x, a = inputs
@@ -33,13 +39,19 @@ class Net1(Model):
 
         #print("x[0,0,:] ", x[0,0,:])
         # print("x[0, 0, :] ", tf.make_ndarray(x[0,0,:].op.get_attr('net1/strided_slice_1:0')))
-        # print("x.shape ", x.shape)
+        #print("x.shape ", x.shape)
         # x = self.conv2([x, a])
+        # # print("conv2 x shape", x.shape)
         # x = self.conv3([x, a])
-        output = self.flatten(x)
-        #output = self.fc1(output)
-        output = self.fc2(output)
+        # x = self.conv4([x, a])
+        output1 = self.flatten(x)
+        #output2 = self.fc1(output1)
+        output = self.fc2(output1)
 
+        # print("x1 " ,x1)
+        # print("output1 ", output1)
+        # print("output2 ", output2)
+        # print("output ", output)
         #print("output ", output.shape)
 
         return output
@@ -50,15 +62,16 @@ class NetGCN(Model):
     # Setup from https://arxiv.org/pdf/1901.06181.pdf
     def __init__(self, conv_layer, hidden_activation, output_activation, kernel_regularization, normalizer, **kwargs):
         super().__init__(**kwargs)
+
         #self.normalizer = normalizer
         #self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
-        self.conv1 = conv_layer(32,  activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        # self.conv2 = conv_layer(8, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        self.conv1 = conv_layer(256, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        #.conv2 = conv_layer(32, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv3 = conv_layer(16, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv4 = conv_layer(16, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv5 = conv_layer(32, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         self.flatten = GlobalSumPool()
-        #self.fc1 = Dense(128, activation="linear")
+        #self.fc1 = Dense(16, activation=hidden_activation)
         self.fc2 = Dense(1)#, activation=output_activation)  # linear activation for output neuron
 
     def call(self, inputs):
@@ -70,7 +83,7 @@ class NetGCN(Model):
 
         #print("x[0,0,:] ", x[0, 0, :])
         x = self.conv1([x, a])
-        # x = self.conv2([x, a])
+        #x = self.conv2([x, a])
         # x = self.conv3([x, a])
         # x = self.conv4([x, a])
         # x = self.conv5([x, a])
@@ -93,12 +106,13 @@ def cnn_model():
     return keras.Sequential([
             #@TODO: Try normalization
             #self._normalizer,  # Seems worse results with normalization
-            layers.Conv1D(filters=256, kernel_size=3, activation='relu', input_shape=(6672, 1)),#input_shape=(958, 1)),
+            layers.Conv1D(filters=256, kernel_size=3, activation='relu', input_shape=(958, 1)),#input_shape=(958, 1)),
             #layers.BatchNormalization(),
-            layers.MaxPooling1D(pool_size=2),
+            layers.AveragePooling1D(pool_size=2),
             layers.Conv1D(filters=128, kernel_size=3, activation='relu'),
             #layers.BatchNormalization(),
-            layers.MaxPooling1D(pool_size=2),
+            layers.AveragePooling1D(pool_size=2),
+
             layers.Flatten(),
             layers.Dense(64, activation='relu'),
             layers.Dense(1, activation=abs_activation)

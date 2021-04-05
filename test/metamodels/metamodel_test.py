@@ -1,0 +1,238 @@
+import os
+
+#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
+import sys
+import subprocess
+from mlmc.metamodel.analyze_nn import run_GNN, statistics, analyze_statistics
+import tensorflow as tf
+
+from mlmc.metamodel.flow_task_GNN_2 import GNN
+from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv, GeneralConv
+from tensorflow.keras.losses import MeanSquaredError, KLDivergence, MeanAbsoluteError
+from tensorflow.keras import Model
+from tensorflow.keras.layers import Dense
+from spektral.layers import GlobalSumPool, GlobalMaxPool, GlobalAvgPool
+import tensorflow as tf
+from tensorflow.keras.layers.experimental import preprocessing
+
+
+def get_gnn():
+    # Parameters
+    # conv_layer = GCNConv
+    conv_layer = ChebConv  # Seems better than GCNConv, good distribution of predictions
+    # conv_layer = OwnChebConv
+    # conv_layer = GraphSageConv  # Seems better than ChebConv, good loss but very narrow distribution of predictions
+    # # conv_layer = ARMAConv  # Seems worse than GraphSageConv
+    # conv_layer = GATConv  # Slow and not better than GraphSageConv
+    # # conv_layer = APPNPConv  # Not bad but worse than GraphSageConv
+    # # conv_layer = GINConv  # it is comparable to APPNPConv
+    # act_func = "relu"  # "tanh"#"elu"
+
+    loss = MeanSquaredError()  # var_loss_function#
+    # loss = MeanAbsoluteError()
+    # loss = MeanSquaredLogarithmicError()
+    # loss = KLDivergence()
+    # loss = total_loss_function
+    optimizer = tf.optimizers.Adam(learning_rate=0.001)
+    patience = 150
+    hidden_regularization = None  # l2(2e-10)
+
+    model_config = {
+                 "conv_layer": conv_layer,
+                 "hidden_activation": 'relu',
+                 "output_activation": 'linear',
+                 "kernel_regularization": hidden_regularization,
+                 "normalizer": preprocessing.Normalization()
+                 }
+
+    model = Net(**model_config)
+
+    model_config = {"loss": loss,
+                    "optimizer": optimizer,
+                    "patience": patience,
+                    "model": model,
+                    "verbose": False}
+
+    return GNN(**model_config), conv_layer
+
+
+class Net(Model):
+    def __init__(self, conv_layer, hidden_activation, output_activation, kernel_regularization, normalizer,
+                 **kwargs):
+        super().__init__(**kwargs)
+        # self.normalizer = normalizer
+        # self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
+        self.conv1 = conv_layer(32, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv2 = conv_layer(128, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv3 = conv_layer(16, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv4 = conv_layer(8,  K=2,activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv2 = conv_layer(32, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv3 = conv_layer(16, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv3 = conv_layer(8, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv4 = conv_layer(4, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv3 = conv_layer(64, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        self.flatten = GlobalSumPool()
+        # self.fc1 = Dense(32, activation=hidden_activation)
+        self.fc2 = Dense(1)  # , activation=output_activation)  # linear activation for output neuron
+
+    def call(self, inputs):
+        x, a = inputs
+        # print("x ", x)
+        # x = self.normalizer(x)
+        # x = self.norm_layer(x)
+        # print("normalized x ", x)
+        # print("x[0,0,:] ", x[0, 0, :])
+        x = self.conv1([x, a])
+        # print("x.shape ", x.shape)
+        # x = self.conv2([x, a])
+        # # print("conv2 x shape", x.shape)
+        # x = self.conv3([x, a])
+        # x = self.conv4([x, a])
+        output1 = self.flatten(x)
+        # output2 = self.fc1(output1)
+        output = self.fc2(output1)
+        return output
+
+
+def get_config(data_dir, case=0):
+    if case == 0:
+        cl = "cl_0_3_s_4"
+        nn_level = 0
+        replace_level = False
+        mesh = os.path.join(data_dir, "l_step_0.055_common_files/mesh.msh")
+        output_dir = os.path.join(data_dir, "{}/L5/test/01_cond_field/output/".format(cl))
+        hdf_path = os.path.join(data_dir, "{}/L5/mlmc_5.hdf5".format(cl))
+        save_path = os.path.join(data_dir, "{}".format(cl))
+        l_0_output_dir = os.path.join(data_dir, "{}/L{}/test/01_cond_field/output/".format(cl, nn_level + 1))
+        l_0_hdf_path = os.path.join(data_dir, "{}/L{}/mlmc_{}.hdf5".format(cl, nn_level + 1, nn_level + 1))
+        sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl))
+        ref_mlmc_file = os.path.join(data_dir, "{}/L1_benchmark/mlmc_1.hdf5".format(cl))
+
+    elif case == 1:
+        cl = "cl_0_3_s_4"
+        nn_level = 1
+        replace_level = False
+        mesh = os.path.join(data_dir, "/cl_0_1_s_1/L2/l_step_0.027624156655057155_common_files/mesh.msh")
+        output_dir = os.path.join(data_dir, "{}/L5/test/01_cond_field/output/".format(cl))
+        hdf_path = os.path.join(data_dir, "{}/L5/mlmc_5.hdf5".format(cl))
+        save_path = os.path.join(data_dir, "{}".format(cl))
+        l_0_output_dir = os.path.join(data_dir, "{}/L{}/test/01_cond_field/output/".format(cl, nn_level + 1))
+        l_0_hdf_path = os.path.join(data_dir, "{}/L{}/mlmc_{}.hdf5".format(cl, nn_level + 1, nn_level))
+        sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl))
+        ref_mlmc_file = os.path.join(data_dir, "{}/L1_benchmark/mlmc_1.hdf5".format(cl))
+
+    elif case == 2:
+        data_dir = "/home/martin/Documents/metamodels/data/5_ele/"
+        cl = "cl_0_1_s_1"
+        nn_level = 3
+        replace_level = False
+        mesh = os.path.join(data_dir, "cl_0_1_s_1/L5/l_step_0.020196309484414757_common_files/mesh.msh")
+        output_dir = os.path.join(data_dir, "{}/L5/test/01_cond_field/output/".format(cl))
+        hdf_path = os.path.join(data_dir, "{}/L5/mlmc_5.hdf5".format(cl))
+        save_path = os.path.join(data_dir, "{}".format(cl))
+        l_0_output_dir = os.path.join(data_dir, "{}/L1_{}/test/01_cond_field/output/".format(cl, nn_level))
+        l_0_hdf_path = os.path.join(data_dir, "{}/L1_{}/mlmc_1.hdf5".format(cl, nn_level))
+        sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl))
+        ref_mlmc_file = os.path.join(data_dir, "{}/L1_3/mlmc_1.hdf5".format(cl))
+
+    elif case == 3 or case == 4:
+        data_dir = "/home/martin/Documents/metamodels/data/5_ele/"
+        cl = "cl_0_1_s_1"
+        if case == 4:
+            cl = "cl_0_3_s_4"
+        nn_level = 3
+        replace_level = False
+        mesh = os.path.join(data_dir, "cl_0_1_s_1/L5/l_step_0.020196309484414757_common_files/mesh.msh")
+        output_dir = os.path.join(data_dir, "{}/L5/test/01_cond_field/output/".format(cl))
+        hdf_path = os.path.join(data_dir, "{}/L5/mlmc_5.hdf5".format(cl))
+        save_path = os.path.join(data_dir, "{}".format(cl))
+        l_0_output_dir = os.path.join(data_dir, "{}/L1_{}/test/01_cond_field/output/".format(cl,nn_level))
+        l_0_hdf_path = os.path.join(data_dir, "{}/L1_{}/mlmc_1.hdf5".format(cl, nn_level))
+        sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl))
+        ref_mlmc_file = os.path.join(data_dir, "{}/L1_3/mlmc_1.hdf5".format(cl))
+
+    elif case == 5:
+        data_dir = "/home/martin/Documents/metamodels/data/5_ele/"
+        cl = "cl_0_3_s_4"
+        nn_level = 0
+        replace_level = False
+        mesh = os.path.join(data_dir, "cl_0_1_s_1/L5/l_step_0.020196309484414757_common_files/mesh.msh")
+        output_dir = os.path.join(data_dir,"{}/L1_3/test/01_cond_field/output/".format(cl))
+        hdf_path = os.path.join(data_dir,"{}/L1_3/mlmc_1.hdf5".format(cl))
+        save_path = os.path.join(data_dir,"{}".format(cl))
+        l_0_output_dir = os.path.join(data_dir,"{}/L1_{}/test/01_cond_field/output/".format(cl,nn_level))
+        l_0_hdf_path = os.path.join(data_dir,"{}/L1_{}/mlmc_1.hdf5".format(cl, nn_level))
+        sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl))
+        ref_mlmc_file = os.path.join(data_dir,"{}/L1_3/mlmc_1.hdf5".format(cl))
+    # elif case == 6:
+    #     nn_level = 0
+    #     replace_level = True
+    #     mesh = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
+    #     output_dir = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/output"
+    #     hdf_path = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/mlmc_1.hdf5"
+    #
+    #     save_path = "/home/martin/Documents/metamodels/data/L1/"
+    #     l_0_output_dir = output_dir
+    #     l_0_hdf_path = hdf_path
+    #     sampling_info_path = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/"
+    #     ref_mlmc_file = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1_benchmark/mlmc_1.hdf5"
+
+    return output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level,
+
+
+def get_arguments(arguments):
+    """
+    Getting arguments from console
+    :param arguments: list of arguments
+    :return: namespace
+    """
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('data_dir', help='data directory')
+    args = parser.parse_args(arguments)
+    return args
+
+
+if __name__ == "__main__":
+    args = get_arguments(sys.argv[1:])
+    data_dir = args.data_dir
+    case = 0
+    #data_dir = "/home/martin/Documents/metamodels/data/1000_ele/"
+    output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level = get_config(
+        data_dir, case)
+
+    # import cProfile
+    # import pstats
+    # pr = cProfile.Profile()
+    # pr.enable()
+    #
+    # my_result = run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level)
+    #
+    # pr.disable()
+    # ps = pstats.Stats(pr).sort_stats('cumtime')
+    # ps.print_stats()
+
+    #run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
+    #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
+    #run_CNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
+    #process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
+
+    # gnn, conv_layer = mlmc.metamodel.nn_config.get_gnn()
+    # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, model=GCN, level=nn_level, log=True) # CGN model leads to constant value
+    # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, gnn=gnn, conv_layer=conv_layer)
+    # run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, conv_layer=conv_layer)
+    # process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
+
+    gnn, conv_layer = get_gnn()
+
+    # print("gnn ", gnn)
+    #print("conv layer ", conv_layer)
+
+    #models = {"ChebConv": (run_GNN, False), "SVR": (run_SVR, False)}
+    models = {"ChebConvTEST": (run_GNN, True)}
+    save_path = os.path.join(save_path, "_".join(list(models.keys())))
+    statistics(models, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, conv_layer=conv_layer, gnn=gnn)
+    analyze_statistics(save_path)
+
+    # save_path = os.path.join(save_path, "SVR")
+    # statistics(run_SVR, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)

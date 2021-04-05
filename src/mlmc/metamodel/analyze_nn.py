@@ -1,35 +1,29 @@
 import os
 import numpy as np
 import time
-import random
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
-from mlmc.metamodel.create_graph import graph_creator
-from mlmc.metamodel.flow_dataset import FlowDataset
+import glob
 
-from mlmc.metamodel.own_cheb_conv import OwnChebConv
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
+from mlmc.metamodel.flow_dataset import FlowDataset
+import test.metamodels.nn_config
 # Make numpy printouts easier to read.
 
 # np.set_printoptions(precision=9, suppress=True)
 import tensorflow as tf
 from scipy.stats import ks_2samp
 import sklearn.model_selection
-from mlmc.metamodel.custom_methods import abs_activation, var_loss_function, total_loss_function
-from mlmc.metamodel.postprocessing import analyze_results, plot_loss, estimate_density, diff_moments, process_mlmc
+from mlmc.metamodel.custom_methods import abs_activation
+from mlmc.metamodel.postprocessing import analyze_results, plot_loss, estimate_density, process_mlmc
 from mlmc.metamodel.flow_task_NN import DNN
 from mlmc.metamodel.flow_task_CNN import CNN
-from mlmc.metamodel.graph_models import NetGCN
 
 from mlmc.metamodel.flow_task_GNN_2 import GNN
-from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv
-from tensorflow.keras.losses import MeanSquaredError, KLDivergence, MeanAbsoluteError, MeanSquaredLogarithmicError
-from tensorflow.keras.regularizers import l2
+from tensorflow.keras.losses import MeanSquaredError
 from spektral.data import MixedLoader
 from spektral.layers.ops import sp_matrix_to_sp_tensor
 
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
-
 epochs = 100
-
 
 def prepare_data(data):
     data = np.squeeze(np.stack(data.to_numpy(), axis=0))
@@ -87,12 +81,12 @@ def run():
     estimate_density(predictions)
 
 
-def run_CNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level):
+def run_CNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level, log):
     # Parameters
     loss = "mean_squared_error"
     optimizer = tf.optimizers.Adam(learning_rate=0.01)
 
-    data = FlowDataset(output_dir=output_dir, level=level)
+    data = FlowDataset(output_dir=output_dir, level=level, log=log)
     dataset = data.dataset[:]
 
     train_input, train_output, test_input, test_output = split_dataset(dataset)
@@ -104,7 +98,6 @@ def run_CNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
 
     train_input = np.expand_dims(train_input, axis=-1)
     test_input = np.expand_dims(test_input, axis=-1)
-
     print("train input shape ", train_input.shape)
 
     dnn = CNN(loss=loss, optimizer=optimizer, output_activation=abs_activation, hidden_activation='relu')
@@ -177,8 +170,6 @@ def bootstrap():
 def run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level, conv_layer=None, stats=False,
             gnn=None, model=None, log=False):
     from sklearn.svm import SVR
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.model_selection import train_test_split
 
     batch_size = 2000
     epochs = 1000
@@ -189,8 +180,9 @@ def run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
 
     # Load data
     data = FlowDataset(output_dir=output_dir, level=level, log=log)
-    dataset = data.dataset
+    data.shuffle()
 
+    dataset = data.dataset
     dataset = dataset.sample(frac=1)
 
     train = dataset[:2000]
@@ -219,7 +211,6 @@ def run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
     preprocess_time = time.process_time() - preprocess_start_time
     learning_time_start = time.process_time()
 
-
     print("train input ", train_input.shape)
     print("train output ", train_output.shape)
 
@@ -245,7 +236,7 @@ def run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
     learning_time = time.process_time() - learning_time_start
 
     if stats is True:
-        return gnn, targets, predictions, learning_time
+        return targets, predictions, learning_time, train_output, train_predictions
 
     if log:
         targets = np.exp(targets)
@@ -310,26 +301,22 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
     return targets, predictions
 
 
-def statistics(run_method, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level):
-    n_subsamples = 3
-    train_losses = []
-    val_losses = []
-    test_losses = []
-    all_test_outputs = []
-    all_predictions = []
-    learning_times = []
+def statistics(models, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level, conv_layer, gnn=None):
+    n_subsamples = 50
 
-    # Parameters
-    # conv_layer = GCNConv
-    conv_layer = ChebConv  # Seems better than GCNConv, good distribution of predictions
-    # conv_layer = GraphSageConv  # Seems better than ChebConv, good loss but very narrow distribution of predictions
-    # # conv_layer = ARMAConv  # Seems worse than GraphSageConv
-    # conv_layer = GATConv  # Slow and not better than GraphSageConv
-    # # conv_layer = APPNPConv  # Not bad but worse than GraphSageConv
-    # # conv_layer = GINConv  # it is comparable to APPNPConv
-    # act_func = "relu"  # "tanh"#"elu"  # ReLU keep predictions above zero
+    model_data = {}
+    for model_key in models.keys():
+        model_data[model_key] = {}
+        model_data[model_key]["test_targets"] = []
+        model_data[model_key]["test_predictions"] = []
+        model_data[model_key]["train_targets"] = []
+        model_data[model_key]["train_predictions"] = []
+        model_data[model_key]["learning_times"] = []
+        model_data[model_key]["orig_max_vars"] = []
+        model_data[model_key]["predict_max_vars"] = []
+        model_data[model_key]["total_steps"] = []
+        model_data[model_key]["log"] = models[model_key][1]
 
-    save_path = os.path.join(save_path, conv_layer.__name__)
     if not os.path.isdir(save_path):
         os.makedirs(save_path)
     else:
@@ -337,31 +324,35 @@ def statistics(run_method, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, s
         exit()
 
     for i in range(n_subsamples):
-        gnn, targets, predictions, learning_time = run_method(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path,
-                                                              save_path, mesh, level=nn_level, stats=True)
+        for model_key, (model, log) in models.items():
 
-        # save_times(save_path, False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
-        # save_load_data(save_path, False, targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions)
+            targets, predictions, learning_time, train_targets, train_predictions, orig_max_vars, predict_max_vars, total_steps = model(output_dir,
+                                                                                                                           hdf_path, l_0_output_dir, l_0_hdf_path,
+                                                                  save_path, mesh, level=level, stats=True, log=log, conv_layer=conv_layer, gnn=gnn, train=True)
 
-        all_test_outputs.append(targets)
-        all_predictions.append(predictions)
+            model_data[model_key]["test_targets"].append(targets)
+            model_data[model_key]["test_predictions"].append(predictions)
+            model_data[model_key]["train_targets"].append(train_targets)
+            model_data[model_key]["train_predictions"].append(train_predictions)
+            model_data[model_key]["orig_max_vars"].append(orig_max_vars)
+            model_data[model_key]["predict_max_vars"].append(predict_max_vars)
+            model_data[model_key]["total_steps"].append(total_steps)
+            model_data[model_key]["learning_times"].append(learning_time)
 
-        train_losses.append(gnn._train_loss[-1])
-        val_losses.append(gnn._val_loss[-1])
-        test_losses.append(gnn._test_loss[-1])
-        learning_times.append(learning_time)
+            # save_times(save_path, False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
+            # save_load_data(save_path, False, targets, predictions, train_targets, val_targets, l_0_targets, l_0_predictions)
 
-    for i in range(len(train_losses)):
-        print("train loss ", train_losses[i])
-        print("test loss ", test_losses[i])
-        analyze_results(all_test_outputs[i], all_predictions[i])
-        print("learning time ", learning_times[i])
-        print("##################################################")
+    # for i in range(len(train_losses)):
+    #     print("train loss ", train_losses[i])
+    #     print("test loss ", test_losses[i])
+    #     analyze_results(all_targets[i], all_predictions[i])
+    #     print("learning time ", learning_times[i])
+    #     print("##################################################")
 
-    print("worse train loss ", np.max(train_losses))
-    print("worse test loss ", np.max(test_losses))
 
-    save_statistics(save_path, all_test_outputs, all_predictions, train_losses, val_losses, test_losses, learning_times)
+    save_statistics(save_path, model_data)
+
+    analyze_statistics(save_path)
 
     # plot_loss(train_losses, val_losses)
     # analyze_results(np.mean(all_test_outputs, axis=0), np.mean(all_predictions, axis=0))
@@ -371,66 +362,108 @@ def statistics(run_method, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, s
     # estimate_density(np.mean(all_predictions, axis=0), title="Predictions")
 
 
-def save_statistics(path, all_test_outputs, all_predictions, train_losses, val_losses, test_losses, learning_times):
-    np.save(os.path.join(path, "all_test_outputs"), all_test_outputs)
-    np.save(os.path.join(path, "all_predictions"), all_predictions)
-    np.save(os.path.join(path, "train_losses"), train_losses)
-    np.save(os.path.join(path, "val_losses"), val_losses)
-    np.save(os.path.join(path, "test_losses"), test_losses)
-    np.save(os.path.join(path, "learning_times"), learning_times)
+def save_statistics(dir_path, model_data):
+    dirs = (os.path.split(dir_path)[-1]).split("_")
+    for data_dir in dirs:
+        if not os.path.isdir(os.path.join(dir_path, data_dir)):
+            os.makedirs(os.path.join(dir_path, data_dir))
+        else:
+            print("dir exists {}".format(os.path.join(dir_path, data_dir)))
+            exit()
+
+    print("dirs ", dirs)
+    for key, data_dict in model_data.items():
+        path = os.path.join(dir_path, key)
+        for file_name, data in data_dict.items():
+            np.save(os.path.join(path, file_name), data)
 
 
-def load_statistics(path):
-    all_test_outputs = np.load(os.path.join(path, "all_test_outputs.npy"))
-    all_predictions = np.load(os.path.join(path, "all_predictions.npy"))
-    train_losses = np.load(os.path.join(path, "train_losses.npy"))
-    val_losses = np.load(os.path.join(path, "val_losses.npy"))
-    test_losses = np.load(os.path.join(path, "test_losses.npy"))
-    learning_times = np.load(os.path.join(path, "learning_times.npy"))
+def load_statistics(dir_path):
+    models_data = {}
 
-    return all_test_outputs, all_predictions, train_losses, val_losses, test_losses, learning_times
+    dirs = (os.path.split(dir_path)[-1]).split("_")
+
+    for data_dir in dirs:
+        models_data[data_dir] = {}
+        data_dir_path = os.path.join(dir_path, data_dir)
+        if not os.path.isdir(data_dir_path):
+            print("data dir not exists {}".format(data_dir_path))
+            exit()
+
+        for file in glob.glob(os.path.join(data_dir_path, "*.npy")):
+            file_name = os.path.split(file)[-1]
+            file_name = file_name.split(".")[0]
+            models_data[data_dir][file_name] = np.load(file)
+
+    return models_data
 
 
 def analyze_statistics(save_path):
-    conv_layer = GCNConv
-    conv_layer = ChebConv  # Seems better than GCNConv, good distribution of predictions
-    # conv_layer = GraphSageConv  # Seems better than ChebConv, good loss but very narrow distribution of predictions
-    # # conv_layer = ARMAConv  # Seems worse than GraphSageConv
-    # conv_layer = GATConv  # Slow and not better than GraphSageConv
-    # # conv_layer = APPNPConv  # Not bad but worse than GraphSageConv
-    # # conv_layer = GINConv  # it is comparable to APPNPConv
-    # act_func = "relu"  # "tanh"#"elu"  # ReLU keep predictions above zero
-    save_path = os.path.join(save_path, conv_layer.__name__)
+    print("save path ", save_path)
+
     if not os.path.isdir(save_path):
-        print("dir exists")
+        print("dir not exists")
         exit()
 
-    all_test_outputs, all_predictions, train_losses, val_losses, test_losses, learning_times = load_bootstrap(save_path)
+    models_data = load_statistics(save_path)
 
-    print("learning times ", learning_times)
-    print("test losses ", test_losses)
+    for key, data_dict in models_data.items():
+        print("model: {}".format(key))
 
-    for targets, predictions in zip(all_test_outputs, all_predictions):
-        print("mean targets ", np.mean(targets))
-        print("mean predictions ", np.mean(predictions))
+        if data_dict["log"]:
+            data_dict["test_targets"] = np.exp(data_dict["test_targets"])
+            data_dict["test_predictions"] = np.exp(data_dict["test_predictions"])
+            data_dict["train_targets"] = np.exp(data_dict["train_targets"])
+            data_dict["train_predictions"] = np.exp(data_dict["train_predictions"])
 
-        print("var targets ", np.var(targets))
-        print("var predictions ", np.var(predictions))
+        print("test targets ", data_dict["test_targets"])
+        print("test predictions ", data_dict["test_predictions"])
+
+        print("orig max vars ", data_dict["orig_max_vars"])
+        print("predict max vars ", data_dict["predict_max_vars"])
+
+        mean_orig_vars = np.mean(data_dict["orig_max_vars"], axis=0)
+        mean_predict_vars = np.mean(data_dict["predict_max_vars"], axis=0)
+        total_steps = np.mean(data_dict["total_steps"])
+
+        print("mean orig vars ", mean_orig_vars)
+        print("mean predict vars ", mean_predict_vars)
+        print("total steps ", total_steps)
+
+        test_MSE = np.mean((data_dict["test_predictions"] - data_dict["test_targets"])**2, axis=1)
+        test_RMSE = np.sqrt(test_MSE)
+        test_MAE = np.mean(np.abs(data_dict["test_predictions"] - data_dict["test_targets"]), axis=1)
+
+        train_MSE = np.mean((data_dict["train_predictions"] - data_dict["train_targets"]) ** 2, axis=1)
+        train_RMSE = np.sqrt(train_MSE)
+        train_MAE = np.mean(np.abs( data_dict["train_predictions"] - data_dict["train_targets"]), axis=1)
+        learning_times = data_dict["learning_times"]
+
+        # plot_data(test_MSE, label="test MSE")
+        # plot_data(test_MAE, label="test MAE")
+
+        print("mean test MSE ", np.mean(test_MSE))
+        print("mean test RMSE ", np.mean(test_RMSE))
+        print("mean test MAE ", np.mean(test_MAE))
+        print("max test MSE ", np.max(test_MSE))
+        print("max test RMSE ", np.max(test_RMSE))
+        print("max test MAE ", np.max(test_MAE))
+
+        print("mean train MSE ", np.mean(train_MSE))
+        print("mean train RMSE ", np.mean(train_RMSE))
+        print("mean train MAE ", np.mean(train_MAE))
+        print("max train MSE ", np.max(train_MSE))
+        print("max train RMSE ", np.max(train_RMSE))
+        print("max train MAE ", np.max(train_MAE))
+
+        print("mean learning time ", np.mean(learning_times))
+        print("max learning time ", np.max(learning_times))
+
+        print("######################################")
 
 
-def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level, conv_layer=None, stats=False,
-            gnn=None, model=None, log=False):
-    # Parameters
-    if conv_layer is None:
-        #conv_layer = GCNConv
-        conv_layer = ChebConv  # Seems better than GCNConv, good distribution of predictions
-        #conv_layer = OwnChebConv
-        #conv_layer = GraphSageConv  # Seems better than ChebConv, good loss but very narrow distribution of predictions
-        # # conv_layer = ARMAConv  # Seems worse than GraphSageConv
-        # conv_layer = GATConv  # Slow and not better than GraphSageConv
-        # # conv_layer = APPNPConv  # Not bad but worse than GraphSageConv
-        # # conv_layer = GINConv  # it is comparable to APPNPConv
-        # act_func = "relu"  # "tanh"#"elu"
+def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level, conv_layer, stats=False,
+            gnn=None, model=None, log=False, train=True):
 
     loss = MeanSquaredError()  # var_loss_function#
     # loss = MeanAbsoluteError()
@@ -438,8 +471,8 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
     #loss = KLDivergence()
     # loss = total_loss_function
     optimizer = tf.optimizers.Adam(learning_rate=0.001)
-    batch_size = 2000#2000
-    epochs = 1000
+    batch_size = 200#2000
+    epochs = 2000#1000
     hidden_regularization = None  # l2(2e-10)
 
     preprocess_start_time = time.process_time()
@@ -447,29 +480,23 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
 
     # Load data
     data = FlowDataset(output_dir=output_dir, level=level, log=log)
-    data = data#[:15000]
-    print("len data ", len(data))
-
+    data = data#[:10000]
+    data.shuffle()
     preprocess_time = time.process_time() - preprocess_start_time
-
     learning_time_start = time.process_time()
-    # data.a = conv_layer.preprocess(data.a)
+    data.a = conv_layer.preprocess(data.a)
     data.a = sp_matrix_to_sp_tensor(data.a)
-
-    train_data_len = int(len(data) * 0.8)
+    #train_data_len = int(len(data) * 0.8)
     train_data_len = 2000
-    print("train data len ", train_data_len)
-
     # Train/valid/test split
     data_tr, data_te = data[:train_data_len], data[train_data_len:],
     np.random.shuffle(data_tr)
-
     val_data_len = int(len(data_tr) * 0.2)
     data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
 
-    print("data_tr len ", len(data_tr))
-    print("data_va len ", len(data_va))
-    print("data_te len ", len(data_te))
+    # print("data_tr len ", len(data_tr))
+    # print("data_va len ", len(data_va))
+    # print("data_te len ", len(data_te))
 
     # We use a MixedLoader since the dataset is in mixed mode
     loader_tr = MixedLoader(data_tr, batch_size=batch_size, epochs=epochs)
@@ -483,40 +510,55 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
         # ideally patience = 150
         # batch_size 500, ideally 500 epochs, patience 35
 
+    if train:
         # gnn.run_eagerly = True
         train_targets = gnn.fit(loader_tr, loader_va, loader_te)
+
+    # states = gnn._states
+    # print("list(states.keys() ", list(states.keys()))
+    # min_key = np.min(list(states.keys()))
+    # print("min key ", min_key)
+    # print("states[min_key] ", states[min_key])
+    # gnn = states[min_key]
 
     train_targets, train_predictions = gnn.predict(loader_tr)
     train_predictions = np.squeeze(train_predictions)
 
     val_targets = gnn.val_targets
 
+    total_steps = gnn._total_n_steps
+
     targets, predictions = gnn.predict(loader_te)
     predictions = np.squeeze(predictions)
     learning_time = time.process_time() - learning_time_start
 
     # print("np.var(target-predictions) ", np.var(targets - predictions))
+    print("learning time ", learning_time)
 
-    if stats is True:
-        return gnn, targets, predictions, learning_time
+    orig_targets = targets
+    orig_predictions = predictions
+
+    print("MSE ", np.mean((predictions-targets)**2))
 
     if log:
         targets = np.exp(targets)
         predictions = np.exp(predictions)
 
-    plot_loss(gnn._train_loss, gnn._val_loss)
-    analyze_results(targets, predictions)
+    if not stats:
+        analyze_results(targets, predictions)
+        plot_loss(gnn._train_loss, gnn._val_loss)
+        analyze_results(targets, predictions)
 
-    import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
 
-    plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
-    plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
+        plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
+        plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
 
-    # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
-    plt.legend(loc='upper right')
-    # plt.xlim(-0.5, 1000)
-    plt.yscale('log')
-    plt.show()
+        # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+        plt.legend(loc='upper right')
+        # plt.xlim(-0.5, 1000)
+        plt.yscale('log')
+        plt.show()
 
 
     # plt.hist(np.exp(targets), bins=50, alpha=0.5, label='target', density=True)
@@ -563,21 +605,33 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
     # diff_moments(targets, predictions)
 
     predict_l_0_start_time = time.process_time()
-    l_0_targets, l_0_predictions = predict_level_zero(gnn, l_0_output_dir, l_0_hdf_path, mesh, batch_size, log)
+    l_0_targets, l_0_predictions = predict_level_zero(gnn, l_0_output_dir, l_0_hdf_path, mesh, conv_layer, batch_size, log, stats=stats)
     predict_l_0_time = time.process_time() - predict_l_0_start_time
+
+    if stats:
+        l1_sample_time = preprocess_time / len(data) + learning_time / len(data)
+        l0_sample_time = predict_l_0_time / len(l_0_targets)
+
+        orig_max_vars, predict_max_vars = process_mlmc(hdf_path, sampling_info_path, ref_mlmc_file, targets, predictions, train_targets,
+                     train_predictions,
+                     val_targets, l_0_targets,
+                     l_0_predictions, l1_sample_time, l0_sample_time, nn_level=nn_level, replace_level=replace_level,
+                                                       stats=stats)
+
+        return orig_targets, orig_predictions, learning_time, train_targets, train_predictions, orig_max_vars, predict_max_vars, total_steps
 
     save_times(save_path, False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
     save_load_data(save_path, False, targets, predictions, train_targets, train_predictions, val_targets, l_0_targets,
                    l_0_predictions)
 
 
-def predict_level_zero(nn, output_dir, hdf_path, mesh, batch_size=1000, log=False):
+def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=1000, log=False, stats=False):
     #graph_creator(output_dir, hdf_path, mesh, level=0)
 
     # Load data
     data = FlowDataset(output_dir=output_dir, log=log)
     data = data  # [:10000]
-    # data.a = conv_layer.preprocess(data.a)
+    data.a = conv_layer.preprocess(data.a)
     data.a = sp_matrix_to_sp_tensor(data.a)
 
     loader_te = MixedLoader(data, batch_size=batch_size)
@@ -585,10 +639,14 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, batch_size=1000, log=Fals
     targets, predictions = nn.predict(loader_te)
     predictions = np.squeeze(predictions)
 
+    if not stats:
+        analyze_results(targets, predictions)
+
     if log:
         targets = np.exp(targets)
         predictions = np.exp(predictions)
-    # analyze_results(targets, predictions)
+    if not stats:
+        analyze_results(targets, predictions)
     return targets, predictions
 
 
@@ -682,117 +740,3 @@ def process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_l
     process_mlmc(hdf_path, sampling_info_path, ref_mlmc_file, targets, predictions, train_targets, train_predictions,
                  val_targets, l_0_targets,
                  l_0_predictions, l1_sample_time, l0_sample_time, nn_level=nn_level, replace_level=replace_level)
-
-
-def get_config(case=0):
-    if case == 0:
-        cl = "cl_0_1_s_1"
-        nn_level = 0
-        replace_level = False
-        mesh = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
-        # mesh = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L2/l_step_0.027624156655057155_common_files/mesh.msh"
-        output_dir = "/home/martin/Documents/metamodels/data/1000_ele/{}/L5/test/01_cond_field/output/".format(cl)
-        hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/L5/mlmc_5.hdf5".format(cl)
-        save_path = "/home/martin/Documents/metamodels/data/1000_ele/{}".format(cl)
-        l_0_output_dir = "/home/martin/Documents/metamodels/data/1000_ele/{}/L{}/test/01_cond_field/output/".format(cl, nn_level + 1)
-        l_0_hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/L{}/mlmc_{}.hdf5".format(cl, nn_level + 1, nn_level + 1)
-        sampling_info_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/sampling_info".format(cl)
-        ref_mlmc_file = "/home/martin/Documents/metamodels/data/1000_ele/{}/L1_benchmark/mlmc_1.hdf5".format(cl)
-    elif case == 1:
-        cl = "cl_0_3_s_4"
-        nn_level = 1
-        replace_level = False
-        #mesh = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
-        mesh = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L2/l_step_0.027624156655057155_common_files/mesh.msh"
-        output_dir = "/home/martin/Documents/metamodels/data/1000_ele/{}/L5/test/01_cond_field/output/".format(cl)
-        hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/L5/mlmc_5.hdf5".format(cl)
-        save_path = "/home/martin/Documents/metamodels/data/1000_ele/{}".format(cl)
-        l_0_output_dir = "/home/martin/Documents/metamodels/data/1000_ele/{}/L{}/test/01_cond_field/output/".format(cl, nn_level + 1)
-        l_0_hdf_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/L{}/mlmc_{}.hdf5".format(cl, nn_level + 1, nn_level)
-        sampling_info_path = "/home/martin/Documents/metamodels/data/1000_ele/{}/sampling_info".format(cl)
-        ref_mlmc_file = "/home/martin/Documents/metamodels/data/1000_ele/{}/L1_benchmark/mlmc_1.hdf5".format(cl)
-
-    elif case == 2:
-        cl = "cl_0_1_s_1"
-        nn_level = 3
-        replace_level = False
-        # mesh = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
-        mesh = "/home/martin/Documents/metamodels/data/5_ele/cl_0_1_s_1/L5/l_step_0.020196309484414757_common_files/mesh.msh"
-        output_dir = "/home/martin/Documents/metamodels/data/5_ele/{}/L5/test/01_cond_field/output/".format(cl)
-        hdf_path = "/home/martin/Documents/metamodels/data/5_ele/{}/L5/mlmc_5.hdf5".format(cl)
-        save_path = "/home/martin/Documents/metamodels/data/5_ele/{}".format(cl)
-        l_0_output_dir = "/home/martin/Documents/metamodels/data/5_ele/{}/L1_{}/test/01_cond_field/output/".format(cl, nn_level)
-        l_0_hdf_path = "/home/martin/Documents/metamodels/data/5_ele/{}/L1_{}/mlmc_1.hdf5".format(cl, nn_level)
-        sampling_info_path = "/home/martin/Documents/metamodels/data/5_ele/{}/sampling_info".format(cl)
-        ref_mlmc_file = "/home/martin/Documents/metamodels/data/5_ele/{}/L1_3/mlmc_1.hdf5".format(cl)
-
-    elif case == 3 or case == 4:
-        cl = "cl_0_1_s_1"
-        if case == 4:
-            cl = "cl_0_3_s_4"
-        nn_level = 3
-        replace_level = False
-        # mesh = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
-        mesh = "/home/martin/Documents/metamodels/data/5_ele/cl_0_1_s_1/L5/l_step_0.020196309484414757_common_files/mesh.msh"
-        output_dir = "/home/martin/Documents/metamodels/data/5_ele/{}/L5/test/01_cond_field/output/".format(cl)
-        hdf_path = "/home/martin/Documents/metamodels/data/5_ele/{}/L5/mlmc_5.hdf5".format(cl)
-        save_path = "/home/martin/Documents/metamodels/data/5_ele/{}".format(cl)
-        l_0_output_dir = "/home/martin/Documents/metamodels/data/5_ele/{}/L1_{}/test/01_cond_field/output/".format(cl,nn_level)
-        l_0_hdf_path = "/home/martin/Documents/metamodels/data/5_ele/{}/L1_{}/mlmc_1.hdf5".format(cl, nn_level)
-        sampling_info_path = "/home/martin/Documents/metamodels/data/5_ele/{}/sampling_info".format(cl)
-        ref_mlmc_file = "/home/martin/Documents/metamodels/data/5_ele/{}/L1_3/mlmc_1.hdf5".format(cl)
-
-    elif case == 5:
-        cl = "cl_0_3_s_4"
-        nn_level = 0
-        replace_level = False
-        # mesh = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
-        mesh = "/home/martin/Documents/metamodels/data/5_ele/cl_0_1_s_1/L5/l_step_0.020196309484414757_common_files/mesh.msh"
-        output_dir = "/home/martin/Documents/metamodels/data/5_ele/{}/L1_3/test/01_cond_field/output/".format(cl)
-        hdf_path = "/home/martin/Documents/metamodels/data/5_ele/{}/L1_3/mlmc_1.hdf5".format(cl)
-        save_path = "/home/martin/Documents/metamodels/data/5_ele/{}".format(cl)
-        l_0_output_dir = "/home/martin/Documents/metamodels/data/5_ele/{}/L1_{}/test/01_cond_field/output/".format(cl,nn_level)
-        l_0_hdf_path = "/home/martin/Documents/metamodels/data/5_ele/{}/L1_{}/mlmc_1.hdf5".format(cl, nn_level)
-        sampling_info_path = "/home/martin/Documents/metamodels/data/5_ele/{}/sampling_info".format(cl)
-        ref_mlmc_file = "/home/martin/Documents/metamodels/data/5_ele/{}/L1_3/mlmc_1.hdf5".format(cl)
-
-    return output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level,
-
-
-if __name__ == "__main__":
-    case = 1
-    output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level = get_config(
-        case)
-
-    # import cProfile
-    # import pstats
-    # pr = cProfile.Profile()
-    # pr.enable()
-    #
-    # my_result = run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level)
-    #
-    # pr.disable()
-    # ps = pstats.Stats(pr).sort_stats('cumtime')
-    # ps.print_stats()
-
-    # gnn, _, _, _ = run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, stats=True)
-    #
-    # case = 4
-    # output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level = get_config(case)
-
-    #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, conv_layer=GCNConv, model=NetGCN)  # , gnn=gnn)
-
-    #run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
-    #exit()
-
-    run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
-    process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
-
-    # analyze_bootstrap(save_path)
-    # statistics(run_GNN, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level)
-    # bootstrap_GNN()
-    # run()
-    # run_CNN()
-    # bootstrap()
-
-    # gnn, targets, predictions, learning_time = run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, stats=True)

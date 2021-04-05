@@ -25,7 +25,6 @@ def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_op
     # Limit maximal number of samples per level
     n_samples_estimate_safe = np.maximum(
         np.minimum(n_samples_estimate, vars * n_levels / target_variance), 2)
-
     return np.max(n_samples_estimate_safe, axis=1).astype(int)
 
 
@@ -78,6 +77,7 @@ class Estimate:
             moments_fn = self._moments_fn
 
         moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_fn))
+        self.moments_mean = moments_mean
         return moments_mean.mean, moments_mean.var
 
     def estimate_covariance(self, moments_fn=None):
@@ -106,6 +106,7 @@ class Estimate:
             if moments_fn is None:
                 moments_fn = self._moments_fn
             raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
+
         sim_steps = np.squeeze(self._sample_storage.get_level_parameters())
         vars = self._all_moments_variance_regression(raw_vars, sim_steps)
 
@@ -120,6 +121,8 @@ class Estimate:
             diff_variance - shape LxR, variances of diffs of moments_fn
             n_samples -  shape L, num samples for individual levels.
         """
+        if moments_fn is None:
+            moments_fn = self._moments_fn
         moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_fn))
         return moments_mean.l_vars, moments_mean.n_samples
 
@@ -187,7 +190,6 @@ class Estimate:
             ns, var_var = self._saved_var_var
             if np.sum(np.abs(np.array(ns) - np.array(n_samples))) == 0:
                 return var_var
-
         vars = []
         for ns in n_samples:
             df = ns - 1
@@ -349,7 +351,7 @@ class Estimate:
         Construct approximation of the density using given moment functions.
         """
         cov_mean = qe.estimate_mean(qe.covariance(self._quantity, self._moments_fn))
-        cov_mat = cov_mean()
+        cov_mat = cov_mean.mean
         moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(self._moments_fn,
                                                                                                      cov_mat,
                                                                                                      tol=orth_moments_tol)

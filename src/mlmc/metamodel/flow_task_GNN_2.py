@@ -37,24 +37,30 @@ class GNN:
         self._optimizer = kwargs.get('optimizer', tf.optimizers.Adam(learning_rate=0.001))
         self._normalizer = kwargs.get('normalizer', preprocessing.Normalization())
         self._patience = kwargs.get('patience', 20)
+        self._verbose = kwargs.get('verbose', True)
 
         self._train_loss = []
         self._val_loss = []
         self._test_loss = []
 
         self.val_targets = []
+        self._states = {}
+        self._total_n_steps = 0
 
         model = kwargs.get('model')
+
         if model is None:
             self._model = Net1(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
                                output_activation=self._output_activation,
                                kernel_regularization=self._hidden_regularizer,
                                normalizer=self._normalizer)
         else:
-            self._model = model(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
-                               output_activation=self._output_activation,
-                               kernel_regularization=self._hidden_regularizer,
-                               normalizer=self._normalizer)
+            self._model = model
+            # self._model = model(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
+            #                    output_activation=self._output_activation,
+            #                    kernel_regularization=self._hidden_regularizer,
+            #                    normalizer=self._normalizer)
+            #self._model = model(n_labels=1, output_activation="relu")
 
     def fit(self, loader_tr, loader_va, loader_te):
         """
@@ -64,6 +70,7 @@ class GNN:
         best_val_loss = np.inf
         current_patience = self._patience
         step = 0
+        self._total_n_steps = 0
 
         train_targets = True
         train_targets_list = []
@@ -72,13 +79,13 @@ class GNN:
         results_tr = []
         for batch in loader_tr:
             step += 1
+            self._total_n_steps += 1
 
             # Training step
             inputs, target = batch
 
             if train_targets:
                 train_targets_list.extend(target)
-                print("len(train targets ", len(train_targets_list))
 
             loss, acc = self.train_on_batch(inputs, target)
             self._train_loss.append(loss)
@@ -91,13 +98,18 @@ class GNN:
                 train_targets = False
                 # results_va = self.evaluate(loader_va)
                 # self._val_loss.append(results_va[0])
+
                 if results_va[0] < best_val_loss:
                     best_val_loss = results_va[0]
                     current_patience = self._patience
+                    self._states = {}
                     results_te = self.evaluate(loader_te)
                     self._test_loss.append(results_te[0])
                 else:
                     current_patience -= 1
+                    #results_tr_0 = np.array(results_tr)
+                    # loss_tr = np.average(results_tr_0[:, :-1], 0, weights=results_tr_0[:, -1])[0]
+                    # self._states[loss_tr] = self
                     if current_patience == 0:
                         print("Early stopping")
                         break
@@ -105,13 +117,14 @@ class GNN:
                 # Print results
                 results_tr = np.array(results_tr)
                 results_tr = np.average(results_tr[:, :-1], 0, weights=results_tr[:, -1])
-                print(
-                    "Train loss: {:.4f}, acc: {:.4f} | "
-                    "Valid loss: {:.4f}, acc: {:.4f} | "
-                    "Test loss: {:.4f}, acc: {:.4f}".format(
-                        *results_tr, *results_va, *results_te
+                if self._verbose:
+                    print(
+                        "Train loss: {:.4f}, acc: {:.4f} | "
+                        "Valid loss: {:.4f}, acc: {:.4f} | "
+                        "Test loss: {:.4f}, acc: {:.4f}".format(
+                            *results_tr, *results_va, *results_te
+                        )
                     )
-                )
                 # Reset epoch
                 results_tr = []
                 step = 0
@@ -128,12 +141,14 @@ class GNN:
             # print("self._loss(target, predictions) ", self._loss(target, predictions))
             # print("sum(self._model.losses) ", sum(self._model.losses))
             # print("var_loss_function(target, predictions) ", var_loss_function(target, predictions))
+
             loss = self._loss(target, predictions) + sum(self._model.losses) #+ 5 * var_loss_function(target, predictions)
             #loss = 100 * var_loss_function(target, predictions)
             acc = tf.reduce_mean(self._accuracy_func(target, predictions))
 
         gradients = tape.gradient(loss, self._model.trainable_variables)
         self._optimizer.apply_gradients(zip(gradients, self._model.trainable_variables))
+
         return loss, acc
 
     def evaluate(self, loader):
@@ -155,6 +170,8 @@ class GNN:
             predictions = self._model(inputs, training=False)
 
             loss = self._loss(target, predictions)
+            #print("target ", target)
+            #print("loss ", np.mean((target - predictions)**2))
             acc = tf.reduce_mean(self._accuracy_func(target, predictions))
             results.append((loss, acc, len(target)))  # Keep track of batch size
             if step == loader.steps_per_epoch:

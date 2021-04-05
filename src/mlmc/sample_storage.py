@@ -242,6 +242,13 @@ class Memory(SampleStorage):
             if chunk_spec.n_samples is not None and chunk_spec.n_samples < results.shape[0]\
             else results.shape[0]
 
+        # Handle scalar simulation result
+        # @TODO: think it over again
+        if len(results.shape) != 3:
+            results = results.reshape(results.shape[0], results.shape[1],
+                                      1 if np.prod(results.shape) == results.shape[0] * results.shape[1] else
+                                      int(np.prod(results.shape) / results.shape[0] * results.shape[1]))
+
         # Remove auxiliary zeros from level zero sample pairs
         if chunk_spec.level_id == 0:
             results = results[:, :1, :]
@@ -280,14 +287,14 @@ class Memory(SampleStorage):
     def get_level_ids(self):
         return list(self._results.keys())
 
-    def get_chunks_info(self, level_id, i_chunk):
+    def get_chunks_info(self, chunk_spec):
         """
         The start and end index of a chunk from a whole dataset point of view
         :param level_id: level id
         :param i_chunk: chunk id
         :return: List[int, int]
         """
-        return [0, len(self._results[level_id])-1]
+        return [0, len(self._results[chunk_spec.level_id])-1]
 
     def level_chunk_n_samples(self, level_id):
         """
@@ -303,8 +310,8 @@ class Memory(SampleStorage):
         :return: List
         """
         n_collected = list(np.zeros(len(self._results)))
-        for level in self._results:
-            n_collected[int(level.level_id)] = level.collected_n_items()
+        for level_id, result in self._results.items():
+            n_collected[int(level_id)] = len(result)
         return n_collected
 
     def get_n_levels(self):
