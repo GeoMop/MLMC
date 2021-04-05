@@ -300,8 +300,9 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
     return targets, predictions
 
 
-def statistics(models, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level, conv_layer, gnn=None):
-    n_subsamples = 50
+def statistics(models, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
+               sampling_info_path, ref_mlmc_file, level, conv_layer, gnn=None, replace_level=False, ):
+    n_subsamples = 25
 
     model_data = {}
     for model_key in models.keys():
@@ -327,7 +328,9 @@ def statistics(models, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_
 
             targets, predictions, learning_time, train_targets, train_predictions, orig_max_vars, predict_max_vars, total_steps = model(output_dir,
                                                                                                                            hdf_path, l_0_output_dir, l_0_hdf_path,
-                                                                  save_path, mesh, level=level, stats=True, log=log, conv_layer=conv_layer, gnn=gnn, train=True)
+                                                                  save_path, mesh, sampling_info_path, ref_mlmc_file,
+                                                                level=level, stats=True, log=log, conv_layer=conv_layer, gnn=gnn, train=True,
+                                                                        replace_level=replace_level)
 
             model_data[model_key]["test_targets"].append(targets)
             model_data[model_key]["test_predictions"].append(predictions)
@@ -350,7 +353,6 @@ def statistics(models, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_
 
 
     save_statistics(save_path, model_data)
-
     analyze_statistics(save_path)
 
     # plot_loss(train_losses, val_losses)
@@ -461,8 +463,8 @@ def analyze_statistics(save_path):
         print("######################################")
 
 
-def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level, conv_layer, stats=False,
-            gnn=None, model=None, log=False, train=True):
+def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level, conv_layer, stats=False,
+            gnn=None, model=None, log=False, train=True, replace_level=False):
 
     loss = MeanSquaredError()  # var_loss_function#
     # loss = MeanAbsoluteError()
@@ -614,7 +616,7 @@ def run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
         orig_max_vars, predict_max_vars = process_mlmc(hdf_path, sampling_info_path, ref_mlmc_file, targets, predictions, train_targets,
                      train_predictions,
                      val_targets, l_0_targets,
-                     l_0_predictions, l1_sample_time, l0_sample_time, nn_level=nn_level, replace_level=replace_level,
+                     l_0_predictions, l1_sample_time, l0_sample_time, nn_level=level, replace_level=replace_level,
                                                        stats=stats)
 
         return orig_targets, orig_predictions, learning_time, train_targets, train_predictions, orig_max_vars, predict_max_vars, total_steps

@@ -205,8 +205,9 @@ if __name__ == "__main__":
     # import pstats
     # pr = cProfile.Profile()
     # pr.enable()
+    # gnn, conv_layer = get_gnn()
     #
-    # my_result = run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level)
+    # my_result = run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, conv_layer=conv_layer)
     #
     # pr.disable()
     # ps = pstats.Stats(pr).sort_stats('cumtime')
@@ -217,9 +218,9 @@ if __name__ == "__main__":
     #run_CNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
     #process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
 
-    # gnn, conv_layer = mlmc.metamodel.nn_config.get_gnn()
-    # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, model=GCN, level=nn_level, log=True) # CGN model leads to constant value
-    # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, gnn=gnn, conv_layer=conv_layer)
+    # gnn, conv_layer = get_gnn()
+    # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, model=GCN, level=nn_level, log=True) # CGN model leads to constant value
+    # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, gnn=gnn, conv_layer=conv_layer)
     # run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, conv_layer=conv_layer)
     # process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
 
@@ -231,7 +232,8 @@ if __name__ == "__main__":
     #models = {"ChebConv": (run_GNN, False), "SVR": (run_SVR, False)}
     models = {"ChebConvTEST": (run_GNN, True)}
     save_path = os.path.join(save_path, "_".join(list(models.keys())))
-    statistics(models, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, conv_layer=conv_layer, gnn=gnn)
+    statistics(models, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level=nn_level,
+               conv_layer=conv_layer, gnn=gnn, replace_level=replace_level)
     analyze_statistics(save_path)
 
     # save_path = os.path.join(save_path, "SVR")
