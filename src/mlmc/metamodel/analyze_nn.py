@@ -5,7 +5,6 @@ import glob
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
 from mlmc.metamodel.flow_dataset import FlowDataset
-import test.metamodels.nn_config
 # Make numpy printouts easier to read.
 
 # np.set_printoptions(precision=9, suppress=True)
