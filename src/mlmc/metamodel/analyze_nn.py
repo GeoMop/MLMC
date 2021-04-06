@@ -5,6 +5,7 @@ import glob
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
 from mlmc.metamodel.flow_dataset import FlowDataset
+from mlmc.metamodel.create_graph import graph_creator
 # Make numpy printouts easier to read.
 
 # np.set_printoptions(precision=9, suppress=True)
@@ -166,16 +167,16 @@ def bootstrap():
     # estimate_density(np.mean(all_predictions, axis=0), title="Predictions")
 
 
-def run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level, conv_layer=None, stats=False,
-            gnn=None, model=None, log=False):
+def run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level, conv_layer, stats=False,
+            gnn=None, model=None, log=False, train=True, replace_level=False):
     from sklearn.svm import SVR
 
-    batch_size = 2000
+    batch_size = 200
     epochs = 1000
     hidden_regularization = None  # l2(2e-10)
 
     preprocess_start_time = time.process_time()
-    #graph_creator(output_dir, hdf_path, mesh, level=level)
+    graph_creator(output_dir, hdf_path, mesh, level=level)
 
     # Load data
     data = FlowDataset(output_dir=output_dir, level=level, log=log)
@@ -202,8 +203,6 @@ def run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
     # train_output = sc_y.fit_transform(train_output.reshape(-1,1))
     # test_input = sc_X.fit_transform(test_input)
     # test_output = sc_y.fit_transform(test_output.reshape(-1,1))
-
-
     #train_input, train_output, test_input, test_output = split_dataset(dataset)
 
 
@@ -217,10 +216,14 @@ def run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
     svr_rbf.fit(train_input, train_output)
     train_error = svr_rbf.score(train_input, train_output)
 
+    #print("svr_rbf.get_params() ", svr_rbf.get_params())
+    total_steps = 0
+
     #test_input = sc_X.fit_transform(test_input)
     test_error = svr_rbf.score(test_input, test_output)
 
     targets = test_output
+    train_targets = train_output
 
     # test_y = sc_y.fit_transform(test.y.to_numpy().reshape(-1,1))
 
@@ -233,9 +236,13 @@ def run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
     #train_predictions = np.squeeze(train_predictions)
 
     learning_time = time.process_time() - learning_time_start
+    print("learning time ", learning_time)
 
-    if stats is True:
-        return targets, predictions, learning_time, train_output, train_predictions
+    val_targets = []
+
+    orig_targets = targets
+    orig_predictions = predictions
+    print("MSE ", np.mean((predictions - targets) ** 2))
 
     if log:
         targets = np.exp(targets)
@@ -243,40 +250,54 @@ def run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh,
 
     print("np.var(target-predictions) ", np.var(targets - predictions))
 
-    #plot_loss(gnn._train_loss, gnn._val_loss)
-    analyze_results(targets, predictions)
+    if not stats:
+        #plot_loss(gnn._train_loss, gnn._val_loss)
+        analyze_results(targets, predictions)
 
-    import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
 
-    # plt.hist(train_output, bins=50, alpha=0.5, label='train target', density=True)
-    # plt.hist(train_predictions, bins=50, alpha=0.5, label='train predictions', density=True)
-    #
-    # # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
-    # plt.legend(loc='upper right')
-    # # plt.xlim(-0.5, 1000)
-    # plt.yscale('log')
-    # plt.show()
+        # plt.hist(train_output, bins=50, alpha=0.5, label='train target', density=True)
+        # plt.hist(train_predictions, bins=50, alpha=0.5, label='train predictions', density=True)
+        #
+        # # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+        # plt.legend(loc='upper right')
+        # # plt.xlim(-0.5, 1000)
+        # plt.yscale('log')
+        # plt.show()
 
-    plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
-    plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
+        plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
+        plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
 
-    # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
-    plt.legend(loc='upper right')
-    # plt.xlim(-0.5, 1000)
-    plt.yscale('log')
-    plt.show()
+        # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+        plt.legend(loc='upper right')
+        # plt.xlim(-0.5, 1000)
+        plt.yscale('log')
+        plt.show()
 
     predict_l_0_start_time = time.process_time()
-    l_0_targets, l_0_predictions = predict_level_zero_SVR(svr_rbf, l_0_output_dir, l_0_hdf_path, mesh, batch_size, log)
+    l_0_targets, l_0_predictions = predict_level_zero_SVR(svr_rbf, l_0_output_dir, l_0_hdf_path, mesh, batch_size, log, stats=stats)
     predict_l_0_time = time.process_time() - predict_l_0_start_time
 
+    if stats:
+        l1_sample_time = preprocess_time / len(data) + learning_time / len(data)
+        l0_sample_time = predict_l_0_time / len(l_0_targets)
+
+        orig_max_vars, predict_max_vars = process_mlmc(hdf_path, sampling_info_path, ref_mlmc_file, targets,
+                                                       predictions, train_targets,
+                                                       train_predictions,
+                                                       val_targets, l_0_targets,
+                                                       l_0_predictions, l1_sample_time, l0_sample_time, nn_level=level,
+                                                       replace_level=replace_level,
+                                                       stats=stats)
+
+        return orig_targets, orig_predictions, learning_time, train_targets, train_predictions, orig_max_vars, predict_max_vars, total_steps
+
     save_times(save_path, False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
-    save_load_data(save_path, False, targets, predictions, train_output, train_predictions, test_output, l_0_targets,
+    save_load_data(save_path, False, targets, predictions, train_targets, train_predictions, val_targets, l_0_targets,
                    l_0_predictions)
 
-
-def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=False):
-    #graph_creator(output_dir, hdf_path, mesh, level=0)
+def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=False, stats=False):
+    graph_creator(output_dir, hdf_path, mesh, level=0)
 
     # Load data
     data = FlowDataset(output_dir=output_dir, log=log)
@@ -284,13 +305,13 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
 
     test_input = prepare_data(dataset.x)
     targets = prepare_data(dataset.y)
-    print("data prepared")
+    #print("data prepared")
 
     predictions = []
     for i in range(0, len(test_input), batch_size):
         predictions.extend(nn.predict(test_input[i:i + batch_size]))
     predictions = np.array(predictions)
-    print("predictison shape ", predictions.shape)
+    #print("predictison shape ", predictions.shape)
     predictions = np.squeeze(predictions)
 
     if log:

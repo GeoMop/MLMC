@@ -3,7 +3,7 @@ import os
 #os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
 import sys
 import subprocess
-from mlmc.metamodel.analyze_nn import run_GNN, statistics, analyze_statistics
+from mlmc.metamodel.analyze_nn import run_GNN, run_SVR, statistics, analyze_statistics, process_results
 import tensorflow as tf
 
 from mlmc.metamodel.flow_task_GNN_2 import GNN
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     # import pstats
     # pr = cProfile.Profile()
     # pr.enable()
-    # gnn, conv_layer = get_gnn()
+    gnn, conv_layer = get_gnn()
     #
     # my_result = run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, conv_layer=conv_layer)
     #
@@ -213,28 +213,29 @@ if __name__ == "__main__":
     # ps = pstats.Stats(pr).sort_stats('cumtime')
     # ps.print_stats()
 
-    #run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
+    run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level=nn_level, log=True, conv_layer=conv_layer)  # , gnn=gnn)
+
     #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
     #run_CNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
-    #process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
+    process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
 
     # gnn, conv_layer = get_gnn()
     # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, model=GCN, level=nn_level, log=True) # CGN model leads to constant value
     # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, gnn=gnn, conv_layer=conv_layer)
     # run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, conv_layer=conv_layer)
     # process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
-
-    gnn, conv_layer = get_gnn()
-
-    # print("gnn ", gnn)
-    #print("conv layer ", conv_layer)
-
-    #models = {"ChebConv": (run_GNN, False), "SVR": (run_SVR, False)}
-    models = {"ChebConvTEST": (run_GNN, True)}
-    save_path = os.path.join(save_path, "_".join(list(models.keys())))
-    statistics(models, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level=nn_level,
-               conv_layer=conv_layer, gnn=gnn, replace_level=replace_level)
-    analyze_statistics(save_path)
+    #
+    # gnn, conv_layer = get_gnn()
+    #
+    # # print("gnn ", gnn)
+    # #print("conv layer ", conv_layer)
+    #
+    # #models = {"ChebConv": (run_GNN, False), "SVR": (run_SVR, False)}
+    # models = {"SVRTEST": (run_SVR, True)}
+    # save_path = os.path.join(save_path, "_".join(list(models.keys())))
+    # statistics(models, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level=nn_level,
+    #            conv_layer=conv_layer, gnn=gnn, replace_level=replace_level)
+    # analyze_statistics(save_path)
 
     # save_path = os.path.join(save_path, "SVR")
     # statistics(run_SVR, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)
