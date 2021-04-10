@@ -1,13 +1,6 @@
 import numpy as np
 import numpy.ma as ma
 import tensorflow as tf
-# import tensorflow.experimental.numpy as tnp
-# tnp.experimental_enable_numpy_behavior()
-import tensorflow_graphics as tfg
-import tensorflow_graphics.math.spherical_harmonics as tfgms
-
-
-
 from scipy.interpolate import BSpline
 
 
