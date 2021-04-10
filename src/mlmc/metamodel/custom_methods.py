@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
-import tensorflow.experimental.numpy as tnp
-tnp.experimental_enable_numpy_behavior()
+# import tensorflow.experimental.numpy as tnp
+# tnp.experimental_enable_numpy_behavior()
 from mlmc.moments import Monomial, Legendre
 
 
