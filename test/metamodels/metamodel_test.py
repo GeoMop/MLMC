@@ -194,8 +194,8 @@ def get_arguments(arguments):
     """
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('data_dir', help='data directory')
     parser.add_argument('work_dir', help='work directory')
+    parser.add_argument('data_dir', help='data directory')
     args = parser.parse_args(arguments)
     return args
 
