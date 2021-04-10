@@ -4,6 +4,7 @@ import random
 import numpy as np
 import pandas as pd
 from mlmc.tool import gmsh_io
+from mlmc.tool.flow_mc import FlowSim, create_corr_field
 from spektral.data import Dataset, Graph
 import pickle
 
@@ -19,12 +20,14 @@ class FlowDataset(Dataset):
     GRAPHS_FILE = "graphs"
     DATA_FILE = "data"
 
-    def __init__(self, output_dir=None, level=0, log=False, **kwargs):
+    def __init__(self, output_dir=None, level=0, log=False, mesh=None, corr_field_config=None, **kwargs):
         self._output_dir = output_dir
         # if self._output_dir is None:
         #     self._output_dir = OUTPUT_DIR
         self._log = log
         self.level = level
+        self._mesh = mesh
+        self._corr_field_config = corr_field_config
         self.adjacency_matrix = np.load(os.path.join(self._output_dir, "adjacency_matrix.npy"), allow_pickle=True)  # adjacency matrix
         self.data = []
         super().__init__(**kwargs)
@@ -38,7 +41,49 @@ class FlowDataset(Dataset):
         random.shuffle(self.data)
         self.dataset = pd.DataFrame(self.data)
 
+    # def generate_data(self):
+    #     n_samples = 10**5
+    #     graphs = []
+    #     mesh_data = FlowSim.extract_mesh(self._mesh)
+    #     fields = create_corr_field(model="exp", dim=2,
+    #                                sigma=self._corr_field_config['sigma'],
+    #                                corr_length=self._corr_field_config['corr_length'],
+    #                                log=self._corr_field_config['log'])
+    #
+    #     # # Create fields both fine and coarse
+    #     fields = FlowSim.make_fields(fields, mesh_data, None)
+    #
+    #     for i in range(n_samples):
+    #         fine_input_sample, coarse_input_sample = FlowSim.generate_random_sample(fields, coarse_step=0,
+    #                                                                                 n_fine_elements=len(
+    #                                                                                     mesh_data['points']))
+    #         # print("len fine input sample ", len(fine_input_sample["conductivity"]))
+    #         # print("fine input sample ", fine_input_sample["conductivity"])
+    #
+    #         features = fine_input_sample["conductivity"]
+    #         output = 1
+    #
+    #         # gmsh_io.GmshIO().write_fields('fields_sample.msh', mesh_data['ele_ids'], fine_input_sample)
+    #         #
+    #         # mesh = gmsh_io.GmshIO('fields_sample.msh')
+    #         # element_data = mesh.current_elem_data
+    #         # features = list(element_data.values())
+    #
+    #         if self._log:
+    #             features = np.log(features)
+    #             output = np.log(output)
+    #             # features = (features - minimum) / (maximum - minimum)
+    #         graphs.append(Graph(x=features, y=output))  # , a=self.adjacency_matrix))
+    #         # Save data for pandas dataframe creation, not used with Graph neural network
+    #         self.data.append({'x': features, 'y': output})
+    #
+    #     self.a = self.adjacency_matrix
+    #     return graphs
+
     def read(self):
+        # if self._mesh is not None:
+        #     return self.generate_data()
+
         # with open(os.path.join(OUTPUT_DIR, FlowDataset.GRAPHS_FILE), 'rb') as reader:
         #     graphs = pickle.loads(reader)
         #

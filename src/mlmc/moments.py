@@ -1,5 +1,13 @@
 import numpy as np
 import numpy.ma as ma
+import tensorflow as tf
+import tensorflow.experimental.numpy as tnp
+tnp.experimental_enable_numpy_behavior()
+import tensorflow_graphics as tfg
+import tensorflow_graphics.math.spherical_harmonics as tfgms
+
+
+
 from scipy.interpolate import BSpline
 
 
@@ -108,6 +116,23 @@ class Moments:
         return self._eval_diff2(value, size)
 
 
+class Moments_tf(Moments):
+
+    def clip(self, value):
+        """
+        Remove outliers and replace them with NaN
+        :param value: array of numbers
+        :return: masked_array, out
+        """
+        #print("ref domain ", self.ref_domain)
+        #print("value ", value)
+        # Masked array
+        return value
+        # out = tnp.ma.masked_outside(value, self.ref_domain[0], self.ref_domain[1])
+        # # Replace outliers with NaN
+        # return tnp.ma.filled(out, np.nan)
+
+
 class Monomial(Moments):
     def __init__(self, size, domain=(0, 1), ref_domain=None, log=False, safe_eval=True):
         if ref_domain is not None:
@@ -186,6 +211,95 @@ class Legendre(Moments):
     def _eval_all(self, value, size):
         value = self.transform(np.atleast_1d(value))
         return np.polynomial.legendre.legvander(value, deg=size - 1)
+
+    def _eval_all_der(self, value, size, degree=1):
+        """
+        Derivative of Legendre polynomials
+        :param value: values to evaluate
+        :param size: number of moments
+        :param degree: degree of derivative
+        :return:
+        """
+        value = self.transform(np.atleast_1d(value))
+        eval_values = np.empty((value.shape + (size,)))
+
+        for s in range(size):
+            if s == 0:
+                coef = [1]
+            else:
+                coef = np.zeros(s+1)
+                coef[-1] = 1
+
+            coef = np.polynomial.legendre.legder(coef, degree)
+            eval_values[:, s] = np.polynomial.legendre.legval(value, coef)
+        return eval_values
+
+    def _eval_diff(self, value, size):
+        t = self.transform(np.atleast_1d(value))
+        P_n = np.polynomial.legendre.legvander(t, deg=size - 1)
+        return P_n @ self.diff_mat
+
+    def _eval_diff2(self, value, size):
+        t = self.transform(np.atleast_1d(value))
+        P_n = np.polynomial.legendre.legvander(t, deg=size - 1)
+        return P_n @ self.diff2_mat
+
+
+class Legendre_tf(Moments_tf):
+
+    def __init__(self, size, domain, ref_domain=None, log=False, safe_eval=True):
+        if ref_domain is not None:
+            self.ref_domain = ref_domain
+        else:
+            self.ref_domain = (-1, 1)
+
+        self.diff_mat = np.zeros((size, size))
+        for n in range(size - 1):
+            self.diff_mat[n, n + 1::2] = 2 * n + 1
+        self.diff2_mat = self.diff_mat @ self.diff_mat
+
+        super().__init__(size, domain, log, safe_eval)
+
+    def _eval_value(self, x, size):
+        return tnp.polynomial.legendre.legvander(x, deg=size-1)
+
+    def _eval_all(self, value, size):
+        value = self.transform(tnp.atleast_1d(value))
+        #print("value ", value.shape)
+
+
+        # out = tfgms.evaluate_legendre_polynomial(degree_l=size-1, order_m=1, x=1)
+        #
+        #
+
+        # return out
+        leg_poly = []
+        for i in range(1, size):
+            out = Legendre_tf.P(i, value)
+
+            # print("type out ", type(out))
+            # print("out shape ", out.shape)
+            out = tf.convert_to_tensor(tf.squeeze(out))
+            out = tf.dtypes.cast(out, tf.float64)
+
+            #print("out shape ", out.shape)
+
+            leg_poly.append(out)
+
+        leg_poly = tf.stack(leg_poly, 0)
+        # print("leg poly shape ", leg_poly.shape)
+        # print("leg poly T shape ",  tf.transpose(leg_poly).shape)
+
+        return tf.transpose(leg_poly)
+
+    @staticmethod
+    def P(n, x):
+        if (n == 0):
+            return np.ones(x.shape)  # P0 = 1
+        elif (n == 1):
+            return x  # P1 = x
+        else:
+            return (((2 * n) - 1) * x * Legendre_tf.P(n - 1, x) - (n - 1) * Legendre_tf.P(n - 2, x)) / float(n)
 
     def _eval_all_der(self, value, size, degree=1):
         """

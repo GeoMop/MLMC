@@ -4,11 +4,12 @@ import os
 import sys
 import subprocess
 from mlmc.metamodel.analyze_nn import run_GNN, run_SVR, statistics, analyze_statistics, process_results
-import tensorflow as tf
+from mlmc.moments import Legendre_tf, Monomial
 
 from mlmc.metamodel.flow_task_GNN_2 import GNN
 from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv, GeneralConv
 from tensorflow.keras.losses import MeanSquaredError, KLDivergence, MeanAbsoluteError
+from mlmc.metamodel.custom_methods import abs_activation, MSE_moments
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Dense
 from spektral.layers import GlobalSumPool, GlobalMaxPool, GlobalAvgPool
@@ -29,6 +30,7 @@ def get_gnn():
     # act_func = "relu"  # "tanh"#"elu"
 
     loss = MeanSquaredError()  # var_loss_function#
+    #loss = MSE_moments
     # loss = MeanAbsoluteError()
     # loss = MeanSquaredLogarithmicError()
     # loss = KLDivergence()
@@ -40,7 +42,8 @@ def get_gnn():
     model_config = {
                  "conv_layer": conv_layer,
                  "hidden_activation": 'relu',
-                 "output_activation": 'linear',
+                 "output_activation": abs_activation,
+                 #"output_activation": 'linear',
                  "kernel_regularization": hidden_regularization,
                  "normalizer": preprocessing.Normalization()
                  }
@@ -53,7 +56,9 @@ def get_gnn():
                     "model": model,
                     "verbose": False}
 
-    return GNN(**model_config), conv_layer
+    corr_field_config = {'corr_length': 0.1, 'sigma': 1, 'log': True}
+
+    return GNN(**model_config), conv_layer, corr_field_config
 
 
 class Net(Model):
@@ -62,18 +67,18 @@ class Net(Model):
         super().__init__(**kwargs)
         # self.normalizer = normalizer
         # self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
-        self.conv1 = conv_layer(32, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        # self.conv2 = conv_layer(128, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        # self.conv3 = conv_layer(16, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        # self.conv4 = conv_layer(8,  K=2,activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        # self.conv2 = conv_layer(32, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        self.conv1 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv2 = conv_layer(64, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv3 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv4 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        #self.conv2 = conv_layer(32, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv3 = conv_layer(16, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv3 = conv_layer(8, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv4 = conv_layer(4, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv3 = conv_layer(64, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         self.flatten = GlobalSumPool()
         # self.fc1 = Dense(32, activation=hidden_activation)
-        self.fc2 = Dense(1)  # , activation=output_activation)  # linear activation for output neuron
+        self.fc2 = Dense(1)#, activation=output_activation)  # linear activation for output neuron
 
     def call(self, inputs):
         x, a = inputs
@@ -85,7 +90,7 @@ class Net(Model):
         x = self.conv1([x, a])
         # print("x.shape ", x.shape)
         # x = self.conv2([x, a])
-        # # print("conv2 x shape", x.shape)
+        # # # print("conv2 x shape", x.shape)
         # x = self.conv3([x, a])
         # x = self.conv4([x, a])
         output1 = self.flatten(x)
@@ -109,10 +114,10 @@ def get_config(data_dir, case=0):
         ref_mlmc_file = os.path.join(data_dir, "{}/L1_benchmark/mlmc_1.hdf5".format(cl))
 
     elif case == 1:
-        cl = "cl_0_3_s_4"
+        cl = "cl_0_1_s_1"
         nn_level = 1
         replace_level = False
-        mesh = os.path.join(data_dir, "/cl_0_1_s_1/L2/l_step_0.027624156655057155_common_files/mesh.msh")
+        mesh = os.path.join(data_dir, "l_step_0.027624156655057155_common_files/mesh.msh")
         output_dir = os.path.join(data_dir, "{}/L5/test/01_cond_field/output/".format(cl))
         hdf_path = os.path.join(data_dir, "{}/L5/mlmc_5.hdf5".format(cl))
         save_path = os.path.join(data_dir, "{}".format(cl))
@@ -140,19 +145,20 @@ def get_config(data_dir, case=0):
         cl = "cl_0_1_s_1"
         if case == 4:
             cl = "cl_0_3_s_4"
-        nn_level = 3
+        nn_level = 2
         replace_level = False
-        mesh = os.path.join(data_dir, "cl_0_1_s_1/L5/l_step_0.020196309484414757_common_files/mesh.msh")
+        # mesh = os.path.join(data_dir, "{}/L5/l_step_0.020196309484414757_common_files/mesh.msh".format(cl))
+        mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl))
         output_dir = os.path.join(data_dir, "{}/L5/test/01_cond_field/output/".format(cl))
         hdf_path = os.path.join(data_dir, "{}/L5/mlmc_5.hdf5".format(cl))
         save_path = os.path.join(data_dir, "{}".format(cl))
         l_0_output_dir = os.path.join(data_dir, "{}/L1_{}/test/01_cond_field/output/".format(cl,nn_level))
         l_0_hdf_path = os.path.join(data_dir, "{}/L1_{}/mlmc_1.hdf5".format(cl, nn_level))
         sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl))
-        ref_mlmc_file = os.path.join(data_dir, "{}/L1_3/mlmc_1.hdf5".format(cl))
+        ref_mlmc_file = os.path.join(data_dir, "{}/L1_benchmark/mlmc_1.hdf5".format(cl))
 
     elif case == 5:
-        data_dir = "/home/martin/Documents/metamodels/data/5_ele/"
+        #data_dir = "/home/martin/Documents/metamodels/data/5_ele/"
         cl = "cl_0_3_s_4"
         nn_level = 0
         replace_level = False
@@ -189,6 +195,7 @@ def get_arguments(arguments):
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('data_dir', help='data directory')
+    parser.add_argument('work_dir', help='work directory')
     args = parser.parse_args(arguments)
     return args
 
@@ -196,16 +203,22 @@ def get_arguments(arguments):
 if __name__ == "__main__":
     args = get_arguments(sys.argv[1:])
     data_dir = args.data_dir
-    case = 0
+    work_dir = args.work_dir
+    case = 3
     #data_dir = "/home/martin/Documents/metamodels/data/1000_ele/"
     output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level = get_config(
         data_dir, case)
+
+    if os.path.exists(os.path.join(work_dir, "mlmc_{}.hdf5".format(nn_level + 1))):
+        l_0_hdf_path = os.path.join(work_dir, "mlmc_{}.hdf5".format(nn_level + 1))
+        hdf_path = os.path.join(work_dir, "mlmc_5.hdf5")
+        ref_mlmc_file = os.path.join(work_dir, "benchmark_mlmc_1.hdf5")
 
     # import cProfile
     # import pstats
     # pr = cProfile.Profile()
     # pr.enable()
-    gnn, conv_layer = get_gnn()
+    #gnn, conv_layer, corr_field_config = get_gnn()
     #
     # my_result = run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, conv_layer=conv_layer)
     #
@@ -213,29 +226,35 @@ if __name__ == "__main__":
     # ps = pstats.Stats(pr).sort_stats('cumtime')
     # ps.print_stats()
 
-    run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level=nn_level, log=True, conv_layer=conv_layer)  # , gnn=gnn)
+    #run_SVR(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level=nn_level, log=True, conv_layer=conv_layer)  # , gnn=gnn)
 
     #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
     #run_CNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)  # , gnn=gnn)
-    process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
+    #process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
 
-    # gnn, conv_layer = get_gnn()
-    # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, model=GCN, level=nn_level, log=True) # CGN model leads to constant value
-    # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, gnn=gnn, conv_layer=conv_layer)
-    # run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, conv_layer=conv_layer)
+
+    # Graph creation time for cl_0_1_s_1 case 1 = 100 s
+
+    # gnn, conv_layer, corr_field_config = get_gnn()
+    # # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, model=GCN, level=nn_level, log=True) # CGN model leads to constant value
+    # # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, gnn=gnn, conv_layer=conv_layer)
+    # run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file,
+    #           level=nn_level, log=True, conv_layer=conv_layer, gnn=gnn, corr_field_config=corr_field_config, graph_creation_time=100)
     # process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
     #
-    # gnn, conv_layer = get_gnn()
-    #
-    # # print("gnn ", gnn)
-    # #print("conv layer ", conv_layer)
-    #
-    # #models = {"ChebConv": (run_GNN, False), "SVR": (run_SVR, False)}
-    # models = {"SVRTEST": (run_SVR, True)}
-    # save_path = os.path.join(save_path, "_".join(list(models.keys())))
-    # statistics(models, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level=nn_level,
-    #            conv_layer=conv_layer, gnn=gnn, replace_level=replace_level)
-    # analyze_statistics(save_path)
+    gnn, conv_layer, corr_field_config = get_gnn()
+
+    # print("gnn ", gnn)
+    #print("conv layer ", conv_layer)
+
+    #models = {"ChebConv": (run_GNN, False), "SVR": (run_SVR, False)}
+    machine_learning_model = ("GNNTEST_case_3", run_GNN, False)
+    save_path = os.path.join(save_path, machine_learning_model[0])
+    statistics(machine_learning_model, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level=nn_level,
+               conv_layer=conv_layer, gnn=gnn, replace_level=replace_level, corr_field_config=corr_field_config, graph_creation_time=31)
+
+    # analyze_statistics(save_path, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level=nn_level,
+    #             conv_layer=conv_layer, gnn=gnn, replace_level=replace_level, corr_field_config=corr_field_config)
 
     # save_path = os.path.join(save_path, "SVR")
     # statistics(run_SVR, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)

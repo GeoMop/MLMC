@@ -1,5 +1,9 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
+import tensorflow.experimental.numpy as tnp
+tnp.experimental_enable_numpy_behavior()
+from mlmc.moments import Monomial, Legendre
 
 
 def abs_activation(x):
@@ -27,3 +31,12 @@ def total_loss_function(y_true, y_predict):
     #return K.var(K.abs(y_true - K.squeeze(y_predict, axis=1)))
 
     return K.mean((y_true - K.squeeze(y_predict, axis=1))**2) + K.var(K.abs(y_true - K.squeeze(y_predict, axis=1)))
+
+
+def MSE_moments(moments_fn=None):
+    if moments_fn is None:
+        raise ValueError
+
+    def calc_err(y_true, y_predict):
+        return K.mean(K.sum((moments_fn.eval_all(y_true) - moments_fn.eval_all(y_predict))**2, axis=1))
+    return calc_err

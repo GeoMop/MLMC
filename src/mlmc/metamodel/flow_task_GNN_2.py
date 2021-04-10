@@ -98,6 +98,7 @@ class GNN:
                 train_targets = False
                 # results_va = self.evaluate(loader_va)
                 # self._val_loss.append(results_va[0])
+                #print("results_va[0] ", results_va[0])
 
                 if results_va[0] < best_val_loss:
                     best_val_loss = results_va[0]
@@ -108,8 +109,8 @@ class GNN:
                 else:
                     current_patience -= 1
                     #results_tr_0 = np.array(results_tr)
-                    # loss_tr = np.average(results_tr_0[:, :-1], 0, weights=results_tr_0[:, -1])[0]
-                    # self._states[loss_tr] = self
+                    loss_tr = results_va[0]
+                    self._states[loss_tr] = self
                     if current_patience == 0:
                         print("Early stopping")
                         break
@@ -136,12 +137,6 @@ class GNN:
     def train_on_batch(self, inputs, target):
         with tf.GradientTape() as tape:
             predictions = self._model(inputs, training=True)
-            # @TODO: try to add KLDivergence to loss
-            # print(KLDivergence(target, predictions))
-            # print("self._loss(target, predictions) ", self._loss(target, predictions))
-            # print("sum(self._model.losses) ", sum(self._model.losses))
-            # print("var_loss_function(target, predictions) ", var_loss_function(target, predictions))
-
             loss = self._loss(target, predictions) + sum(self._model.losses) #+ 5 * var_loss_function(target, predictions)
             #loss = 100 * var_loss_function(target, predictions)
             acc = tf.reduce_mean(self._accuracy_func(target, predictions))

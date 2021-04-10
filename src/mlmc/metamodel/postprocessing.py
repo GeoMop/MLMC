@@ -399,7 +399,7 @@ def get_quantity_estimator(sample_storage, true_domain=None):
 
 
 def get_n_estimated(sample_storage, estimator, n_ops=None):
-    target_var = 1e-5
+    target_var = 1e-4
     #moments, estimator, _, quantity = estimate_moments(sample_storage, true_domain=true_domain)
 
     n_level_samples = sample_storage.get_n_collected()
@@ -529,7 +529,10 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
             ft_index = nn_level
             if nn_level > 0:
                 ft_index = nn_level - 1
-            n_ops_predict.append(l0_sample_time + field_times[ft_index] / 2)
+            # print("l0_sample_time ", l0_sample_time)
+            # print("fields times ", field_times[ft_index] / 2)
+
+            n_ops_predict.append(l0_sample_time)# + field_times[ft_index] / 2)
             #level_samples = level_samples[:, :50000, :]
         else:
             if replace_level:
@@ -602,7 +605,7 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
 
     #### Original data
     n_ops_est = copy.deepcopy(n_ops)
-    n_ops_est[0] = n_ops_est[0] / 1000
+    #n_ops_est[0] = n_ops_est[0] / 1000
     n_estimated_orig, l_vars_orig, n_samples_orig = get_n_estimated(sample_storage, original_q_estimator, n_ops=n_ops_est)
     print("n estimated orig ", n_estimated_orig)
     sample_storage = cut_samples(data_mlmc, sample_storage, n_estimated_orig)
@@ -618,7 +621,7 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
     n_ops_predict_orig = copy.deepcopy(n_ops_predict)
     #n_ops_predict_orig[0] = n_ops_predict_orig[0] /5
     #n_ops_predict = np.array(n_ops_predict)**2
-    n_ops_predict[0] = n_ops_predict[0] / 1000
+    #n_ops_predict[0] = n_ops_predict[0] / 1000
     print("n ops predict for estimate ", n_ops_predict)
     # n_samples = [10000, 2000, 500, 150, 40, 11]
 

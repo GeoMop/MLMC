@@ -156,9 +156,9 @@ def graph_creator(output_dir, hdf_path, mesh, level=0):
 
 if __name__ == "__main__":
 
-    mesh = "/home/martin/Documents/metamodels/data/5_ele/cl_0_1_s_1/L5/l_step_0.020196309484414757_common_files/mesh.msh"
-    output_dir = "/home/martin/Documents/metamodels/data/5_ele/cl_0_3_s_4/L1_3/test/01_cond_field/output/"
-    hdf_path = "/home/martin/Documents/metamodels/data/5_ele/cl_0_1_s_1/L1_3/mlmc_1.hdf5"
+    # mesh = "/home/martin/Documents/metamodels/data/5_ele/cl_0_1_s_1/L5/l_step_0.020196309484414757_common_files/mesh.msh"
+    # output_dir = "/home/martin/Documents/metamodels/data/5_ele/cl_0_3_s_4/L1_3/test/01_cond_field/output/"
+    # hdf_path = "/home/martin/Documents/metamodels/data/5_ele/cl_0_1_s_1/L1_3/mlmc_1.hdf5"
 
     import cProfile
     import pstats
