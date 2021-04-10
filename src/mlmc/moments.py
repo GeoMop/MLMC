@@ -1,8 +1,8 @@
 import numpy as np
 import numpy.ma as ma
 import tensorflow as tf
-import tensorflow.experimental.numpy as tnp
-tnp.experimental_enable_numpy_behavior()
+# import tensorflow.experimental.numpy as tnp
+# tnp.experimental_enable_numpy_behavior()
 import tensorflow_graphics as tfg
 import tensorflow_graphics.math.spherical_harmonics as tfgms
 
@@ -260,11 +260,11 @@ class Legendre_tf(Moments_tf):
 
         super().__init__(size, domain, log, safe_eval)
 
-    def _eval_value(self, x, size):
-        return tnp.polynomial.legendre.legvander(x, deg=size-1)
+    # def _eval_value(self, x, size):
+    #     return tnp.polynomial.legendre.legvander(x, deg=size-1)
 
     def _eval_all(self, value, size):
-        value = self.transform(tnp.atleast_1d(value))
+        value = self.transform(value)
         #print("value ", value.shape)
 
 
