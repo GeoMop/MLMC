@@ -1,5 +1,5 @@
 import os
-
+import warnings
 #os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
 import sys
 import subprocess
@@ -15,6 +15,7 @@ from tensorflow.keras.layers import Dense
 from spektral.layers import GlobalSumPool, GlobalMaxPool, GlobalAvgPool
 import tensorflow as tf
 from tensorflow.keras.layers.experimental import preprocessing
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 def get_gnn():
@@ -141,11 +142,11 @@ def get_config(data_dir, case=0):
         ref_mlmc_file = os.path.join(data_dir, "{}/L1_3/mlmc_1.hdf5".format(cl))
 
     elif case == 3 or case == 4:
-        data_dir = "/home/martin/Documents/metamodels/data/5_ele/"
+        #data_dir = "/home/martin/Documents/metamodels/data/5_ele/"
         cl = "cl_0_1_s_1"
         if case == 4:
             cl = "cl_0_3_s_4"
-        nn_level = 2
+        nn_level = 0
         replace_level = False
         # mesh = os.path.join(data_dir, "{}/L5/l_step_0.020196309484414757_common_files/mesh.msh".format(cl))
         mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl))
@@ -170,6 +171,20 @@ def get_config(data_dir, case=0):
         l_0_hdf_path = os.path.join(data_dir,"{}/L1_{}/mlmc_1.hdf5".format(cl, nn_level))
         sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl))
         ref_mlmc_file = os.path.join(data_dir,"{}/L1_3/mlmc_1.hdf5".format(cl))
+
+    elif case == 6: # mesh size comparison
+        cl = "cl_0_1_s_1"
+        nn_level = 0
+        replace_level = False
+        mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl))
+        output_dir = os.path.join(data_dir, "{}/L1/test/01_cond_field/output/".format(cl))
+        hdf_path = os.path.join(data_dir, "{}/L1/mlmc_1.hdf5".format(cl))
+        save_path = os.path.join(data_dir, "{}".format(cl))
+        l_0_output_dir = os.path.join(data_dir, "{}/L1_{}/test/01_cond_field/output/".format(cl, nn_level))
+        l_0_hdf_path = os.path.join(data_dir, "{}/L1_{}/mlmc_1.hdf5".format(cl, nn_level))
+        sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl))
+        ref_mlmc_file = os.path.join(data_dir, "{}/L1_benchmark/mlmc_1.hdf5".format(cl))
+
     # elif case == 6:
     #     nn_level = 0
     #     replace_level = True
@@ -236,25 +251,54 @@ if __name__ == "__main__":
     # Graph creation time for cl_0_1_s_1 case 1 = 100 s
 
     # gnn, conv_layer, corr_field_config = get_gnn()
-    # # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, model=GCN, level=nn_level, log=True) # CGN model leads to constant value
-    # # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, gnn=gnn, conv_layer=conv_layer)
+    # # # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, model=GCN, level=nn_level, log=True) # CGN model leads to constant value
+    # # # # #run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True, gnn=gnn, conv_layer=conv_layer)
     # run_GNN(output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file,
-    #           level=nn_level, log=True, conv_layer=conv_layer, gnn=gnn, corr_field_config=corr_field_config, graph_creation_time=100)
+    #            level=nn_level, log=True, conv_layer=conv_layer, gnn=gnn, corr_field_config=corr_field_config, graph_creation_time=100)
     # process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
     #
+
     gnn, conv_layer, corr_field_config = get_gnn()
 
     # print("gnn ", gnn)
     #print("conv layer ", conv_layer)
 
-    #models = {"ChebConv": (run_GNN, False), "SVR": (run_SVR, False)}
-    machine_learning_model = ("GNNTEST_case_3", run_GNN, False)
+    # #models = {"ChebConv": (run_GNN, False), "SVR": (run_SVR, False)}
+    machine_learning_model = ("5eleChebConvL3_2", run_GNN, False)
+    #machine_learning_model = ("5eleChebConvK2", run_GNN, False)
+    # # machine_learning_model = ("5eleChebConvK3", run_GNN, False)
+    #machine_learning_model = ("5eleChebConv32abs", run_GNN, False)
+    #machine_learning_model = ("5eleChebConv32msemom", run_GNN, False)
     save_path = os.path.join(save_path, machine_learning_model[0])
-    statistics(machine_learning_model, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level=nn_level,
-               conv_layer=conv_layer, gnn=gnn, replace_level=replace_level, corr_field_config=corr_field_config, graph_creation_time=31)
+    graph_creation_time = 0#66
 
-    # analyze_statistics(save_path, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, level=nn_level,
-    #             conv_layer=conv_layer, gnn=gnn, replace_level=replace_level, corr_field_config=corr_field_config)
+    config = {'machine_learning_model': machine_learning_model,
+              'save_path': save_path,
+              'sampling_info_path': sampling_info_path,
+              'output_dir': output_dir,
+              'hdf_path': hdf_path,
+              'mesh': mesh,
+              'l_0_output_dir': l_0_output_dir,
+              'l_0_hdf_path': l_0_hdf_path,
+              'sampling_info_path': sampling_info_path,
+              'ref_mlmc_file': ref_mlmc_file,
+              'level': nn_level,
+              'conv_layer': conv_layer,
+              'gnn': gnn,
+              'replace_level': replace_level,
+              'corr_field_config': corr_field_config,
+              'n_train_samples': 2000,
+              'val_samples_ratio': 0.2,
+              'batch_size': 200,
+              'epochs': 2000,
+              'learning_rate': 0.001,
+              'graph_creation_time': graph_creation_time,
+              'save_model': False
+              }
+
+    statistics(config)
+
+    analyze_statistics(config)
 
     # save_path = os.path.join(save_path, "SVR")
     # statistics(run_SVR, output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, level=nn_level, log=True)
