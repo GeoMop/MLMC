@@ -151,6 +151,37 @@ class Discontinuous(st.rv_continuous):
         return y
 
 
+class Rho4(st.rv_continuous):
+    domain = [0, 1]
+
+    def _pdf(self, x):
+        if isinstance(x, (list, np.ndarray)):
+            y = np.zeros(len(x))
+            y[x >= 0.8] = 50 * x[x >= 0.8] - 40
+            return y
+        else:
+            if x <= 0.8:
+                return 0
+            return 50*x-40
+
+    def _cdf(self, x):
+        if isinstance(x, (list, np.ndarray)):
+            y = np.zeros(len(x))
+            y[x >= 0.8] = 25 * x[x >= 0.8]**2 - 40 * x[x >= 0.8] + 16
+            return y
+        else:
+            if x < 0.8:
+                return 0
+            return 50 * x ** 2 - 40 * x
+
+
+    # def rvs(self, size):
+    #     mixture_idx = np.random.choice(len(Discontinuous.weights), size=size, replace=True, p=Discontinuous.weights)
+    #     # y is the mixture sample
+    #     y = np.fromiter((Discontinuous.distributions[i].rvs() for i in mixture_idx), dtype=np.float64)
+    #     return y
+
+
 class MultivariateNorm(st.rv_continuous):
     distr = st.multivariate_normal([0, 0], [[1, 0], [0, 1]])
     domain = [np.array([0, 1]), np.array([0, 1])]
@@ -195,6 +226,39 @@ class Abyss(st.rv_continuous):
                               0.5 + self.renorm * self.z * 2 * self.width * x,
                               1 - self.renorm * st.norm.cdf(-x)))
         return y
+
+
+def test_rho4():
+    rho4 = Rho4()
+
+    assert np.isclose(integrate.quad(rho4._pdf, 0, 1)[0], 1)
+
+    domain = rho4.ppf([0.001, 0.999])
+    print("domain ", domain)
+    a = np.random.uniform(domain[0], domain[1], 1)
+    b = np.random.uniform(domain[0], domain[1], 1)
+
+    print("ab.cdf(b) - ab.cdf(a) ", rho4.cdf(b) - rho4.cdf(a))
+    print("integrate.quad(ab.pdf, a, b)[0] ", integrate.quad(rho4.pdf, a, b)[0])
+
+    assert np.isclose(rho4.cdf(b) - rho4.cdf(a), integrate.quad(rho4.pdf, a, b)[0], atol=1e-1)
+
+    size = 1000
+    values = rho4.rvs(size=size)
+    x = np.linspace(0, 1, size)
+    plt.plot(x, rho4.pdf(x), 'r-', alpha=0.6, label='rho4 pdf')
+    plt.hist(values, bins=1000, density=True, alpha=0.2)
+    plt.legend()
+    plt.show()
+
+    from statsmodels.distributions.empirical_distribution import ECDF
+    ecdf = ECDF(values)
+    x = np.linspace(0, 1, size)
+    plt.plot(x, ecdf(x), label="ECDF")
+    plt.plot(x, rho4.cdf(x), 'r--', alpha=0.6, label='rho4 cdf')
+
+    plt.legend()
+    plt.show()
 
 
 def test_abyss():
@@ -373,7 +437,8 @@ def test_discountinuous():
 if __name__ == "__main__":
     # test_cauchy()
     # test_gamma()
-    test_five_fingers()
+    test_rho4()
+    #test_five_fingers()
     #test_two_gaussians()
     #test_discountinuous()
 

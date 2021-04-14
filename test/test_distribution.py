@@ -290,13 +290,13 @@ class DistributionDomainCase:
             #assert np.linalg.norm(eye_approx - np.eye(*eye_approx.shape)) < 1e-9 # 1e-10 failed with Cauchy for more moments
 
             print("threshold: ", threshold, " from N: ", size)
-            if self.eigenvalues_plot:
-                threshold = original_evals[threshold]
-                noise_label = "{:5.2e}".format(noise_level)
-                self.eigenvalues_plot.add_values(original_evals, threshold=threshold, label=noise_label)
-
-                # noise_label = "original evals, {:5.2e}".format(noise_level)
-                # self.eigenvalues_plot.add_values(original_evals, threshold=threshold, label=noise_label)
+            # if self.eigenvalues_plot:
+            #     threshold = original_evals[threshold]
+            #     noise_label = "{:5.2e}".format(noise_level)
+            #     self.eigenvalues_plot.add_values(original_evals, threshold=threshold, label=noise_label)
+            #
+            #     # noise_label = "original evals, {:5.2e}".format(noise_level)
+            #     # self.eigenvalues_plot.add_values(original_evals, threshold=threshold, label=noise_label)
 
             self.tol_density_approx = 0.01
 
@@ -2554,7 +2554,8 @@ class DistributionDomainCase:
 
         #noise_levels = [5e-2, 1e-2, 5e-3]#, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6]
 
-        noise_levels = [1e-2, 1e-18]
+        #noise_levels = [1e-2, 1e-18]
+        noise_levels = [1e-1]
         #noise_levels = [1e-3, 1e-2, 1e-1, 1e1, 1e2, 1e3]
         print("noise levels ", noise_levels)
         #exit()
@@ -2793,9 +2794,143 @@ class DistributionDomainCase:
         plt.show()
 
         #self.check_convergence(results)
-        #self.eigenvalues_plot.show(file=None)#self.pdfname("_eigenvalues"))
+        self.eigenvalues_plot.show(file=None)#self.pdfname("_eigenvalues"))
 
         return results
+
+    def eval_plot(self, reg_params=None, regularization=None, noise=None):
+        """
+        Test density approximation for maximal number of moments
+        and varying amount of noise added to covariance matrix.
+        :return:
+        """
+        min_noise = 1e-6
+        max_noise = 1e-2
+        results = []
+        orth_method = 2
+        #np.random.seed(8888)
+
+        #noise = 1e-1
+
+        _, _, n_moments, _ = self.moments_data
+        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="Preconditioning reg, {},  n_moments: {}, noise: {}".format(self.title, n_moments, max_noise),
+                                            log_x=self.log_flag, error_plot=None, reg_plot=False, cdf_plot=False, log_density=True)
+
+        self.eigenvalues_plot = plot.Eigenvalues(title="Eigenvalues", log_y=False)
+        eval_plot_obj = plot.EvalPlot(title="")
+
+        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 20))
+        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
+
+        noise_levels = [1e-1, 1e-2, 1e-3]
+
+        plot_mom_indices = None
+
+        kl_total = []
+        kl_2_total = []
+        l2 = []
+
+        moments = []
+        all_exact_moments = []
+
+        for noise in noise_levels:
+            reg_parameters = [0]
+
+            dir = self.title + "noise: ".format(noise)
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+
+            for reg_param in reg_parameters:
+                print("reg parameter ", reg_param)
+                info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
+                                                              reg_param=reg_param, orth_method=orth_method,
+                                                              regularization=regularization)
+                n_moments = len(self.exact_moments)
+
+                original_evals, evals, threshold, L = info
+                new_moments = np.matmul(moments_with_noise, L.T)
+
+
+
+                moments_data = np.empty((n_moments, 2))
+                moments_data[:, 0] = new_moments
+                moments_data[:, 1] = noise ** 2
+                moments_data[0, 1] = 1.0
+
+                print("moments data ", moments_data)
+
+                result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data,
+                                                     tol=1e-7, reg_param=reg_param, regularization=regularization)
+
+                m = mlmc.tool.simple_distribution.compute_exact_moments(self.moments_fn, distr_obj.density)
+                e_m = mlmc.tool.simple_distribution.compute_exact_moments(self.moments_fn, self.pdf)
+                moments.append(m)
+                all_exact_moments.append(e_m)
+
+                # if reg_param > 0:
+                #     distr_obj._analyze_reg_term_jacobian([reg_param])
+
+                # result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data,
+                #                                      tol=1e-10, reg_param=reg_param, prior_distr_obj=distr_obj)
+
+                print("DISTR OBJ reg param {}, MULTIPLIERS {}".format(reg_param, distr_obj.multipliers))
+
+                distr_plot.add_distribution(distr_obj,
+                                            label="n: {:0.4g}, th: {}, alpha: {:0.4g},"
+                                                  " KL_div: {:0.4g}".format(noise, threshold, reg_param, result.kl),
+                                           size=n_moments, mom_indices=plot_mom_indices, reg_param=reg_param)
+
+                results.append(result)
+
+                final_jac = distr_obj.final_jac
+
+                eval, evec = np.linalg.eigh(final_jac)
+                eval[::-1].sort()
+
+
+                cond_num = distr_obj.cond_number
+                eval_plot_obj.add_values(eval, label=r'$\sigma$' + "={:0.3g}, ".format(noise) +
+                                               r'$\kappa_2$' + "={:0.4g}".format(cond_num))
+
+
+                print("original evals ", original_evals)
+
+                self.eigenvalues_plot.add_values(original_evals, threshold=noise**2, label=r'$\sigma$' + "={:0.3g}".format(noise))
+
+                print("final jac ")
+                print(pd.DataFrame(final_jac))
+
+                # print("ORIGINAL COV CENTERED")
+                # print(pd.DataFrame(self._cov_centered))
+                #
+                # M = np.eye(len(self._cov_with_noise[0]))
+                # M[:, 0] = -self._cov_with_noise[:, 0]
+                #
+                # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
+                # print(pd.DataFrame(
+                #     np.linalg.inv(M) @ (
+                #                 np.linalg.inv(L) @ final_jac @ np.linalg.inv(L.T)) @ np.linalg.inv(M.T)))
+                #
+
+        print("FINAL moments ", moments)
+        print("exact moments ", all_exact_moments)
+
+        # for exact, estimated in zip(moments, all_exact_moments):
+        #     print("(exact-estimated)**2", (exact-estimated)**2)
+        #     print("sum(exact-estimated)**2", np.sum((exact - estimated) ** 2))
+
+        distr_plot.show(file="determine_param {}".format(self.title))#file=os.path.join(dir, self.pdfname("_pdf_iexact")))
+        distr_plot.reset()
+
+
+        #self.check_convergence(results)
+
+        self.eigenvalues_plot.show(file=None)#self.pdfname("_eigenvalues"))
+        eval_plot_obj.show(file=None)
+
+        return results
+
+
 
     def determine_regularization_param_tv(self, reg_params=None):
         """
@@ -3531,7 +3666,8 @@ def test_pdf_approx_exact_moments(moments, distribution):
         #tests = [case.plot_KL_div_inexact_reg]
         #tests = [case.plot_KL_div_inexact_reg_mom]
         #tests = [case.plot_KL_div_inexact]
-        #tests = [case.determine_regularization_param]
+        tests = [case.determine_regularization_param]
+        tests = [case.eval_plot]
         # #tests = [case.determine_regularization_param_tv]
         #tests = [case.find_regularization_param]
         #tests = [case.find_regularization_param_tv]
@@ -3657,11 +3793,11 @@ def run_distr():
         # (stats.beta(0.5, 0.5), False) # Looks great
 
         #(stats.norm(loc=0, scale=10), False),
-        #(bd.TwoGaussians(name='two-gaussians'), False),
-        #(bd.FiveFingers(name='five-fingers'), False), # Covariance matrix decomposition failed
-         (bd.Cauchy(name='cauchy'), False),# pass, check exact
+        (bd.TwoGaussians(name='two-gaussians'), False),
+        # (bd.FiveFingers(name='five-fingers'), False), # Covariance matrix decomposition failed
+        #  (bd.Cauchy(name='cauchy'), False),# pass, check exact
         # (bd.Discontinuous(name='discontinuous'), False),
-        # (bd.Abyss(name="abyss"), False),
+        #  (bd.Abyss(name="abyss"), False),
         # # # # # # # # # # # # # # # # # # # #(bd.Gamma(name='gamma'), False) # pass
         # # # # # # # # # # # # # # # # # # # #(stats.norm(loc=1, scale=2), False),
 
@@ -3687,18 +3823,18 @@ def run_distr():
         #(moments.Spline, 10, 10, True),
     ]
 
-    plot_requirements = {
-                         'sqrt_kl': False,
-                         'sqrt_kl_Cr': True,
-                         'tv': False,
-                         'sqrt_tv_Cr': True, # TV
-                         'reg_term': False,
-                         'l2': False,
-                         'barron_diff_mu_line': False,
-                         '1_eig0_diff_mu_line': False}
-
-
-    #test_kl_estimates(mom[0], distribution_list, plot_requirements)
+    # plot_requirements = {
+    #                      'sqrt_kl': False,
+    #                      'sqrt_kl_Cr': True,
+    #                      'tv': True,
+    #                      'sqrt_tv_Cr': True, # TV
+    #                      'reg_term': False,
+    #                      'l2': False,
+    #                      'barron_diff_mu_line': False,
+    #                      '1_eig0_diff_mu_line': False}
+    #
+    #
+    # test_kl_estimates(mom[0], distribution_list, plot_requirements)
     # #test_gauss_degree(mom[0], distribution_list[0], plot_requirements, degrees=[210, 220, 240, 260, 280, 300]) #  degrees=[10, 20, 40, 60, 80, 100], [110, 120, 140, 160, 180, 200]
     # test_gauss_degree(mom[0], distribution_list[0], plot_requirements, degrees=[10, 20, 40, 60, 80, 100])
     for m in mom:
@@ -3859,6 +3995,8 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
     size = 5
     scatter_size = size ** 2
 
+    barron_coef = 2 * b_factor_estimate * np.exp(1)
+
     if plot_mu_to_lambda_lim:
         Y = np.array(l_diffs) * np.array(np.array(eigs)[:, 0]) / np.array(mu_diffs)
         ax, lx = plot_scatter(ax, mu_diffs, Y, title, ('log', 'linear'), color='red')
@@ -3870,7 +4008,6 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
         plot_scatter(ax, mu_diffs, np.array(l_diffs) * np.array(np.array(eigs)[:, 0]), title, ('log', 'log'), color='red', s=scatter_size,
                      )#label="$\\alpha_0|\lambda_0 - \lambda_r|$")
 
-        barron_coef = 2 * b_factor_estimate * np.exp(1)
         plot_scatter(ax, mu_diffs, np.sqrt(np.array(kl_divs) / barron_coef), title, ('log', 'log'), color='blue',
                      s=scatter_size)#, label="$\sqrt{D(\\rho || \\rho_{R}) / C_R}$")
 
@@ -3889,7 +4026,11 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
                               title, ('log', 'log'), color='red', s=scatter_size)
 
         if plot_req['tv']:
-            ax, lx = plot_scatter(ax, mu_diffs, total_vars, title, ('log', 'log'), color='green', s=size**2)
+            # rescale
+            #total_vars = np.array(total_vars) / 10000000
+
+            #ax, lx = plot_scatter(ax, mu_diffs, total_vars, title, ('log', 'log'), color='green', s=size**2)
+            ax, lx = plot_scatter(ax, mu_diffs,  np.sqrt(2 * np.log(np.exp(1)) * np.array(total_vars) ** 2 / barron_coef), title, ('log', 'log'), color='magenta', s=size ** 2)
         #plot_scatter(ax, mu_diffs, Y[:, 1], title, ('log', 'log'), color='blue')
         ax.set_xlabel("$|\mu_0 - \mu_r|$")
         #ax.set_xlabel("$|\lambda_0 - \lambda_r|$")
@@ -3902,7 +4043,6 @@ def kl_estimates(distribution, moments, ax, plot_req, gauss_degree=None):
 
         #ax.plot(lx, lx, color='red', label="raw $1/\\alpha_0$", alpha=0.3)
 
-        barron_coef = 2 * b_factor_estimate * np.exp(1)
 
         # if plot_req['sqrt_kl_Cr']:
         #     plot_scatter(ax, mu_diffs, np.sqrt(np.array(kl_divs) / barron_coef), title, ('log', 'log'),

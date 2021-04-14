@@ -969,7 +969,6 @@ class ArticlePDF(Distribution):
         self.ax_log_density = None
         self.x_lim = None
 
-
         self.fig, self.ax_pdf = plt.subplots(1, 1, figsize=(22, 10))
 
         self.pdf_color = plt.cm.tab10#create_color_bar(5, 'moments', self.ax_pdf)
@@ -1034,10 +1033,15 @@ class ArticlePDF(Distribution):
 
         domain = distr_object.domain
         self.adjust_domain(domain)
+
+        self._plot_borders(self.ax_pdf, color="black", domain=domain)
+
+        domain = self._domain
         X = self._grid(10000, domain=domain)
         Y_pdf = distr_object.density(X)
 
         self.ax_pdf.plot(X, Y_pdf, color=color, label=label, linestyle=linestyle)
+
         self.i_plot += 1
 
     def add_distribution_log(self, distr_object, label=None, color=None, linestyle=None):
@@ -1058,19 +1062,42 @@ class ArticlePDF(Distribution):
 
         domain = distr_object.domain
 
+        self._plot_borders(self.ax_pdf, color="black", domain=np.exp(domain))
+
         self.adjust_domain(domain)
-        X = self._grid(10000, domain=domain)
+        X = self._grid(1000, domain=domain)
         X = np.exp(X)
 
         Y_pdf = distr_object.density_exp(X)
 
+        lim = 0.01  # cl: 0.1, s: 4
+        #lim = 5e-4  # cl: 0.3, s:4
+
+        print("exp(domain) ", np.exp(domain))
+
+        #lim = np.exp(domain)[0]
+
+        print("lim ", lim)
+
+        #lim = np.quantile(X, q=0.1)
+
+        print("lim", lim)
+
         import copy
         X_div = copy.deepcopy(X)
-        X_div[X_div < 0.0005] = 1/X_div[X_div < 0.0005]
+        X_div[X_div < lim] = 1/X_div[X_div < lim]
         X_div = np.array(X_div)
 
         print("Y[:10] ", Y_pdf[:10])
         print("X_div[:10] ", X_div[:10])
+
+        lim_y = 1e-2
+
+        # print("Y_pdf <lim_y ", Y_pdf <lim_y)
+        # print("Y_pdf >= lim_y ", Y_pdf >= lim_y)
+
+        # Y_pdf[Y_pdf <lim_y] = Y_pdf[Y_pdf < lim_y] * X_div[Y_pdf <lim_y]
+        # Y_pdf[Y_pdf >= lim_y] = Y_pdf[Y_pdf >= lim_y] / X_div[Y_pdf >= lim_y]
 
         Y_pdf /= X_div
 
@@ -1309,9 +1336,97 @@ class SamplingPlots(Distribution):
         _show_and_save(self.fig, file, self._title)
 
 
-
-
 class Eigenvalues:
+    """
+    Plot of eigenvalues (of the covariance matrix), several sets of eigenvalues can be added
+    together with error bars and cut-tresholds.
+    Colors are chosen automatically. Slight X shift is used to avoid point overlapping.
+    For log Y scale only positive values are plotted.
+    """
+    def __init__(self, log_y=True, title="Eigenvalues"):
+        matplotlib.rcParams.update({'font.size': 26})
+        matplotlib.rcParams.update({'lines.markersize': 11})
+        self._ylim = None
+        self.log_y = log_y
+        self.fig = plt.figure(figsize=(15, 10))
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.fig.suptitle(title)
+        self.i_plot = 0
+        self.title = title
+        self._col = ["blue", "orange", "green"]
+        self.colormap = self.colors#plt.cm.tab20
+
+
+        self.ax.set_xlabel("i-th eigenvalue")
+
+        # index of eignevalues dataset
+        if self.log_y:
+            self.ax.set_yscale('log')
+            #self.ax.set_yscale('symlog')
+
+    def colors(self, i):
+        return self._col[i]
+
+    def add_values(self, values, errors=None, threshold=None, label="", color=None):
+        """
+        Add set of eigenvalues into the plot.
+        :param values: array (n,); eigen values in increasing or decreasing ordred, automatically flipped to decreasing.
+        :param errors: array (n,); corresponding std errors
+        :param threshold: horizontal line marking noise level or cut-off eigen value
+        :return:
+        """
+        print("add values")
+        assert not errors or len(values) == len(errors)
+        if values[0] < values[-1]:
+            values = np.flip(values)
+            if errors is not None:
+                errors = np.flip(errors)
+            #threshold = len(values) - 1 - threshold
+
+        # if self.log_y:
+        #     # plot only positive values
+        #     i_last_positive = len(values) - np.argmax(np.flip(values) > 0)
+        #     values = values[:i_last_positive + 1]
+        #     a, b = np.min(values), np.max(values)
+        #     self.adjust_ylim( (a / ((b/a)**0.05), b * (b/a)**0.05) )
+        # else:
+        #     a, b = np.min(values), np.max(values)
+        #     self.adjust_ylim( (a - 0.05 * (b - a), b + 0.05 * (b - a)) )
+
+        color = self.colormap(self.i_plot)#'C{}'.format(self.i_plot)
+        X = np.arange(len(values)) + self.i_plot * 0.1
+        if errors is None:
+            self.ax.scatter(X, values, label=label, color=color)
+        else:
+            self.ax.errorbar(X, values, yerr=errors, fmt='o', color=color, ecolor=color, capthick=2, label=label)
+        if threshold is not None:
+            print("threshold ", threshold)
+            self.ax.axhline(y=threshold, color=color)
+        self.i_plot += 1
+
+    def add_linear_fit(self, values):
+        pass
+
+    def show(self, file=""):
+        """
+        Show the plot or save to file.
+        :param file: filename base, None for show.
+        :return:
+        """
+        self.ax.legend(title="moments std")
+        _show_and_save(self.fig, file, self.title)
+
+    def adjust_ylim(self, ylim):
+        """
+        Enlarge common domain by given bounds.
+        :param value: [lower_bound, upper_bound]
+        """
+        if self._ylim is None:
+            self._ylim = ylim
+        else:
+            self._ylim = [min(self._ylim[0], ylim[0]), max(self._ylim[1], ylim[1])]
+
+class EvalPlot:
     """
     Plot of eigenvalues (of the covariance matrix), several sets of eigenvalues can be added
     together with error bars and cut-tresholds.
@@ -1332,7 +1447,7 @@ class Eigenvalues:
         if self.log_y:
             self.ax.set_yscale('log')
 
-    def add_values(self, values, errors=None, threshold=None, label=""):
+    def add_values(self, values, errors=None, threshold=None, label="", color=None):
         """
         Add set of eigenvalues into the plot.
         :param values: array (n,); eigen values in increasing or decreasing ordred, automatically flipped to decreasing.
@@ -1340,31 +1455,32 @@ class Eigenvalues:
         :param threshold: horizontal line marking noise level or cut-off eigen value
         :return:
         """
-        assert not errors or len(values) == len(errors)
-        if values[0] < values[-1]:
-            values = np.flip(values)
-            if errors is not None:
-                errors = np.flip(errors)
-            threshold = len(values) - 1 - threshold
+        # assert not errors or len(values) == len(errors)
+        # if values[0] < values[-1]:
+        #     values = np.flip(values)
+        #     if errors is not None:
+        #         errors = np.flip(errors)
+        #     threshold = len(values) - 1 - threshold
+        #
+        # if self.log_y:
+        #     # plot only positive values
+        #     i_last_positive = len(values) - np.argmax(np.flip(values) > 0)
+        #     values = values[:i_last_positive + 1]
+        #     a, b = np.min(values), np.max(values)
+        #     self.adjust_ylim( (a / ((b/a)**0.05), b * (b/a)**0.05) )
+        # else:
+        #     a, b = np.min(values), np.max(values)
+        #     self.adjust_ylim( (a - 0.05 * (b - a), b + 0.05 * (b - a)) )
 
-        if self.log_y:
-            # plot only positive values
-            i_last_positive = len(values) - np.argmax(np.flip(values) > 0)
-            values = values[:i_last_positive + 1]
-            a, b = np.min(values), np.max(values)
-            self.adjust_ylim( (a / ((b/a)**0.05), b * (b/a)**0.05) )
-        else:
-            a, b = np.min(values), np.max(values)
-            self.adjust_ylim( (a - 0.05 * (b - a), b + 0.05 * (b - a)) )
+        if color is None:
+            color = self.colormap(self.i_plot)#'C{}'.format(self.i_plot)
 
-        color = self.colormap(self.i_plot)#'C{}'.format(self.i_plot)
-        X = np.arange(len(values)) + self.i_plot * 0.1
-        if errors is None:
-            self.ax.scatter(X, values, label=label, color=color)
-        else:
-            self.ax.errorbar(X, values, yerr=errors, fmt='o', color=color, ecolor=color, capthick=2, label=label)
-        if threshold is not None:
-            self.ax.axhline(y=threshold, color=color)
+        X = np.arange(len(values))
+        self.ax.scatter(X, values, label=label, color=color)
+        # else:
+        #     self.ax.errorbar(X, values, yerr=errors, fmt='o', color=color, ecolor=color, capthick=2, label=label)
+        # if threshold is not None:
+        #     self.ax.axhline(y=threshold, color=color)
         self.i_plot += 1
 
     def add_linear_fit(self, values):
@@ -1376,7 +1492,7 @@ class Eigenvalues:
         :param file: filename base, None for show.
         :return:
         """
-        self.ax.legend(title="Noise level")
+        self.ax.legend()#title="Noise level")
         _show_and_save(self.fig, file, self.title)
 
     def adjust_ylim(self, ylim):
@@ -1576,7 +1692,6 @@ class Spline_plot:
         self.bspline_density_y = []
         self.exact_density_x = None
         self.exact_density_y = None
-
 
     def add_indicator(self, values):
         """
