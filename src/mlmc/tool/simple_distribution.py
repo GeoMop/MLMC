@@ -6,11 +6,14 @@ import mlmc.tool.plot
 from abc import ABC, abstractmethod
 from numpy import testing
 import pandas as pd
-
+import warnings
+warnings.simplefilter("ignore")
 
 EXACT_QUAD_LIMIT = 1000
 GAUSS_DEGREE = 70
 HUBER_MU = 0.001
+
+INT_TOL = 1e-15
 
 
 class SimpleDistribution:
@@ -18,7 +21,7 @@ class SimpleDistribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=30, regularization=None):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), reg_param=0, max_iter=50, regularization=None):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -28,6 +31,8 @@ class SimpleDistribution:
         # Family of moments basis functions.
         self.moments_basis = moments_obj
         self.regularization = regularization
+
+        self._use_quad = False
 
         # Moment evaluation function with bounded number of moments and their domain.
         self.moments_fn = None
@@ -118,15 +123,18 @@ class SimpleDistribution:
                                       jac=self._calculate_gradient,
                                       hess=self._calculate_jacobian_matrix,
                                       options={'tol': tol, 'xtol': tol,
-                                               'gtol': tol, 'disp': True, 'maxiter': max_it}
+                                               'gtol': tol, 'disp': False, 'maxiter': max_it}
                                       # options={'disp': True, 'maxiter': max_it}
                                       )
 
 
         self.multipliers = result.x
+
+        #print("result.jac ", result.jac)
+
         jac_norm = np.linalg.norm(result.jac)
-        print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
-           self.approx_size, result.nit, tol, jac_norm, result.message))
+        # print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
+        #    self.approx_size, result.nit, tol, jac_norm, result.message))
 
         jac = self._calculate_jacobian_matrix(self.multipliers)
         self.final_jac = jac
@@ -160,7 +168,7 @@ class SimpleDistribution:
         # Fix normalization
         moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
         m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1], epsabs=self._quad_tolerance)[0]
-        print("moment[0]: {} m0: {}".format(moment_0, m0))
+        #print("moment[0]: {} m0: {}".format(moment_0, m0))
 
         self.multipliers[0] += np.log(moment_0)
 
@@ -193,10 +201,10 @@ class SimpleDistribution:
         power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
         power = np.minimum(np.maximum(power, -200), 200)
 
-        if type(power).__name__ == 'ArrayBox':
-            power = power._value
-            if type(power).__name__ == 'ArrayBox':
-                power = power._value
+        # if type(power).__name__ == 'ArrayBox':
+        #     power = power._value
+        #     if type(power).__name__ == 'ArrayBox':
+        #         power = power._value
 
         return np.exp(power)
 
@@ -559,12 +567,18 @@ class SimpleDistribution:
         :return: float
         """
         self.multipliers = multipliers
-        self._update_quadrature(multipliers, True)
 
-        self._iter_moments.append(self.moments_by_quadrature())
+        if self._use_quad:
+            self._update_quadrature(multipliers, True)
+            q_density = self._density_in_quads(multipliers)
+            integral = np.dot(q_density, self._quad_weights)
+            self._iter_moments.append(self.moments_by_quadrature())
+        else:
+            integral = sc.integrate.quad(self.density, self.domain[0], self.domain[1],
+                                       epsabs=INT_TOL)[0]
 
-        q_density = self._density_in_quads(multipliers)
-        integral = np.dot(q_density, self._quad_weights)
+            self._iter_moments.append(self.moments_by_quadrature())
+
         sum = np.sum(self.moment_means * multipliers / self._moment_errs)
         fun = sum + integral
 
@@ -574,9 +588,9 @@ class SimpleDistribution:
             fun = fun + np.abs(fun) * self._penalty_coef * penalty
 
         #reg_term = np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
-        if self.regularization is not None:
-            print("regularization functional ", self.reg_param * self.regularization.functional_term(self))
-            fun += self.reg_param * self.regularization.functional_term(self)
+        # if self.regularization is not None:
+        #     print("regularization functional ", self.reg_param * self.regularization.functional_term(self))
+        #     fun += self.reg_param * self.regularization.functional_term(self)
         # reg_term = np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
         # fun += self.reg_param * reg_term
         self.functional_value = fun
@@ -630,9 +644,22 @@ class SimpleDistribution:
         :return: array, shape (n_moments,)
         """
         self._update_quadrature(multipliers)
-        q_density = self._density_in_quads(multipliers)
-        q_gradient = self._quad_moments.T * q_density
-        integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
+        if self._use_quad:
+            # Numerical integration
+            q_density = self._density_in_quads(multipliers)
+            q_gradient = self._quad_moments.T * q_density
+            integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
+        else:
+            integral = np.zeros(self.moments_fn.size)
+            for i in range(self.moments_fn.size):
+                def density_der(x):
+                    moms = self.eval_moments(x)
+                    power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
+                    power = np.minimum(np.maximum(power, -200), 200)
+                    return np.exp(power) * moms[:, i]
+                integral[i] = sc.integrate.quad(density_der, self.domain[0], self.domain[1], epsabs=INT_TOL)[0]
+
+            self._iter_moments.append(integral)
 
         if self._penalty_coef != 0:
             end_diff = np.dot(self._end_point_diff, multipliers)
@@ -641,7 +668,6 @@ class SimpleDistribution:
 
             gradient = self.moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
         else:
-
             gradient = self.moment_means / self._moment_errs - integral# + np.abs(fun) * self._penalty_coef * penalty
 
         #print("gradient ", gradient)
@@ -725,7 +751,17 @@ class SimpleDistribution:
         """
         # jacobian_matrix_hess = hessian(self._calculate_functional)(multipliers)
         # print(pd.DataFrame(jacobian_matrix_hess))
-        jacobian_matrix = self._calc_jac()
+        if self._use_quad:
+            jacobian_matrix = self._calc_jac()
+        else:
+            jacobian_matrix = np.zeros((self.moments_fn.size, self.moments_fn.size))
+            for i in range(self.moments_fn.size):
+                for j in range(i + 1):
+                    def fn(x):
+                        moments = self.moments_fn.eval_all(x)[0, :]
+                        density_value = self.density(x)
+                        return moments[i] * moments[j] * density_value  # * density(x)
+                    jacobian_matrix[j][i] = jacobian_matrix[i][j] = integrate.quad(fn, self.domain[0], self.domain[1], epsabs=INT_TOL)[0]
 
         if self._penalty_coef != 0:
             end_diff = np.dot(self._end_point_diff, multipliers)
@@ -916,9 +952,7 @@ def compute_exact_moments(moments_fn, density, tol=1e-10):
     for i in range(moments_fn.size):
         def fn(x):
              return moments_fn.eval(i, x) * density(x)
-
         integral[i] = integrate.quad(fn, a, b, epsabs=tol)[0]
-
     return integral
 
 
@@ -1112,31 +1146,27 @@ def compute_exact_cov(moments_fn, density, tol=1e-10, reg_param=0, domain=None):
     integral = np.zeros((moments_fn.size, moments_fn.size))
     int_reg = np.zeros((moments_fn.size, moments_fn.size))
 
-    print("a_2: {}, b_2: {}".format(a_2, b_2))
+    #print("a_2: {}, b_2: {}".format(a_2, b_2))
 
     for i in range(moments_fn.size):
         for j in range(i+1):
 
-            def fn_moments_der(x):
-                moments = moments_fn.eval_all_der(x, degree=2)[0, :]
-                return moments[i] * moments[j]
+            # def fn_moments_der(x):
+            #     moments = moments_fn.eval_all_der(x, degree=2)[0, :]
+            #     return moments[i] * moments[j]
 
             def fn(x):
                 moments = moments_fn.eval_all(x)[0, :]
-                #print("moments ", moments)
-
                 density_value = density(x)
-                if type(density_value).__name__ == 'ArrayBox':
-                    density_value = density_value._value
-
                 return moments[i] * moments[j] * density_value # * density(x)
 
             integral[j][i] = integral[i][j] = integrate.quad(fn, a, b, epsabs=tol)[0]
 
-            int_2 = integrate.quad(fn_moments_der, a_2, b_2, epsabs=tol)[0]
-            int_reg[j][i] = int_reg[i][j] = int_2
+            # int_2 = integrate.quad(fn_moments_der, a_2, b_2, epsabs=tol)[0]
+            # int_reg[j][i] = int_reg[i][j] = int_2
 
-    int_reg = 2 * reg_param * int_reg
+    #int_reg = 2 * reg_param * int_reg
+    #print("integral.shape ", integral.shape)
     return integral, int_reg
 
 
@@ -1739,9 +1769,9 @@ def print_cumul(eval):
 
 
 def _cut_eigenvalues(cov_center, tol):
-    print("CUT eigenvalues")
+    #print("CUT eigenvalues")
 
-    print("tol ", tol)
+    #print("tol ", tol)
 
     eval, evec = np.linalg.eigh(cov_center)
 
@@ -1751,7 +1781,7 @@ def _cut_eigenvalues(cov_center, tol):
     #print(pd.DataFrame(evec))
 
     original_eval = eval
-    print("original eval ", eval)
+    #print("original eval ", eval)
 
     #tol = None
 
@@ -1762,14 +1792,12 @@ def _cut_eigenvalues(cov_center, tol):
             # treshold by statistical test of same slopes of linear models
             threshold, fixed_eval = detect_treshold_slope_change(aux_eval, log=True)
             threshold = np.argmax(aux_eval - fixed_eval[0] > 0)
-            print("threshold ", threshold)
+            #print("threshold ", threshold)
             threshold = len(eval) - threshold
-            print("threshold ",  threshold)
+            #print("threshold ",  threshold)
     else:
         # threshold given by eigenvalue magnitude
         threshold = np.argmax(eval > tol)
-
-
 
     # cut eigen values under treshold
     new_eval = eval[threshold:]
@@ -2690,8 +2718,8 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     M = np.eye(moments.size)
     M[:, 0] = -cov[:, 0]
 
-    print("cov shape ", cov.shape)
-    print("M.shape ", M.shape)
+    # print("cov shape ", cov.shape)
+    # print("M.shape ", M.shape)
 
     cov_center = M @ cov @ M.T
 
