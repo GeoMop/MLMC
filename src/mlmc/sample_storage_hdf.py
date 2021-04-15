@@ -4,6 +4,8 @@ from typing import List
 from mlmc.sample_storage import SampleStorage
 from mlmc.quantity_spec import QuantitySpec, ChunkSpec
 import mlmc.tool.hdf5 as hdf
+import warnings
+warnings.simplefilter("ignore", np.VisibleDeprecationWarning)
 
 
 class SampleStorageHDF(SampleStorage):

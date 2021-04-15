@@ -662,6 +662,7 @@ class QuantityStorage(Quantity):
         :return: Array[M, chunk size, 2]
         """
         level_chunk = self._storage.sample_pairs_level(chunk_spec)  # Array[M, chunk size, 2]
+        #level_chunk = np.log(level_chunk)
         assert self.qtype.size() == level_chunk.shape[0]
         return level_chunk
 

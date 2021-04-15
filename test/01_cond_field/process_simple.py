@@ -36,7 +36,7 @@ class ProcessSimple:
         self.n_moments = 25
         # Number of MLMC levels
 
-        step_range = [1, 0.005]
+        step_range = [1, 0.0055]
         # step   - elements
         # 0.1    - 262
         # 0.08   - 478
@@ -70,28 +70,95 @@ class ProcessSimple:
         """
         assert os.path.isdir(self.work_dir)
         mlmc_estimators = {}
-        n_levels = [0, 1, 2,3, 5] # 0 - ref MC 100k samples
-        #n_levels = [0, 1, 2]
+        n_levels = [0, 1, 2, 3, 5] # 0 - ref MC 100k samples
+        #n_levels = [5]
         #n_levels = [0, 3, 5]
-        #n_levels = [3, 5]
+        #n_levels = [1, 2]
+        n_levels = [0]
         #for nl in [ 1,3,5,7,9]:
 
         true_domain = self.get_largest_domain(n_levels)
 
         #n_levels = [1]
+        step_range = [1, 0.0055]
 
         for nl in n_levels:  # high resolution fields
-            print("LEVELS ", nl)
+            #print("LEVELS ", nl)
             estimator = self.create_estimator(nl, true_domain=true_domain)
             mlmc_estimators[nl] = estimator
 
+            # level_parameters = ProcessSimple.determine_level_parameters(nl, step_range)
+            # print("level parameters ", level_parameters)
+            #print("nl: {}, N collected: {}".format(nl, estimator._sample_storage.get_n_collected()))
+
+            # if nl > 0:
+            #     str_n_col = ""
+            #     n_col = estimator._sample_storage.get_n_collected()
+            #     #print("stimator._sample_storage.get_n_ops() ", estimator._sample_storage.get_n_ops())
+            #     #print("cost ", np.sum(estimator._sample_storage.get_n_ops() * np.array(n_col)))
+            #     for i in range(5):
+            #         if i >= len(n_col):
+            #             str_n_col += " & "
+            #         elif i == len(n_col)-1:
+            #             str_n_col += str(n_col[i])
+            #         else:
+            #             str_n_col += str(n_col[i]) + " & "
+            #     print("str n col ", str_n_col)
+
+
         #self.analyze_times(mlmc_estimators)
-        #self.plot_moments(mlmc_estimators)
+        self.plot_moments(mlmc_estimators)
+        #self.get_costs(mlmc_estimators)
         self.plot_distr(mlmc_estimators, domain=true_domain)
         #self.plot_distr_log(mlmc_estimators, domain=true_domain)
 
-    def analyze_times(self, mlmc_estimators):
-        pass
+
+    def get_costs(self, mlmc_estimators):
+        for nl, estimator in mlmc_estimators.items():
+            if nl > 0:
+                print("nl: {}".format(nl))
+                str_n_col = ""
+
+                # sample_storage = SampleStorageHDF(
+                #     file_path=os.path.join(self.work_dir, "n_ops/L{}/mlmc_{}.hdf5".format(nl, nl)))
+                n_ops = estimator._sample_storage.get_n_ops()
+
+                print("n ops ", n_ops)
+                if isinstance(n_ops[0], np.ndarray):
+                    new_n_ops = []
+                    for nop in n_ops:
+                        nop = np.squeeze(nop)
+                        if len(nop) > 0:
+                            # print("nop ", nop)
+                            new_n_ops.append(nop[..., 0] / nop[..., 1])
+                    n_ops = new_n_ops
+
+                print("n ops ", n_ops)
+                n_collected = estimator._sample_storage.get_n_collected()
+                print("n collected ", n_collected)
+
+                costs = n_collected * np.array(n_ops)
+
+
+                n_col = costs
+                #print("stimator._sample_storage.get_n_ops() ", estimator._sample_storage.get_n_ops())
+                #print("cost ", np.sum(estimator._sample_storage.get_n_ops() * np.array(n_col)))
+                for i in range(5):
+                    if i >= len(n_col):
+                        str_n_col += " & "
+                    elif i == len(n_col)-1:
+                        str_n_col += "{:0.0f}".format(n_col[i])
+                    else:
+                        str_n_col += "{:0.0f} & ".format(n_col[i])
+
+                str_n_col += " & {:0.0f}".format(np.sum(costs))
+
+                print("str n col ", str_n_col)
+
+                # print("level costs ", costs)
+                # print("total cost ", np.sum(costs))
+                print("##################################")
+
 
     def plot_moments(self, mlmc_estimators):
         moments_plot = mlmc.tool.plot.MomentsPlots(
@@ -114,10 +181,10 @@ class ProcessSimple:
 
             print("moments level max vars ", np.max(moments_mean.l_vars, axis=1))
 
-
             print("est moments ", est_moments)
             print("est_vars ", est_vars)
             print("np.max(est_vars) ", np.max(est_vars))
+        #exit()
 
         moments_plot.show(None)
         moments_plot.show(file=os.path.join(self.work_dir, "{}_moments".format(self.n_moments)))
@@ -139,7 +206,8 @@ class ProcessSimple:
                     domain = estimator._moments_fn.domain
 
                 ref_distr_obj = self.construct_density(estimator, tol=tol)
-                distr_plot.add_distribution(ref_distr_obj, label="MC", color="black", linestyle=":")
+                distr_plot.add_distribution(ref_distr_obj, label="ref" + ", M={}".format(len(ref_distr_obj.multipliers)),
+                                            color="black", linestyle=":")
             else:
                 distr_obj = self.construct_density(estimator, tol=tol)
 
@@ -147,11 +215,11 @@ class ProcessSimple:
                     kl_div = mlmc.tool.simple_distribution.KL_divergence(ref_distr_obj.density, distr_obj.density, *domain)
                     distr_plot.add_distribution(distr_obj, label="L={}, ".format(nl) +
                                                                  r'$D$' +
-                                                                 "={:0.4g}".format(kl_div))
+                                                                 "={:0.1e}".format(kl_div) + ", M={}".format(len(distr_obj.multipliers)))
                 else:
                     distr_plot.add_distribution(distr_obj, label="L={} ".format(nl))
 
-            if nl == 1:# and len(mlmc_estimators) == 1:
+            if nl == 0:# and len(mlmc_estimators) == 1:
                 samples = estimator.get_level_samples(level_id=0)[..., 0]
                 distr_plot.add_raw_samples(np.squeeze(samples))
 
@@ -175,23 +243,22 @@ class ProcessSimple:
                     domain = estimator._moments_fn.domain
 
                 ref_distr_obj = self.construct_density(estimator, tol=tol)
+                distr_plot.add_distribution_log(ref_distr_obj, label="MC", color="black", linestyle=":")
             else:
                 distr_obj = self.construct_density(estimator, tol=tol)
 
                 print("domain ", domain)
 
                 # domain = [0.01, domain[1]]
-
-
                 if ref_distr_obj is not None:
                     kl_div = mlmc.tool.simple_distribution.KL_divergence_log(ref_distr_obj.density_exp, distr_obj.density_exp, *domain)
-                    distr_plot.add_distribution_log(distr_obj, label="L={} ".format(nl) +
-                                                                 r'$D(\rho \Vert \rho_{R})$' +
-                                                                 "={:0.4g}".format(kl_div))
+                    distr_plot.add_distribution_log(distr_obj, label="L={}, ".format(nl) +
+                                                                 r'$D$' + "={:0.1e}".format(kl_div) +
+                                                                     ", M={}".format(len(distr_obj.multipliers)))
                 else:
                     distr_plot.add_distribution(distr_obj, label="L={} ".format(nl))
 
-            if nl == 1:# and len(mlmc_estimators) == 1:
+            if nl == 0:# and len(mlmc_estimators) == 1:
                 samples = estimator.get_level_samples(level_id=0)[..., 0]
                 #distr_plot.add_raw_samples(np.squeeze(samples))
                 distr_plot.add_raw_samples_log(np.squeeze(samples))
@@ -245,11 +312,10 @@ class ProcessSimple:
 
         true_domains = np.array(true_domains)
 
-
         print("true domains ", true_domains)
 
         true_domain = [np.min(true_domains[:, 0]), np.max(true_domains[:, 1])]
-        true_domain = [np.max(true_domains[:, 0]), np.min(true_domains[:, 1])]
+        #true_domain = [np.max(true_domains[:, 0]), np.min(true_domains[:, 1])]
         #true_domain = [np.mean(true_domains[:, 0]), np.mean(true_domains[:, 1])]
         print("true domain ", true_domain)
         return true_domain

@@ -13,7 +13,9 @@ distributions = [stats.norm(loc=0, scale=10),
                      bd.FiveFingers(name='five_fingers'),
                      bd.Cauchy(name='cauchy'),
                      bd.Discontinuous(name='discontinuous'),
-                     bd.Abyss(name="abyss")]
+                     bd.Abyss(name="abyss"),
+                    bd.ZeroValue(name=r'$\rho^4$')
+                 ]
 
 def plot_distributions():
 
@@ -39,7 +41,7 @@ def plot_distr(x, density, distr):
 
     file = name + ".pdf"
     print("file ", file)
-    plt.savefig(file)
+    plt.savefig(file, bbox_inches='tight')
     plt.show()
 
 
@@ -56,8 +58,6 @@ def plot_distr(x, density, distr):
 #         else:
 #             domain = distr.ppf([quantile, 1-quantile])
 #         x = np.linspace(domain[0], domain[1], 10000)
-#
-#
 #         ax.plot(x, distr.pdf(x), color="black")
 #
 #         ax.set_ylabel(r'$x$')

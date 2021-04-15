@@ -9,7 +9,7 @@ import pandas as pd
 
 
 EXACT_QUAD_LIMIT = 1000
-GAUSS_DEGREE = 100
+GAUSS_DEGREE = 70
 HUBER_MU = 0.001
 
 
@@ -59,7 +59,9 @@ class SimpleDistribution:
         # Degree of Gauss quad to use on every subinterval determined by adaptive quad.
         self._gauss_degree = GAUSS_DEGREE
         # Panalty coef for endpoint derivatives
-        self._penalty_coef = 0#1
+        self._penalty_coef = 0#.001
+
+        self._iter_moments = []
 
         #self._reg_term_jacobian = None
 
@@ -83,7 +85,7 @@ class SimpleDistribution:
         else:
             self._multipliers = multipliers
 
-    def estimate_density_minimize(self, tol=1e-7, multipliers=None):
+    def estimate_density_minimize(self, tol=1e-7, multipliers=None, reg_param=None):
         """
         Optimize density estimation
         :param tol: Tolerance for the nonlinear system residual, after division by std errors for
@@ -200,6 +202,9 @@ class SimpleDistribution:
 
     def density_log(self, value):
         return np.log(self.density(value))
+
+    def density_exp(self, value):
+        return self.density(np.log(value))
 
     # def mult_mom(self, value):
     #     moms = self.eval_moments(value)
@@ -555,6 +560,9 @@ class SimpleDistribution:
         """
         self.multipliers = multipliers
         self._update_quadrature(multipliers, True)
+
+        self._iter_moments.append(self.moments_by_quadrature())
+
         q_density = self._density_in_quads(multipliers)
         integral = np.dot(q_density, self._quad_weights)
         sum = np.sum(self.moment_means * multipliers / self._moment_errs)
@@ -572,8 +580,8 @@ class SimpleDistribution:
         # reg_term = np.sum(self._quad_weights * (np.dot(self._quad_moments_2nd_der, self.multipliers) ** 2))
         # fun += self.reg_param * reg_term
         self.functional_value = fun
-        print("functional value ", fun)
-        print("self multipliers ", self.multipliers)
+        # print("functional value ", fun)
+        # print("self multipliers ", self.multipliers)
 
         return fun
 
@@ -1255,12 +1263,13 @@ def KL_divergence(prior_density, posterior_density, a, b):
     """
     def integrand(x):
         # prior
-        p = prior_density(x)
+        p = max(prior_density(x), 1e-300)
         # posterior
         #print("p ", p)
         q = max(posterior_density(x), 1e-300)
         #print("q ", q)
         # modified integrand to provide positive value even in the case of imperfect normalization
+        #print("p * np.log(p / q) - p + q ", p * np.log(p / q) - p + q)
         return p * np.log(p / q) - p + q
 
     value = integrate.quad(integrand, a, b)#, epsabs=1e-10)
@@ -1268,6 +1277,34 @@ def KL_divergence(prior_density, posterior_density, a, b):
     return value[0]
     #return max(value[0], 1e-10)
 
+
+def KL_divergence_log(prior_density, posterior_density, a, b):
+    """
+    Compute D_KL(P | Q) = \int_R P(x) \log( P(X)/Q(x)) \dx
+    :param prior_density: P
+    :param posterior_density: Q
+    :return: KL divergence value
+    """
+    lim = 0.01
+    #lim = np.exp(a)
+    def integrand(x):
+        x = np.exp(x)
+        x_div = x
+        if x_div < lim:
+            x_div = 1/x_div
+
+        # prior
+        p = prior_density(x)/x_div
+        # posterior
+        #print("p ", p)
+        q = max(posterior_density(x)/x_div, 1e-300)
+        #print("q ", q)
+        # modified integrand to provide positive value even in the case of imperfect normalization
+        return p * np.log(p / q) - p + q
+
+    value = integrate.quad(integrand, a, b)#, epsabs=1e-10)
+
+    return value[0]
 
 def L2_distance(prior_density, posterior_density, a, b):
     """
@@ -1708,19 +1745,31 @@ def _cut_eigenvalues(cov_center, tol):
 
     eval, evec = np.linalg.eigh(cov_center)
 
-    print("original evec ")
-    print(pd.DataFrame(evec))
+    #tol = tol **2
+    #tol = 0
+    #print("original evec ")
+    #print(pd.DataFrame(evec))
 
     original_eval = eval
     print("original eval ", eval)
 
+    #tol = None
+
+    threshold = 0
     if tol is None:
-        # treshold by statistical test of same slopes of linear models
-        threshold, fixed_eval = detect_treshold_slope_change(eval, log=True)
-        threshold = np.argmax(eval - fixed_eval[0] > 0)
+        if len(eval) > 1:
+            aux_eval = eval#np.flip(eval)
+            # treshold by statistical test of same slopes of linear models
+            threshold, fixed_eval = detect_treshold_slope_change(aux_eval, log=True)
+            threshold = np.argmax(aux_eval - fixed_eval[0] > 0)
+            print("threshold ", threshold)
+            threshold = len(eval) - threshold
+            print("threshold ",  threshold)
     else:
         # threshold given by eigenvalue magnitude
         threshold = np.argmax(eval > tol)
+
+
 
     # cut eigen values under treshold
     new_eval = eval[threshold:]
@@ -1832,7 +1881,7 @@ def my_floor(a, precision=0):
 
 
 # def _pca(cov_center, tol):
-#     from np import ma
+#     from numpy import ma
 #     eval, evec = np.linalg.eigh(cov_center)
 #
 #     original_eval = eval
@@ -2640,11 +2689,15 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     # centered covariance
     M = np.eye(moments.size)
     M[:, 0] = -cov[:, 0]
+
+    print("cov shape ", cov.shape)
+    print("M.shape ", M.shape)
+
     cov_center = M @ cov @ M.T
 
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print("cov center ")
-        print(pd.DataFrame(cov_center))
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+    #     print("cov center ")
+    #     print(pd.DataFrame(cov_center))
 
     projection_matrix = None
 

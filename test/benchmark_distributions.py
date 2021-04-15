@@ -151,8 +151,8 @@ class Discontinuous(st.rv_continuous):
         return y
 
 
-class Rho4(st.rv_continuous):
-    domain = [0, 1]
+class ZeroValue(st.rv_continuous):
+    domain = [-1, 1]
 
     def _pdf(self, x):
         if isinstance(x, (list, np.ndarray)):
@@ -228,25 +228,20 @@ class Abyss(st.rv_continuous):
         return y
 
 
-def test_rho4():
-    rho4 = Rho4()
+def test_zero_value():
+    zero_value = ZeroValue()
 
-    assert np.isclose(integrate.quad(rho4._pdf, 0, 1)[0], 1)
+    assert np.isclose(integrate.quad(zero_value._pdf, 0, 1)[0], 1)
 
-    domain = rho4.ppf([0.001, 0.999])
-    print("domain ", domain)
+    domain = zero_value.ppf([0.001, 0.999])
     a = np.random.uniform(domain[0], domain[1], 1)
     b = np.random.uniform(domain[0], domain[1], 1)
-
-    print("ab.cdf(b) - ab.cdf(a) ", rho4.cdf(b) - rho4.cdf(a))
-    print("integrate.quad(ab.pdf, a, b)[0] ", integrate.quad(rho4.pdf, a, b)[0])
-
-    assert np.isclose(rho4.cdf(b) - rho4.cdf(a), integrate.quad(rho4.pdf, a, b)[0], atol=1e-1)
+    assert np.isclose(zero_value.cdf(b) - zero_value.cdf(a), integrate.quad(zero_value.pdf, a, b)[0], atol=1e-1)
 
     size = 1000
-    values = rho4.rvs(size=size)
+    values = zero_value.rvs(size=size)
     x = np.linspace(0, 1, size)
-    plt.plot(x, rho4.pdf(x), 'r-', alpha=0.6, label='rho4 pdf')
+    plt.plot(x, zero_value.pdf(x), 'r-', alpha=0.6, label='rho4 pdf')
     plt.hist(values, bins=1000, density=True, alpha=0.2)
     plt.legend()
     plt.show()
@@ -255,7 +250,7 @@ def test_rho4():
     ecdf = ECDF(values)
     x = np.linspace(0, 1, size)
     plt.plot(x, ecdf(x), label="ECDF")
-    plt.plot(x, rho4.cdf(x), 'r--', alpha=0.6, label='rho4 cdf')
+    plt.plot(x, zero_value.cdf(x), 'r--', alpha=0.6, label='rho4 cdf')
 
     plt.legend()
     plt.show()
@@ -437,7 +432,7 @@ def test_discountinuous():
 if __name__ == "__main__":
     # test_cauchy()
     # test_gamma()
-    test_rho4()
+    test_zero_value()
     #test_five_fingers()
     #test_two_gaussians()
     #test_discountinuous()

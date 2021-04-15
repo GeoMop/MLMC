@@ -974,7 +974,6 @@ class ArticlePDF(Distribution):
         self.pdf_color = plt.cm.tab10#create_color_bar(5, 'moments', self.ax_pdf)
         x_axis_label = quantity_name
 
-
         # PDF axes
         self.ax_pdf.set_ylabel("PDF")
         #self.ax_pdf.set_ylabel("probability density")
@@ -985,6 +984,7 @@ class ArticlePDF(Distribution):
 
         self.x_lim = [-0.5, 5]
         self.ax_pdf.set_xlim(*self.x_lim)
+        #self.ax_pdf.set_xticks([0, 1, 1.5, 2, 3, 4, 5])
 
     def add_raw_samples(self, samples):
         """
@@ -1024,6 +1024,8 @@ class ArticlePDF(Distribution):
         :param label: string label for legend
         :return:
         """
+        from matplotlib.ticker import FormatStrFormatter
+        self.ax_pdf.xaxis.set_major_formatter(FormatStrFormatter('%0.1f'))
         if label is None:
            label = "size {}".format(distr_object.moments_fn.size)
         if color is None:
@@ -1033,6 +1035,24 @@ class ArticlePDF(Distribution):
 
         domain = distr_object.domain
         self.adjust_domain(domain)
+        self._domain = domain
+
+        # ticks = [0, 1, 2, 3, 4, 5]
+        #
+        # new_ticks = []
+        # for i in ticks:
+        #     if domain[0] < i:
+        #         new_ticks.append(domain[0])
+        #
+        #     if domain[1] < i:
+        #         new_ticks.append(domain[1])
+        #
+        #     new_ticks.append(i)
+        #
+        #
+        # print("new ticks ", new_ticks)
+        #
+        # self.ax_pdf.set_xticks(new_ticks)
 
         self._plot_borders(self.ax_pdf, color="black", domain=domain)
 
@@ -1041,7 +1061,6 @@ class ArticlePDF(Distribution):
         Y_pdf = distr_object.density(X)
 
         self.ax_pdf.plot(X, Y_pdf, color=color, label=label, linestyle=linestyle)
-
         self.i_plot += 1
 
     def add_distribution_log(self, distr_object, label=None, color=None, linestyle=None):
@@ -1067,6 +1086,8 @@ class ArticlePDF(Distribution):
         self.adjust_domain(domain)
         X = self._grid(1000, domain=domain)
         X = np.exp(X)
+
+        self._domain = np.exp(domain)
 
         Y_pdf = distr_object.density_exp(X)
 
@@ -1116,9 +1137,44 @@ class ArticlePDF(Distribution):
         :param file: None, or filename, default name is same as plot title.
         """
         self._add_exact_distr()
-        self.ax_pdf.legend(title=self._legend_title)#, loc='upper right', bbox_to_anchor=(0.5, -0.05))
+        #self.ax_pdf.legend(title=self._legend_title)#, loc='upper right', bbox_to_anchor=(0.5, -0.05))
+
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Rectangle, RegularPolygon, FancyBboxPatch
+
+        legend = self.ax_pdf.legend()
+        ax = legend.axes
+
+        handles, labels = ax.get_legend_handles_labels()
+
+        #handles[-1] = FancyBboxPatch([0, 1], width=0.05, height=1, boxstyle='square',color="black")
+        # handles[-1] = RegularPolygon([0, 1], numVertices=4, radius=0.5, color="black")
+        # handles.append(Line2D([0, 1], [0, 1], color="black", linestyle=":"))
+        # labels.append('bez regularizace')
+
+        vertical_line = Line2D([], [], color='black', marker='|', linestyle='None',
+                          markersize=40, markeredgewidth=1.7, label='Vertical line')#Line2D([], [], color='black', marker='|')
+
+        handles.append(vertical_line)
+        labels.append('domain = ' + "[{:0.3g}, {:0.3g}]".format(*self._domain))
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
 
         _show_and_save(self.fig, file, self._title)
+
+    def _plot_borders(self, ax, color, domain=None):
+        """
+        Add vertical lines to the plot for endpoints of the 'domain'.
+        :return: Pair of line objects.
+        """
+        if domain is None:
+            domain = self._domain
+        l1 = ax.axvline(x=domain[0], ymin=-.05, ymax=0.1, color=color)
+        l2 = ax.axvline(x=domain[1], ymin=-.05, ymax=0.1, color=color)
+        return [l1, l2]
 
 
 class MomentsPlots(Distribution):
@@ -1413,7 +1469,7 @@ class Eigenvalues:
         :param file: filename base, None for show.
         :return:
         """
-        self.ax.legend(title="moments std")
+        self.ax.legend()#title="moments " + r'$\sigma^2$')
         _show_and_save(self.fig, file, self.title)
 
     def adjust_ylim(self, ylim):

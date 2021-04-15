@@ -346,7 +346,7 @@ class Estimate:
         ranges = np.array(ranges)
         return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
-    def construct_density(self, tol=1e-8, reg_param=0.0, orth_moments_tol=1e-4, exact_pdf=None):
+    def construct_density(self, tol=1e-8, reg_param=0.0, orth_moments_tol=1e-5, exact_pdf=None):
         """
         Construct approximation of the density using given moment functions.
         """
@@ -367,7 +367,7 @@ class Estimate:
         moments_data = np.stack((est_moments, est_vars), axis=1)
         distr_obj = mlmc.tool.simple_distribution.SimpleDistribution(moments_obj, moments_data,
                                                                      domain=moments_obj.domain)
-        result = distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
+        result = distr_obj.estimate_density_minimize(tol=tol, reg_param=reg_param)  # 0.95 two side quantile
 
         return distr_obj, info, result, moments_obj
 
