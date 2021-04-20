@@ -1737,50 +1737,6 @@ def print_cumul(eval):
 
     return cum_var_exp, var_exp
 
-
-def _cut_eigenvalues(cov_center, tol):
-    print("CUT eigenvalues")
-
-    print("tol ", tol)
-
-    eval, evec = np.linalg.eigh(cov_center)
-
-    #tol = tol **2
-    #tol = 0
-    #print("original evec ")
-    #print(pd.DataFrame(evec))
-
-    original_eval = eval
-    print("original eval ", eval)
-
-    #tol = None
-
-    threshold = 0
-    if tol is None:
-        if len(eval) > 1:
-            aux_eval = eval#np.flip(eval)
-            # treshold by statistical test of same slopes of linear models
-            threshold, fixed_eval = detect_treshold_slope_change(aux_eval, log=True)
-            threshold = np.argmax(aux_eval - fixed_eval[0] > 0)
-            print("threshold ", threshold)
-            threshold = len(eval) - threshold
-            print("threshold ",  threshold)
-    else:
-        # threshold given by eigenvalue magnitude
-        threshold = np.argmax(eval > tol)
-
-
-
-    # cut eigen values under treshold
-    new_eval = eval[threshold:]
-    new_evec = evec[:, threshold:]
-
-    eval = np.flip(new_eval, axis=0)
-    evec = np.flip(new_evec, axis=1)
-
-    return eval, evec, threshold, original_eval
-
-
 # def _svd_cut(cov_center, tol):
 #     print("CUT eigenvalues")
 #     u, s, vh = np.linalg.svd(cov_center)
@@ -2584,43 +2540,42 @@ def my_floor(a, precision=0):
 #     return eval, evec, threshold, original_eval, None#, matrix_w
 
 
-def _cut_eigenvalues_to_constant(cov_center, tol):
-    eval, evec = np.linalg.eigh(cov_center)
-    original_eval = eval
-    print("cut eigenvalues tol ", tol)
-
-    # threshold given by eigenvalue magnitude
-    threshold = np.argmax(eval > tol)
-
-    # add the |smallest eigenvalue - tol(^2??)| + eigenvalues[:-1]
-
-    #threshold = 0
-    print("threshold ", threshold)
-
-    #treshold, _ = self.detect_treshold(eval, log=True, window=8)
-
-    # tresold by MSE of eigenvalues
-    #treshold = self.detect_treshold_mse(eval, std_evals)
-
-    # treshold
-
-    #self.lsq_reconstruct(cov_center, fixed_eval, evec, treshold)
-    print("original eval ", eval)
-    print("threshold ", threshold)
-
-    # cut eigen values under treshold
-    eval[:threshold] = tol#eval[threshold]
-    #new_evec = evec[:, threshold:]
-
-    print("eval ")
-    print(pd.DataFrame(eval))
-
-    eval = np.flip(eval, axis=0)
-    #print("eval ", eval)
-    evec = np.flip(evec, axis=1)
-    #print("evec ", evec)
-
-    return eval, evec, threshold, original_eval
+# def _cut_eigenvalues_to_constant(cov_center, tol):
+#     eval, evec = np.linalg.eigh(cov_center)
+#     original_eval = eval
+#
+#     # threshold given by eigenvalue magnitude
+#     threshold = np.argmax(eval > tol)
+#
+#     # add the |smallest eigenvalue - tol(^2??)| + eigenvalues[:-1]
+#
+#     #threshold = 0
+#     print("threshold ", threshold)
+#
+#     #treshold, _ = self.detect_treshold(eval, log=True, window=8)
+#
+#     # tresold by MSE of eigenvalues
+#     #treshold = self.detect_treshold_mse(eval, std_evals)
+#
+#     # treshold
+#
+#     #self.lsq_reconstruct(cov_center, fixed_eval, evec, treshold)
+#     print("original eval ", eval)
+#     print("threshold ", threshold)
+#
+#     # cut eigen values under treshold
+#     eval[:threshold] = tol#eval[threshold]
+#     #new_evec = evec[:, threshold:]
+#
+#     print("eval ")
+#     print(pd.DataFrame(eval))
+#
+#     eval = np.flip(eval, axis=0)
+#     #print("eval ", eval)
+#     evec = np.flip(evec, axis=1)
+#     #print("evec ", evec)
+#
+#     return eval, evec, threshold, original_eval
 
 
 def _add_to_eigenvalues(cov_center, tol, moments):
@@ -2631,48 +2586,38 @@ def _add_to_eigenvalues(cov_center, tol, moments):
     evec = np.flip(evec, axis=1)
 
     original_eval = eval
-
-    for ev in evec:
-        print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-        testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-    print('Everything ok!')
-
-    print_cumul(eval)
-
-    # # Permutation
-    # index = (np.abs(eval - 1)).argmin()
-    # first_item = eval[0]
-    # eval[0] = eval[index]
-    # eval[index] = first_item
-    #
-    # selected_evec = evec[:, index]
-    # first_evec = evec[:, 0]
-    #
-    # evec[:, 0] = selected_evec[:]
-    # evec[:, index] = first_evec[:]
-
-    alpha = 5
-    diag_value = tol - np.min([np.min(eval), 0])  # np.abs((np.min(eval) - tol))
-
-    #diag_value += diag_value * 5
-
-    #print("diag value ", diag_value)
+    diag_value = tol - np.min([np.min(eval), 0])
     diagonal = np.zeros(moments.size)
-
-    #diag_value = 10
-
-    print("diag value ", diag_value)
-
     diagonal[1:] += diag_value
-    diag = np.diag(diagonal)
     eval += diagonal
 
-    for ev in evec:
-        print("np.linalg.norm(ev) ", np.linalg.norm(ev))
-        testing.assert_array_almost_equal(1.0, np.linalg.norm(ev), decimal=0)
-    print('Everything ok!')
-
     return eval, evec, original_eval
+
+
+def _cut_eigenvalues(cov_center, tol):
+    eval, evec = np.linalg.eigh(cov_center)
+    original_eval = eval
+    threshold = 0
+
+    if tol is None:
+        if len(eval) > 1:
+            aux_eval = np.flip(eval)
+            # treshold by statistical test of same slopes of linear models
+            threshold, fixed_eval = detect_treshold_slope_change(aux_eval, log=True)
+            threshold = np.argmax(aux_eval - fixed_eval[0] > 0)
+            threshold = len(eval) - threshold
+    else:
+        # threshold given by eigenvalue magnitude
+        threshold = np.argmax(eval > tol)
+
+    # cut eigen values under treshold
+    new_eval = eval[threshold:]
+    new_evec = evec[:, threshold:]
+
+    eval = np.flip(new_eval, axis=0)
+    evec = np.flip(new_evec, axis=1)
+
+    return eval, evec, threshold, original_eval
 
 
 def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_method=2, exact_cov=None):
@@ -2681,89 +2626,20 @@ def construct_orthogonal_moments(moments, cov, tol=None, reg_param=0, orth_metho
     :param moments: moments object
     :return: orthogonal moments object of the same size.
     """
-    threshold = 0
-    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    #     print("cov ")
-    #     print(pd.DataFrame(cov))
-
     # centered covariance
     M = np.eye(moments.size)
     M[:, 0] = -cov[:, 0]
-
-    print("cov shape ", cov.shape)
-    print("M.shape ", M.shape)
-
     cov_center = M @ cov @ M.T
-
-    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    #     print("cov center ")
-    #     print(pd.DataFrame(cov_center))
-
-    projection_matrix = None
-
-    # print("centered cov ")
-    # print(pd.DataFrame(cov_center))
-
-    if orth_method == 0:
-        eval_flipped, evec_flipped, original_eval = _add_to_eigenvalues(cov_center, tol=tol, moments=moments)
-        if projection_matrix is not None:
-            icov_sqrt_t = projection_matrix
-        else:
-            icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
-
-        R_nm, Q_mm = sc.linalg.rq(icov_sqrt_t, mode='full')
-
-        # check
-        L_mn = R_nm.T
-        if L_mn[0, 0] < 0:
-            L_mn = -L_mn
-
-        info = (original_eval, eval_flipped, threshold, L_mn)
-        return moments, info, cov_center
 
     # Add const to eigenvalues
     if orth_method == 1:
+        threshold = 0
         eval_flipped, evec_flipped, original_eval = _add_to_eigenvalues(cov_center, tol=tol, moments=moments)
-        # print("eval flipped ")
-        # print(pd.DataFrame(eval_flipped))
-        # print("evec flipped ")
-        # print(pd.DataFrame(evec_flipped))
-
     # Cut eigenvalues below threshold
     elif orth_method == 2:
         eval_flipped, evec_flipped, threshold, original_eval = _cut_eigenvalues(cov_center, tol=tol)
-        # print("eval flipped ")
-        # print(pd.DataFrame(eval_flipped))
-        # print("evec flipped ")
-        # print(pd.DataFrame(evec_flipped))
-        # print("threshold ", threshold)
-        #original_eval = eval_flipped
 
-    # # Add const to eigenvalues below threshold
-    # elif orth_method == 3:
-    #     eval_flipped, evec_flipped, threshold, original_eval = _cut_eigenvalues_to_constant(cov_center, tol=tol)
-    #     # print("eval flipped ")
-    #     # print(pd.DataFrame(eval_flipped))
-    #     # print("evec flipped ")
-    #     # print(pd.DataFrame(evec_flipped))
-    #     # print("threshold ", threshold)
-    #     #original_eval = eval_flipped
-    # elif orth_method == 4:
-    #     eval_flipped, evec_flipped, threshold, original_eval, projection_matrix = _pca(cov_center, tol=tol)
-    # elif orth_method == 5:
-    #     eval_flipped, evec_flipped, threshold, original_eval, projection_matrix = \
-    #         _pca_add_one(cov_center, tol=tol, moments=moments)
-    # elif orth_method == 6:
-    #     eval_flipped, evec_flipped, threshold, original_eval, projection_matrix = \
-    #         _svd_cut(cov_center, tol=tol)
-    else:
-        raise Exception("No eigenvalues method")
-
-    if projection_matrix is not None:
-        icov_sqrt_t = projection_matrix
-    else:
-        icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
-
+    icov_sqrt_t = M.T @ (evec_flipped * (1 / np.sqrt(eval_flipped))[None, :])
     R_nm, Q_mm = sc.linalg.rq(icov_sqrt_t, mode='full')
 
     # check

@@ -51,6 +51,9 @@ from mlmc.quantity_spec import ChunkSpec
 import mlmc.quantity
 import pandas as pd
 import pickle
+import test.plot_numpy
+from cachier import cachier
+from memoization import cached
 
 
 class CutDistribution:
@@ -2036,14 +2039,40 @@ class DistributionDomainCase:
         result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, 0.0, moments_data, tol=tol_density)
         return result.kl, distr_obj
 
+    def get_cache_key_cov(self, moments_fn, pdf, tol=1e-15, use_quad=False):
+        return (moments_fn.__class__.__name__, moments_fn.size, pdf.__class__.__name__, tol, use_quad)
+
+    def get_cache_key_moments(self, moments_fn, pdf,tol=1e-15, use_quad=False):
+        return (moments_fn.__class__.__name__, moments_fn.size, pdf.__class__.__name__, tol, use_quad)
+
+    def hash_moments(self, obj):
+        pass
+        # Somehow, this allows you to use cache, even though it cannot cache Moments class.
+
+    #@cachier(hash_params=hash_moments)
+    def compute_moments(self, moments_fn, pdf, tol=1e-15, use_quad=False):
+        if use_quad:
+            return mlmc.tool.simple_distribution.compute_semiexact_moments(moments_fn, pdf, tol=tol)
+        else:
+            return mlmc.tool.simple_distribution.compute_exact_moments(moments_fn, pdf, tol=tol)
+
+    @cachier(hash_params=hash_moments)
+    def compute_cov(self, moments_fn, pdf, tol, use_quad, size):
+        if use_quad:
+            return mlmc.tool.simple_distribution.compute_semiexact_cov(moments_fn, pdf, tol=tol)
+        else:
+            return mlmc.tool.simple_distribution.compute_exact_cov(moments_fn, pdf, tol=tol)
+
     def plot_KL_div_exact(self):
         """
         Plot KL divergence for different number of exact moments
         :return:
         """
+        # Clear cache
+        #DistributionDomainCase.compute_cov.clear_cache()
         noise_level = 0
-        tol_exact_moments = 1e-17
-        tol_density = 1e-7
+        tol_exact_moments = 1e-15
+        tol_density = 1e-8
         results = []
         orth_method = 2
         distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_exact", cdf_plot=False,
@@ -2068,33 +2097,14 @@ class DistributionDomainCase:
 
         #print("moment sizes ", self.moment_sizes)
         self.moment_sizes = [1, 5, 15, 25, 35, 45, 55, 65, 75, 85, 95, 100]
-        self.moment_sizes = [5]
+        self.moment_sizes = [25]
 
         if os.path.exists(work_dir):
-            raise FileExistsError
-        else:
-            os.mkdir(work_dir)
-            np.save(os.path.join(work_dir, "moment_sizes"), self.moment_sizes)
-
-        ##########################################
-        # Orthogonalize moments
-        # self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
-        # base_moments = self.moments_fn
-        # exact_cov = mlmc.tool.simple_distribution.compute_semiexact_cov(base_moments, self.pdf)
-        # self.moments_fn, info, _ = mlmc.tool.simple_distribution.construct_orthogonal_moments(base_moments, exact_cov,
-        #                                                                                  tol=noise_level**2, orth_method=orth_method)
-        # orig_eval, evals, threshold, L = info
-        #eye_approx = L @ exact_cov @ L.T
-        # test that the decomposition is done well
-        # assert np.linalg.norm(
-        #     eye_approx - np.eye(*eye_approx.shape)) < 1e-9  # 1e-10 failed with Cauchy for more moments
-
-        # print("threshold: ", threshold, " from N: ", self.moments_fn.size)
-        # if self.eigenvalues_plot:
-        #     threshold = evals[threshold]
-        #     noise_label = "{:5.2e}".format(noise_level)
-        #     self.eigenvalues_plot.add_values(evals, threshold=threshold, label=noise_label)
-        self.exact_moments = mlmc.tool.simple_distribution.compute_semiexact_moments(self.moments_fn, self.pdf, tol=tol_exact_moments)
+            shutil.rmtree(work_dir)
+        #     raise FileExistsError
+        # else:
+        os.mkdir(work_dir)
+        np.save(os.path.join(work_dir, "moment_sizes"), self.moment_sizes)
 
         kl_plot = plot.KL_divergence(log_y=True, iter_plot=True, kl_mom_err=False, title="Kullback-Leibler divergence, {}".format(self.title),
                                      xlabel="number of moments", ylabel="KL divergence")
@@ -2102,24 +2112,17 @@ class DistributionDomainCase:
         ###############################################
         # For each moment size compute density
         for i_m, n_moments in enumerate(self.moment_sizes):
-            print("self. domain ", self.domain)
             self.moments_fn = moment_class(n_moments, self.domain, log=log, safe_eval=False)
             base_moments = self.moments_fn
-            exact_cov = mlmc.tool.simple_distribution.compute_semiexact_cov(base_moments, self.pdf)
+            exact_cov = self.compute_cov(self.moments_fn, self.pdf, tol_exact_moments, True, self.moments_fn.size)
+
             self.moments_fn, info, _ = mlmc.tool.simple_distribution.construct_orthogonal_moments(base_moments,
                                                                                                   exact_cov,
-                                                                                                  tol=noise_level**2,
+                                                                                                  tol=tol_exact_moments**2,
                                                                                                   orth_method=orth_method)
 
-            self.exact_moments = mlmc.tool.simple_distribution.compute_semiexact_moments(self.moments_fn, self.pdf,
-                                                                                         tol=tol_exact_moments)
+            self.exact_moments = self.compute_moments(self.moments_fn, self.pdf, tol=tol_exact_moments, use_quad=True)
             orig_eval, evals, threshold, L = info
-
-            print("n moments ", n_moments)
-            print("self. moments_fn size ", self.moments_fn.size)
-            # if n_moments > self.moments_fn.size:
-            #
-            #     continue
             n_moments = self.moments_fn.size
 
             # moments_fn = moment_fn(n_moments, domain, log=log_flag, safe_eval=False )
@@ -2133,15 +2136,11 @@ class DistributionDomainCase:
 
             result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, 0.0, moments_data, tol=tol_density)
 
+            ##### Moments SSE
             iter_res_mom = []
             for it_mom in distr_obj._iter_moments:
-                # print("exact moments ", self.exact_moments[:n_moments])
-                # print("it mom ", it_mom)
-                # print("self it mom shape ", it_mom.shape)
-                # print("(self.exact_moments[:n_moments] - it_mom) ", (self.exact_moments[:n_moments] - it_mom))
-                iter_res_mom.append(np.sum((self.exact_moments[:n_moments] - it_mom)**2))
-
-            print("moments res ", iter_res_mom)
+                iter_res_mom.append(np.sum((self.exact_moments[:n_moments] - it_mom) ** 2))
+            np.save('{}/{}_{}.npy'.format(work_dir, n_moments, "res_moments"), iter_res_mom)
 
             distr_plot.add_distribution(distr_obj, label="#{}, KL div: {}".format(n_moments, result.kl))
             results.append(result)
@@ -2157,6 +2156,9 @@ class DistributionDomainCase:
         kl_plot.show(None)
         distr_plot.show(None)#file=self.pdfname("_pdf_exact"))
         distr_plot.reset()
+
+        test.plot_numpy.plot_KL_div_exact_iter(os.path.abspath(dir_name))
+
         return results
 
     def _save_kl_data_exact(self, work_dir, n_moments, kl_div, nit, success, threshold):
@@ -3829,17 +3831,19 @@ def plot_derivatives():
 def run_distr():
     distribution_list = [
         # distibution, log_flag
-        # (stats.dgamma(1,1), False) # not good
-        # (stats.beta(0.5, 0.5), False) # Looks great
-
-        #(stats.lognorm(loc=0, scale=10), False),
+        ######
+        #  Benchmark distributions
+        ######
         (bd.TwoGaussians(name='two-gaussians'), False),
-        (bd.FiveFingers(name='five-fingers'), False), # Covariance matrix decomposition failed
-        (bd.Cauchy(name='cauchy'), False),# pass, check exact
-        # (bd.Discontinuous(name='discontinuous'), False),
-        (stats.lognorm(scale=np.exp(1), s=1), False),
-        (bd.Abyss(name="abyss"), False),
-        (bd.ZeroValue(name='Rho4'), False),
+        # (bd.FiveFingers(name='five-fingers'), False), # Covariance matrix decomposition failed
+        # (bd.Cauchy(name='cauchy'), False),# pass, check exact
+        # # (bd.Discontinuous(name='discontinuous'), False),
+        # (stats.lognorm(scale=np.exp(1), s=1), False),
+        # (bd.Abyss(name="abyss"), False),
+        # (bd.ZeroValue(name='Rho4'), False),
+        ############
+
+
         # # # # # # # # # # # # # # # # # # # #(bd.Gamma(name='gamma'), False) # pass
         # # # # # # # # # # # # # # # # # # # #(stats.norm(loc=1, scale=2), False),
 

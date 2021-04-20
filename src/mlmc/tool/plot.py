@@ -3006,6 +3006,108 @@ class KL_div_mom_err():
         legend.set_title(legend.get_title().get_text())
 
 
+class Iterations:
+
+    def __init__(self, title, x_label, y_label, x_log=True):
+        label_fontsize = 20
+        marker_size = 75
+
+        matplotlib.rcParams.update({'font.size': label_fontsize})
+
+        self.kl_divs = []
+        self.mom_errs = []
+        self.densities = []
+        self.data = []
+        self.iter_data = []
+        self.title = title
+        self.colormap = ["b", "g", "r", "c", "m", "y"]#plt.cm.tab20
+        self.i_plot = 0
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(12, 10))
+        self.fig_iter, self.ax_iter = plt.subplots(1, 1, figsize=(12, 10))
+
+        self.markers = ["o", "v", "s", "p", "X", "D"]
+
+        if x_log:
+            self.ax.set_xscale('log')
+
+        self.ax.set_yscale('log')
+
+        self.ax.set_ylim(bottom=1e-16)
+
+        self.ax.set_xlabel(x_label, size=label_fontsize)
+        self.ax.set_ylabel(y_label, size=label_fontsize)
+
+        self.ax_iter.set_xscale('log')
+
+        self.ax_iter.set_xlabel(r'$\sigma$', size=label_fontsize)
+        self.ax_iter.set_ylabel('počet iterací', size=label_fontsize)
+
+        self.constants = []
+        self.const_plot = False
+        self.inexact_constr = []
+        self.truncation_errors = []
+
+    def add_values(self, mom_err, label):
+        self.data.append((mom_err, label))
+
+    def add_iters(self, iter_x, iterations, failed_iter_x, failed_iterations):
+        self.iter_data.append((iter_x, iterations, failed_iter_x, failed_iterations))
+
+    def plot_values(self):
+
+        for index, (mom_err, label) in enumerate(self.data):
+            col = self.colormap[index]
+            x = range(1, len(mom_err)+1)
+            self.ax.plot(x, mom_err, color=col, marker=self.markers[index], label=label)
+
+    def show(self):
+        self.plot_values()
+        legend = self.ax.legend()
+        if len(self.truncation_errors) > 0:
+            self.add_patch_trun_err(legend)
+
+        leg = self.ax_iter.legend()
+        self.add_patch(leg)
+
+        file = self.title + ".pdf"
+        self.fig.show()
+        self.fig.savefig(file)
+
+        # file = self.title + "_iter.pdf"
+        # self.fig_iter.show()
+        # self.fig_iter.savefig(file)
+
+    def add_patch_trun_err(self, legend):
+        from matplotlib.patches import Patch
+        ax = legend.axes
+        from matplotlib.lines import Line2D
+
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(Line2D([0, 1], [0, 1], color="black"))
+        labels.append(r'$D(\rho \Vert \rho_{35})$')
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
+
+    def add_patch(self, legend):
+        from matplotlib.patches import Patch
+        ax = legend.axes
+
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(Patch(facecolor='black'))
+        labels.append("selhání řešiče")
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
+
+
+
+
+
 class KL_divergence:
     """
     Plot of KL divergence
@@ -3034,6 +3136,7 @@ class KL_divergence:
 
         # Display integers on x axes
         self.ax_kl.xaxis.set_major_locator(MaxNLocator(integer=True))
+        self.ax_iter.xaxis.set_major_locator(MaxNLocator(integer=True))
 
         self.ax_kl.set_xlabel(xlabel)
         self.ax_kl.set_ylabel(ylabel)

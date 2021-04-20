@@ -16,22 +16,126 @@ distr_names = {'_norm': "norm", '_lognorm': "lognorm", '_two_gaussians': "two_ga
                "_cauchy": "cauchy", "_discontinuous": "discontinuous"}
 
 
-def plot_KL_div_exact():
+def plot_KL_div_exact_iter(data_dir=None):
+    """
+    Plot KL divergence for different noise level of exact moments
+    """
+    distr_names = {'rozdělení two_gaussians': "two-gaussians",
+                    "rozdělení five_fingers": "five-fingers",
+                    'lognormální rozdělení': "lognorm",
+                   "Cauchy rozdělení": "cauchy",
+                    "Abyss rozdělení": "abyss",
+                    'rozdělení zero-value': "zero-value",
+                   }
+
+    if data_dir is None:
+        data_dir = "/home/martin/Documents/MLMC_exact_plot/test/KL_div_exact_numpy_2"
+        #data_dir = "/home/martin/Documents/MLMC_article/test/KL_div_exact_numpy_2_charon_quad_no_precond"
+        #dir_name = "/home/martin/Documents/MLMC_exact_plot/test/KL_div_exact_numpy_4"
+
+    if not os.path.exists(data_dir):
+        raise FileNotFoundError
+
+    kl_div_mom_err_plot = plot.KL_div_mom_err(title="KL_div_R_exact", x_label="R",
+                                              y_label=r'$D(\rho \Vert \rho_R)$', x_log=True)
+
+    iter_plot = plot.Iterations(title="mu_err_iterations", x_label="iteration step m",
+                                y_label=r'$\sum_{k=1}^{M}(\mu_k - \mu_k^{m})^2$', x_log=False)
+
+    all_constants = []
+    for distr_title, name in distr_names.items():
+        work_dir = os.path.join(data_dir, name)
+        if os.path.exists(work_dir):
+
+            #noise_levels = np.load(os.path.join(work_dir, "noise_levels.npy"))
+            moment_sizes = np.load(os.path.join(work_dir, "moment_sizes.npy"))
+
+            kl_plot = plot.KL_divergence(iter_plot=False,
+                                         log_y=True,
+                                         log_x=True,
+                                         kl_mom_err=False,
+                                         title=name + "_exact_mom", xlabel="noise std",
+                                         ylabel="KL divergence",
+                                         truncation_err_label="trunc. err, m: {}")
+
+            distr_plot = plot.SimpleDistribution(title="{}_exact".format(name), cdf_plot=False, error_plot=False)
+
+            #moment_sizes = [2, 8, 15, 30, 45, 60, 76, 87]
+            constraint_values = []
+            mom_err = []
+
+            print("moment sizes ", moment_sizes)
+
+            for n_mom in moment_sizes:
+
+                #kl_plot.truncation_err = np.load(os.path.join(work_dir, "truncation_err.npy"))
+                try:
+                    _, kl_div = np.load('{}/{}_{}.npy'.format(work_dir, n_mom, "add-value"))
+                except FileNotFoundError:
+                    kl_div = -1
+                    kl_plot.add_value((n_mom, kl_div))
+                    constraint_values.append(np.exp(-0.25 * n_mom))
+                    continue
+
+                _, nit, success = np.load('{}/{}_{}.npy'.format(work_dir, n_mom, "add-iteration"))
+                #_, diff_linalg_norm = np.load('{}/{}_{}.npy'.format(work_dir, noise_level, "add-moments"))
+
+                iter_res_mom = np.load('{}/{}_{}.npy'.format(work_dir, n_mom, "res_moments"))
+                mom_err.append(iter_res_mom[-1])
+
+                constraint_values.append(1/np.power(n_mom, 2))
+                #constraint_values.append(np.exp(-0.25 * n_mom))
+                kl_plot.add_value((n_mom, kl_div))
+                kl_plot.add_iteration(x=n_mom, n_iter=nit, failed=success)
+                #kl_plot.add_moments_l2_norm((noise_level, diff_linalg_norm))
+
+                domain = np.load('{}/{}_{}.npy'.format(work_dir, n_mom, "domain"))
+                X = np.load('{}/{}_{}.npy'.format(work_dir, n_mom, "X"))
+
+                Y_pdf = np.load('{}/{}_{}.npy'.format(work_dir, n_mom, "Y_pdf"))
+                Y_cdf = np.load('{}/{}_{}.npy'.format(work_dir, n_mom, "Y_cdf"))
+                threshold = np.load('{}/{}_{}.npy'.format(work_dir, n_mom, "threshold"))
+                distr_plot.add_distribution(X, Y_pdf, Y_cdf, domain, label="M={}, ".format(n_mom) +  r'$D(\rho \Vert \rho_{M})$' + ":{:0.2e}".format(kl_div))
+                #iter_plot.add_ininity_norm(constraint_values)
+                iter_plot.add_values(iter_res_mom, label=name)
+
+            kl_div_mom_err_plot.add_ininity_norm(constraint_values)
+
+            kl_div_mom_err_plot.add_values(kl_div=kl_plot._y, mom_err=moment_sizes, density=distr_title)
+            kl_div_mom_err_plot.add_iters(kl_plot._iter_x, kl_plot._iterations, kl_plot._failed_iter_x,
+                                          kl_plot._failed_iterations)
+
+            try:
+                Y_exact_pdf = np.load('{}/{}_{}.npy'.format(work_dir, n_mom, "Y_pdf_exact"))
+                Y_exact_cdf = np.load('{}/{}_{}.npy'.format(work_dir, n_mom, "Y_cdf_exact"))
+                distr_plot._add_exact_distr(X, Y_exact_pdf, Y_exact_cdf)
+            except:
+                pass
+
+            #kl_plot.show(None)
+            #distr_plot.show(None)
+
+    #all_constants.append(constraint_values)
+    #kl_div_mom_err_plot.show()
+    iter_plot.show()
+
+
+def plot_KL_div_exact(dir_name=None):
     """
     Plot KL divergence for different noise level of exact moments
     """
     distr_names = {'normální rozdělení': "norm",
-                   #'lognormální rozdělení': "lognorm",
+                   'lognormální rozdělení': "lognorm",
                    'rozdělení two_gaussians': "two_gaussians",
                    'rozdělení rho4': "Rho4",
-                   # "rozdělení five_fingers": "five_fingers",
-                   #  "Cauchy rozdělení": "cauchy",
+                   "rozdělení five_fingers": "five_fingers",
+                   "Cauchy rozdělení": "cauchy",
                    # "nespojité rozdělení": "discontinuous"
                    }
-
-    dir_name = "/home/martin/Documents/MLMC_exact_plot/test/KL_div_exact_numpy_2"
-    dir_name = "/home/martin/Documents/MLMC_article/test/KL_div_exact_numpy_2"
-    #dir_name = "/home/martin/Documents/MLMC_exact_plot/test/KL_div_exact_numpy_4"
+    if dir_name is None:
+        dir_name = "/home/martin/Documents/MLMC_exact_plot/test/KL_div_exact_numpy_2"
+        dir_name = "/home/martin/Documents/MLMC_article/test/KL_div_exact_numpy_2"
+        #dir_name = "/home/martin/Documents/MLMC_exact_plot/test/KL_div_exact_numpy_4"
 
     if not os.path.exists(dir_name):
         raise FileNotFoundError
