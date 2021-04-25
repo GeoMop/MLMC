@@ -2,6 +2,7 @@ import os
 import numpy as np
 import time
 import glob
+import copy
 import pickle
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
@@ -358,12 +359,13 @@ def statistics(config):
         exit()
 
     for i in range(n_subsamples):
+        print("####################################### iter: {}".format(i))
         iter_dir = os.path.join(config['save_path'], "{}".format(i))
         if not os.path.isdir(iter_dir):
             os.makedirs(iter_dir)
 
             model, targets, predictions, learning_time, train_targets, train_predictions, \
-            val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps = \
+            val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps, current_patience = \
                 mch_l_model(config, stats=True, train=True, log=log)
 
             if config['save_model']:
@@ -380,6 +382,7 @@ def statistics(config):
             model_data["l0_sample_time"] = l0_sample_time
             model_data["total_steps"] = total_steps
             model_data["learning_times"] = learning_time
+            model_data["current_patience"] = current_patience
             save_statistics(iter_dir, model_data)
 
             # save_times(save_path, False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
@@ -426,6 +429,7 @@ def load_statistics(dir_path):
     models_data["l0_sample_time"] = []
     models_data["total_steps"] = []
     models_data["learning_times"] = []
+    models_data["current_patience"] = []
     models_data["log"] = []
 
     #dirs = (os.path.split(dir_path)[-1]).split("_")
@@ -491,8 +495,8 @@ def analyze_statistics(config):
     nn_means_mse = []
 
     for i in range(len(data_dict["test_targets"])):
-        if i == 2:
-            break
+        # if i == 1:
+        #     break
         predictions = data_dict["test_predictions"][i]
         targets = data_dict["test_targets"][i]
         train_predictions = data_dict["train_predictions"][i]
@@ -503,9 +507,12 @@ def analyze_statistics(config):
         l_0_targets = data_dict["l_0_targets"][i]
         l1_sample_time = data_dict["l1_sample_time"][i]
         l0_sample_time = data_dict["l0_sample_time"][i]
+        total_steps = data_dict["total_steps"][i]
+
+        print("total steps ", total_steps)
 
         mlmc_n_collected, nn_mlmc_n_collected, n_ops, n_ops_predict, orig_moments_mean, predict_moments_mean,\
-        ref_moments_mean, orig_level_params, nn_level_params = process_mlmc(config['hdf_path'],
+        ref_moments_mean, orig_level_params, nn_level_params = process_mlmc(config['nn_hdf_path'],
                                                                             config['sampling_info_path'],
                                                                             config['ref_mlmc_file'], targets,
                        predictions, train_targets,
@@ -514,6 +521,7 @@ def analyze_statistics(config):
                        l_0_predictions, l1_sample_time, l0_sample_time,
                        nn_level=config['level'],
                        replace_level=config['replace_level'],
+                        mlmc_hdf_file = config['mlmc_hdf_path'],
                        stats=True)
 
         mlmc_n_collected_all.append(mlmc_n_collected)
@@ -554,16 +562,23 @@ def analyze_statistics(config):
 
     plt_var = plot.Variance()
     l_vars = np.mean(mlmc_l_vars, axis=0)
-    plt_var.add_level_variances(np.squeeze(orig_level_params), l_vars)
-    plt_var.show("mlmc_vars")
+    print("np.squeeze(orig_level_params) ", orig_level_params)
+    print("l vars ", l_vars)
 
-    plt_var = plot.Variance()
+    print("np.squeeze(orig_level_params) shape", orig_level_params.shape)
+    print("l vars shape", l_vars.shape)
+    plt_var.add_level_variances(np.squeeze(orig_level_params), l_vars)
+    # plt_var.show(None)
+    # plt_var.show("mlmc_vars")
+    #
+    # plt_var = plot.Variance()
     l_vars = np.mean(nn_l_vars, axis=0)
-    print("l vars shape ", l_vars.shape)
+    print("nn l vars  ", l_vars)
     print("nn level parsm ", nn_level_params)
     level_params = np.squeeze(nn_level_params)
-    level_params[0] /= 2
-    plt_var.add_level_variances(level_params, l_vars)
+    level_params[0] *= 2
+    plt_var.add_level_variances_nn(level_params, l_vars)
+    plt_var.show(None)
     plt_var.show("nn_vars")
 
     plot_sse(nn_vars_mse, mlmc_vars_mse, title="moments_var")
@@ -654,7 +669,7 @@ def run_GNN(config, stats=True, train=True, log=False):
         graph_creator(config['output_dir'], config['hdf_path'], config['mesh'], level=config['level'])
         graph_creation_time = time.process_time() - graph_creator_preproces_time
         print("graph creation time ", graph_creation_time)
-        exit()
+        #exit()
 
     preprocess_start_time = time.process_time()
     # Load data
@@ -676,16 +691,32 @@ def run_GNN(config, stats=True, train=True, log=False):
     # Train/valid/test split
     data_tr, data_te = data[:train_data_len], data[train_data_len:]
 
-    gnn = config['gnn']
+    gnn = config['get_gnn']()[0]
+    print("gnn ", gnn)
 
-    if hasattr(gnn._loss,'__name__') and gnn._loss.__name__ == "MSE_moments":
-        tr_output = [g.y for g in data_tr]
-        n_moments = 3
-        quantile = 0.001
-        domain = np.percentile(tr_output, [100 * quantile, 100 * (1 - quantile)])
-        moments_fn = Legendre_tf(n_moments, domain)
-        #accuracy_func = MSE_moments(moments_fn=moments_fn)
-        gnn._loss = MSE_moments(moments_fn=moments_fn)
+    if hasattr(gnn._loss,'__name__'):
+        if gnn._loss.__name__ == "MSE_moments":
+            tr_output = [g.y for g in data_tr]
+            n_moments = 3
+            quantile = 0.01
+            domain = np.percentile(tr_output, [100 * quantile, 100 * (1 - quantile)])
+            moments_fn = Legendre_tf(n_moments, domain)
+            #accuracy_func = MSE_moments(moments_fn=moments_fn)
+            gnn._loss = MSE_moments(moments_fn=moments_fn)
+
+    if hasattr(gnn._final_loss,'__name__'):
+        if gnn._final_loss.__name__ == "MSE_moments":
+            tr_output = [g.y for g in data_tr]
+            loss_params = config["loss_params"]
+            #n_moments = 3
+            quantile = loss_params["quantile"]
+            domain = np.percentile(tr_output, [100 * quantile, 100 * (1 - quantile)])
+            #moments_fn = Legendre_tf(n_moments, domain)
+            loss_params['domain'] = domain
+            #accuracy_func = MSE_moments(moments_fn=moments_fn)
+            gnn._loss_params = loss_params
+            #gnn._final_loss = MSE_moments(moments_fn=moments_fn)
+
 
     np.random.shuffle(data_tr)
     val_data_len = int(len(data_tr) * config['val_samples_ratio'])
@@ -762,7 +793,6 @@ def run_GNN(config, stats=True, train=True, log=False):
                                                                         stats=stats,
                                                                         corr_field_config=config['corr_field_config'])
     #predict_l_0_time = time.process_time() - predict_l_0_start_time
-
     if stats:
         l1_sample_time = preprocess_time / len(data) + learning_time / len(data)
         l0_sample_time = predict_l_0_time / len(l_0_targets)
@@ -777,7 +807,7 @@ def run_GNN(config, stats=True, train=True, log=False):
         #                                                stats=stats)
 
         return gnn._model, targets, predictions, learning_time, train_targets, train_predictions,\
-               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps
+               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps, gnn._current_patience
 
     save_times(config['save_path'], False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
     save_load_data(config['save_path'], False, targets, predictions, train_targets, train_predictions, val_targets, l_0_targets,
@@ -785,7 +815,7 @@ def run_GNN(config, stats=True, train=True, log=False):
 
 
 def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=1000, log=False, stats=False, corr_field_config=None):
-    graph_creator(output_dir, hdf_path, mesh, level=0)
+    #graph_creator(output_dir, hdf_path, mesh, level=0)
     # Load data
 
     sample_time = 0

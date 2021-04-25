@@ -20,6 +20,7 @@ from mlmc.metamodel.graph_models import Net1
 
 class GNN:
     def __init__(self, **kwargs):
+        print("########  Create GNN  #########")
 
         self._epochs = kwargs.get('epochs', 100)
         #self._val_split = kwargs.get('var_split', 0.2)
@@ -33,15 +34,20 @@ class GNN:
         #self._n_hidden_neurons = kwargs.get('n_hidden_neurons', [64])  # Number of hidden neurons for each hidden layer
 
         self._loss = kwargs.get('loss', mean_squared_error)
+        self._final_loss = kwargs.get('final_loss', mean_squared_error)
         self._accuracy_func = kwargs.get('accuracy_func', mean_squared_error)
         self._optimizer = kwargs.get('optimizer', tf.optimizers.Adam(learning_rate=0.001))
         self._normalizer = kwargs.get('normalizer', preprocessing.Normalization())
         self._patience = kwargs.get('patience', 20)
         self._verbose = kwargs.get('verbose', True)
+        #self._loss_changed = False
 
         self._train_loss = []
         self._val_loss = []
         self._test_loss = []
+
+        self._loss_params = {}
+        self._n_moments = 3
 
         self.val_targets = []
         self._states = {}
@@ -66,9 +72,10 @@ class GNN:
         """
         Training procedure
         """
+        print("fit init loss ", self._loss)
         # Setup training
-        best_val_loss = np.inf
-        current_patience = self._patience
+        self._best_val_loss = np.inf
+        self._current_patience = self._patience
         step = 0
         self._total_n_steps = 0
 
@@ -88,7 +95,6 @@ class GNN:
                 train_targets_list.extend(target)
 
             loss, acc = self.train_on_batch(inputs, target)
-            self._train_loss.append(loss)
             results_tr.append((loss, acc, len(target)))
 
             results_va = self.evaluate(loader_va)
@@ -100,24 +106,28 @@ class GNN:
                 # self._val_loss.append(results_va[0])
                 #print("results_va[0] ", results_va[0])
 
-                if results_va[0] < best_val_loss:
-                    best_val_loss = results_va[0]
-                    current_patience = self._patience
+                #print("self best val loss ", self._best_val_loss)
+
+                if (results_va[0] + results_tr[-1][0]) < self._best_val_loss:# or (self._val_loss[-1] < self._val_loss[-2] and self._val_loss[-2] < self._val_loss[-3]):  # Continue to learn if validation loss is decreasing
+                    self._best_val_loss = (results_va[0] + results_tr[-1][0])#results_va[0]
+                    self._current_patience = self._patience
                     self._states = {}
                     results_te = self.evaluate(loader_te)
                     self._test_loss.append(results_te[0])
                 else:
-                    current_patience -= 1
+                    self._current_patience -= 1
                     #results_tr_0 = np.array(results_tr)
                     loss_tr = results_va[0]
                     self._states[loss_tr] = self
-                    if current_patience == 0:
+                    if self._current_patience == 0:
                         print("Early stopping")
                         break
 
                 # Print results
                 results_tr = np.array(results_tr)
                 results_tr = np.average(results_tr[:, :-1], 0, weights=results_tr[:, -1])
+
+                self._train_loss.append(results_tr[0])
                 if self._verbose:
                     print(
                         "Train loss: {:.4f}, acc: {:.4f} | "
@@ -126,14 +136,28 @@ class GNN:
                             *results_tr, *results_va, *results_te
                         )
                     )
+                self._update_loss()
                 # Reset epoch
                 results_tr = []
                 step = 0
 
         return train_targets_list
 
+    def _update_loss(self):
+        # print("self.train_loss ", self._train_loss)
+        if self._n_moments <= self._loss_params["max_moments"] and len(self._train_loss) > 0 and self._train_loss[-1] < self._loss_params["loss_max"]:
+            # print("self._train_loss ", self._train_loss)
+            # print("change loss, n_moments  {}, last train loss: {}".format(self._n_moments, self._train_loss[-1]))
+            #self._n_moments = self._loss_params["max_moments"]
+            print("self._n_moments ", self._n_moments)
+            self._n_moments += 2
+            moments_fn = self._loss_params['moments_class'](self._n_moments, self._loss_params["domain"])
+            self._loss = self._final_loss(moments_fn=moments_fn)
+            self._best_val_loss = np.inf
+            print("self._loss ", self._loss)
+
     # Training function
-    @tf.function
+    #@tf.function
     def train_on_batch(self, inputs, target):
         with tf.GradientTape() as tape:
             predictions = self._model(inputs, training=True)
@@ -163,6 +187,8 @@ class GNN:
                 self.val_targets.extend(target)
 
             predictions = self._model(inputs, training=False)
+
+            #print("evaluate loss function ", self._loss)
 
             loss = self._loss(target, predictions)
             #print("target ", target)
