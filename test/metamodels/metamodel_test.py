@@ -70,17 +70,17 @@ class Net(Model):
         super().__init__(**kwargs)
         # self.normalizer = normalizer
         # self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
-        self.conv1 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        # self.conv2 = conv_layer(64, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        # self.conv3 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        # self.conv4 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        self.conv1 = conv_layer(128, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        self.conv2 = conv_layer(64, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        self.conv3 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        self.conv4 = conv_layer(16, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         #self.conv2 = conv_layer(32, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv3 = conv_layer(16, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv3 = conv_layer(8, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv4 = conv_layer(4, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv3 = conv_layer(64, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         self.flatten = GlobalSumPool()
-        # self.fc1 = Dense(32, activation=hidden_activation)
+        self.fc1 = Dense(32, activation=hidden_activation)
         self.fc2 = Dense(1)#, activation=output_activation)  # linear activation for output neuron
 
     def call(self, inputs):
@@ -92,13 +92,13 @@ class Net(Model):
         # print("x[0,0,:] ", x[0, 0, :])
         x = self.conv1([x, a])
         # print("x.shape ", x.shape)
-        #x = self.conv2([x, a])
+        x = self.conv2([x, a])
         # # # print("conv2 x shape", x.shape)
-        #x = self.conv3([x, a])
-        # x = self.conv4([x, a])
+        x = self.conv3([x, a])
+        x = self.conv4([x, a])
         output1 = self.flatten(x)
-        # output2 = self.fc1(output1)
-        output = self.fc2(output1)
+        output2 = self.fc1(output1)
+        output = self.fc2(output2)
         return output
 
 
@@ -303,10 +303,10 @@ if __name__ == "__main__":
     #print("conv layer ", conv_layer)
 
     machine_learning_model = ("ChC32L3", run_GNN, False)
-    #machine_learning_model = ("ChC32L3T25000", run_GNN, False)
+    machine_learning_model = ("ChC32L3T25000", run_GNN, False)
 
     machine_learning_model = ("ChC32Loss2", run_GNN, False)
-    #machine_learning_model = ("ChC32L3M3", run_GNN, False)
+    #machine_learning_model = ("ChC32L3M10_2", run_GNN, False)
 
     # #models = {"ChebConv": (run_GNN, False), "SVR": (run_SVR, False)}
     #machine_learning_model = ("meshL4", run_GNN, False)
@@ -334,14 +334,14 @@ if __name__ == "__main__":
               'get_gnn': get_gnn,
               'replace_level': replace_level,
               'corr_field_config': corr_field_config,
-              'n_train_samples': 5000,
-              'val_samples_ratio': 0.2,
+              'n_train_samples': 2000,
+              'val_samples_ratio': 0.4,
               'batch_size': 200,
-              'epochs': 2000,
+              'epochs': 1500,
               'learning_rate': 0.001,
               'graph_creation_time': graph_creation_time,
               'save_model': False,
-              'loss_params': {'moments_class': Legendre_tf, "max_moments": 10, 'loss_max': 1e1, 'quantile': 1e-3}
+              'loss_params': {'moments_class': Legendre_tf, "max_moments": 10, 'loss_max': 10, 'quantile': 1e-3}
               }
 
     statistics(config)

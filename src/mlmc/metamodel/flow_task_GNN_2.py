@@ -13,7 +13,7 @@ from mlmc.metamodel.flow_dataset import FlowDataset
 from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv
 from spektral.layers.ops import sp_matrix_to_sp_tensor
 from tensorflow.keras.layers.experimental import preprocessing
-from mlmc.metamodel.custom_methods import abs_activation, var_loss_function
+from mlmc.metamodel.custom_methods import abs_activation, var_loss_function, MSE_moments_2
 
 from mlmc.metamodel.graph_models import Net1
 
@@ -119,9 +119,9 @@ class GNN:
                     #results_tr_0 = np.array(results_tr)
                     loss_tr = results_va[0]
                     self._states[loss_tr] = self
-                    if self._current_patience == 0:
-                        print("Early stopping")
-                        break
+                    # if self._current_patience == 0:
+                    #     print("Early stopping")
+                    #     break
 
                 # Print results
                 results_tr = np.array(results_tr)
@@ -144,15 +144,21 @@ class GNN:
         return train_targets_list
 
     def _update_loss(self):
+        condition_max_loss = self._loss_params["loss_max"] / self._n_moments
+        #condition_max_loss = self._loss_params["loss_max"]
         # print("self.train_loss ", self._train_loss)
-        if self._n_moments <= self._loss_params["max_moments"] and len(self._train_loss) > 0 and self._train_loss[-1] < self._loss_params["loss_max"]:
+        if self._n_moments <= self._loss_params["max_moments"] and len(self._train_loss) > 0\
+                and self._train_loss[-1] < condition_max_loss and self._val_loss[-1] < condition_max_loss:
             # print("self._train_loss ", self._train_loss)
             # print("change loss, n_moments  {}, last train loss: {}".format(self._n_moments, self._train_loss[-1]))
             #self._n_moments = self._loss_params["max_moments"]
+
             print("self._n_moments ", self._n_moments)
-            self._n_moments += 2
+            self._n_moments += 1
             moments_fn = self._loss_params['moments_class'](self._n_moments, self._loss_params["domain"])
             self._loss = self._final_loss(moments_fn=moments_fn)
+            #self._loss = MSE_moments_2(moments_fn=moments_fn)
+
             self._best_val_loss = np.inf
             print("self._loss ", self._loss)
 
