@@ -28,6 +28,7 @@ import os
 import shutil
 import time
 import pytest
+import copy
 
 import numpy as np
 import scipy.stats as stats
@@ -217,18 +218,7 @@ class DistributionDomainCase:
     def pdf(self, x):
         return self.cut_distr.pdf(x)
 
-    # def create_correlation(self, cov):
-    #     cov_diag = np.diag(cov)
-    #     variable_std = np.sqrt(cov_diag)
-    #     corr = np.eye(cov.shape[0])
-    #
-    #     for i in range(len(cov_diag)):
-    #         for j in range(i+1):
-    #             corr[j, i] = corr[i, j] = cov[i, j] / (variable_std[i]*variable_std[j])
-    #
-    #     return corr
-
-    def setup_moments(self, moments_data, noise_level, reg_param=0, orth_method=2, regularization=None):
+    def setup_moments(self, moments_data, noise_level, orth_method=2):
         """
         Setup moments without transformation.
         :param moments_data: config tuple
@@ -250,15 +240,10 @@ class DistributionDomainCase:
             size = self.moments_fn.size
             base_moments = self.moments_fn
 
-            # @TODO: remove regularization
-            exact_cov, reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(base_moments, self.pdf,
-                                                                                     regularization=regularization, reg_param=reg_param)
+            exact_cov = mlmc.tool.simple_distribution.compute_semiexact_cov(base_moments, self.pdf)
 
             self.moments_without_noise = exact_cov[:, 0]
             exact_without_reg = exact_cov
-
-            # Add regularization
-            exact_cov += reg_matrix
 
             #np.random.seed(4567)
             noises = []
@@ -278,7 +263,6 @@ class DistributionDomainCase:
             self.moments_fn, info, cov_centered = mlmc.tool.simple_distribution.construct_orthogonal_moments(base_moments,
                                                                                                         cov,
                                                                                                         tol=noise_level**2,
-                                                                                                        reg_param=reg_param,
                                                                                                         orth_method=orth_method,
                                                                                                         exact_cov=exact_without_reg)
             self._cov_with_noise = cov
@@ -334,32 +318,11 @@ class DistributionDomainCase:
         print("CASE {} | failed: {} kl_decay: {} nit: {} time: {:3.1}".format(
             self.title, n_failed, s1, total_its, total_time))
 
-        # check
-        #assert n_failed == 0
-        #assert s1 < -1
-        # # Check convergence
-        # if domain_quantile > 0.01:
-        #     continue
-        # if not (n_failed[-1] == 0 and (max_err < tol_density_approx * 8 or s1 < -1)):
-        #     warn_log.append((i_q, n_failed[-1], s1, s0, max_err))
-        #     fail = "FF"
-        # else:
-        #     fail = ' q'
-        # print(
-        #     fail + ": ({:5.3g}, {:5.3g});  failed: {} cumit: {} tavg: {:5.3g};  s1: {:5.3g} s0: {:5.3g} kl: ({:5.3g}, {:5.3g})".format(
-        #         domain[0], domain[1], n_failed[-1], tot_nit, cumtime / tot_nit, s1, s0, min_err, max_err))
-
-    def make_approx(self, distr_class, noise, moments_data, tol, reg_param=0, regularization=None):
+    def make_approx(self, distr_class, noise, moments_data, tol):
         result = ConvResult()
 
         distr_obj = distr_class(self.moments_fn, moments_data,
-                                domain=self.domain, force_decay=self.cut_distr.force_decay, reg_param=reg_param,
-                                regularization=regularization)
-
-        # multipliers = None
-        # if prior_distr_obj is not None:
-        #     multipliers = prior_distr_obj.multipliers
-        #     distr_obj.reg_domain = [distr_obj.moments_fn.domain[0], 0]
+                                domain=self.domain, force_decay=self.cut_distr.force_decay)
 
         t0 = time.time()
         min_result = distr_obj.estimate_density_minimize(tol=tol, multipliers=None)
@@ -379,7 +342,7 @@ class DistributionDomainCase:
         result.kl = mlmc.tool.simple_distribution.KL_divergence(self.pdf, distr_obj.density, a, b)
         result.kl_2 = mlmc.tool.simple_distribution.KL_divergence_2(self.pdf, distr_obj.density, a, b)
         result.l2 = mlmc.tool.simple_distribution.L2_distance(self.pdf, distr_obj.density, a, b)
-        result.tv = mlmc.tool.simple_distribution.total_variation_int(distr_obj.density_derivation, a, b)
+        #result.tv = mlmc.tool.simple_distribution.total_variation_int(distr_obj.density_derivation, a, b)
         print(result)
         X = np.linspace(self.cut_distr.domain[0], self.cut_distr.domain[1], 10)
         density_vals = distr_obj.density(X)
@@ -388,141 +351,7 @@ class DistributionDomainCase:
         #print("exact: ", exact_vals)
         return result, distr_obj
 
-    def mlmc_conv(self, distr_plot=None):
-        results = []
-        kl_divergences = []
-        target_vars = [4e-6]
-        distr_accuracy = 1e-8
-        reg_params = [0]
-        mom_class, min_mom, max_mom, mom_log = self.moments_data
-        n_levels = [1, 2, 3, 5, 7]#, 3, 5]
-        log_flag = self.log_flag
-        a, b = self.domain
-
-        for level in n_levels:
-            for target_var in target_vars:
-                if distr_plot is None:
-                    distr_plot = plot.Distribution(exact_distr=self.cut_distr,
-                                                   title="Density, {},  n_moments: {}, target_var: {}".format(self.title,
-                                                                                                              max_mom,
-                                                                                                              target_var),
-                                                   log_x=self.log_flag, error_plot=None, reg_plot=False, cdf_plot=False,
-                                                   log_density=True)
-
-                mc_test = test.fixtures.mlmc_test_run.MLMCTest(level, max_mom, self.cut_distr, log_flag, "_sample_fn", moments_class=mom_class,
-                                   domain=self.cut_distr.domain)
-
-                quantity = mlmc.quantity.make_root_quantity(storage=mc_test.sampler.sample_storage,
-                                                            q_specs=mc_test.result_format())
-                length = quantity['length']
-                time = length[1]
-                location = time['10']
-                value_quantity = location[0]
-
-                # number of samples on each level
-                mc_test.set_estimator(value_quantity)
-                mc_test.generate_samples(target_var=target_var)
-
-                estimator = mlmc.estimator.Estimate(quantity=value_quantity,
-                                                    sample_storage=mc_test.sampler.sample_storage,
-                                                    moments_fn=mc_test.moments_fn)
-
-                for reg_param in reg_params:
-                    distr_obj, info, result, moments_fn = estimator.construct_density(
-                                                                             tol=distr_accuracy,
-                                                                             reg_param=reg_param,
-                                                                             orth_moments_tol=target_var,
-                                                                             exact_pdf=self.cut_distr.pdf)
-
-                    original_evals, evals, threshold, L = info
-
-                    if level == 1:
-                        samples = value_quantity.samples(ChunkSpec(level_id=0,
-                                                         n_samples=mc_test.sampler.sample_storage.get_n_collected()[0]))[..., 0]
-                        distr_plot.add_raw_samples(np.squeeze(samples))
-
-                    distr_plot.add_distribution(distr_obj, label="n_l: {}, reg_param: {}, th: {}".
-                                                format(level, reg_param, threshold),
-                                                size=max_mom, reg_param=reg_param)
-
-                    kl =mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, distr_obj.density,
-                                                                    self.cut_distr.domain[0], self.cut_distr.domain[1])
-                    kl_divergences.append(kl)
-                    #l2 = mlmc.tool.simple_distribution.L2_distance(self.cut_distr.pdf, estimator.distribution, a, b)
-
-        distr_plot.show(None)
-        #self._plot_kl_div(target_vars, kl_divergences)
-        return results
-
-    def exact_conv(self):
-        """
-        Test density approximation for varying number of exact moments.
-        :return:
-        """
-        results = []
-        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_exact", cdf_plot=False,
-                                            log_x=self.log_flag, error_plot='kl')
-
-        mom_class, min_mom, max_mom, log_flag = self.moments_data
-        moments_num = [max_mom]
-
-        for i_m, n_moments in enumerate(moments_num):
-            self.moments_data = (mom_class, n_moments, n_moments, log_flag)
-            # Setup moments.
-            self.setup_moments(self.moments_data, noise_level=0)
-
-            if n_moments > self.moments_fn.size:
-                continue
-            # moments_fn = moment_fn(n_moments, domain, log=log_flag, safe_eval=False )
-            # print(i_m, n_moments, domain, force_decay)
-            moments_data = np.empty((n_moments, 2))
-            moments_data[:, 0] = self.exact_moments[:n_moments]
-            moments_data[:, 1] = 1.0
-
-            if self.use_covariance:
-                # modif_cov, reg = mlmc.tool.simple_distribution.compute_exact_cov(self.moments_fn, self.pdf)
-                # diff_norm = np.linalg.norm(modif_cov - np.eye(*modif_cov.shape))
-                # print("#{} cov mat norm: {}".format(n_moments, diff_norm))
-
-                result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, 0.0, moments_data,
-                                                     tol=1e-10)
-            else:
-                # TODO:
-                # Use SimpleDistribution only as soon as it use regularization that improve convergency even without
-                # cov matrix. preconditioning.
-                result, distr_obj = self.make_approx(mlmc.distribution.Distribution, 0.0, moments_data)
-            distr_plot.add_distribution(distr_obj, label="#{}".format(n_moments) +
-                                                         "\n total variation {:6.2g}".format(result.tv))
-            results.append(result)
-
-        # mult_tranform_back = distr_obj.multipliers  # @ np.linalg.inv(self.L)
-        # final_jac = distr_obj._calculate_jacobian_matrix(mult_tranform_back)
-
-        final_jac = distr_obj.final_jac
-        #
-        # distr_obj_exact_conv_int = mlmc.tool.simple_distribution.compute_exact_cov(distr_obj.moments_fn, distr_obj.density)
-        M = np.eye(len(self._cov_with_noise[0]))
-        M[:, 0] = -self._cov_with_noise[:, 0]
-
-        print("M @ L-1 @ H @ L.T-1 @ M.T")
-        print(pd.DataFrame(
-            M @ (np.linalg.inv(self.L) @ final_jac @ np.linalg.inv(self.L.T)) @ M.T))
-
-        print("orig cov centered")
-        print(pd.DataFrame(self._cov_centered))
-
-        #self.check_convergence(results)
-        #plt.show()
-        distr_plot.show(None)#file=self.pdfname("_pdf_exact"))
-        distr_plot.reset()
-
-        #self._plot_kl_div(moments_num, [r.kl for r in results])
-        #self._plot_kl_div(moments_num, [r.kl_2 for r in results])
-
-        return results
-
     def _plot_kl_div(self, x, kl):
-
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
         # ax.plot(noise_levels, tv, label="total variation")
@@ -531,1490 +360,11 @@ class DistributionDomainCase:
         ax.set_xlabel("noise level")
         ax.set_ylabel("KL divergence")
         # ax.plot(noise_levels, l2, label="l2 norm")
-        # ax.plot(reg_parameters, int_density, label="abs(density-1)")
         ax.set_yscale('log')
         ax.set_xscale('log')
         ax.legend()
 
         plt.show()
-
-    def find_best_spline(self, mc_test, distr_accuracy, poly_degree, work_dir, target_var):
-        # two gausians (best 20-22) all_n_int_points = [10, 12, 14, 16, 18, 20, 22, 24]
-        # five fingers (best 200 -220) all_n_int_points = [180, 200, 220, 240, 260, 280]
-        # cauchy  - 25, 18,  21 , 16 all_n_int_points = [10, 12, 14, 16, 18, 20, 22, 24]
-        # discontinuous - 11, 14, 13
-        # norm - 11, 17, 8, 22, 19, 31
-        # lognorm 16, 13, 11 10, 12
-
-        interpolation_points = {"norm": range(5, 30, 1), "lognorm": range(5, 25, 1),
-                                "two_gaussians": range(10, 30, 1), "five_fingers": range(180, 220, 1),
-                                "cauchy": range(10, 30, 1), "discontinuous": range(5, 30, 1)}
-
-
-        all_n_int_points = interpolation_points[self.name]
-
-        mc_test.set_moments_fn(moments.Legendre)  # mean values for spline approximation
-        mc_test.mc.update_moments(mc_test.moments_fn)
-
-        kl_divs = {}
-        spline_distr_objects = {}
-
-        for n_int_points in all_n_int_points:
-            print("n int points ", n_int_points)
-            spline_distr = spline_approx.BSplineApproximation(mc_test.mc, self.domain, poly_degree=poly_degree,
-                                                              accuracy=distr_accuracy)
-
-            spline_distr.moments_fn = mc_test.moments_fn
-            spline_distr.n_interpolation_points = n_int_points
-
-            spline_kl = mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, spline_distr.density, self.domain[0],
-                                                               self.domain[1])
-
-            kl_divs[n_int_points] = spline_kl
-            spline_distr_objects[n_int_points] = spline_distr
-
-            # distr_plot.add_distribution(spline_distr,
-            #                             label="BSpline, degree: {}, n_int_points: {}, KL: {}".format(poly_degree,
-            #                                                                                          n_int_points,
-            #                                                                                          spline_kl))
-
-        np.save('{}/{}_{}.npy'.format(work_dir, target_var, "spline_int_points"), all_n_int_points)
-
-        keys = []
-        values = []
-        for key, value in kl_divs.items():
-            print("key ", key)
-            print("value ", value)
-            keys.append(key)
-            values.append(value)
-
-        print("keys ", keys)
-        print("values ", values)
-        np.save('{}/{}_{}.npy'.format(work_dir, target_var, "spline_kl_divs"), (keys, values))
-
-        # info = []
-        # for index, distr in distr_objects.items():
-        #     info.append((distr[1].kl, distr[1].nit, not distr[1].success, distr[2]))
-        #
-        # np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "info"), info)
-        # self._save_distr_spline(spline_distr, distr_plot, work_dir, target_var, spline_kl, "bspline")
-
-        best_kl_divs = sorted(kl_divs, key=lambda par: kl_divs[par])
-
-        return spline_distr_objects[best_kl_divs[0]], kl_divs[best_kl_divs[0]]
-
-    def mc_find_regularization_param(self, plot_res=True, work_dir=None, orth_method=4, n_mom=None,
-                                     target_var=1e-4, n_levels=1, mlmc_obj=None, estimator_obj=None):
-        #n_levels = 1
-        distr_accuracy = 1e-6
-        #orth_method = 4
-
-        if work_dir == None:
-            dir_name = "mc_find_reg_param"
-            if not os.path.exists(dir_name):
-                os.mkdir(dir_name)
-            else:
-                shutil.rmtree(dir_name)
-                os.mkdir(dir_name)
-
-            work_dir = os.path.join(dir_name, self.name)
-            if os.path.exists(work_dir):
-                raise FileExistsError
-            else:
-                os.mkdir(work_dir)
-
-        rep = 1
-        n_reg_params = 20
-        reg_params = np.geomspace(1e-11, 1e-4, num=n_reg_params)
-
-        reg_params = np.append(reg_params, [0])
-        # reg_params = [1e-9, 1e-7, 1e-6, 1e-5, 1e-4]
-
-        #reg_params = []
-        min_results = []
-
-        moment_class, min_n_moments, max_n_moments, self.use_covariance = self.moments_data
-        log = self.log_flag
-        if min_n_moments == max_n_moments:
-            self.moment_sizes = np.array(
-                [max_n_moments])  # [36, 38, 40, 42, 44, 46, 48, 50, 52, 54])+1#[max_n_moments])#10, 18, 32, 64])
-        else:
-            self.moment_sizes = np.round(
-                np.exp(np.linspace(np.log(min_n_moments), np.log(max_n_moments), 8))).astype(int)
-
-        if n_mom is not None:
-            max_n_moments = n_moments = n_mom
-
-        self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
-
-        _, _, n_moments, _ = self.moments_data
-
-        size = 1
-
-        ####################################
-        # Run MLMC                         #
-        ####################################
-        if mlmc_obj is None:
-            mc_test = test.fixtures.mlmc_test_run.MLMCTest(n_levels, max_n_moments, self.cut_distr.distr, log, "_sample_fn",
-                               moments_class=moment_class,
-                               domain=self.cut_distr.domain)
-            # number of samples on each level
-
-            mc_test.mc.set_initial_n_samples()
-            mc_test.mc.refill_samples()
-            mc_test.mc.wait_for_simulations()
-            mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (0, "=")})
-            estimator = mlmc.archive.estimate.Estimate(mc_test.mc, mc_test.moments_fn)
-
-            estimator.target_var_adding_samples(target_var, mc_test.moments_fn)
-            mc = mc_test.mc
-
-            for level in mc.levels:
-                print("level sample values ", level._sample_values)
-                np.save(os.path.join(work_dir, "level_{}_values".format(level._level_idx)), level._sample_values)
-
-            mc_test.mc.update_moments(mc_test.moments_fn)
-            means, vars = estimator.estimate_moments(mc_test.moments_fn)
-            print("means ", means)
-            print("vars ", vars)
-
-            mlmc_obj = mc_test.mc
-            estimator_obj = estimator
-
-        exact_moments = mlmc.tool.simple_distribution.compute_exact_moments(estimator_obj.moments, self.pdf)
-        print("exact moments: {}".format(exact_moments))
-
-        num_moments = self.moments_fn.size
-        used_reg_params = []
-
-        distr_objects = {}
-        kl_divs = {}
-        cond_numbers = {}
-        all_moments_from_density = {}
-
-        all_num_moments = []
-        all_result_norm = []
-
-        for index, reg_param in enumerate(reg_params):
-            mlmc_obj.clean_subsamples()
-            print("REG PARAMETER ", reg_param)
-            regularization = mlmc.tool.simple_distribution.Regularization2ndDerivation()
-            #regularization = mlmc.tool.simple_distribution.RegularizationInexact2()
-
-            # self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
-            # #size = self.moments_fn.size
-            # base_moments = self.moments_fn
-
-            ####################################
-            # MaxEnt method                    #
-            ####################################
-            result = ConvResult()
-            info, min_result = estimator_obj.construct_density(tol=distr_accuracy, reg_param=reg_param,
-                                                           orth_moments_tol=np.sqrt(target_var),
-                                                           exact_pdf=self.pdf, orth_method=orth_method)
-
-            original_evals, evals, threshold, L = info
-
-            a, b = self.domain[0], self.domain[1]
-            max_ent_kl = mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, estimator_obj.distribution.density, a, b)
-
-            # distr_plot.add_distribution(estimator._distribution,
-            #                             label="reg param: {}, threshold: {}, KL: {}".format(reg_param, threshold,
-            #                                                                                 max_ent_kl),
-            #                             size=max_mom, reg_param=reg_param)
-
-            t1 = time.time()
-            result.residual_norm = min_result.fun_norm
-            result.success = min_result.success
-            result.success = min_result.success
-            result.nit = min_result.nit
-
-            a, b = self.domain
-            result.kl = mlmc.tool.simple_distribution.KL_divergence(self.pdf, estimator_obj._distribution.density, a, b)
-            result.kl_2 = mlmc.tool.simple_distribution.KL_divergence_2(self.pdf, estimator_obj._distribution.density, a, b)
-            result.l2 = mlmc.tool.simple_distribution.L2_distance(self.pdf, estimator_obj._distribution.density, a, b)
-            result.tv = 0  # mlmc.tool.simple_distribution.total_variation_int(distr_obj.density_derivation, a, b)
-
-            #fine_means, fine_vars = estimator.estimate_moments(moments_fn=self.moments_fn)
-            #print("fine moments ", fine_moments)
-
-            moments_from_density = (np.linalg.pinv(L) @ estimator_obj._distribution.final_jac @ np.linalg.pinv(L.T))[:, 0]
-
-            print("L @ jac @ L.T ", moments_from_density)
-            distr_exact_cov, distr_reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(estimator_obj.moments,
-                                                                                                 estimator_obj._distribution.density,
-                                                                                                 reg_param=0,
-                                                                                                 regularization=regularization)
-
-
-            # print("moments approx error: ", np.linalg.norm(moments_from_density - exact_moments[len(moments_from_density)-1]),
-            #       "m0: ", moments_from_density[0])
-
-            # print("num moments ", num_moments)
-            # print("moments_from_density[:num_moments-1] ", moments_from_density[:num_moments-1])
-            # print("self cov centered ", self._cov_centered)
-
-            # print("distr final jac")
-            # print(pd.DataFrame(estimator._distribution.final_jac))
-            #
-            # # print("distr object moment means ", distr_obj.moment_means)
-            #
-            # print("distr cov moments ", distr_exact_cov[:, 0])
-
-            print("L @ jac @ L.T ", moments_from_density)
-            moments_from_density = distr_exact_cov[:, 0]
-
-            print("exact moments from denstiy ", moments_from_density)
-
-            all_moments_from_density[reg_param] = moments_from_density
-
-            if not result.success:
-                continue
-
-            used_reg_params.append(reg_param)
-
-            distr_objects[reg_param] = (estimator_obj._distribution, result, threshold, L)
-
-            kl_divs[reg_param] = result.kl
-
-            cond_numbers[reg_param] = estimator_obj._distribution.cond_number
-
-            final_jac = estimator_obj._distribution.final_jac
-            #
-            # distr_obj_exact_conv_int = mlmc.tool.simple_distribution.compute_exact_cov(distr_obj.moments_fn, distr_obj.density)
-            # M = np.eye(len(self._cov_with_noise[0]))
-            # M[:, 0] = -self._cov_with_noise[:, 0]
-
-            print("size ", size)
-
-            n_subsamples = 100
-
-            result = []
-            result_norm = []
-            for _ in range(n_subsamples):
-                mlmc_obj.clean_subsamples()
-                n_samples = mlmc_obj.n_samples
-
-                subsamples = [int(n_sam * 0.8) for n_sam in n_samples]
-
-                # print("n samples ", n_samples)
-                # print("subsamples ", subsamples)
-
-                mlmc_obj.subsample(sub_samples=subsamples)
-
-                # for level in mlmc_obj.levels:
-                #     print("level.last_moments_eval ", len(level.last_moments_eval[0]))
-
-                coarse_means, coarse_vars = estimator_obj.estimate_moments(moments_fn=self.moments_fn)
-
-                # print("moments from density ", moments_from_density)
-                # print("coarse means ", coarse_means)
-
-                num_moments = len(moments_from_density)
-
-                # print("moments_from_density[:num_moments-1] ", moments_from_density[:num_moments])
-                # print("coarse_moments[:num_moments-1] ", coarse_means[:num_moments])
-
-                res = (moments_from_density[:num_moments] - coarse_means[:num_moments]) ** 2
-
-                # res = (moments_from_density - coarse_moments) ** 2
-                # res = ((moments_from_density[:num_moments] - coarse_moments[:num_moments])/num_moments) ** 2
-                #
-                #
-                # res = np.linalg.norm(moments_from_density[:num_moments] - coarse_moments[:num_moments])
-
-                # res = res * rations[:num_moments-1]
-
-                result_norm.append(np.array(res) / num_moments)
-
-                print("res to result ", res)
-                result.append(res)
-
-            # distr_plot.add_distribution(distr_obj,
-            #                             label="noise: {}, threshold: {}, reg param: {}".format(noise_level, threshold,
-            #                                                                                    reg_param),
-            #                             size=len(coarse_moments), reg_param=reg_param)
-
-            # print("norm result ", result)
-
-            all_num_moments.append(num_moments)
-            min_results.append(np.sum(result))  # np.sum(result))
-            all_result_norm.append(np.sum(result_norm))
-
-        reg_params = used_reg_params
-
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1)
-        zipped = zip(reg_params, min_results)
-
-        for reg_param, min_result in zip(reg_params, min_results):
-            print("reg_param: {}, min_result: {}".format(reg_param, min_result))
-
-        sorted_zip = sorted(zipped, key=lambda x: x[1])
-
-        best_params = []
-        #best_params.append(0)
-        min_best = None
-        for s_tuple in sorted_zip:
-            if min_best is None:
-                min_best = s_tuple
-            print(s_tuple)
-            if len(best_params) < 5:
-                best_params.append(s_tuple[0])
-
-        best_kl_divs = sorted(kl_divs, key=lambda par: kl_divs[par])
-        best_params = best_kl_divs[:5]
-
-        print("best params ", best_params)
-
-        kl_div_to_plot = [kl_divs[r_par] for r_par in reg_params]
-
-        if work_dir is not None:
-            if n_mom is not None:
-                self._save_reg_param_data(work_dir, n_mom, reg_params, min_results, distr_objects)
-            else:
-                self._save_reg_param_data(work_dir, target_var, reg_params, min_results, distr_objects, cond_numbers)
-
-        if plot_res:
-
-            res_norm_2 = []
-            for res, used_moments in zip(min_results, all_num_moments):
-                res_norm_2.append(res * (used_moments / max_n_moments))
-
-            fig, ax = plt.subplots()
-            ax.plot(reg_params, min_results, 'o', label="MSE")
-            ax.plot(reg_params, kl_div_to_plot, 'v', label="kl div")
-            ax.plot(min_best[0], min_best[1], 'x', color='red')
-            ax.set_ylabel("MSE")
-            ax.set_xlabel(r"$\log(\alpha)$")
-            ax.set_xscale('log')
-            ax.set_yscale('log')
-            ax.legend(loc='best')
-            logfmt = matplotlib.ticker.LogFormatterExponent(base=10.0, labelOnlyBase=True)
-            ax.xaxis.set_major_formatter(logfmt)
-
-            plt.show()
-
-            distr_plot = plot.Distribution(exact_distr=self.cut_distr,
-                                           title="Preconditioning reg, {},  n_moments: {}, target var: {}".format(self.title,
-                                                                                                             n_moments,
-                                                                                                             target_var),
-                                           log_x=self.log_flag, error_plot=None, reg_plot=False, cdf_plot=False,
-                                           log_density=True)
-
-            if "0" in distr_objects:
-                best_params.append(0)
-            for reg_par in best_params:
-                #print("distr_objects[reg_par] ", distr_objects[reg_par])
-                distr_plot.add_distribution(distr_objects[reg_par][0],
-                                            label="var: {:0.4g}, th: {}, alpha: {:0.4g},"
-                                                  " KL_div: {:0.4g}".format(target_var, distr_objects[reg_par][2], reg_par,
-                                                                            distr_objects[reg_par][1].kl),
-                                            size=n_moments, mom_indices=False, reg_param=reg_par)
-
-            #self.determine_regularization_param(best_params, regularization, noise=noise_level)
-            distr_plot.show(None)
-
-            for reg_par, kl_div in kl_divs.items():
-                print("KL: {} reg_param: {}".format(kl_div, reg_par))
-
-            return best_params
-
-        else:
-
-            # exact_cov, reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(base_moments, self.pdf,
-            #                                                                          reg_param=best_params[0],
-            #                                                                          regularization=regularization)
-            #
-            # cov = exact_cov + reg_matrix
-
-            return best_params, distr_objects[best_params[0]], exact_moments, all_moments_from_density[best_params[0]]
-
-    def compare_spline_max_ent_save(self):
-        n_levels = 1
-        target_var = 1e-4
-        distr_accuracy = 1e-6
-        tol_exact_cov = 1e-10
-        poly_degree = 3
-        n_int_points = 220
-        reg_param = 0 # posibly estimate by find_regularization_param()
-        orth_method = 2
-        mom_class, min_mom, max_mom, _ = self.moments_data
-
-        log_flag = self.log_flag
-        a, b = self.domain
-
-        target_vars = [1e-3, 1e-4]
-
-        dir_name = "MEM_spline_orth:{}_L:{}_M:{}".format(orth_method, n_levels, max_mom)
-        if not os.path.exists(dir_name):
-            os.mkdir(dir_name)
-
-        work_dir = os.path.join(dir_name, self.name)
-        if os.path.exists(work_dir):
-            shutil.rmtree(work_dir)
-            os.mkdir(work_dir)
-            np.save(os.path.join(work_dir, "target_vars"), target_vars)
-            np.save(os.path.join(work_dir, "n_moments"), max_mom)
-            np.save(os.path.join(work_dir, "int_points_domain"), self.domain)
-            #raise FileExistsError
-        else:
-            os.mkdir(work_dir)
-            np.save(os.path.join(work_dir, "target_vars"), target_vars)
-            np.save(os.path.join(work_dir, "n_moments"), max_mom)
-            np.save(os.path.join(work_dir, "int_points_domain"), self.domain)
-
-        for target_var in target_vars:
-
-            distr_plot = plot.Distribution(exact_distr=self.cut_distr,
-                                           title="Density, {},  n_moments: {}, target_var: {}".format(self.title,
-                                                                                                      max_mom,
-                                                                                                      target_var),
-                                           log_x=self.log_flag, error_plot=None, reg_plot=False, cdf_plot=True,
-                                           log_density=True, multipliers_plot=False)
-
-            ####################################
-            # Run MLMC                         #
-            ####################################
-            mc_test = test.fixtures.mlmc_test_run.MLMCTest(n_levels, max_mom, self.cut_distr.distr, log_flag, "_sample_fn", moments_class=mom_class,
-                               domain=self.cut_distr.domain)
-            # number of samples on each level
-            if mom_class.__name__ == "Spline":
-                mc_test.moments_fn.poly_degree = poly_degree
-                print("mc_test.moments_fn ", mc_test.moments_fn)
-
-            mc_test.mc.set_initial_n_samples()
-            mc_test.mc.refill_samples()
-            mc_test.mc.wait_for_simulations()
-            mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (0, "=")})
-            estimator = mlmc.archive.estimate.Estimate(mc_test.mc, mc_test.moments_fn)
-
-            estimator.target_var_adding_samples(target_var, mc_test.moments_fn)
-            mc = mc_test.mc
-
-            for level in mc.levels:
-                print("level sample values ", level._sample_values)
-                np.save(os.path.join(work_dir, "level_{}_values".format(level._level_idx)), level._sample_values)
-
-            mc_test.mc.update_moments(mc_test.moments_fn)
-            means, vars = estimator.estimate_moments(mc_test.moments_fn)
-            print("means ", means)
-            print("vars ", vars)
-            exact_moments = mlmc.tool.simple_distribution.compute_exact_moments(mc_test.moments_fn, self.pdf)
-            print("exact moments: {}".format(exact_moments))
-
-
-            ####################################
-            # MaxEnt method                    #
-            ####################################
-            result = ConvResult()
-            truncation_err, distr_obj_exact = self._compute_exact_kl(max_mom, mc_test.moments_fn, orth_method,
-                                                                     distr_accuracy, tol_exact_cov)
-
-            info, min_result = estimator.construct_density(tol=distr_accuracy, reg_param=reg_param,
-                                                           orth_moments_tol=np.sqrt(target_var),
-                                                           exact_pdf=self.pdf, orth_method=orth_method)
-
-            original_evals, evals, threshold, L = info
-
-            max_ent_kl = mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, estimator.distribution.density, a,b)
-
-            # distr_plot.add_distribution(estimator._distribution,
-            #                             label="reg param: {}, threshold: {}, KL: {}".format(reg_param, threshold,
-            #                                                                                 max_ent_kl),
-            #                             size=max_mom, reg_param=reg_param)
-
-            t1 = time.time()
-            result.residual_norm = min_result.fun_norm
-            result.success = min_result.success
-            result.success = min_result.success
-            result.nit = min_result.nit
-
-            a, b = self.domain
-            result.kl = mlmc.tool.simple_distribution.KL_divergence(self.pdf, estimator._distribution.density, a, b)
-            result.kl_2 = mlmc.tool.simple_distribution.KL_divergence_2(self.pdf, estimator._distribution.density, a, b)
-            result.l2 = mlmc.tool.simple_distribution.L2_distance(self.pdf, estimator._distribution.density, a, b)
-            result.tv = 0  # mlmc.tool.simple_distribution.total_variation_int(distr_obj.density_derivation, a, b)
-
-            kl_div = mlmc.tool.simple_distribution.KL_divergence(distr_obj_exact.density, estimator.distribution.density,
-                                                            self.domain[0],
-                                                            self.domain[1])
-
-            estimated_moments = mlmc.tool.simple_distribution.compute_exact_moments(mc_test.moments_fn, estimator.distribution.density)
-            diff_orig = np.array(exact_moments) - np.array(estimated_moments)
-
-            self._save_kl_data(work_dir, target_var, kl_div, result.nit, not result.success,
-                               np.linalg.norm(diff_orig) ** 2, threshold)
-            self._save_distr_data(estimator._distribution, distr_plot, work_dir, target_var, result)
-
-            ############################
-            ##### With regularization ##
-            ############################
-
-            _, distr_obj, exact_moments, estimated_moments = self.mc_find_regularization_param(plot_res=False, target_var=target_var,
-                                                                             work_dir=work_dir, orth_method=orth_method,
-                                                                             mlmc_obj=mc_test.mc, estimator_obj=estimator)
-            #exact_moments_orig = exact_cov[:, 0]
-
-            distr_plot.add_distribution(distr_obj[0], label="tar var: {:f}, th: {}, KL div: {:f}".format(target_var,
-                                                                                                       distr_obj[2],
-                                                                                                       distr_obj[1].kl))
-
-            kl_div = mlmc.tool.simple_distribution.KL_divergence(distr_obj_exact.density, distr_obj[0].density, self.domain[0],
-                                                            self.domain[1])
-            max_ent_kl = mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, estimator.distribution.density, a, b)
-            np.save('{}/{}_{}.npy'.format(work_dir, target_var, "max_ent_kl"), (target_var, max_ent_kl))
-
-            diff_orig = np.array(exact_moments) - np.array(estimated_moments)
-
-            self._save_kl_data(work_dir, target_var, kl_div, distr_obj[1].nit, not distr_obj[1].success,
-                               np.linalg.norm(diff_orig) ** 2, distr_obj[2], name="_reg")
-
-            self._save_distr_data(distr_obj[0], distr_plot, work_dir, target_var, distr_obj[1], name="_reg")
-
-
-            ####################################
-            # Spline approximation             #
-            ####################################
-
-            #all_n_int_points = [13]#range(5, 40, 1)
-
-            mc_test.mc.clean_subsamples()
-            mc_test.set_moments_fn(moments.Legendre)  # mean values for spline approximation
-            mc_test.mc.update_moments(mc_test.moments_fn)
-
-            print("spline domain ", self.domain)
-
-            spline_distr, spline_kl = self.find_best_spline(mc_test, distr_accuracy, poly_degree, work_dir, target_var)
-
-
-            # kl_divs = []
-            #
-            # for n_int_points in all_n_int_points:
-            #     print("n int points ", n_int_points)
-            #     spline_distr = spline_approx.BSplineApproximation(mc_test.mc, self.domain, poly_degree=poly_degree,
-            #                                                       accuracy=distr_accuracy)
-            #
-            #     spline_distr.moments_fn = mc_test.moments_fn
-            #     spline_distr.n_interpolation_points = n_int_points
-            #
-            #     spline_kl = mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, spline_distr.density, a, b)
-            #
-            #     kl_divs.append((n_int_points, spline_kl))
-            #
-            #     distr_plot.add_distribution(spline_distr,
-            #                                 label="BSpline, degree: {}, n_int_points: {}, KL: {}".format(poly_degree,
-            #                                                                                              n_int_points,
-            #                                                                                              spline_kl))
-
-            self._save_distr_spline(spline_distr, distr_plot, work_dir, target_var, spline_kl, "_bspline")
-
-
-            #best_kl_divs = sorted(kl_divs, key=lambda x: x[1])
-
-            #print("BEST KL divs ", best_kl_divs)
-
-            # # #####################################
-            # # #### Indicator interpolation  #
-            # # #####################################
-            indicator_kl = 10
-            # mc_test.set_moments_fn(moments.Legendre)  # mean values for spline approximation
-            # mc_test.mc.update_moments(mc_test.moments_fn)
-            #
-            # spline_distr = spline_approx.SplineApproximation(mc_test.mc, self.domain, poly_degree=poly_degree,
-            #                                                  accuracy=distr_accuracy)
-            #
-            # spline_distr.moments_fn = mc_test.moments_fn
-            # spline_distr.indicator_method_name = "indicator"
-            # spline_distr.n_interpolation_points = n_int_points
-            #
-            # indicator_kl = mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, spline_distr.density, a, b)
-            #
-            # distr_plot.add_spline_distribution(spline_distr,
-            #                             label="Indicator, degree: {}, n_int_points: {}, KL: {}".format(poly_degree,
-            #                                                                                          n_int_points,
-            #                                                                                          indicator_kl))
-            #
-            # self._save_distr_spline(spline_distr, distr_plot, work_dir, target_var, indicator_kl, "indicator")
-            #
-            # #####################################
-            # #### Smooth interpolation           #
-            # #####################################
-            smooth_kl=10
-            # mc_test.set_moments_fn(moments.Legendre)  # mean values for spline approximation
-            # mc_test.mc.update_moments(mc_test.moments_fn)
-            #
-            # spline_distr = spline_approx.SplineApproximation(mc_test.mc, self.domain, poly_degree=poly_degree,
-            #                                                            accuracy=distr_accuracy)
-            #
-            # spline_distr.moments_fn = mc_test.moments_fn
-            # spline_distr.indicator_method_name = "smooth"
-            # spline_distr.n_interpolation_points = n_int_points
-            #
-            # smooth_kl = mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, spline_distr.density, a, b)
-            #
-            # distr_plot.add_spline_distribution(spline_distr,
-            #                             label="Smooth, degree: {}, n_int_points: {}, KL: {}".format(poly_degree,
-            #                                                                                          n_int_points,
-            #                                                                                          smooth_kl))
-            # self._save_distr_spline(spline_distr, distr_plot, work_dir, target_var, smooth_kl, "smooth")
-
-            ####################################
-            # KL divergences                   #
-            ####################################
-
-            distr_plot.show(None)
-            plt.show()
-
-            print("KL div - MEM:{:0.4g}, BSpline:{:0.4g}, smooth:{:0.4g}, indicator:{:0.4g}".format(max_ent_kl, spline_kl,
-                                                                                                    smooth_kl, indicator_kl))
-
-    def compare_spline_max_ent(self):
-        n_levels = 1
-        target_var = 1e-4
-        distr_accuracy = 1e-6
-        poly_degree = 3
-        n_int_points = 220
-        reg_param = 0 # posibly estimate by find_regularization_param()
-        orth_method = 2
-        mom_class, min_mom, max_mom, _ = self.moments_data
-
-        log_flag = self.log_flag
-        a, b = self.domain
-
-        dir_name = "MEM_spline_L:{}_M:{}_TV:{}_:int_point".format(n_levels, max_mom, target_var, n_int_points)
-        if not os.path.exists(dir_name):
-            os.mkdir(dir_name)
-
-        work_dir = os.path.join(dir_name, self.name)
-        if os.path.exists(work_dir):
-            shutil.rmtree(work_dir)
-            os.mkdir(work_dir)
-            #raise FileExistsError
-        else:
-            os.mkdir(work_dir)
-            np.save(os.path.join(work_dir, "noise_levels"), target_var)
-            np.save(os.path.join(work_dir, "n_moments"), max_mom)
-            np.save(os.path.join(work_dir, "int_points_domain"), self.domain)
-
-        distr_plot = plot.Distribution(exact_distr=self.cut_distr,
-                                       title="Density, {},  n_moments: {}, target_var: {}".format(self.title,
-                                                                                                  max_mom,
-                                                                                                  target_var),
-                                       log_x=self.log_flag, error_plot=None, reg_plot=False, cdf_plot=True,
-                                       log_density=True, multipliers_plot=False)
-
-        ####################################
-        # Run MLMC                         #
-        ####################################
-        mc_test = test.fixtures.mlmc_test_run.MLMCTest(n_levels, max_mom, self.cut_distr.distr, log_flag, "_sample_fn", moments_class=mom_class,
-                           domain=self.cut_distr.domain)
-        # number of samples on each level
-        if mom_class.__name__ == "Spline":
-            mc_test.moments_fn.poly_degree = poly_degree
-            print("mc_test.moments_fn ", mc_test.moments_fn)
-
-        mc_test.mc.set_initial_n_samples()
-        mc_test.mc.refill_samples()
-        mc_test.mc.wait_for_simulations()
-        mc_test.mc.select_values({"quantity": (b"quantity_1", "="), "time": (0, "=")})
-        estimator = mlmc.archive.estimate.Estimate(mc_test.mc, mc_test.moments_fn)
-
-        estimator.target_var_adding_samples(target_var, mc_test.moments_fn)
-        mc = mc_test.mc
-
-        for level in mc.levels:
-            print("level sample values ", level._sample_values)
-            np.save(os.path.join(work_dir, "level_{}_values".format(level._level_idx)), level._sample_values)
-
-        mc_test.mc.update_moments(mc_test.moments_fn)
-        means, vars = estimator.estimate_moments(mc_test.moments_fn)
-        print("means ", means)
-        print("vars ", vars)
-        exact_moments = mlmc.tool.simple_distribution.compute_exact_moments(mc_test.moments_fn, self.pdf)
-        print("exact moments: {}".format(exact_moments))
-
-
-        ####################################
-        # MaxEnt method                    #
-        ####################################
-        result = ConvResult()
-        info, min_result = estimator.construct_density(tol=distr_accuracy, reg_param=reg_param,
-                                                       orth_moments_tol=np.sqrt(target_var),
-                                           exact_pdf=self.pdf, orth_method=orth_method)
-
-        original_evals, evals, threshold, L = info
-
-        max_ent_kl = mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, estimator.distribution.density, a, b)
-
-        distr_plot.add_distribution(estimator._distribution,
-                                    label="reg param: {}, threshold: {}, KL: {}".format(reg_param, threshold, max_ent_kl),
-                                    size=max_mom, reg_param=reg_param)
-
-        t1 = time.time()
-        result.residual_norm = min_result.fun_norm
-        result.success = min_result.success
-        result.success = min_result.success
-        result.nit = min_result.nit
-
-        a, b = self.domain
-        result.kl = mlmc.tool.simple_distribution.KL_divergence(self.pdf, estimator._distribution.density, a, b)
-        result.kl_2 = mlmc.tool.simple_distribution.KL_divergence_2(self.pdf, estimator._distribution.density, a, b)
-        result.l2 = mlmc.tool.simple_distribution.L2_distance(self.pdf, estimator._distribution.density, a, b)
-        result.tv = 0  # mlmc.tool.simple_distribution.total_variation_int(distr_obj.density_derivation, a, b)
-
-        self._save_distr_data(estimator._distribution, distr_plot, work_dir, target_var, result)
-
-        # if n_levels == 1:
-        #     mc0_samples = np.concatenate(mc.levels[0].sample_values[:, 0])
-        #     distr_plot.add_raw_samples(mc0_samples)
-
-        ####################################
-        # Spline approximation             #
-        ####################################
-        # two gausians (best 20-22) all_n_int_points = [10, 12, 14, 16, 18, 20, 22, 24]
-        # five fingers (best 200 -220) all_n_int_points = [180, 200, 220, 240, 260, 280]
-        # cauchy  - 25, 18,  21 , 16 all_n_int_points = [10, 12, 14, 16, 18, 20, 22, 24]
-        # discontinuous - 11, 14, 13
-        # norm - 11, 17, 8, 22, 19, 31
-        # lognorm 16, 13, 11 10, 12
-        all_n_int_points = [13]#range(5, 40, 1)
-
-        mc_test.set_moments_fn(moments.Legendre)  # mean values for spline approximation
-        mc_test.mc.update_moments(mc_test.moments_fn)
-
-        print("spline domain ", self.domain)
-
-        kl_divs = []
-
-        for n_int_points in all_n_int_points:
-            print("n int points ", n_int_points)
-            spline_distr = spline_approx.BSplineApproximation(mc_test.mc, self.domain, poly_degree=poly_degree,
-                                                              accuracy=distr_accuracy)
-
-            spline_distr.moments_fn = mc_test.moments_fn
-            spline_distr.n_interpolation_points = n_int_points
-
-            spline_kl = mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, spline_distr.density, a, b)
-
-            kl_divs.append((n_int_points, spline_kl))
-
-            distr_plot.add_distribution(spline_distr,
-                                        label="BSpline, degree: {}, n_int_points: {}, KL: {}".format(poly_degree,
-                                                                                                     n_int_points,
-                                                                                                     spline_kl))
-
-            self._save_distr_spline(spline_distr, distr_plot, work_dir, target_var, spline_kl, "bspline")
-
-
-        best_kl_divs = sorted(kl_divs, key=lambda x: x[1])
-
-        print("BEST KL divs ", best_kl_divs)
-
-        # # #####################################
-        # # #### Indicator interpolation  #
-        # # #####################################
-        # indicator_kl = 10
-        # mc_test.set_moments_fn(moments.Legendre)  # mean values for spline approximation
-        # mc_test.mc.update_moments(mc_test.moments_fn)
-        #
-        # spline_distr = spline_approx.SplineApproximation(mc_test.mc, self.domain, poly_degree=poly_degree,
-        #                                                  accuracy=distr_accuracy)
-        #
-        # spline_distr.moments_fn = mc_test.moments_fn
-        # spline_distr.indicator_method_name = "indicator"
-        # spline_distr.n_interpolation_points = n_int_points
-        #
-        # indicator_kl = mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, spline_distr.density, a, b)
-        #
-        # distr_plot.add_spline_distribution(spline_distr,
-        #                             label="Indicator, degree: {}, n_int_points: {}, KL: {}".format(poly_degree,
-        #                                                                                          n_int_points,
-        #                                                                                          indicator_kl))
-        #
-        # self._save_distr_spline(spline_distr, distr_plot, work_dir, target_var, indicator_kl, "indicator")
-        #
-        # #####################################
-        # #### Smooth interpolation           #
-        # #####################################
-        # smooth_kl=10
-        # mc_test.set_moments_fn(moments.Legendre)  # mean values for spline approximation
-        # mc_test.mc.update_moments(mc_test.moments_fn)
-        #
-        # spline_distr = spline_approx.SplineApproximation(mc_test.mc, self.domain, poly_degree=poly_degree,
-        #                                                            accuracy=distr_accuracy)
-        #
-        # spline_distr.moments_fn = mc_test.moments_fn
-        # spline_distr.indicator_method_name = "smooth"
-        # spline_distr.n_interpolation_points = n_int_points
-        #
-        # smooth_kl = mlmc.tool.simple_distribution.KL_divergence(self.cut_distr.pdf, spline_distr.density, a, b)
-        #
-        # distr_plot.add_spline_distribution(spline_distr,
-        #                             label="Smooth, degree: {}, n_int_points: {}, KL: {}".format(poly_degree,
-        #                                                                                          n_int_points,
-        #                                                                                          smooth_kl))
-        # self._save_distr_spline(spline_distr, distr_plot, work_dir, target_var, smooth_kl, "smooth")
-
-        ####################################
-        # KL divergences                   #
-        ####################################
-
-        distr_plot.show(None)
-        plt.show()
-
-        print("KL div - MEM:{:0.4g}, BSpline:{:0.4g}, smooth:{:0.4g}, indicator:{:0.4g}".format(max_ent_kl, spline_kl,
-                                                                                                smooth_kl, indicator_kl))
-
-    def _save_distr_spline(self, distr_object, distr_plot, work_dir, noise_level, kl_div, name=""):
-        domain = distr_object.domain
-        distr_plot.adjust_domain(domain)
-        X = distr_plot._grid(10000, domain=domain)
-
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "result" + name), kl_div)
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "domain" + name), distr_object.domain)
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "X"+ name), X)
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "Y_pdf" +name), distr_object.density(X))
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "Y_cdf" + name), distr_object.cdf(X))
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "Y_pdf_exact" + name), self.cut_distr.pdf(X))
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "Y_cdf_exact" + name), self.cut_distr.cdf(X))
-        #np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "Y_pdf_log" + name), distr_object.density_log(X))
-
-    def find_regularization_param(self, plot_res=True, noise_level=0.01, work_dir=None, orth_method=2, n_mom=None):
-        if work_dir == None:
-            dir_name = "find_reg_param"
-            if not os.path.exists(dir_name):
-                os.mkdir(dir_name)
-            else:
-                shutil.rmtree(dir_name)
-                os.mkdir(dir_name)
-
-            work_dir = os.path.join(dir_name, self.name)
-            if os.path.exists(work_dir):
-                raise FileExistsError
-            else:
-                os.mkdir(work_dir)
-
-        reg_params = np.linspace(1e-12, 1e-5, num=50)  # Legendre
-        #reg_params = np.linspace(10, 1e-2, num=25)  # BSpline
-
-        reg_params = np.geomspace(1e-8, 1e-5, num=80)  # two gaussians 2nd der
-        #reg_params = np.geomspace(1e-12, 1e-6, num=60) # two gaussians 3rd der
-        # reg_params = np.geomspace(1e-12, 1e-9, num=60) # cauchy 3rd der
-        # reg_params = np.geomspace(1e-12, 1e-9, num=60)  # cauchy 3rd der
-        reg_params = np.geomspace(1e-9, 1e-4, num=60) # five fingers 2nd derivative
-        #reg_params = np.geomspace(1e-12, 4e-9, num=50) # lognorm 2nd derivative
-        #reg_params = np.geomspace(1e-10*2, 1e-9, num=10)
-        #reg_params = np.geomspace(2e-10, 1e-9, num=30)
-        #reg_params = np.geomspace(1e-9, 1e-5, num=6)
-        #reg_params = [0]
-
-        rep = 1
-
-        n_reg_params = 100
-
-        reg_params = np.geomspace(1e-7, 1e-5, num=n_reg_params)
-        reg_params = np.geomspace(1e-9, 1e-4, num=n_reg_params)
-
-        reg_params = [7.391e-8]
-
-        #reg_params = [0, 6.691189901715622e-9]
-
-
-        #reg_params = [5.590810182512222e-11, 5.590810182512222e-10, 5.590810182512222e-9]
-
-        #reg_params = [1e-12, 5e-12, 1e-11, 5e-11, 1e-10, 5e-10, 1e-9, 5e-9,
-        #              1e-8, 5e-8, 1e-7, 5e-7]
-
-        #reg_params = np.geomspace(1e-7, 1e-5, num=100)
-
-        #reg_params = [3.16227766e-07]
-
-        #reg_params = [4.893900918477499e-10, 5.736152510448681e-10]
-
-        #reg_params = [1e-3, 1e-5]
-
-        #reg_params = [1e-8, 1e-3]
-
-        min_results = []
-        print("reg params ", reg_params)
-
-        moment_class, min_n_moments, max_n_moments, self.use_covariance = self.moments_data
-        log = self.log_flag
-        if min_n_moments == max_n_moments:
-            self.moment_sizes = np.array(
-                [max_n_moments])  # [36, 38, 40, 42, 44, 46, 48, 50, 52, 54])+1#[max_n_moments])#10, 18, 32, 64])
-        else:
-            self.moment_sizes = np.round(
-                np.exp(np.linspace(np.log(min_n_moments), np.log(max_n_moments), 8))).astype(int)
-
-        if n_mom is not None:
-            max_n_moments = n_moments = n_mom
-
-        self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
-
-        _, _, n_moments, _ = self.moments_data
-
-        size = 100
-
-        fine_noises = []
-        for _ in range(rep):
-            noise = np.random.randn(self.moments_fn.size ** 2).reshape((self.moments_fn.size, self.moments_fn.size))
-            print("fine noise ")
-            print(pd.DataFrame(noise))
-            noise += noise.T
-            noise *= 0.5 * noise_level
-            noise[0, 0] = 0
-
-            fine_noises.append(noise)
-
-        fine_noise = np.mean(fine_noises, axis=0)
-
-        distr_objects = {}
-        kl_divs = {}
-
-        all_noises = []
-        for _ in range(rep):
-            noises = []
-            for i in range(size):
-                noise = np.random.randn(self.moments_fn.size ** 2).reshape((self.moments_fn.size, self.moments_fn.size))
-                print("coarse noise ", noise)
-                noise += noise.T
-                noise *= 0.5 * noise_level * 1.2
-                noise[0, 0] = 0
-                noises.append(noise)
-            #print("coarse noises shape ", np.array(noises).shape)
-            all_noises.append(noises)
-            #print("coarse all noises shape ", np.array(all_noises).shape)
-
-        #print("np.array(all_noises).shape ", np.array(all_noises).shape)
-        noises = np.mean(all_noises, axis=0)
-        noises_var = np.var(all_noises, axis=0)
-
-
-        num_moments = self.moments_fn.size
-        used_reg_params = []
-        for index, reg_param in enumerate(reg_params):
-            print("REG PARAMETER ", reg_param)
-            regularization = mlmc.tool.simple_distribution.Regularization2ndDerivation()
-            #regularization = mlmc.tool.simple_distribution.RegularizationInexact2()
-
-            self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
-            #size = self.moments_fn.size
-            base_moments = self.moments_fn
-            exact_cov, reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(base_moments, self.pdf,
-                                                                                     reg_param=reg_param,
-                                                                                     regularization=regularization)
-            self.original_exact_cov = exact_cov
-            self.moments_without_noise = exact_cov[:, 0]
-
-            print("reg matrix")
-            print(pd.DataFrame(reg_matrix))
-
-            self.exact_moments = exact_cov[0, :] #mlmc.tool.simple_distribution.compute_semiexact_moments(self.moments_fn,
-                                                                                   # self.pdf)
-
-            # Add regularization
-            exact_cov += reg_matrix
-
-            # np.random.seed(1234)
-            # noise = np.random.randn(size ** 2).reshape((size, size))
-            # noise += noise.T
-            # noise *= 0.5 * noise_level
-            # noise[0, 0] = 0
-
-            print("noise ")
-            print(pd.DataFrame(noise))
-            cov = exact_cov + fine_noise
-            moments = cov[:, 0]
-
-            self.moments_fn, info, cov_centered = mlmc.tool.simple_distribution.construct_orthogonal_moments(
-                                                                                                    base_moments,
-                                                                                                    cov,
-                                                                                                    noise_level**2,
-                                                                                                    reg_param=reg_param,
-                                                                                          orth_method=orth_method)
-            self._cov_with_noise = cov
-            self._cov_centered = cov_centered
-            original_evals, evals, threshold, L = info
-            self.L = L
-            self.tol_density_approx = 1e-7
-
-
-
-            moments_with_noise = moments
-
-            #info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise_level)
-
-            n_moments = len(moments_with_noise)
-
-            original_evals, evals, threshold, L = info
-            fine_moments = np.matmul(moments_with_noise, L.T)
-
-            # print("n moments ", n_moments)
-            # print("self.moments_fn.size ", self.moments_fn.size)
-            # print("fine moments_fn.shape ", fine_moments.shape)
-
-            n_moments = self.moments_fn.size
-
-            # if n_moments > self.moments_fn.size:
-            #     continue
-            # moments_fn = moment_fn(n_moments, domain, log=log_flag, safe_eval=False )
-            # print(i_m, n_moments, domain, force_decay)
-
-            moments_data = np.empty((n_moments, 2))
-            moments_data[:, 0] = fine_moments[:n_moments]
-            moments_data[:, 1] = 1.0
-
-            # original_evals, evals, threshold, L = info
-            # fine_moments = np.matmul(moments, L.T)
-            #
-            # moments_data = np.empty((len(fine_moments), 2))
-            # moments_data[:, 0] = fine_moments  # self.exact_moments
-            # moments_data[:, 1] = 1  # noise ** 2
-            # moments_data[0, 1] = 1.0
-
-            #regularization = mlmc.tool.simple_distribution.Regularization3rdDerivation()
-
-            result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data,
-                                            tol=1e-7, reg_param=reg_param, regularization=regularization)
-
-            if not result.success:
-                continue
-
-            used_reg_params.append(reg_param)
-
-            estimated_density_covariance, reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(self.moments_fn,
-                                                                                                distr_obj.density)
-
-
-            distr_objects[reg_param] = (distr_obj, result, threshold, L)
-
-            kl_divs[reg_param] = result.kl
-
-            # M = np.eye(len(cov[0]))
-            # M[:, 0] = -cov[:, 0]
-            #
-            # print("cov centered")
-            # print(pd.DataFrame(cov_centered))
-            #
-            # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
-            # print(pd.DataFrame(
-            #     M @ (np.linalg.inv(L) @ distr_obj.final_jac @ np.linalg.inv(L.T)) @ M.T))
-
-            final_jac = distr_obj.final_jac
-            #
-            # distr_obj_exact_conv_int = mlmc.tool.simple_distribution.compute_exact_cov(distr_obj.moments_fn, distr_obj.density)
-            M = np.eye(len(self._cov_with_noise[0]))
-            M[:, 0] = -self._cov_with_noise[:, 0]
-
-            # print("M @ L-1 @ H @ L.T-1 @ M.T")
-            # print(pd.DataFrame(
-            #     M @ (np.linalg.inv(self.L) @ final_jac @ np.linalg.inv(self.L.T)) @ M.T))
-            #
-            # print("orig cov centered")
-            # print(pd.DataFrame(self._cov_centered))
-
-
-            # print("cov")
-            # print(pd.DataFrame(cov))
-            #
-            # print("L-1 @ H @ L.T-1")
-            # print(pd.DataFrame(
-            #     (np.linalg.inv(L) @ distr_obj.final_jac @ np.linalg.inv(L.T))))
-
-            # print(pd.DataFrame(
-            #     M @ (np.linalg.inv(L) @ estimated_density_covariance @ np.linalg.inv(L.T)) @ M.T))
-
-            # print("np.linalg.inv(L).shape ", np.linalg.inv(L).shape)
-            # print("distr_obj.final_jac.shape ", distr_obj.final_jac.shape)
-            # print("np.linalg.inv(L.T).shape ", np.linalg.inv(L.T).shape)
-
-            # if len(distr_obj.multipliers) < num_moments:
-            #     num_moments = len(distr_obj.multipliers)
-            #     print("NUM MOMENTS ", num_moments)
-
-            print("size ", size)
-
-        reg_params = used_reg_params
-
-        # eval, evec = np.linalg.eigh(self._cov_centered)
-        # print("eval ", eval)
-        # print("evec ", evec)
-        #
-        # tot = sum(eval)
-        # var_exp = [(i / tot) * 100 for i in sorted(eval, reverse=True)]
-        # print("var_exp ", var_exp)
-        # cum_var_exp = np.cumsum(var_exp)
-        # print("cum_var_exp ", cum_var_exp)
-        #
-        # rations = []
-        # for i in range(len(cum_var_exp)):
-        #     if i == 0:
-        #         rations.append(cum_var_exp[i])
-        #     else:
-        #         rations.append(cum_var_exp[i] - cum_var_exp[i - 1])
-        #
-        # rations = np.array(rations)
-
-        all_num_moments = []
-        all_result_norm = []
-
-        for index, distr in distr_objects.items():
-            L = distr[3]
-            distr_obj = distr[0]
-            moments_from_density = (np.linalg.pinv(L) @ distr_obj.final_jac @ np.linalg.pinv(L.T))[:, 0]
-
-            distr_exact_cov, distr_reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(base_moments, distr_obj.density,
-                                                                                     reg_param=0,
-                                                                                     regularization=regularization)
-
-            moments_from_density = distr_exact_cov[:, 0]
-
-
-            result = []
-            result_norm = []
-            for i in range(size):
-                cov = self.original_exact_cov + noises[i][:len(self.original_exact_cov), :len(self.original_exact_cov)]
-                #print("Cov ", cov)
-                coarse_moments = cov[:, 0]
-                coarse_moments[0] = 1
-                #coarse_moments = np.matmul(coarse_moments, L.T)
-
-                # _, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data,
-                #                                      tol=1e-7, reg_param=reg_param)
-                #
-                # estimate_density_exact_moments = mlmc.tool.simple_distribution.compute_semiexact_moments(self.moments_fn,
-                #                                                                                     distr_obj.density)
-
-                num_moments = len(moments_from_density)
-                res = (moments_from_density[:num_moments] - coarse_moments[:num_moments])**2
-
-                #res = (moments_from_density - coarse_moments) ** 2
-
-                # res = ((moments_from_density[:num_moments] - coarse_moments[:num_moments])/num_moments) ** 2
-                #
-                #
-                # res = np.linalg.norm(moments_from_density[:num_moments] - coarse_moments[:num_moments])
-
-                # res = res * rations[:num_moments-1]
-
-                result_norm.append(np.array(res) / num_moments)
-                result.append(res)
-
-            # distr_plot.add_distribution(distr_obj,
-            #                             label="noise: {}, threshold: {}, reg param: {}".format(noise_level, threshold,
-            #                                                                                    reg_param),
-            #                             size=len(coarse_moments), reg_param=reg_param)
-
-            all_num_moments.append(num_moments)
-            min_results.append(np.sum(result))#np.sum(result))
-            all_result_norm.append(np.sum(result_norm))
-
-
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1)
-        # ax.plot(noise_levels, tv, label="total variation")
-
-        zipped = zip(reg_params, min_results)
-
-        for reg_param, min_result in zip(reg_params, min_results):
-            print("reg_param: {}, min_result: {}".format(reg_param, min_result))
-
-        sorted_zip = sorted(zipped, key=lambda x: x[1])
-
-        best_params = []
-        #best_params.append(0)
-        min_best = None
-        for s_tuple in sorted_zip:
-            if min_best is None:
-                min_best = s_tuple
-            if len(best_params) < 5:
-                best_params.append(s_tuple[0])
-
-        # ax.plot(reg_params, min_results, 'o', c='r')
-        # # ax.set_xlabel("noise level")
-        # ax.set_xlabel("regularization param (alpha)")
-        # ax.set_ylabel("min")
-        # # ax.plot(noise_levels, l2, label="l2 norm")
-        # # ax.plot(reg_parameters, int_density, label="abs(density-1)")
-        # #ax.set_yscale('log')
-        # #ax.set_xscale('log')
-        # ax.legend()
-        #
-        # plt.show()
-        kl_div_to_plot = [kl_divs[r_par] for r_par in reg_params]
-
-        if work_dir is not None:
-            if n_mom is not None:
-                self._save_reg_param_data(work_dir, n_mom, reg_params, min_results, distr_objects)
-            else:
-                self._save_reg_param_data(work_dir, noise_level, reg_params, min_results, distr_objects)
-
-        if plot_res:
-
-            res_norm_2 = []
-            for res, used_moments in zip(min_results, all_num_moments):
-                res_norm_2.append(res * (used_moments / max_n_moments))
-
-            fig, ax = plt.subplots()
-            ax.plot(reg_params, min_results, 'o', label="MSE")
-            #ax.plot(reg_params, all_result_norm, 's', label="MSE norm")
-            #ax.plot(reg_params, res_norm_2, '>', label="MSE norm 2")
-            ax.plot(reg_params, kl_div_to_plot, 'v', label="kl div")
-            ax.plot(min_best[0], min_best[1], 'x', color='red')
-            ax.set_ylabel("MSE")
-            ax.set_xlabel(r"$\log(\alpha)$")
-            ax.set_xscale('log')
-            ax.set_yscale('log')
-            ax.legend(loc='best')
-            logfmt = matplotlib.ticker.LogFormatterExponent(base=10.0, labelOnlyBase=True)
-            ax.xaxis.set_major_formatter(logfmt)
-
-            plt.show()
-
-            distr_plot = plot.Distribution(exact_distr=self.cut_distr,
-                                           title="Preconditioning reg, {},  n_moments: {}, noise: {}".format(self.title,
-                                                                                                             n_moments,
-                                                                                                             noise_level),
-                                           log_x=self.log_flag, error_plot=None, reg_plot=False, cdf_plot=False,
-                                           log_density=True)
-
-            if "0" in distr_objects:
-                best_params.append(0)
-            for reg_par in best_params:
-                #print("distr_objects[reg_par] ", distr_objects[reg_par])
-                distr_plot.add_distribution(distr_objects[reg_par][0],
-                                            label="n: {:0.4g}, th: {}, alpha: {:0.4g},"
-                                                  " KL_div: {:0.4g}".format(noise_level, distr_objects[reg_par][2], reg_par,
-                                                                            distr_objects[reg_par][1].kl),
-                                            size=n_moments, mom_indices=False, reg_param=reg_par)
-
-            #self.determine_regularization_param(best_params, regularization, noise=noise_level)
-            distr_plot.show(None)
-
-            for reg_par, kl_div in kl_divs.items():
-                print("KL: {} reg_param: {}".format(kl_div, reg_par))
-
-            return best_params
-        else:
-            exact_cov, reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(base_moments, self.pdf,
-                                                                                     reg_param=best_params[0],
-                                                                                     regularization=regularization)
-            cov += reg_matrix + fine_noise
-
-            return best_params, distr_objects[best_params[0]], exact_cov, cov
-
-    def _save_reg_param_data(self, work_dir, noise_level, reg_params, min_results, distr_objects, cond_numbers=None):
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "reg-params"), reg_params)
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "min-results"), min_results)
-
-        if cond_numbers is not None:
-            np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "cond-numbers"), cond_numbers)
-
-        info = []
-        for index, distr in distr_objects.items():
-            info.append((distr[1].kl, distr[1].nit, not distr[1].success, distr[2]))
-
-        np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "info"), info)
-
-    def find_regularization_param_tv(self):
-        np.random.seed(1234)
-        noise_level = 1e-2
-
-        reg_params = np.linspace(1e-12, 1e-5, num=50)  # Legendre
-        # reg_params = np.linspace(10, 1e-2, num=25)  # BSpline
-
-        reg_params = np.geomspace(1e-12, 1e-6, num=60)  # two gaussians 3rd der
-        reg_params = np.geomspace(1e-12, 1e-9, num=60)  # cauchy 3rd der
-        #reg_params = np.geomspace(5*1e-6, 6*1e-5, num=60) # two gaussian total variation
-        #reg_params = np.geomspace(3e-5, 7e-5, num=60) # norm tv not good
-        reg_params = np.geomspace(1e-4, 5e-2, num=60)
-        # reg_params = [0]
-
-        # reg_params = [3.16227766e-07]
-
-        min_results = []
-        orth_method = 1
-
-        moment_class, min_n_moments, max_n_moments, self.use_covariance = self.moments_data
-        log = self.log_flag
-        if min_n_moments == max_n_moments:
-            self.moment_sizes = np.array(
-                [max_n_moments])  # [36, 38, 40, 42, 44, 46, 48, 50, 52, 54])+1#[max_n_moments])#10, 18, 32, 64])
-        else:
-            self.moment_sizes = np.round(
-                np.exp(np.linspace(np.log(min_n_moments), np.log(max_n_moments), 8))).astype(int)
-
-        self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
-
-        _, _, n_moments, _ = self.moments_data
-
-        size = 60
-        noises = []
-
-        noise = np.random.randn(self.moments_fn.size ** 2).reshape((self.moments_fn.size, self.moments_fn.size))
-        noise += noise.T
-        noise *= 0.5 * noise_level
-        noise[0, 0] = 0
-        fine_noise = noise
-
-        for i in range(size):
-            noise = np.random.randn(self.moments_fn.size ** 2).reshape((self.moments_fn.size, self.moments_fn.size))
-            noise += noise.T
-            noise *= 0.5 * noise_level * 1.1
-            noise[0, 0] = 0
-            noises.append(noise)
-
-        distr_objects = {}
-        kl_divs = {}
-
-        for reg_param in reg_params:
-            regularization = None#mlmc.tool.simple_distribution.Regularization2ndDerivation()
-
-            self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
-            # size = self.moments_fn.size
-            base_moments = self.moments_fn
-            exact_cov, reg_matrix = mlmc.tool.simple_distribution_total_var.compute_semiexact_cov_2(base_moments, self.pdf,
-                                                                                     reg_param=reg_param)
-            self.original_exact_cov = exact_cov
-            self.moments_without_noise = exact_cov[:, 0]
-
-            # Add regularization
-            exact_cov += reg_matrix
-            cov = exact_cov + fine_noise
-            moments = cov[:, 0]
-
-            self.moments_fn, info, cov_centered = mlmc.tool.simple_distribution_total_var.construct_orthogonal_moments(
-                base_moments,
-                cov,
-                noise_level**2,
-                reg_param=reg_param,
-                orth_method=orth_method)
-            self._cov_with_noise = cov
-            self._cov_centered = cov_centered
-            original_evals, evals, threshold, L = info
-            self.L = L
-            self.tol_density_approx = 0.01
-
-            self.exact_moments = mlmc.tool.simple_distribution_total_var.compute_semiexact_moments(self.moments_fn,
-                                                                                    self.pdf)
-
-            moments_with_noise = moments
-
-
-            original_evals, evals, threshold, L = info
-            fine_moments = np.matmul(moments_with_noise, L.T)
-
-            n_moments = self.moments_fn.size
-
-
-            moments_data = np.empty((n_moments, 2))
-            moments_data[:, 0] = fine_moments[:n_moments]
-            moments_data[:, 1] = 1.0
-
-            # regularization = mlmc.tool.simple_distribution.Regularization3rdDerivation()
-
-            result, distr_obj = self.make_approx(mlmc.tool.simple_distribution_total_var.SimpleDistribution, noise, moments_data,
-                                            tol=1e-7, reg_param=reg_param, regularization=regularization)
-
-            estimated_density_covariance, reg_matrix = mlmc.tool.simple_distribution_total_var.compute_semiexact_cov_2(self.moments_fn,
-                                                                                                        distr_obj.density)
-            distr_objects[reg_param] = (distr_obj, result, threshold)
-
-            kl_divs[reg_param] = result.kl
-
-            final_jac = distr_obj.final_jac
-            #
-            # distr_obj_exact_conv_int = mlmc.tool.simple_distribution.compute_exact_cov(distr_obj.moments_fn, distr_obj.density)
-            M = np.eye(len(self._cov_with_noise[0]))
-            M[:, 0] = -self._cov_with_noise[:, 0]
-
-            # print("M @ L-1 @ H @ L.T-1 @ M.T")
-            # print(pd.DataFrame(
-            #     M @ (np.linalg.inv(self.L) @ final_jac @ np.linalg.inv(self.L.T)) @ M.T))
-            #
-            # print("orig cov centered")
-            # print(pd.DataFrame(self._cov_centered))
-
-            # print("cov")
-            # print(pd.DataFrame(cov))
-            #
-            # print("L-1 @ H @ L.T-1")
-            # print(pd.DataFrame(
-            #     (np.linalg.inv(L) @ distr_obj.final_jac @ np.linalg.inv(L.T))))
-
-            # print(pd.DataFrame(
-            #     M @ (np.linalg.inv(L) @ estimated_density_covariance @ np.linalg.inv(L.T)) @ M.T))
-
-            # print("np.linalg.inv(L).shape ", np.linalg.inv(L).shape)
-            # print("distr_obj.final_jac.shape ", distr_obj.final_jac.shape)
-            # print("np.linalg.inv(L.T).shape ", np.linalg.inv(L.T).shape)
-
-            moments_from_density = (np.linalg.inv(L) @ distr_obj.final_jac @ np.linalg.inv(L.T))[:, 0]
-
-            result = []
-            for i in range(size):
-                cov = self.original_exact_cov + noises[i][:len(self.original_exact_cov), :len(self.original_exact_cov)]
-                coarse_moments = cov[:, 0]
-                coarse_moments[0] = 1
-                res = (moments_from_density - coarse_moments) ** 2
-                result.append(res)
-
-            min_results.append(np.sum(result))  # np.sum(result))
-
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1)
-        # ax.plot(noise_levels, tv, label="total variation")
-        zipped = zip(reg_params, min_results)
-
-        # for reg_param, min_result in zip(reg_params, min_results):
-        #     print("reg_param: {}, min_result: {}".format(reg_param, min_result))
-
-        sorted_zip = sorted(zipped, key=lambda x: x[1])
-
-        best_params = []
-        if '0' in distr_objects:
-            best_params.append(0)
-
-        for s_tuple in sorted_zip:
-            print(s_tuple)
-            if len(best_params) < 5:
-                best_params.append(s_tuple[0])
-
-        #
-        # xnew = np.linspace(np.min(reg_params), np.max(reg_params), num=41, endpoint=True)
-        plt.plot(reg_params, min_results, 'o')
-
-        plt.xscale('log')
-        plt.legend(loc='best')
-        plt.show()
-
-        distr_plot = plot.Distribution(exact_distr=self.cut_distr,
-                                       title="Preconditioning reg, {},  n_moments: {}, noise: {}".format(self.title,
-                                                                                                         n_moments,
-                                                                                                         noise_level),
-                                       log_x=self.log_flag, error_plot=None, reg_plot=False, cdf_plot=False,
-                                       log_density=True)
-
-        if "0" in distr_objects:
-            best_params.append(0)
-        for reg_par in best_params:
-            distr_plot.add_distribution(distr_objects[reg_par][0],
-                                        label="n: {:0.4g}, th: {}, alpha: {:0.4g},"
-                                              " KL_div: {:0.4g}".format(noise_level, distr_objects[reg_par][2], reg_par,
-                                                                        distr_objects[reg_par][1].kl),
-                                        size=n_moments, mom_indices=False, reg_param=reg_par)
-
-        # self.determine_regularization_param(best_params, regularization, noise=noise_level)
-        distr_plot.show(None)
-
-        # for reg_par, kl_div in kl_divs.items():
-        #     print("KL: {} reg_param: {}".format(kl_div, reg_par))
-
-        #self.determine_regularization_param_tv(best_params, regularization, noise=noise_level)
-
-        return best_params
 
     def _compute_exact_kl(self, n_moments, moments_fn, orth_method, tol_density=1e-5, tol_exact_cov=1e-10):
         """
@@ -2078,7 +428,7 @@ class DistributionDomainCase:
         distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_exact", cdf_plot=False,
                                        log_x=self.log_flag, error_plot=False)
 
-        dir_name = "KL_div_exact_numpy_{}".format(orth_method)
+        dir_name = "KL_div_exact_{}".format(orth_method)
         if not os.path.exists(dir_name):
             os.mkdir(dir_name)
 
@@ -2100,10 +450,10 @@ class DistributionDomainCase:
         self.moment_sizes = [25]
 
         if os.path.exists(work_dir):
-            shutil.rmtree(work_dir)
-        #     raise FileExistsError
-        # else:
-        os.mkdir(work_dir)
+            #shutil.rmtree(work_dir)
+            raise FileExistsError
+        else:
+            os.mkdir(work_dir)
         np.save(os.path.join(work_dir, "moment_sizes"), self.moment_sizes)
 
         kl_plot = plot.KL_divergence(log_y=True, iter_plot=True, kl_mom_err=False, title="Kullback-Leibler divergence, {}".format(self.title),
@@ -2153,13 +503,11 @@ class DistributionDomainCase:
             self._save_kl_data_exact(work_dir, n_moments, result.kl, result.nit, not result.success, threshold)
 
         #self.check_convergence(results)
-        kl_plot.show(None)
+        #kl_plot.show(None)
         distr_plot.show(None)#file=self.pdfname("_pdf_exact"))
         distr_plot.reset()
 
-        test.plot_numpy.plot_KL_div_exact_iter(os.path.abspath(dir_name))
-
-        return results
+        return results, dir_name
 
     def _save_kl_data_exact(self, work_dir, n_moments, kl_div, nit, success, threshold):
         np.save('{}/{}_{}.npy'.format(work_dir, n_moments, "add-value"), (n_moments, kl_div))
@@ -2192,30 +540,26 @@ class DistributionDomainCase:
         geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 20))
         noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
 
-        #noise_levels = noise_levels[:1]
-
-        #noise_levels = [1e-1, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6, 1e-8]
-
+        # noise_levels = noise_levels[:1]
         min_noise = 1e-1
         max_noise = 1e-12
         geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 50))
         noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
 
-        #noise_levels = [1e-1, 1e-2, 1e-3, 1e-4,  1e-5, 1e-6, 1e-8]
+        # noise_levels = [1e-1, 1e-2, 1e-3, 1e-4,  1e-5, 1e-6, 1e-8]
+        # noise_levels = [1e-2]
+        # noise_levels = [1e-4, 1e-5, 1e-6, 1e-8, 1e-10, 1e-12]
 
-        #noise_levels = [1e-2]
-
-        #noise_levels = [1e-4, 1e-5, 1e-6, 1e-8, 1e-10, 1e-12]
-
-        #noise_levels = [1e-1]
-
-        tol_exact_cov = 1e-10
-        tol_density = 1e-5
+        noise_levels = [1e-3]
+        noise_level = 0
+        tol_exact_moments = 1e-15
+        tol_exact_cov = 1e-15
+        tol_density = 1e-8
         results = []
-        n_moments = 35  # 25 is not enough for TwoGaussians
+        n_moments = 15
         orth_method = 2
 
-        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_inexact", cdf_plot=False,
+        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title + "_inexact", cdf_plot=False,
                                        log_x=self.log_flag, error_plot=False)
 
         dir_name = "KL_div_inexact_{}".format(orth_method)
@@ -2244,15 +588,13 @@ class DistributionDomainCase:
 
         print("n moments ", n_moments)
 
-
-        self.moments_fn = moment_class(n_moments, self.domain, log=log, safe_eval=False)
-
-        print("self moments fn size ", self.moments_fn.size)
+        # print("self moments fn size ", self.moments_fn.size)
 
         ##########################################
         # Orthogonalize moments
+        self.moments_fn = moment_class(n_moments, self.domain, log=log, safe_eval=False)
 
-        base_moments = self.moments_fn
+        base_moments = copy.deepcopy(self.moments_fn)
         exact_cov = mlmc.tool.simple_distribution.compute_semiexact_cov(base_moments, self.pdf)
 
         kl_plot.truncation_err, distr_obj_exact = self._compute_exact_kl(n_moments, base_moments, orth_method,
@@ -2265,12 +607,14 @@ class DistributionDomainCase:
         # print("original exact moments ", exact_moments_orig)
         # print("exact cov[:, 0] ", exact_cov[:, 0])
 
+        self.moments_fn = moment_class(n_moments, self.domain, log=log, safe_eval=False)
+
         ###############################################
         # For each moment size compute density
         for i_m, noise_level in enumerate(noise_levels):
             print("NOISE LEVEL ", noise_level)
             # Add noise to exact covariance matrix
-            #np.random.seed(4567)
+            # np.random.seed(4567)
             noises = []
             n_rep = 1
             for _ in range(n_rep):
@@ -2282,14 +626,18 @@ class DistributionDomainCase:
                 noises.append(noise)
             noise = np.mean(noises, axis=0)
             cov = exact_cov + noise
+            threshold = 0
+            L = None
 
-            # Change base
-            self.moments_fn, info, _ = mlmc.tool.simple_distribution.construct_orthogonal_moments(base_moments, cov, noise_level**2,
-                                                                                          orth_method=orth_method)
-
-            # Tests
-            original_evals, evals, threshold, L = info
-            eye_approx = L @ exact_cov @ L.T
+            # # Change base
+            tol = noise_level ** 2
+            tol = None
+            # self.moments_fn, info, _ = mlmc.tool.simple_distribution.construct_orthogonal_moments(base_moments, cov, tol,
+            #                                                                               orth_method=orth_method)
+            #
+            # # Tests
+            # original_evals, evals, threshold, L = info
+            # eye_approx = L @ exact_cov @ L.T
             # test that the decomposition is done well
             # assert np.linalg.norm(
             #     eye_approx - np.eye(*eye_approx.shape)) < 1e-9  # 1e-10 failed with Cauchy for more moments_fn
@@ -2300,47 +648,62 @@ class DistributionDomainCase:
 
             # Set moments data
             n_moments = self.moments_fn.size
-            print("cov moments ", cov[:, 0])
-            transformed_moments = np.matmul(cov[:, 0], L.T)
-            #print("transformed moments ", transformed_moments)
 
-            moments_data = np.empty((n_moments, 2))
+            print("n moments ", n_moments)
+
+            if L is None:
+                transformed_moments = cov[:, 0]
+            else:
+                # print("cov moments ", cov[:, 0])
+                transformed_moments = np.matmul(cov[:, 0], L.T)
+                # print("transformed moments ", transformed_moments)
+
+            print("transformed moments len ", len(transformed_moments))
+
+            moments_data = np.empty((len(transformed_moments), 2))
             moments_data[:, 0] = transformed_moments
             moments_data[:, 1] = 1
             moments_data[0, 1] = 1.0
 
             exact_moments = exact_moments_orig[:len(transformed_moments)]
 
-            result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, 0.0, moments_data, tol=tol_density)
-            distr_plot.add_distribution(distr_obj, label="noise: {:f}, th: {}, KL div: {:f}".format(noise_level, threshold, result.kl))
+            result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, 0.0, moments_data,
+                                                 tol=tol_density)
+            distr_plot.add_distribution(distr_obj,
+                                        label="noise: {:f}, th: {}, KL div: {:f}".format(noise_level, threshold,
+                                                                                         result.kl))
             results.append(result)
+
+            iter_res_mom = []
+            for it_mom in distr_obj._iter_moments:
+                # print("exact moments ", self.exact_moments[:n_moments])
+                # print("it mom ", it_mom)
+                # print("self it mom shape ", it_mom.shape)
+                # print("(self.exact_moments[:n_moments] - it_mom) ", (self.exact_moments[:n_moments] - it_mom))
+                iter_res_mom.append(np.sum((moments_data[:, 0] - it_mom) ** 2))
+
+            # print("iter res mom ", iter_res_mom)
+
+            np.save('{}/{}.npy'.format(work_dir, "res_moments"), iter_res_mom)
 
             self._save_distr_data(distr_obj, distr_plot, work_dir, noise_level, result)
 
-            print("RESULT ", result.success)
-
-            kl_div = mlmc.tool.simple_distribution.KL_divergence(distr_obj_exact.density, distr_obj.density, self.domain[0], self.domain[1])
-            #total_variation = mlmc.tool.simple_distribution.total_variation_int(distr_obj.density, self.domain[0], self.domain[1])
+            kl_div = mlmc.tool.simple_distribution.KL_divergence(distr_obj_exact.density, distr_obj.density,
+                                                                 self.domain[0], self.domain[1])
+            # total_variation = mlmc.tool.simple_distribution.total_variation_int(distr_obj.density, self.domain[0], self.domain[1])
 
             kl_plot.add_value((noise_level, kl_div))
             kl_plot.add_iteration(x=noise_level, n_iter=result.nit, failed=not result.success)
-
-            # print("exact moments ", exact_moments[:len(moments_data[:, 0])])
-            # print("moments data ", moments_data[:, 0])
-            # print("difference ", np.array(exact_moments) - np.array(moments_data[:, 0]))
-            print("difference orig", np.array(exact_moments_orig) - np.array(cov[:, 0][:len(exact_moments_orig)]))
-
             diff_orig = np.array(exact_moments_orig) - np.array(cov[:, 0][:len(exact_moments_orig)])
-
-            kl_plot.add_moments_l2_norm((noise_level, np.linalg.norm(diff_orig)**2))
+            kl_plot.add_moments_l2_norm((noise_level, np.linalg.norm(diff_orig) ** 2))
 
             self._save_kl_data(work_dir, noise_level, kl_div, result.nit, not result.success,
-                               np.linalg.norm(diff_orig)**2, threshold, total_variation=result.tv)
+                               np.linalg.norm(diff_orig) ** 2, threshold, total_variation=result.tv)
 
-        kl_plot.show(None)
+        #kl_plot.show(None)
         distr_plot.show(None)
         distr_plot.reset()
-        return results
+        return results, dir_name
 
     def _save_kl_data(self, work_dir, noise_level, kl_div, nit, success, mom_err, threshold, total_variation=0, name=""):
         np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "add-value" + name), (noise_level, kl_div))
@@ -2349,220 +712,7 @@ class DistributionDomainCase:
         np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "threshold" + name), threshold)
         np.save('{}/{}_{}.npy'.format(work_dir, noise_level, "total_variation" + name), total_variation)
 
-    def plot_KL_div_inexact_reg_mom(self):
-        """
-        Plot KL divergence for different noise level of exact moments
-        """
-        min_noise = 1e-6
-        max_noise = 1e-1
-        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 10))
-        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
-
-        #noise_levels = [1e-1, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6]
-
-        noise_level = 1e-2  #, 1e-3, 1e-4]
-
-        #noise_levels = noise_levels[:2]
-
-        tol_exact_cov = 1e-10
-        tol_density = 1e-5
-        results = []
-        orth_method = 4
-        n_moments = [10, 23, 35, 47, 60, 75]  # 25 is not enough for TwoGaussians
-
-        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_inexact", cdf_plot=False,
-                                       log_x=self.log_flag, error_plot=False)
-
-        dir_name = "reg_KL_div_inexact_35_{}_mom".format(orth_method)
-        if not os.path.exists(dir_name):
-            os.mkdir(dir_name)
-        else:
-            # @TODO: rm ASAP
-            shutil.rmtree(dir_name)
-            os.mkdir(dir_name)
-
-        work_dir = os.path.join(dir_name, self.name)
-        if os.path.exists(work_dir):
-            raise FileExistsError
-        else:
-            os.mkdir(work_dir)
-            np.save(os.path.join(work_dir, "noise_levels"), noise_levels)
-            np.save(os.path.join(work_dir, "n_moments"), n_moments)
-
-        kl_plot = plot.KL_divergence(iter_plot=True, log_y=True, log_x=True,
-                                     title=self.title + "_noise_{}".format(noise_level), xlabel="noise std",
-                                     ylabel="KL divergence", truncation_err_label="trunc. err, m: {}".format(n_moments))
-
-        ##########################################
-        # # Set moments objects
-        moment_class, _, _, self.use_covariance = self.moments_data
-        log = self.log_flag
-        #
-        # self.moments_fn = moment_class(n_moments, self.domain, log=log, safe_eval=False)
-        # #
-        # # ##########################################
-        # # # Orthogonalize moments
-        # #
-        # base_moments = self.moments_fn
-        # exact_cov = mlmc.tool.simple_distribution.compute_semiexact_cov(base_moments, self.pdf)
-
-        # kl_plot.truncation_err, distr_obj_exact = self._compute_exact_kl(n_moments, base_moments, orth_method,
-        #                                                                  tol_density, tol_exact_cov)
-        #
-        # np.save(os.path.join(work_dir, "truncation_err"), kl_plot.truncation_err)
-        # exact_moments_orig = mlmc.tool.simple_distribution.compute_semiexact_moments(self.moments_fn, self.pdf, tol=1e-10)
-        #exact_moments_orig = exact_cov[:, 0]
-        # print("original exact moments ", exact_moments_orig)
-        # print("exact cov[:, 0] ", exact_cov[:, 0])
-
-        ###############################################
-        # For each moment size compute density
-        for i_m, n_mom in enumerate(n_moments):
-            self.moments_fn = moment_class(n_mom, self.domain, log=log, safe_eval=False)
-            #
-            # ##########################################
-            # # Orthogonalize moments
-            #
-            base_moments = self.moments_fn
-            # exact_cov = mlmc.tool.simple_distribution.compute_semiexact_cov(base_moments, self.pdf)
-
-            kl_plot.truncation_err, distr_obj_exact = self._compute_exact_kl(n_mom, base_moments, orth_method,
-                                                                             tol_density, tol_exact_cov)
-
-            np.save(os.path.join(work_dir, "truncation_err_{}".format(n_mom)), kl_plot.truncation_err)
-
-
-            #print("NOISE LEVEL ", noise_level)
-            _, distr_obj, exact_cov, cov = self.find_regularization_param(plot_res=False, noise_level=noise_level,
-                                                                          work_dir=work_dir, orth_method=orth_method,
-                                                                          n_mom=n_mom)
-            exact_moments_orig = exact_cov[:, 0]
-
-            distr_plot.add_distribution(distr_obj[0], label="noise: {:f}, mom: {} th: {}, KL div: {:f}".format(noise_level,
-                                                                                                               n_mom,
-                                                                                                    distr_obj[2],
-                                                                                                    distr_obj[1].kl))
-
-            self._save_distr_data(distr_obj[0], distr_plot, work_dir, n_mom, distr_obj[1])
-
-            kl_div = mlmc.tool.simple_distribution.KL_divergence(distr_obj_exact.density, distr_obj[0].density, self.domain[0],
-                                                            self.domain[1])
-
-            kl_plot.add_value((n_mom, kl_div))
-            kl_plot.add_iteration(x=n_mom, n_iter=distr_obj[1].nit, failed=not distr_obj[1].success)
-
-            # print("exact moments ", exact_moments[:len(moments_data[:, 0])])
-            # print("moments data ", moments_data[:, 0])
-            # print("difference ", np.array(exact_moments) - np.array(moments_data[:, 0]))
-            print("difference orig", np.array(exact_moments_orig) - np.array(cov[:, 0][:len(exact_moments_orig)]))
-
-            diff_orig = np.array(exact_moments_orig) - np.array(cov[:, 0][:len(exact_moments_orig)])
-
-            kl_plot.add_moments_l2_norm((n_mom, np.linalg.norm(diff_orig)**2))
-
-            self._save_kl_data(work_dir, n_mom, kl_div, distr_obj[1].nit, not distr_obj[1].success,
-                               np.linalg.norm(diff_orig) ** 2, distr_obj[2])
-
-        kl_plot.show(None)
-        distr_plot.show(None)
-        distr_plot.reset()
-        return results
-
-    def plot_KL_div_inexact_reg(self):
-        """
-        Plot KL divergence for different noise level of exact moments
-        """
-        min_noise = 1e-6
-        max_noise = 1e-1
-        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 10))
-        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
-
-        noise_levels = [1e-1, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6]
-
-        noise_levels = [1e-2]#, 1e-3, 1e-4]
-
-        #noise_levels = noise_levels[:2]
-
-        tol_exact_cov = 1e-10
-        tol_density = 1e-5
-        results = []
-        orth_method = 1
-        n_moments = 35  # 25 is not enough for TwoGaussians
-
-        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=self.title+"_inexact", cdf_plot=False,
-                                       log_x=self.log_flag, error_plot=False)
-
-        dir_name = "reg_KL_div_inexact_35_{}_five_fingers_1e-2_density".format(orth_method)
-        if not os.path.exists(dir_name):
-            os.mkdir(dir_name)
-
-        work_dir = os.path.join(dir_name, self.name)
-        if os.path.exists(work_dir):
-            raise FileExistsError
-        else:
-            os.mkdir(work_dir)
-            np.save(os.path.join(work_dir, "noise_levels"), noise_levels)
-            np.save(os.path.join(work_dir, "n_moments"), n_moments)
-
-        kl_plot = plot.KL_divergence(iter_plot=True, log_y=True, log_x=True,
-                                     title=self.title + "_n_mom_{}".format(n_moments), xlabel="noise std",
-                                     ylabel="KL divergence", truncation_err_label="trunc. err, m: {}".format(n_moments))
-
-        ##########################################
-        # # Set moments objects
-        moment_class, _, _, self.use_covariance = self.moments_data
-        log = self.log_flag
-        #
-        self.moments_fn = moment_class(n_moments, self.domain, log=log, safe_eval=False)
-        #
-        # ##########################################
-        # # Orthogonalize moments
-        #
-        base_moments = self.moments_fn
-        # exact_cov = mlmc.tool.simple_distribution.compute_semiexact_cov(base_moments, self.pdf)
-
-        kl_plot.truncation_err, distr_obj_exact = self._compute_exact_kl(n_moments, base_moments, orth_method,
-                                                                         tol_density, tol_exact_cov)
-
-        np.save(os.path.join(work_dir, "truncation_err"), kl_plot.truncation_err)
-        # exact_moments_orig = mlmc.tool.simple_distribution.compute_semiexact_moments(self.moments_fn, self.pdf, tol=1e-10)
-        #exact_moments_orig = exact_cov[:, 0]
-        # print("original exact moments ", exact_moments_orig)
-        # print("exact cov[:, 0] ", exact_cov[:, 0])
-
-        ###############################################
-        # For each moment size compute density
-        for i_m, noise_level in enumerate(noise_levels):
-            #print("NOISE LEVEL ", noise_level)
-            _, distr_obj, exact_cov, cov = self.find_regularization_param(plot_res=False, noise_level=noise_level,
-                                                                          work_dir=work_dir, orth_method=orth_method)
-            exact_moments_orig = exact_cov[:, 0]
-
-            distr_plot.add_distribution(distr_obj[0], label="noise: {:f}, th: {}, KL div: {:f}".format(noise_level,
-                                                                                                    distr_obj[2],
-                                                                                                    distr_obj[1].kl))
-
-            self._save_distr_data(distr_obj[0], distr_plot, work_dir, noise_level, distr_obj[1])
-
-            kl_div = mlmc.tool.simple_distribution.KL_divergence(distr_obj_exact.density, distr_obj[0].density, self.domain[0],
-                                                            self.domain[1])
-
-            kl_plot.add_value((noise_level, kl_div))
-            kl_plot.add_iteration(x=noise_level, n_iter=distr_obj[1].nit, failed=not distr_obj[1].success)
-
-            diff_orig = np.array(exact_moments_orig) - np.array(cov[:, 0][:len(exact_moments_orig)])
-
-            kl_plot.add_moments_l2_norm((noise_level, np.linalg.norm(diff_orig)**2))
-
-            self._save_kl_data(work_dir, noise_level, kl_div, distr_obj[1].nit, not distr_obj[1].success,
-                               np.linalg.norm(diff_orig) ** 2, distr_obj[2])
-
-        kl_plot.show(None)
-        distr_plot.show(None)
-        distr_plot.reset()
-        return results
-
-    def determine_regularization_param(self, reg_params=None, regularization=None, noise=None):
+    def eval_plot(self, noise=None):
         """
         Test density approximation for maximal number of moments
         and varying amount of noise added to covariance matrix.
@@ -2573,285 +723,6 @@ class DistributionDomainCase:
         results = []
         orth_method = 2
         #np.random.seed(8888)
-
-        #noise = 1e-1
-
-        _, _, n_moments, _ = self.moments_data
-        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="Preconditioning reg, {},  n_moments: {}, noise: {}".format(self.title, n_moments, max_noise),
-                                            log_x=self.log_flag, error_plot=None, reg_plot=False, cdf_plot=False, log_density=True)
-        self.eigenvalues_plot = plot.Eigenvalues(title="Eigenvalues, " + self.title)
-
-        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 20))
-        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
-        #noise_levels = geom_seq
-        #print("noise levels ", noise_levels)
-
-        noise_levels = noise_levels[:1]
-        #noise_levels = [5.99484250e-02, 3.59381366e-01, 2.15443469e+00]
-        #noise_levels = [3.59381366e-01]#, 1e-1]
-
-        if noise is not None:
-            noise_levels = [noise]
-
-        #noise_levels = [5e-2, 1e-2, 5e-3]#, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6]
-
-        #noise_levels = [1e-2, 1e-18]
-        noise_levels = [1e-1]
-        #noise_levels = [1e-3, 1e-2, 1e-1, 1e1, 1e2, 1e3]
-        print("noise levels ", noise_levels)
-        #exit()
-
-        #noise_levels = [max_noise]
-        #plot_mom_indices = np.array([0, 1, 2])
-        plot_mom_indices = None
-
-        kl_total = []
-        kl_2_total = []
-        l2 = []
-
-        moments = []
-        all_exact_moments = []
-
-        for noise in noise_levels:
-            kl_2 = []
-            kl = []
-
-            if regularization is None:
-                regularization = mlmc.tool.simple_distribution.Regularization2ndDerivation()
-
-            #regularization = mlmc.tool.simple_distribution.RegularizationInexact()
-            #reg_parameters = [0]#[1e-6]
-
-            #regularization = mlmc.tool.simple_distribution.Regularization2ndDerivation()
-
-            #reg_parameters = [10, 1e-5] # 10 is suitable for Splines
-            #reg_parameters = [5e-6] # is suitable for Legendre
-
-            #reg_parameters = [5e-6, 3.65810502e-06]
-            #reg_parameters = [1e-12]
-
-            #reg_parameters = [2.682695795279722e-05, 1.9306977288832498e-06, 1e-05, 2.6826957952797274e-06, 0.0002682695795279722]
-            #reg_parameters = [5e-6, 1.519911082952933e-06, 1.788649529057435e-06, 1.2915496650148827e-06, 1.0974987654930544e-06, 2.104904144512022e-06]
-
-            #reg_parameters = [0, 1e-12, 5e-9, 5e-8]
-
-            #reg_parameters = [1.5361749466718295e-07]#, 5e-7]
-
-            #reg_parameters = [1e-9, 1e-8, 1e-7, 1e-6, 1e-5]
-            #reg_parameters = [1e-12, 1e-11, 1e-10, 1e-9]
-
-            ##########################
-            # CUT EIGENVALUES params #
-            ##########################
-            # two gaussians
-            #reg_parameters = [0, 1e-7, 1e-6, 5e-6, 1e-5]
-            # norm
-            # reg_parameters = [0, 1e-8, 1e-7, 1e-6, 1e-5]
-            # five fingers
-            #reg_parameters = [0, 1e-8, 1e-7, 1e-6, 1e-5]
-            reg_parameters = [0, 1e-7, 1e-6]
-            #reg_parameters = [0, 1e-7, 1e-6, 1e-5]
-            reg_parameters = [0, 5e-7, 1e-6]
-            #reg_parameters = [0, 5e-8, 1e-6]#[1e-9, 1e-7]
-            reg_parameters = [1e-8, 1e-7, 1e-6]
-            reg_parameters = [1.3848863713938746e-05, 1.6681005372000593e-05, 2.0092330025650498e-05, 2.4201282647943835e-05, 2.9150530628251818e-05, 3.511191734215135e-05, 4.2292428743895077e-05, 5.0941380148163855e-05, 6.135907273413175e-05, 7.39072203352579e-05]
-            reg_parameters = [1.3848863713938746e-06, 1.6681005372000593e-06, 2.0092330025650498e-06,
-                              2.4201282647943835e-06, 2.9150530628251818e-06, 3.511191734215135e-06,
-                              4.2292428743895077e-06, 5.0941380148163855e-06, 6.135907273413175e-06,
-                              7.39072203352579e-06]
-
-            reg_parameters = [1.3848863713938746e-07, 1.6681005372000593e-07,
-                              2.0092330025650498e-07,
-                              2.4201282647943835e-07, 2.9150530628251818e-07,
-                              3.511191734215135e-07,
-                              4.2292428743895077e-07, 5.0941380148163855e-07,
-                              6.135907273413175e-07,
-                              7.39072203352579e-07]
-
-            reg_parameters = [0, 5.590810182512222e-11, 5.590810182512222e-10]
-
-
-            # two gaussians
-            #reg_parameters = [8.66882444e-06]# orth 2
-            reg_parameters = [2.1964e-5] # orth 2
-            #reg_parameters = [2.7879e-7]# orth 4
-
-            # lognorm
-            #reg_parameters = [1.11096758e-04] # orth 2
-            reg_parameters = [0, 5e-7]#[5.4789e-06]
-            #reg_parameters = [5.292e-9]
-
-            # norm
-            reg_parameters = [0, 3.2557e-6]  # orth 2
-            reg_parameters = [0, 2.327e-6]  # orth 4
-
-            # lognorm
-            reg_parameters = [0, 3.2557e-6]  # orth 2
-            reg_parameters = [0, 2.327e-6]  # orth 4
-
-            # TWO gaussians
-            reg_parameters = [6e-7, 7e-7, 8e-7, 9e-7, 1e-6]#, 2e-6, 5e-6, 7e-6, 9e-6] # orth 2
-            #reg_parameters = [5.41918e-7]  # orth 2
-            #reg_parameters = [1.54956e-7] # orth 4
-
-            reg_parameters = [1.676e-7]
-
-            reg_parameters = [1e-6] # Twogaussians
-            reg_parameters = [7e-6] # NORM orth 2
-            reg_parameters = [1e-6]
-
-            reg_parameters = [5e-7]
-            reg_parameters = [2e-7] # NORM
-
-            reg_parameters = [7e-10] # lognorm
-            reg_parameters = [7e-11, 6e-9, 7e-9, 2e-7]
-
-            reg_parameters = [3e-7]
-            reg_parameters = [5e-7] # five fingers orth 4
-            reg_parameters = [1e-9] # five fingers orth 2
-
-            # five fingers
-            # reg_parameters = [0, 6.14735e-7]  # orth 2
-            # reg_parameters = [0, 3.11859e-7]  # orth 4
-
-
-            # ORTH 2
-            #cauchy
-            reg_parameters = [2.082e-8] # 1e-2
-            # lognorm
-            #reg_parameters = [7.118e-6]
-            reg_parameters = [0]
-
-
-            dir = self.title + "noise: ".format(noise)
-            if not os.path.exists(dir):
-                os.makedirs(dir)
-
-            tv = []
-            # kl = []
-            # l2 = []
-            int_density = []
-
-            if reg_params is not None:
-                reg_parameters = reg_params
-
-            for reg_param in reg_parameters:
-                print("reg parameter ", reg_param)
-                info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
-                                                              reg_param=reg_param, orth_method=orth_method,
-                                                              regularization=regularization)
-                n_moments = len(self.exact_moments)
-
-                original_evals, evals, threshold, L = info
-                new_moments = np.matmul(moments_with_noise, L.T)
-
-                moments_data = np.empty((n_moments, 2))
-                moments_data[:, 0] = new_moments
-                moments_data[:, 1] = noise ** 2
-                moments_data[0, 1] = 1.0
-
-                print("moments data ", moments_data)
-
-
-                result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data,
-                                                     tol=1e-7, reg_param=reg_param, regularization=regularization)
-
-                m = mlmc.tool.simple_distribution.compute_exact_moments(self.moments_fn, distr_obj.density)
-                e_m = mlmc.tool.simple_distribution.compute_exact_moments(self.moments_fn, self.pdf)
-                moments.append(m)
-                all_exact_moments.append(e_m)
-
-                # if reg_param > 0:
-                #     distr_obj._analyze_reg_term_jacobian([reg_param])
-
-                # result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data,
-                #                                      tol=1e-10, reg_param=reg_param, prior_distr_obj=distr_obj)
-
-                print("DISTR OBJ reg param {}, MULTIPLIERS {}".format(reg_param, distr_obj.multipliers))
-
-                distr_plot.add_distribution(distr_obj,
-                                            label="n: {:0.4g}, th: {}, alpha: {:0.4g},"
-                                                  " KL_div: {:0.4g}".format(noise, threshold, reg_param, result.kl),
-                                           size=n_moments, mom_indices=plot_mom_indices, reg_param=reg_param)
-
-                results.append(result)
-
-                final_jac = distr_obj.final_jac
-
-                print("final jac ")
-                print(pd.DataFrame(final_jac))
-
-                # print("ORIGINAL COV CENTERED")
-                # print(pd.DataFrame(self._cov_centered))
-                #
-                # M = np.eye(len(self._cov_with_noise[0]))
-                # M[:, 0] = -self._cov_with_noise[:, 0]
-                #
-                # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
-                # print(pd.DataFrame(
-                #     np.linalg.inv(M) @ (
-                #                 np.linalg.inv(L) @ final_jac @ np.linalg.inv(L.T)) @ np.linalg.inv(M.T)))
-                #
-
-                tv.append(result.tv)
-                l2.append(result.l2)
-                kl.append(result.kl)
-                kl_2.append(result.kl_2)
-
-                distr_obj._update_quadrature(distr_obj.multipliers)
-                q_density = distr_obj._density_in_quads(distr_obj.multipliers)
-                q_gradient = distr_obj._quad_moments.T * q_density
-                integral = np.dot(q_gradient, distr_obj._quad_weights) / distr_obj._moment_errs
-
-                int_density.append(abs(sum(integral)-1))
-
-            kl_total.append(np.mean(kl))
-            kl_2_total.append(np.mean(kl_2))
-
-                #distr_plot.show(file=os.path.join(dir, self.pdfname("reg_param_{}_pdf_iexact".format(reg_param))))
-            #distr_plot.reset()
-
-            print("kl ", kl)
-            print("tv ", tv)
-            print("l2 ", l2)
-            # print("density ", int_density)
-
-        print("FINAL moments ", moments)
-        print("exact moments ", all_exact_moments)
-
-        # for exact, estimated in zip(moments, all_exact_moments):
-        #     print("(exact-estimated)**2", (exact-estimated)**2)
-        #     print("sum(exact-estimated)**2", np.sum((exact - estimated) ** 2))
-
-        distr_plot.show(file="determine_param {}".format(self.title))#file=os.path.join(dir, self.pdfname("_pdf_iexact")))
-        distr_plot.reset()
-
-        print("kl divergence", kl)
-
-        #self._plot_kl_div(noise_levels, kl_total)
-
-        #self.plot_gradients(distr_obj.gradients)
-        #self._plot_kl_div(noise_levels, kl_2_total)
-        plt.show()
-
-        #self.check_convergence(results)
-        self.eigenvalues_plot.show(file=None)#self.pdfname("_eigenvalues"))
-
-        return results
-
-    def eval_plot(self, reg_params=None, regularization=None, noise=None):
-        """
-        Test density approximation for maximal number of moments
-        and varying amount of noise added to covariance matrix.
-        :return:
-        """
-        min_noise = 1e-6
-        max_noise = 1e-2
-        results = []
-        orth_method = 2
-        #np.random.seed(8888)
-
-        #noise = 1e-1
 
         _, _, n_moments, _ = self.moments_data
         distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="Preconditioning reg, {},  n_moments: {}, noise: {}".format(self.title, n_moments, max_noise),
@@ -2864,94 +735,73 @@ class DistributionDomainCase:
         noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
 
         noise_levels = [1e-1, 1e-2, 1e-3]
-
         plot_mom_indices = None
-
-        kl_total = []
-        kl_2_total = []
-        l2 = []
 
         moments = []
         all_exact_moments = []
 
         for noise in noise_levels:
-            reg_parameters = [0]
 
             dir = self.title + "noise: ".format(noise)
             if not os.path.exists(dir):
                 os.makedirs(dir)
 
-            for reg_param in reg_parameters:
-                print("reg parameter ", reg_param)
-                info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
-                                                              reg_param=reg_param, orth_method=orth_method,
-                                                              regularization=regularization)
-                n_moments = len(self.exact_moments)
+            info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise, orth_method=orth_method)
+            n_moments = len(self.exact_moments)
 
-                original_evals, evals, threshold, L = info
-                new_moments = np.matmul(moments_with_noise, L.T)
+            original_evals, evals, threshold, L = info
+            new_moments = np.matmul(moments_with_noise, L.T)
 
+            moments_data = np.empty((n_moments, 2))
+            moments_data[:, 0] = new_moments
+            moments_data[:, 1] = noise ** 2
+            moments_data[0, 1] = 1.0
 
+            print("moments data ", moments_data)
 
-                moments_data = np.empty((n_moments, 2))
-                moments_data[:, 0] = new_moments
-                moments_data[:, 1] = noise ** 2
-                moments_data[0, 1] = 1.0
+            result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data,
+                                                 tol=1e-7)
 
-                print("moments data ", moments_data)
+            m = mlmc.tool.simple_distribution.compute_exact_moments(self.moments_fn, distr_obj.density)
+            e_m = mlmc.tool.simple_distribution.compute_exact_moments(self.moments_fn, self.pdf)
+            moments.append(m)
+            all_exact_moments.append(e_m)
 
-                result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data,
-                                                     tol=1e-7, reg_param=reg_param, regularization=regularization)
+            distr_plot.add_distribution(distr_obj,
+                                        label="n: {:0.4g}, th: {}, KL_div: {:0.4g}".format(noise, threshold, result.kl),
+                                       size=n_moments, mom_indices=plot_mom_indices)
 
-                m = mlmc.tool.simple_distribution.compute_exact_moments(self.moments_fn, distr_obj.density)
-                e_m = mlmc.tool.simple_distribution.compute_exact_moments(self.moments_fn, self.pdf)
-                moments.append(m)
-                all_exact_moments.append(e_m)
+            results.append(result)
 
-                # if reg_param > 0:
-                #     distr_obj._analyze_reg_term_jacobian([reg_param])
+            final_jac = distr_obj.final_jac
 
-                # result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data,
-                #                                      tol=1e-10, reg_param=reg_param, prior_distr_obj=distr_obj)
-
-                print("DISTR OBJ reg param {}, MULTIPLIERS {}".format(reg_param, distr_obj.multipliers))
-
-                distr_plot.add_distribution(distr_obj,
-                                            label="n: {:0.4g}, th: {}, alpha: {:0.4g},"
-                                                  " KL_div: {:0.4g}".format(noise, threshold, reg_param, result.kl),
-                                           size=n_moments, mom_indices=plot_mom_indices, reg_param=reg_param)
-
-                results.append(result)
-
-                final_jac = distr_obj.final_jac
-
-                eval, evec = np.linalg.eigh(final_jac)
-                eval[::-1].sort()
+            eval, evec = np.linalg.eigh(final_jac)
+            eval[::-1].sort()
 
 
-                cond_num = distr_obj.cond_number
-                eval_plot_obj.add_values(eval, label=r'$\sigma$' + "={:0.3g}, ".format(noise) +
-                                               r'$\kappa_2$' + "={:0.4g}".format(cond_num))
+            cond_num = distr_obj.cond_number
+            eval_plot_obj.add_values(eval, label=r'$\sigma$' + "={:0.3g}, ".format(noise) +
+                                           r'$\kappa_2$' + "={:0.4g}".format(cond_num))
 
 
-                print("original evals ", original_evals)
+            print("original evals ", original_evals)
 
-                self.eigenvalues_plot.add_values(original_evals, threshold=noise**2, label=r'$\sigma^2$' + "={:0.0e}".format(noise**2))
+            self.eigenvalues_plot.add_values(original_evals, threshold=noise**2, label=r'$\sigma^2$' + "={:0.0e}".format(noise**2))
 
-                print("final jac ")
-                print(pd.DataFrame(final_jac))
+            print("final jac ")
+            print(pd.DataFrame(final_jac))
 
-                # print("ORIGINAL COV CENTERED")
-                # print(pd.DataFrame(self._cov_centered))
-                #
-                # M = np.eye(len(self._cov_with_noise[0]))
-                # M[:, 0] = -self._cov_with_noise[:, 0]
-                #
-                # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
-                # print(pd.DataFrame(
-                #     np.linalg.inv(M) @ (
-                #                 np.linalg.inv(L) @ final_jac @ np.linalg.inv(L.T)) @ np.linalg.inv(M.T)))
-                #
+            # print("ORIGINAL COV CENTERED")
+            # print(pd.DataFrame(self._cov_centered))
+            #
+            # M = np.eye(len(self._cov_with_noise[0]))
+            # M[:, 0] = -self._cov_with_noise[:, 0]
+            #
+            # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
+            # print(pd.DataFrame(
+            #     np.linalg.inv(M) @ (
+            #                 np.linalg.inv(L) @ final_jac @ np.linalg.inv(L.T)) @ np.linalg.inv(M.T)))
+            #
 
         print("FINAL moments ", moments)
         print("exact moments ", all_exact_moments)
@@ -2962,262 +812,13 @@ class DistributionDomainCase:
 
         distr_plot.show(file="determine_param {}".format(self.title))#file=os.path.join(dir, self.pdfname("_pdf_iexact")))
         distr_plot.reset()
-
-
         #self.check_convergence(results)
-
         self.eigenvalues_plot.show(file="eigenvalues")
         self.eigenvalues_plot.show(file=None)#self.pdfname("_eigenvalues"))
         eval_plot_obj.show(file=None)
 
         return results
 
-
-
-    def determine_regularization_param_tv(self, reg_params=None):
-        """
-        Test density approximation for maximal number of moments
-        and varying amount of noise added to covariance matrix.
-        :return:
-        """
-        np.random.seed(1234)
-        min_noise = 1e-6
-        max_noise = 1e-2
-        results = []
-
-        _, _, n_moments, _ = self.moments_data
-        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="Preconditioning reg, {},  n_moments: {}, noise: {}".format(self.title, n_moments, max_noise),
-                                            log_x=self.log_flag, error_plot=None, reg_plot=False, cdf_plot=False, log_density=True)
-        self.eigenvalues_plot = plot.Eigenvalues(title="Eigenvalues, " + self.title)
-
-        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 20))
-        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
-        #noise_levels = geom_seq
-        #print("noise levels ", noise_levels)
-
-        noise_levels = noise_levels[:1]
-        #noise_levels = [5.99484250e-02, 3.59381366e-01, 2.15443469e+00]
-        #noise_levels = [3.59381366e-01]#, 1e-1]
-
-        #noise_levels = [1e-3, 1e-2, 1e-1, 1e1, 1e2, 1e3]
-        print("noise levels ", noise_levels)
-        #exit()
-
-        #noise_levels = [max_noise]
-        #plot_mom_indices = np.array([0, 1, 2])
-        plot_mom_indices = None
-
-        kl_total = []
-        kl_2_total = []
-        l2 = []
-        regularization = None
-
-        moments = []
-        all_exact_moments = []
-
-        moment_class, min_n_moments, max_n_moments, self.use_covariance = self.moments_data
-        log = self.log_flag
-        if min_n_moments == max_n_moments:
-            self.moment_sizes = np.array(
-                [max_n_moments])  # [36, 38, 40, 42, 44, 46, 48, 50, 52, 54])+1#[max_n_moments])#10, 18, 32, 64])
-        else:
-            self.moment_sizes = np.round(np.exp(np.linspace(np.log(min_n_moments), np.log(max_n_moments), 8))).astype(
-                int)
-        # self.moment_sizes = [3,4,5,6,7]
-
-        self.moments_fn = moment_class(max_n_moments, self.domain, log=log, safe_eval=False)
-
-        for noise in noise_levels:
-            kl_2 = []
-            kl = []
-
-            #regularization = mlmc.tool.simple_distribution.Regularization1()
-            #regularization = mlmc.tool.simple_distribution.RegularizationTV()
-
-            #reg_parameters = [10, 1e-5] # 10 is suitable for Splines
-            #reg_parameters = [5e-6] # is suitable for Legendre
-
-            #reg_parameters = [1e-8]
-            #reg_parameters = [6*1e-2, 7*1e-2, 1e-1]  # find reg param between 5*1e-2 and 1e-1
-
-            reg_parameters = [0.0001]
-            reg_parameters = [9.47421052631579e-05]
-            reg_parameters = [7e-6] # 10 momentů
-            reg_parameters = [1e-4] # 20 momentů
-            reg_parameters = [1e-5] # 20 momentů
-            reg_parameters = [1e-5] # TwoGaussians 35 moments, 0.01 noise
-            reg_parameters = [0.0003, 0.00035, 0.0004, 0.00010163898118064394]
-
-            dir = self.title + "noise: ".format(noise)
-            if not os.path.exists(dir):
-                os.makedirs(dir)
-
-            tv = []
-            # kl = []
-            # l2 = []
-            int_density = []
-
-            if reg_params is not None:
-                reg_parameters = reg_params
-
-            for reg_param in reg_parameters:
-                print("reg parameter ", reg_param)
-                # info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
-                #                                               reg_param=reg_param)
-
-                exact_cov, reg_matrix = mlmc.tool.simple_distribution_total_var.compute_semiexact_cov_2(self.moments_fn,
-                                                                                                   self.pdf,
-                                                                                                   reg_param=reg_param)
-                size = self.moments_fn.size
-
-                self.exact_moments = exact_cov[:, 0]
-
-                cov_noise = np.random.randn(size ** 2).reshape((size, size))
-                cov_noise += cov_noise.T
-                cov_noise *= 0.5 * noise
-                cov_noise[0, 0] = 0
-
-                print("cov noise ")
-                print(pd.DataFrame(cov_noise))
-                cov = exact_cov + cov_noise
-
-                # Add noise and regularization
-                #cov = exact_cov + fine_noise[:len(exact_cov), :len(exact_cov)]
-                cov += reg_matrix
-
-                moments_with_noise = cov[:, 0]
-                self.moments_fn, info, cov_centered = mlmc.tool.simple_distribution_total_var.construct_orthogonal_moments(
-                    self.moments_fn,
-                    cov,
-                    noise**2,
-                    reg_param=reg_param,
-                    orth_method=1)
-                original_evals, evals, threshold, L = info
-                fine_moments = np.matmul(moments_with_noise, L.T)
-
-                cov_with_noise = cov
-
-                moments_data = np.empty((len(fine_moments), 2))
-                moments_data[:, 0] = fine_moments  # self.exact_moments
-                moments_data[:, 1] = 1  # noise ** 2
-                moments_data[0, 1] = 1.0
-
-                self.exact_moments = exact_cov[:, 0][:len(fine_moments)]
-
-                # n_moments = len(self.exact_moments)
-                #
-                # original_evals, evals, threshold, L = info
-                # new_moments = np.matmul(moments_with_noise, L.T)
-                #
-                # moments_data = np.empty((n_moments, 2))
-                # moments_data[:, 0] = new_moments
-                # moments_data[:, 1] = noise ** 2
-                # moments_data[0, 1] = 1.0
-
-                print("moments data ", moments_data)
-
-                # modif_cov, reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(self.moments_fn, self.pdf, reg_param=reg_param,
-                #                                                              reg_param_beta=reg_param_beta)
-                #
-                # #modif_cov += reg_matrix
-                # # print("modif cov")
-                # # print(pd.DataFrame(modif_cov))
-                # # print("modif cov inv")
-                # # print(np.linalg.inv(pd.DataFrame(modif_cov)))
-                #
-                # diff_norm = np.linalg.norm(modif_cov - np.eye(*modif_cov.shape)) / n_moments
-                # ref_moments = np.zeros(n_moments)
-                # ref_moments[0] = 1.0
-                #
-                # print("ref moments ", ref_moments)
-                # mom_err = np.linalg.norm(self.exact_moments - ref_moments) / np.sqrt(n_moments)
-                # print("noise: {:6.2g} error of natural cov: {:6.2g} natural moments: {:6.2g}".format(
-                #     noise, diff_norm, mom_err))
-
-                # distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="Density, " + self.title,
-                #                                      log_x=self.log_flag, error_plot='kl')
-                result, distr_obj = self.make_approx(mlmc.tool.simple_distribution_total_var.SimpleDistribution, noise,
-                                                     moments_data,
-                                                     tol=1e-7, reg_param=reg_param, regularization=regularization)
-
-                m = mlmc.tool.simple_distribution_total_var.compute_exact_moments(self.moments_fn, distr_obj.density)
-                e_m = mlmc.tool.simple_distribution_total_var.compute_exact_moments(self.moments_fn, self.pdf)
-                moments.append(m)
-                all_exact_moments.append(e_m)
-
-                # if reg_param > 0:
-                #     distr_obj._analyze_reg_term_jacobian([reg_param])
-
-                # result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data,
-                #                                      tol=1e-10, reg_param=reg_param, prior_distr_obj=distr_obj)
-
-                print("DISTR OBJ reg param {}, MULTIPLIERS {}".format(reg_param, distr_obj.multipliers))
-
-                distr_plot.add_distribution(distr_obj,
-                                            label="noise: {}, threshold: {}, reg param: {}, KL_div: {}".format(noise, threshold,
-                                                                                                   reg_param, result.kl),
-                                           size=n_moments, mom_indices=plot_mom_indices, reg_param=reg_param)
-
-                results.append(result)
-
-                final_jac = distr_obj.final_jac
-
-                print("final jac")
-                print(pd.DataFrame(final_jac))
-
-                print("ORIGINAL COV CENTERED")
-                print(pd.DataFrame(cov_centered))
-
-                #print("np.linalg.inv(L) ", np.linalg.inv(L))
-
-                M = np.eye(len(cov_with_noise[0]))
-                M[:, 0] = -cov_with_noise[:, 0]
-
-                # print("M")
-                # print(pd.DataFrame(M))
-                #
-                # print("np.linalg.inv(M) ", np.linalg.inv(M))
-
-                # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
-                # print(pd.DataFrame(
-                #     np.linalg.inv(M) @ (
-                #                 np.linalg.inv(L) @ final_jac @ np.linalg.inv(L.T)) @ np.linalg.inv(M.T)))
-                #
-
-                tv.append(result.tv)
-                l2.append(result.l2)
-                kl.append(result.kl)
-                kl_2.append(result.kl_2)
-
-                distr_obj._update_quadrature(distr_obj.multipliers)
-                q_density = distr_obj._density_in_quads(distr_obj.multipliers)
-                q_gradient = distr_obj._quad_moments.T * q_density
-                integral = np.dot(q_gradient, distr_obj._quad_weights) / distr_obj._moment_errs
-
-                int_density.append(abs(sum(integral)-1))
-
-            kl_total.append(np.mean(kl))
-            kl_2_total.append(np.mean(kl_2))
-
-
-        print("FINAL moments ", moments)
-        print("exact moments ", all_exact_moments)
-
-        distr_plot.show(file="determine_param {}".format(self.title))#file=os.path.join(dir, self.pdfname("_pdf_iexact")))
-        distr_plot.reset()
-
-        print("kl divergence", kl)
-
-        self._plot_kl_div(noise_levels, kl_total)
-
-        self.plot_gradients(distr_obj.gradients)
-        #self._plot_kl_div(noise_levels, kl_2_total)
-        plt.show()
-
-        #self.check_convergence(results)
-        #self.eigenvalues_plot.show(file=None)#self.pdfname("_eigenvalues"))
-
-        return results
 
     def plot_gradients(self, gradients):
         print("gradients ", gradients)
@@ -3228,434 +829,6 @@ class DistributionDomainCase:
         ax = fig.add_subplot(1, 1, 1)
         ax.plot(gradients)
         plt.show()
-
-    def compare_orthogonalization(self):
-        """
-        Test density approximation for maximal number of moments
-        and varying amount of noise added to covariance matrix.
-        :return:
-        """
-        min_noise = 1e-6
-        max_noise = 0.01
-        results = []
-
-        orth_methods = [4]  # 1 - add constant to all eigenvalues,
-                                 # 2 - cut eigenvalues below threshold,
-                                 # 3 - add const to eigenvalues below threshold
-
-        titles = {1: "add noise-min(eval, 0) to eigenvalues",
-                  2: "cut eigenvalues",
-                  3: "add const to eigenvalues below threshold",
-                  4: "pca"}
-
-        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 5))
-        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
-
-        noise_levels = noise_levels[:1]
-        print("noise levels ", noise_levels)
-
-        reg_param = 0  # NOT works with regularization too
-
-        mom_class, min_mom, max_mom, log_flag = self.moments_data
-        self.use_covariance = True
-
-        for orth_method in orth_methods:
-            distr_plot = plot.Distribution(exact_distr=self.cut_distr, title=titles[orth_method], cdf_plot=False,
-                                           log_x=self.log_flag, error_plot='kl')
-
-            self.eigenvalues_plot = plot.Eigenvalues(title="Eigenvalues, " + self.title)
-
-            for noise in noise_levels:
-
-                self.moments_data = (mom_class, max_mom, max_mom, log_flag)
-                info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
-                                                              reg_param=reg_param, orth_method=orth_method)
-
-                original_evals, evals, threshold, L = info
-                new_moments = np.matmul(moments_with_noise, L.T)
-
-                n_moments = len(moments_with_noise)
-
-                moments_data = np.empty((len(new_moments), 2))
-                moments_data[:, 0] = new_moments
-                moments_data[:, 1] = noise ** 2
-                moments_data[0, 1] = 1.0
-
-                print("momentsdata ", moments_data)
-
-                modif_cov = mlmc.tool.simple_distribution.compute_semiexact_cov(self.moments_fn, self.pdf)
-
-                print("modif_cov ", modif_cov)
-
-                # diff_norm = np.linalg.norm(modif_cov - np.eye(*modif_cov.shape)) / n_moments
-                # ref_moments = np.zeros(n_moments)
-                # ref_moments[0] = 1.0
-                # mom_err = np.linalg.norm(self.exact_moments[:n_moments] - ref_moments) / np.sqrt(n_moments)
-                # print("noise: {:6.2g} error of natural cov: {:6.2g} natural moments: {:6.2g}".format(
-                #     noise, diff_norm, mom_err))
-
-                # assert mom_err/(noise + 1e-10) < 50  - 59 for five fingers dist
-
-                regularization = mlmc.tool.simple_distribution.Regularization2ndDerivation()
-
-                result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise,
-                                                     moments_data, reg_param=reg_param, tol=1e-5,
-                                                     regularization=regularization)
-
-                distr_plot.add_distribution(distr_obj,
-                                            label="m: {}, th: {}, noise: {}, KL: {}".format(n_moments, threshold,
-                                                                                            noise, result.kl))
-                results.append(result)
-
-
-            # self.check_convergence(results)
-            #self.eigenvalues_plot.show(None)  # file=self.pdfname("_eigenvalues"))
-            distr_plot.show(None)  # "PDF aprox")#file=self.pdfname("_pdf_iexact"))
-            distr_plot.reset()
-            plt.show()
-        return results
-
-    def inexact_conv(self):
-        """
-        Test density approximation for maximal number of moments
-        and varying amount of noise added to covariance matrix.
-        :return:
-        """
-        min_noise = 1e-6
-        max_noise = 1e-2
-        results = []
-
-        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="", cdf_plot=False,
-                                            log_x=self.log_flag, error_plot='kl')
-
-        self.eigenvalues_plot = plot.Eigenvalues(title="Eigenvalues, " + self.title)
-
-        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 5))
-        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
-
-        noise_levels = noise_levels[:1]
-
-        print("noise levels ", noise_levels)
-
-        orth_method = 2  # cut eigenvalues
-        mom_class, min_mom, max_mom, log_flag = self.moments_data
-
-        #moments_num = [5, 10, 15, 20]#, 10, 20, 30]
-        moments_num = [35]
-        regularization = None
-        reg_param = 0
-        res_mom = []
-        res_mom_norm = []
-        norm_coefs = []
-
-        for noise in noise_levels:
-            for m in moments_num:#np.arange(min_mom, max_mom, 5):
-
-                for self.use_covariance in [True]:
-                    print("self use covariance ", self.use_covariance)
-
-                    # regularization = mlmc.tool.simple_distribution.RegularizationInexact()
-                    # reg_param = 1e-3
-
-                    self.moments_data = (mom_class, m, m, log_flag)
-                    info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
-                                                                  orth_method=orth_method, regularization=regularization,
-                                                                  reg_param=reg_param)
-
-                    n_moments = len(moments_with_noise)
-
-                    original_evals, evals, threshold, L = info
-                    new_moments = np.matmul(moments_with_noise, L.T)
-                    n_moments = len(new_moments)
-
-                    moments_data = np.empty((n_moments, 2))
-                    moments_data[:, 0] = new_moments
-                    moments_data[:, 1] = noise ** 2
-                    moments_data[0, 1] = 1.0
-
-                    print("moments data ", moments_data)
-
-                    if self.use_covariance:
-                        print("if use covariance ", self.use_covariance)
-
-                        modif_cov, reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(self.moments_fn, self.pdf,
-                                                                                     regularization=regularization,
-                                                                                     reg_param=reg_param)
-
-                        print("modif_cov ", modif_cov)
-
-                        diff_norm = np.linalg.norm(modif_cov - np.eye(*modif_cov.shape)) / n_moments
-                        ref_moments = np.zeros(n_moments)
-                        ref_moments[0] = 1.0
-                        mom_err = np.linalg.norm(self.exact_moments[:n_moments] - ref_moments) / np.sqrt(n_moments)
-                        print("noise: {:6.2g} error of natural cov: {:6.2g} natural moments: {:6.2g}".format(
-                            noise, diff_norm, mom_err))
-
-                        #assert mom_err/(noise + 1e-10) < 50  - 59 for five fingers dist
-
-                        result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise,
-                                                             moments_data,
-                                                             tol=1e-8, regularization=regularization, reg_param=reg_param)
-
-                        distr_plot.add_distribution(distr_obj,
-                                                    label="moments {}, threshold: {}, noise: {:0.3g}, kl: {:0.3g}".
-                                                    format(n_moments, threshold, noise, result.kl))
-                        results.append(result)
-
-                    else:
-
-                        # TODO:
-                        # Use SimpleDistribution only as soon as it use regularization that improve convergency even without
-                        # cov matrix. preconditioning.
-                        result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise, moments_data, tol=1e-5)
-                        distr_plot.add_distribution(distr_obj, label="{} moments, kl: {}".format(n_moments, result.kl))
-                        results.append(result)
-
-                    print("ORIGINAL COV CENTERED")
-                    print(pd.DataFrame(self._cov_centered))
-
-                    M = np.eye(len(self._cov_with_noise[0]))
-                    M[:, 0] = -self._cov_with_noise[:, 0]
-
-                    final_jac = distr_obj.final_jac
-
-                    print("result jacobian")
-                    print(pd.DataFrame(distr_obj.final_jac))
-
-                    # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
-                    # print(pd.DataFrame(
-                    #     np.linalg.inv(M) @ (
-                    #                 np.linalg.inv(L) @ final_jac @ np.linalg.inv(L.T)) @ np.linalg.inv(M.T)))
-
-                    num_moments = m
-
-                    moments_from_density = (np.linalg.pinv(L) @ distr_obj.final_jac @ np.linalg.pinv(L.T))[:, 0]
-
-                    res = (moments_from_density[:num_moments - 1] - self.moments_without_noise[:num_moments - 1]) ** 2
-
-                    norm_coef = np.max(moments_num) - m
-                    if norm_coef == 0:
-                        norm_coef = 1
-
-                    norm_coefs.append(norm_coef)
-
-                    print("norm coef ", norm_coef)
-                    res_mom_norm.append(np.array(res_mom) / norm_coef)
-
-                    res_mom.append(res)
-
-        print("res mom ", res_mom)
-        print("res mom norm ", res_mom_norm)
-        for res, res_n, n_coef in zip(res_mom, res_mom_norm, norm_coefs):
-            print("res sum ", np.sum(res))
-            print("res norm sum ", np.sum(res_n))
-
-            print("res sum / norm coef  ", np.sum(res)/n_coef)
-
-        for res in res_mom:
-            print("NORMED res ", np.sum(res) * ((np.max(moments_num)) / len(res)))
-
-        #self.check_convergence(results)
-        self.eigenvalues_plot.show(None)#file=self.pdfname("_eigenvalues"))
-        distr_plot.show(None)#"PDF aprox")#file=self.pdfname("_pdf_iexact"))
-        distr_plot.reset()
-        plt.show()
-        return results
-
-    def inexact_conv_test(self):
-        """
-        Test density approximation for maximal number of moments
-        and varying amount of noise added to covariance matrix.
-        :return:
-        """
-        min_noise = 1e-6
-        max_noise = 1e-2
-        results = []
-
-        distr_plot = plot.Distribution(exact_distr=self.cut_distr, title="", cdf_plot=False,
-                                            log_x=self.log_flag, error_plot='kl')
-
-        self.eigenvalues_plot = plot.Eigenvalues(title="Eigenvalues, " + self.title)
-
-        geom_seq = np.exp(np.linspace(np.log(min_noise), np.log(max_noise), 5))
-        noise_levels = np.flip(np.concatenate(([0.0], geom_seq)), axis=0)
-
-        noise_levels = noise_levels[:1]
-
-        print("noise levels ", noise_levels)
-
-        orth_method = 2
-        mom_class, min_mom, max_mom, log_flag = self.moments_data
-
-        #moments_num = [5, 10, 15, 20]#, 10, 20, 30]
-        moments_num = [max_mom]
-        regularization = None
-        reg_param = 0
-
-        res_mom = []
-
-        res_mom_norm = []
-
-        norm_coefs = []
-
-        for noise in noise_levels:
-            for m in moments_num:#np.arange(min_mom, max_mom, 5):
-                multipliers = []
-                rep_size = 1
-                multipliers = np.zeros((rep_size, m))
-
-                self.setup_moments(self.moments_data, noise_level=0)
-                exact_moments = self.exact_moments
-                exact_moments_orig = self.moments_without_noise
-                moments_data = np.empty((m, 2))
-                moments_data[:, 0] = self.exact_moments[:m]
-                moments_data[:, 1] = 1.0
-
-                exact_result, exact_distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, 0.0,
-                                                     moments_data,
-                                                     tol=1e-10)
-                exact_L = self.L
-
-                for i in range(rep_size):
-                    #np.random.seed(i)
-
-                    for self.use_covariance in [True]:
-                        self.moments_data = (mom_class, m, m, log_flag)
-                        info, moments_with_noise = self.setup_moments(self.moments_data, noise_level=noise,
-                                                                      orth_method=orth_method, regularization=regularization,
-                                                                      reg_param=1e-3)
-
-                        original_evals, evals, threshold, L = info
-                        new_moments = np.matmul(moments_with_noise, L.T)
-                        n_moments = len(new_moments)
-                        moments_data = np.empty((n_moments, 2))
-                        moments_data[:, 0] = new_moments
-                        moments_data[:, 1] = noise ** 2
-                        moments_data[0, 1] = 1.0
-
-
-                        # modif_cov, reg_matrix = mlmc.tool.simple_distribution.compute_semiexact_cov_2(self.moments_fn, self.pdf,
-                        #                                                              regularization=regularization,
-                        #                                                              reg_param=reg_param)
-                        #
-                        # diff_norm = np.linalg.norm(modif_cov - np.eye(*modif_cov.shape)) / n_moments
-                        # ref_moments = np.zeros(n_moments)
-                        # ref_moments[0] = 1.0
-                        # mom_err = np.linalg.norm(self.exact_moments[:n_moments] - ref_moments) / np.sqrt(n_moments)
-                        # print("noise: {:6.2g} error of natural cov: {:6.2g} natural moments: {:6.2g}".format(
-                        #     noise, diff_norm, mom_err))
-
-                        result, distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise,
-                                                             moments_data,
-                                                             tol=1e-8, regularization=regularization, reg_param=reg_param)
-
-                        multipliers[i, :len(distr_obj.multipliers)] = distr_obj.multipliers
-
-                        distr_plot.add_distribution(distr_obj,
-                                                    label="{} moments, {} threshold, noise: {}, kl: {}".
-                                                    format(n_moments, threshold, noise, result.kl))
-                        results.append(result)
-
-
-
-                        # print("ORIGINAL COV CENTERED")
-                        # print(pd.DataFrame(self._cov_centered))
-                        #
-                        # M = np.eye(len(self._cov_with_noise[0]))
-                        # M[:, 0] = -self._cov_with_noise[:, 0]
-                        #
-                        # final_jac = distr_obj.final_jac
-                        #
-                        # print("result jacobian")
-                        # print(pd.DataFrame(distr_obj.final_jac))
-                        #
-                        # # print("M-1 @ L-1 @ H @ L.T-1 @ M.T-1")
-                        # # print(pd.DataFrame(
-                        # #     np.linalg.inv(M) @ (
-                        # #                 np.linalg.inv(L) @ final_jac @ np.linalg.inv(L.T)) @ np.linalg.inv(M.T)))
-
-                        #===================================================
-                        new_moments = np.matmul(exact_moments, L.T)
-                        n_moments = len(new_moments)
-                        moments_data = np.empty((n_moments, 2))
-                        moments_data[:, 0] = new_moments
-                        moments_data[:, 1] = noise ** 2
-                        moments_data[0, 1] = 1.0
-
-                        result, exact_distr_obj = self.make_approx(mlmc.tool.simple_distribution.SimpleDistribution, noise,
-                                                             moments_data,
-                                                             tol=1e-8, regularization=regularization,
-                                                             reg_param=reg_param)
-
-
-                        #===================================================
-
-                        num_moments = m
-
-                        moments_from_density = (np.linalg.pinv(L) @ distr_obj.final_jac @ np.linalg.pinv(L.T))[:, 0]
-
-                        print("moments from density ", moments_from_density)
-                        print("distr obj multipliers ", distr_obj.multipliers)
-
-
-                        res = (moments_from_density[:num_moments - 1] - self.moments_without_noise[:num_moments - 1]) ** 2
-
-                        norm_coef = np.max(moments_num) - m
-                        if norm_coef == 0:
-                            norm_coef = 1
-
-                        norm_coefs.append(norm_coef)
-
-                        print("norm coef ", norm_coef)
-                        res_mom_norm.append(np.array(res_mom) / norm_coef)
-
-                        res_mom.append(res)
-
-                        a, b = self.domain
-                        kl = mlmc.tool.simple_distribution.KL_divergence(exact_distr_obj.density, distr_obj.density, a, b)
-
-                        print("KL divergence ", kl)
-
-                        # moments = np.linalg.inv(exact_L) @ exact_moments
-                        # print("moments ", moments)
-                        # print("exact moments orig ", exact_moments_orig)
-                        # exact_multipliers = exact_distr_obj.multipliers @ np.linalg.inv(exact_L)
-                        # multipliers = distr_obj.multipliers @ np.linalg.inv(self.L)
-
-                        moments = new_moments
-                        exact_multipliers = exact_distr_obj.multipliers
-                        multipliers = distr_obj.multipliers
-
-                        mu_lambda_kl = np.dot(moments[:len(multipliers)],
-                                              -(exact_multipliers[:len(multipliers)] - multipliers))
-
-                        print("mu_lambda_kl ", mu_lambda_kl)
-
-
-                average_multipliers = np.mean(np.array(multipliers), axis=0)
-
-                #distr_obj.multipliers = average_multipliers
-
-                distr_plot.add_distribution(distr_obj, label="average multipliers")
-
-
-        # print("res mom ", res_mom)
-        # print("res mom norm ", res_mom_norm)
-        # for res, res_n, n_coef in zip(res_mom, res_mom_norm, norm_coefs):
-        #     print("res sum ", np.sum(res))
-        #     print("res norm sum ", np.sum(res_n))
-        #
-        #     print("res sum / norm coef  ", np.sum(res)/n_coef)
-        #
-        # for res in res_mom:
-        #     print("NORMED res ", np.sum(res) * ((np.max(moments_num)) / len(res)))
-        #
-        # #self.check_convergence(results)
-        # self.eigenvalues_plot.show(None)#file=self.pdfname("_eigenvalues"))
-        distr_plot.show(None)#"PDF aprox")#file=self.pdfname("_pdf_iexact"))
-        distr_plot.reset()
-        plt.show()
-        return results
 
 
 distribution_list = [
@@ -3698,164 +871,47 @@ def test_pdf_approx_exact_moments(moments, distribution):
     # Dict of result matricies (n_quantiles, n_moments) for every performed kind of test.
     for i_q, quantile in enumerate(quantiles):
         np.random.seed(1234)
-
         case = DistributionDomainCase(moments, distribution, quantile)
-        tests = [case.mlmc_conv]
-        #tests = [case.exact_conv]
-        #tests = [case.inexact_conv]
-        #tests = [case.inexact_conv_test]
+
         tests = [case.plot_KL_div_exact]
-        #tests = [case.plot_KL_div_inexact_reg]
-        #tests = [case.plot_KL_div_inexact_reg_mom]
         #tests = [case.plot_KL_div_inexact]
-        #tests = [case.determine_regularization_param]
-        #tests = [case.eval_plot]
-        # #tests = [case.determine_regularization_param_tv]
-        #tests = [case.find_regularization_param]
-        #tests = [case.find_regularization_param_tv]
-        #tests = [case.compare_orthogonalization]
-        #tests = [case.compare_spline_max_ent]
-        #tests = [case.mc_find_regularization_param]
-        #tests = [case.compare_spline_max_ent_save]
 
         for test_fn in tests:
             name = test_fn.__name__
-            test_results = test_fn()
+            test_results, dir_name = test_fn()
+
             values = conv.setdefault(name, (case.title, []))
             values[1].append(test_results)
 
-    # for key, values in conv.items():
-    #     title, results = values
-    #     title = "{}_conv_{}".format(title, key)
-    #     if results[0] is not None:
-    #         plot.plot_convergence(quantiles, results, title=title)
-
-    # kl_collected = np.empty( (len(quantiles), len(moment_sizes)) )
-    # l2_collected = np.empty_like(kl_collected)
-    # n_failed = []
-    # warn_log = []
-    #
-    #     kl_collected[i_q, :], l2_collected[i_q, :] = exact_conv(cut_distr, moments, tol_exact_moments, title)
-    #
-    #
-    # plot_convergence(moment_sizes, quantiles, kl_collected, l2_collected, title)
-    #
-    # #assert not warn_log
-    # if warn_log:
-    #     for warn in warn_log:
-    #         print(warn)
-
-
-# @pytest.mark.skip
-# def test_distributions():
-#     """
-#     Plot densities and histogram for chosen distributions
-#     :return: None
-#     """
-#     mlmc_list = []
-#     # List of distributions
-#     distributions = [
-#         (stats.norm(loc=1, scale=2), False, '_sample_fn')
-#         #(stats.lognorm(scale=np.exp(5), s=1), True, '_sample_fn'),  # worse conv of higher moments
-#         # (stats.lognorm(scale=np.exp(-5), s=1), True, '_sample_fn_basic'),
-#         #(stats.chi2(df=10), True, '_sample_fn')#,
-#         # (stats.weibull_min(c=20), True, '_sample_fn'),   # Exponential
-#         # (stats.weibull_min(c=1.5), True, '_sample_fn_basic'),  # Infinite derivative at zero
-#         # (stats.weibull_min(c=3), True, '_sample_fn_basic')  # Close to normal
-#          ]
-#     levels = [1]#, 2, 3, 5, 7, 9]
-#     n_moments = 10
-#     # Loop through distributions and levels
-#     for distr in distributions:
-#         for level in levels:
-#             mlmc_list.append(compute_mlmc_distribution(level, distr, n_moments))
-#
-#     fig = plt.figure(figsize=(30, 10))
-#     ax1 = fig.add_subplot(1, 2, 1)
-#     ax2 = fig.add_subplot(1, 2, 2)
-#
-#     n_moments = 5
-#     # One level MC samples
-#     mc0_samples = mlmc_list[0].mc.levels[0].sample_values[:, 0]
-#     mlmc_list[0].ref_domain = (np.min(mc0_samples), np.max(mc0_samples))
-#
-#     # Plot densities according to TestMLMC instances data
-#     for test_mc in mlmc_list:
-#         test_mc.mc.clean_subsamples()
-#         test_mc.mc.update_moments(test_mc.moments_fn)
-#         domain, est_domain, mc_test = mlmc.archive.estimate.compute_results(mlmc_list[0], n_moments, test_mc)
-#         mlmc.archive.estimate.plot_pdf_approx(ax1, ax2, mc0_samples, mc_test, domain, est_domain)
-#     ax1.legend()
-#     ax2.legend()
-#     fig.savefig('compare_distributions.pdf')
-#     plt.show()
-
-@pytest.mark.skip
-def test_total_variation():
-    function = lambda x: np.sin(x)
-    lower_bound, higher_bound = 0, 2 * np.pi
-    total_variation = mlmc.tool.simple_distribution.total_variation_vec(function, lower_bound, higher_bound)
-    tv = mlmc.tool.simple_distribution.total_variation_int(function, lower_bound, higher_bound)
-
-    assert np.isclose(total_variation, 4, rtol=1e-2, atol=0)
-    assert np.isclose(tv, 4, rtol=1e-1, atol=0)
-
-    function = lambda x: x**2
-    lower_bound, higher_bound = -5, 5
-    total_variation = mlmc.tool.simple_distribution.total_variation_vec(function, lower_bound, higher_bound)
-    tv = mlmc.tool.simple_distribution.total_variation_int(function, lower_bound, higher_bound)
-
-    assert np.isclose(total_variation, lower_bound**2 + higher_bound**2, rtol=1e-2, atol=0)
-    assert np.isclose(tv, lower_bound ** 2 + higher_bound ** 2, rtol=1e-2, atol=0)
-
-    function = lambda x: x
-    lower_bound, higher_bound = -5, 5
-    total_variation = mlmc.tool.simple_distribution.total_variation_vec(function, lower_bound, higher_bound)
-    tv = mlmc.tool.simple_distribution.total_variation_int(function, lower_bound, higher_bound)
-    assert np.isclose(total_variation, abs(lower_bound) + abs(higher_bound), rtol=1e-2, atol=0)
-    assert np.isclose(tv, abs(lower_bound) + abs(higher_bound), rtol=1e-2, atol=0)
-
-
-def plot_derivatives():
-    function = lambda x: x
-    lower_bound, higher_bound = -5, 5
-    x = np.linspace(lower_bound, higher_bound, 1000)
-    y = mlmc.tool.simple_distribution.l1_norm(function, x)
-    hubert_y = mlmc.tool.simple_distribution.hubert_norm(function, x)
-
-    plt.plot(x, y, '--')
-    plt.plot(x, hubert_y, linestyle=':')
-    plt.show()
-
+    return name, dir_name
 
 def run_distr():
     distribution_list = [
         # distibution, log_flag
-        ######
-        #  Benchmark distributions
-        ######
+        # (stats.dgamma(1,1), False) # not good
+        # (stats.beta(0.5, 0.5), False) # Looks great
+
+        # (stats.lognorm(loc=0, scale=10), False),
+
         (bd.TwoGaussians(name='two-gaussians'), False),
-        # (bd.FiveFingers(name='five-fingers'), False), # Covariance matrix decomposition failed
-        # (bd.Cauchy(name='cauchy'), False),# pass, check exact
-        # # (bd.Discontinuous(name='discontinuous'), False),
-        # (stats.lognorm(scale=np.exp(1), s=1), False),
-        # (bd.Abyss(name="abyss"), False),
-        # (bd.ZeroValue(name='Rho4'), False),
-        ############
-
-
+        (bd.FiveFingers(name='five-fingers'), False),  # Covariance matrix decomposition failed
+        (bd.Cauchy(name='cauchy'), False),  # pass, check exact
+        # # # # # # # ##(bd.Discontinuous(name='discontinuous'), False),
+        (stats.lognorm(scale=np.exp(1), s=1), False),
+        (bd.Abyss(name="abyss"), False),
+        (bd.ZeroValue(name='zero-value'), False),
         # # # # # # # # # # # # # # # # # # # #(bd.Gamma(name='gamma'), False) # pass
         # # # # # # # # # # # # # # # # # # # #(stats.norm(loc=1, scale=2), False),
 
-            # Quite hard but peak is not so small comparet to the tail.
+        # Quite hard but peak is not so small comparet to the tail.
         # # (stats.lognorm(scale=np.exp(-3), s=2), False),  # Extremely difficult to fit due to very narrow peak and long tail.
         # (stats.lognorm(scale=np.exp(-3), s=2), True),    # Still difficult for Lagrange with many moments.
-        #(stats.chi2(df=10), False),# Monomial: s1=nan, Fourier: s1= -1.6, Legendre: s1=nan
-        #(stats.chi2(df=5), True), # Monomial: s1=-10, Fourier: s1=-1.6, Legendre: OK
-        #(stats.weibull_min(c=0.5), False),  # Exponential # Monomial stuck, Fourier stuck
-        #(stats.weibull_min(c=1), False),  # Exponential
-        #(stats.weibull_min(c=2), False),  # Rayleigh distribution
-        #(stats.weibull_min(c=5, scale=4), False),   # close to normal
+        # (stats.chi2(df=10), False),# Monomial: s1=nan, Fourier: s1= -1.6, Legendre: s1=nan
+        # (stats.chi2(df=5), True), # Monomial: s1=-10, Fourier: s1=-1.6, Legendre: OK
+        # (stats.weibull_min(c=0.5), False),  # Exponential # Monomial stuck, Fourier stuck
+        # (stats.weibull_min(c=1), False),  # Exponential
+        # (stats.weibull_min(c=2), False),  # Rayleigh distribution
+        # (stats.weibull_min(c=5, scale=4), False),   # close to normal
         # (stats.weibull_min(c=1.5), True),  # Infinite derivative at zero
     ]
 
@@ -3888,7 +944,14 @@ def run_distr():
         for distr in enumerate(distribution_list):
             #test_spline_approx(m, distr)
             #splines_indicator_vs_smooth(m, distr)
-            test_pdf_approx_exact_moments(m, distr)
+            name, dir_name = test_pdf_approx_exact_moments(m, distr)
+
+    print("name ", name)
+    if name == "plot_KL_div_exact":
+        test.plot_numpy.plot_KL_div_exact_iter(os.path.abspath(dir_name))
+    else:
+        test.plot_numpy.plot_KL_div_inexact_iter(os.path.abspath(dir_name))
+
 
 @pytest.mark.skip
 def test_gauss_degree(moments, distr, plot_requirements, degrees=[100]):

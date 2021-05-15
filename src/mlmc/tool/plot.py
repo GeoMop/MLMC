@@ -3105,9 +3105,6 @@ class Iterations:
         legend.set_title(legend.get_title().get_text())
 
 
-
-
-
 class KL_divergence:
     """
     Plot of KL divergence
