@@ -450,9 +450,10 @@ def KL_divergence(prior_density, posterior_density, a, b):
         # posterior
         q = max(posterior_density(x), 1e-300)
         # modified integrand to provide positive value even in the case of imperfect normalization
-        return  p * np.log(p / q) - p + q
+        return p * np.log(p / q) - p + q
 
-    value = integrate.quad(integrand, a, b, epsabs=1e-10)
+    value = integrate.quad(integrand, a, b, epsabs=1e-10, full_output=True)
+
     return max(value[0], 1e-10)
 
 

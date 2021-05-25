@@ -91,12 +91,14 @@ def MSE_moments_2(moments_fn=None):
 
         #return K.mean((moments_fn.eval(moment, y_true) - moments_fn.eval(moment, y_predict))**2)
 
-        moments = [1, 5, 10, 14]
-        sum = 0
-        for m in moments:
-            sum += (moments_fn.eval(m, y_true) - moments_fn.eval(m, y_predict)) ** 2
+        # moments = [1, 5, 10, 14]
+        # sum = 0
+        # for m in moments:
+        #     sum += (moments_fn.eval(m, y_true) - moments_fn.eval(m, y_predict)) ** 2
+        #
+        # return K.mean(sum)
 
-        return K.mean(sum)
+        return K.mean(K.abs((moments_fn.eval_all(y_true) - moments_fn.eval_all(y_predict))/1e10, axis=1))
 
         return K.mean(K.sum((moments_fn.eval_all(y_true) - moments_fn.eval_all(y_predict)) ** 2, axis=1))
         return K.mean(K.sum((moments_fn.eval_all(y_true)[:, 0] - moments_fn.eval_all(y_predict)[:, 0])**2, axis=1))

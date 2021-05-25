@@ -68,6 +68,8 @@ class Moments:
         return ma.filled(out, np.nan)
 
     def linear(self, value):
+        #print("values ", value)
+        #print("value linear shift ", (value - self._linear_shift) * self._linear_scale + self.ref_domain[0])
         return (value - self._linear_shift) * self._linear_scale + self.ref_domain[0]
 
     def inv_linear(self, value):
@@ -117,6 +119,9 @@ class Moments_tf(Moments):
         :param value: array of numbers
         :return: masked_array, out
         """
+        # print("self.ref_domain ", self.ref_domain)
+        # print("self linear scale ", self._linear_scale)
+        # exit()
         #print("ref domain ", self.ref_domain)
         #print("value ", value)
         # Masked array
@@ -258,7 +263,7 @@ class Legendre_tf(Moments_tf):
 
     def _eval_all(self, value, size):
         value = self.transform(value)
-        #print("value ", value.shape)
+        #print("value ", value)
 
 
         # out = tfgms.evaluate_legendre_polynomial(degree_l=size-1, order_m=1, x=1)

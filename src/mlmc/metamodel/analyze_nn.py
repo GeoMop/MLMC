@@ -5,7 +5,7 @@ import glob
 import copy
 import pickle
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
+#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
 from mlmc.metamodel.flow_dataset import FlowDataset
 from mlmc.metamodel.create_graph import graph_creator
 from mlmc.moments import Legendre_tf, Monomial
@@ -52,29 +52,56 @@ def split_dataset(dataset):
     return train_x, train_y, test_x, test_y
 
 
-def run():
+def run_DNN(config, stats=True, train=True, log=False, seed=1234):
+    batch_size = 200
+    epochs = 350
     # Parameters
     loss = "mean_squared_error"
     optimizer = tf.optimizers.Adam(learning_rate=0.001)
+    hidden_regularization = None  # l2(2e-10)
+    graph_creation_time = config['graph_creation_time']
+    if graph_creation_time == 0:
+        graph_creator_preproces_time = time.process_time()
+        graph_creator(config['output_dir'], config['hdf_path'], config['mesh'], level=config['level'])
+        graph_creation_time = time.process_time() - graph_creator_preproces_time
+        print("graph creation time ", graph_creation_time)
+        exit()
 
-    data = FlowDataset()
-    # dataset = data.dataset[:10000]
-    # test_dataset = data.dataset[10000:50000]
+    preprocess_start_time = time.process_time()
+    # Load data
+    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log)
+    data.shuffle()
 
-    dataset = data.dataset[:50000]
-    test_dataset = data.dataset[50000:]
+    dataset = data.dataset
+    dataset = dataset.sample(frac=1)
 
-    train_input = prepare_data(dataset.x)
-    train_output = prepare_data(dataset.y)
+    train = dataset[:config['n_train_samples']]
+    test = dataset[config['n_train_samples']:]
+
+    train_input, train_output = train.x, train.y
+    test_input, test_output = test.x, test.y
+
+    train_input = prepare_data(train_input)
+    train_output = prepare_data(train_output)
+    test_input = prepare_data(test_input)
+    test_output = prepare_data(test_output)
+
+    preprocess_time = time.process_time() - preprocess_start_time
+    preprocess_time = preprocess_time + graph_creation_time
+    learning_time_start = time.process_time()
 
     # train_input, train_output, test__input, test_output = split_dataset(dataset)
     # print("len test(output) ", len(test_output))
 
-    dnn = DNN(loss=loss, optimizer=optimizer, output_activation=abs_activation, hidden_activation='relu', epochs=150)
+    dnn = config['gnn']()
+
+    if dnn is None:
+        dnn = DNN(loss=loss, optimizer=optimizer, output_activation=None, hidden_activation='relu', epochs=epochs)
+
     dnn.fit(train_input, train_output)
 
-    test_input = prepare_data(test_dataset.x)
-    test_output = prepare_data(test_dataset.y)
+    targets = test_output
+    train_targets = train_output
 
     predictions = dnn.predict(test_input)
     predictions = np.squeeze(predictions)
@@ -82,6 +109,83 @@ def run():
     print("len(predictions) ", len(predictions))
 
     plot_loss(dnn.history.history['loss'], dnn.history.history['val_loss'])
+
+    train_predictions = dnn.predict(train_input)
+    # train_predictions = np.squeeze(train_predictions)
+
+    learning_time = time.process_time() - learning_time_start
+    print("learning time ", learning_time)
+
+    val_targets = []
+    total_steps = 0
+
+
+    orig_targets = targets
+    orig_predictions = predictions
+    print("MSE ", np.mean((predictions - targets) ** 2))
+
+    if log:
+        targets = np.exp(targets)
+        predictions = np.exp(predictions)
+
+    print("np.var(target-predictions) ", np.var(targets - predictions))
+
+    if not stats:
+        # plot_loss(gnn._train_loss, gnn._val_loss)
+        analyze_results(targets, predictions)
+
+        import matplotlib.pyplot as plt
+
+        # plt.hist(train_output, bins=50, alpha=0.5, label='train target', density=True)
+        # plt.hist(train_predictions, bins=50, alpha=0.5, label='train predictions', density=True)
+        #
+        # # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+        # plt.legend(loc='upper right')
+        # # plt.xlim(-0.5, 1000)
+        # plt.yscale('log')
+        # plt.show()
+
+        plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
+        plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
+
+        # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+        plt.legend(loc='upper right')
+        # plt.xlim(-0.5, 1000)
+        plt.yscale('log')
+        plt.show()
+
+    # predict_l_0_start_time = time.process_time()
+    l_0_targets, l_0_predictions, predict_l_0_time = predict_level_zero_SVR(dnn, config['l_0_output_dir'],
+                                                                            config['l_0_hdf_path'],
+                                                                            config['mesh'], batch_size, log,
+                                                                            stats=stats,
+                                                                            corr_field_config=config[
+                                                                                'corr_field_config'])
+
+    val_predictions = []
+
+    if stats:
+        l1_sample_time = preprocess_time / len(data) + learning_time / len(data)
+        l0_sample_time = predict_l_0_time / len(l_0_targets)
+
+        # print("targets ", targets)
+        # print("predictions ", predictions)
+
+        # orig_max_vars, predict_max_vars = process_mlmc(hdf_path, sampling_info_path, ref_mlmc_file, targets, predictions, train_targets,
+        #              train_predictions,
+        #              val_targets, l_0_targets,
+        #              l_0_predictions, l1_sample_time, l0_sample_time, nn_level=level, replace_level=replace_level,
+        #                                                stats=stats)
+
+        return dnn, targets, predictions, learning_time, train_targets, train_predictions,\
+               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps, 0
+
+    save_times(config['save_path'], False, (preprocess_time, len(data)), learning_time,
+               (predict_l_0_time, len(l_0_targets)))
+    save_load_data(config['save_path'], False, targets, predictions, train_targets, train_predictions, val_targets,
+                   l_0_targets,
+                   l_0_predictions)
+
     analyze_results(test_output, predictions)
 
     estimate_density(test_output)
@@ -174,7 +278,7 @@ def bootstrap():
     # estimate_density(np.mean(all_predictions, axis=0), title="Predictions")
 
 
-def run_SVR(config, stats=True, train=True, log=False):
+def run_SVR(config, stats=True, train=True, log=False, seed=1234):
     from sklearn.svm import SVR
 
     batch_size = 200
@@ -198,6 +302,8 @@ def run_SVR(config, stats=True, train=True, log=False):
 
     train = dataset[:config['n_train_samples']]
     test = dataset[config['n_train_samples']:]
+
+    print("train [:10] ", train[:10])
 
     train_input, train_output = train.x, train.y
     test_input, test_output = test.x, test.y
@@ -224,6 +330,8 @@ def run_SVR(config, stats=True, train=True, log=False):
     print("train output ", train_output.shape)
 
     svr_rbf = SVR(kernel='rbf', verbose=True)  # 'linear' kernel fitting is never-ending and 'poly' kernel gives very bad score (e.g. -2450), sigmoid gives also bad score (e.g. -125)
+
+    print("svr_rbf ", svr_rbf)
     svr_rbf.fit(train_input, train_output)
     train_error = svr_rbf.score(train_input, train_output)
 
@@ -308,7 +416,7 @@ def run_SVR(config, stats=True, train=True, log=False):
         #                                                stats=stats)
 
         return svr_rbf, targets, predictions, learning_time, train_targets, train_predictions, \
-               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps
+               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps, 0
 
     save_times(config['save_path'], False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
     save_load_data(config['save_path'], False, targets, predictions, train_targets, train_predictions, val_targets, l_0_targets,
@@ -346,11 +454,14 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
 
 
 def statistics(config):
-    n_subsamples = 2
+    n_subsamples = 15
 
     model_title, mch_l_model, log = config['machine_learning_model']
     model_data = {}
     model_data["log"] = log
+    seeds = []
+    for i in range(n_subsamples):
+        seeds.append(i*5)
 
     if not os.path.isdir(config['save_path']):
         os.makedirs(config['save_path'])
@@ -366,7 +477,7 @@ def statistics(config):
 
             model, targets, predictions, learning_time, train_targets, train_predictions, \
             val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps, current_patience = \
-                mch_l_model(config, stats=True, train=True, log=log)
+                mch_l_model(config, stats=True, train=True, log=log, seed=seeds[i])
 
             if config['save_model']:
                 model_data["model"] = model
@@ -466,6 +577,59 @@ def plot_sse(data_nn, data_mlmc, x_label="ith moment", y_label="MSE", title=""):
     fig.show()
 
 
+def display_vars(mlmc_vars, nn_vars, target_variance, title=""):
+    mlmc_mean_vars = np.mean(mlmc_vars, axis=0)
+    nn_mean_vars = np.mean(nn_vars, axis=0)
+
+    import matplotlib
+    # matplotlib.rcParams.update({'font.size': 38})
+    matplotlib.rcParams.update({'lines.markersize': 14})
+    fig, axes = plt.subplots(1, 1, figsize=(22, 10))
+
+    x = range(0, len(mlmc_vars[0]))
+    axes.set_xlabel("moments")
+    axes.set_ylabel("var")
+    axes.set_yscale("log")
+
+    axes.axhline(y=target_variance, label="target var: {}".format(target_variance))
+
+    axes.errorbar(x, np.mean(mlmc_vars, axis=0), yerr=np.sqrt(np.var(mlmc_vars, axis=0)), fmt='o', label="MLMC vars",
+                  color="blue")
+
+    axes.errorbar(x, np.mean(nn_vars, axis=0), yerr=np.sqrt(np.var(nn_vars, axis=0)), fmt='o', label="NN vars",
+                  color="red")
+
+    fig.legend()
+    fig.savefig("{}.pdf".format(title))
+    fig.show()
+
+
+def exp_values(data_1, data_2):
+    new_data_1 = []
+    new_data_2 = []
+
+
+    for d1, d2 in zip(data_1, data_2):
+        if len(d1) > 0 and len(d2) > 0:
+
+            try:
+                print("d1 ", d1)
+                print("np.exp(d1) ", np.exp(d1))
+                new_data_1.append(np.exp(d1))
+            except TypeError:
+                continue
+            try:
+                new_data_2.append(np.exp(d2))
+            except TypeError:
+                del new_data_1[-1]
+                continue
+
+
+    print("new data ", new_data_1)
+
+    return np.array(new_data_1), np.array(new_data_2)
+
+
 def analyze_statistics(config):
 
     if not os.path.isdir(config['save_path']):
@@ -486,17 +650,34 @@ def analyze_statistics(config):
 
     mlmc_times = []
     nn_times = []
+    mlmc_times_levels = []
+    nn_times_levels = []
 
     mlmc_l_vars = []
+    mlmc_vars = []
+    nn_vars = []
     nn_l_vars = []
+    mlmc_l_means = []
+    nn_l_means = []
     mlmc_vars_mse = []
     nn_vars_mse = []
     mlmc_means_mse = []
     nn_means_mse = []
+    kl_mlmc_all = []
+    kl_nn_all = []
 
     for i in range(len(data_dict["test_targets"])):
-        # if i == 1:
-        #     break
+        if i == 2:
+            break
+
+        # if i in [2, 11, 12]:
+        #     continue
+
+        # if i in [7, 13, 14]:
+        #     continue
+
+        # if i not in [13]:
+        #     continue
         predictions = data_dict["test_predictions"][i]
         targets = data_dict["test_targets"][i]
         train_predictions = data_dict["train_predictions"][i]
@@ -508,11 +689,14 @@ def analyze_statistics(config):
         l1_sample_time = data_dict["l1_sample_time"][i]
         l0_sample_time = data_dict["l0_sample_time"][i]
         total_steps = data_dict["total_steps"][i]
+        # if "current_patience" in data_dict:
+        #     current_patience = data_dict["current_patience"][i]
+        #     print("current patience ", current_patience)
 
         print("total steps ", total_steps)
 
         mlmc_n_collected, nn_mlmc_n_collected, n_ops, n_ops_predict, orig_moments_mean, predict_moments_mean,\
-        ref_moments_mean, orig_level_params, nn_level_params = process_mlmc(config['nn_hdf_path'],
+        ref_moments_mean, orig_level_params, nn_level_params, kl_mlmc, kl_nn, target_variance = process_mlmc(config['nn_hdf_path'],
                                                                             config['sampling_info_path'],
                                                                             config['ref_mlmc_file'], targets,
                        predictions, train_targets,
@@ -528,12 +712,19 @@ def analyze_statistics(config):
         nn_n_collected_all.append(nn_mlmc_n_collected)
         n_ops_all.append(n_ops)
         n_ops_predict_all.append(n_ops_predict)
-
+        mlmc_times_levels.append(np.array(mlmc_n_collected) * np.array(n_ops))
         mlmc_times.append(np.sum(np.array(mlmc_n_collected) * np.array(n_ops)))
         nn_times.append(np.sum(np.array(nn_mlmc_n_collected) * np.array(n_ops_predict)))
+        nn_times_levels.append(np.array(nn_mlmc_n_collected) * np.array(n_ops_predict))
 
         mlmc_l_vars.append(orig_moments_mean.l_vars)
         nn_l_vars.append(predict_moments_mean.l_vars)
+
+        mlmc_vars.append(orig_moments_mean.var)
+        nn_vars.append(predict_moments_mean.var)
+
+        mlmc_l_means.append(orig_moments_mean.l_means)
+        nn_l_means.append(predict_moments_mean.l_means)
 
         mlmc_vars_mse.append((ref_moments_mean.var - orig_moments_mean.var) ** 2)
         nn_vars_mse.append((ref_moments_mean.var - predict_moments_mean.var) ** 2)
@@ -541,13 +732,48 @@ def analyze_statistics(config):
         mlmc_means_mse.append((ref_moments_mean.mean - orig_moments_mean.mean) ** 2)
         nn_means_mse.append((ref_moments_mean.mean - predict_moments_mean.mean) ** 2)
 
+        kl_mlmc_all.append(kl_mlmc)
+        kl_nn_all.append(kl_nn)
+
+    display_vars(mlmc_vars, nn_vars, target_variance=target_variance)
+
+    print("mlmc l vars ", np.mean(mlmc_l_vars, axis=0))
+    print("nn l vars ", np.mean(nn_l_vars, axis=0))
+
+    print("MAX mlmc l vars ", np.max(np.mean(mlmc_l_vars, axis=0), axis=1))
+    print("MAX nn l vars ", np.max(np.mean(nn_l_vars, axis=0), axis=1))
+    #
+    print("mlmc means MSE ", np.mean(mlmc_means_mse, axis=0))
+    print("nn means MSE ", np.mean(nn_means_mse, axis=0))
+
+    print("mlmc times ", mlmc_times)
+    print("nn times ", nn_times)
+
+    print("mlmc times levels ", mlmc_times_levels)
+    print("nn times levels ", nn_times_levels)
+
+    print("n ops all ", n_ops_all)
+    print("n ops predict all ", n_ops_predict_all)
+    print("len(nn times) ", len(nn_times))
+
     mlmc_total_time = np.mean(mlmc_times)
     nn_total_time = np.mean(nn_times)
+
+    print("#############################")
     print("mlmc total time ", mlmc_total_time)
     print("nn total time ", nn_total_time)
+    print("#############################")
+    print("KL mlmc ", np.mean(kl_mlmc_all))
+    print("KL nn ", np.mean(kl_nn_all))
+
+    print("MC: to 10: {}, above: {}".format(np.sum(np.mean(mlmc_means_mse, axis=0)[:10]), np.sum(np.mean(mlmc_means_mse, axis=0)[10:])))
+    print("NN: to 10: {}, above: {}".format(np.sum(np.mean(nn_means_mse, axis=0)[:10]), np.sum(np.mean(nn_means_mse, axis=0)[10:])))
 
     n_ops_mlmc_mean = np.mean(n_ops_all, axis=0)
     n_ops_nn_mean = np.mean(n_ops_predict_all, axis=0)
+
+    print("n ops all ", n_ops_all)
+    print("n ops predict all ", n_ops_predict_all)
 
     print("n ops mlmc mean ", n_ops_mlmc_mean)
     print("n ops nn mean ", n_ops_nn_mean)
@@ -562,19 +788,19 @@ def analyze_statistics(config):
 
     plt_var = plot.Variance()
     l_vars = np.mean(mlmc_l_vars, axis=0)
-    print("np.squeeze(orig_level_params) ", orig_level_params)
-    print("l vars ", l_vars)
-
-    print("np.squeeze(orig_level_params) shape", orig_level_params.shape)
-    print("l vars shape", l_vars.shape)
-    plt_var.add_level_variances(np.squeeze(orig_level_params), l_vars)
+    # print("np.squeeze(orig_level_params) ", orig_level_params)
+    # print("l vars ", l_vars)
+    # print("np.squeeze(orig_level_params) shape", orig_level_params.shape)
+    # print("l vars shape", l_vars.shape)
+    #plt_var.add_level_variances(np.squeeze(orig_level_params), l_vars)
+    plt_var.add_level_variances(orig_level_params, l_vars)
     # plt_var.show(None)
     # plt_var.show("mlmc_vars")
     #
     # plt_var = plot.Variance()
     l_vars = np.mean(nn_l_vars, axis=0)
-    print("nn l vars  ", l_vars)
-    print("nn level parsm ", nn_level_params)
+    # print("nn l vars  ", l_vars)
+    # print("nn level parsm ", nn_level_params)
     level_params = np.squeeze(nn_level_params)
     level_params[0] *= 2
     plt_var.add_level_variances_nn(level_params, l_vars)
@@ -590,10 +816,12 @@ def analyze_statistics(config):
     data_dict["train_predictions"] = np.array(data_dict["train_predictions"])
 
     if data_dict["log"][0]:
-        data_dict["test_targets"] = np.exp(data_dict["test_targets"])
-        data_dict["test_predictions"] = np.exp(data_dict["test_predictions"])
-        data_dict["train_targets"] = np.exp(data_dict["train_targets"])
-        data_dict["train_predictions"] = np.exp(data_dict["train_predictions"])
+        # print("np.exp(10)", np.exp(10))
+        print("test targets ", data_dict["test_targets"])
+        print("type test targets ", type(data_dict["test_targets"]))
+
+        data_dict["test_targets"], data_dict["test_predictions"] = exp_values(data_dict["test_targets"], data_dict["test_predictions"])
+        data_dict["train_targets"], data_dict["train_predictions"] = exp_values(data_dict["train_targets"], data_dict["train_predictions"])
 
         # print("test targets ", data_dict["test_targets"])
         # print("test predictions ", data_dict["test_predictions"])
@@ -609,35 +837,66 @@ def analyze_statistics(config):
     # print("mean predict vars ", mean_predict_vars)
     print("total steps ", total_steps)
 
-    print("test targets ",  data_dict["test_targets"])
-    print("test predictions ", data_dict["test_predictions"])
-    print("test diff ", data_dict["test_predictions"] - data_dict["test_targets"])
-    print("test diff squared ", (data_dict["test_predictions"] - data_dict["test_targets"])**2)
+    # print("test targets ",  data_dict["test_targets"])
+    # print("test predictions ", data_dict["test_predictions"])
+    # print("test diff ", data_dict["test_predictions"] - data_dict["test_targets"])
+    # print("test diff squared ", (data_dict["test_predictions"] - data_dict["test_targets"])**2)
+
+    #print("(test_predictions - test_targets)**2 ", (data_dict["test_predictions"] - data_dict["test_targets"])**2)
 
     test_MSE = np.mean((data_dict["test_predictions"] - data_dict["test_targets"])**2, axis=1)
     test_RMSE = np.sqrt(test_MSE)
     test_MAE = np.mean(np.abs(data_dict["test_predictions"] - data_dict["test_targets"]), axis=1)
+
+    # Relative squared error
+    test_RSE = np.sum((data_dict["test_predictions"] - data_dict["test_targets"])**2) /\
+               np.sum((np.mean(data_dict["test_targets"])- data_dict["test_targets"])**2)
+
+    print("test RSE ", test_RSE)
+
+    print("test_MSE ", test_MSE)
+
+    t_mse_sum = []
+    for t_mse in test_MSE:
+        if t_mse > 0.01:# 0.009:
+            continue
+        t_mse_sum.append(t_mse)
+
+    print("t mse ", t_mse_sum)
+    print("T MSE sum ", np.mean(t_mse_sum))
+
+
+    print("train_predictions ", data_dict["train_predictions"])
+    print("train_targets ", data_dict["train_targets"])
 
     train_MSE = np.mean((data_dict["train_predictions"] - data_dict["train_targets"]) ** 2, axis=1)
     train_RMSE = np.sqrt(train_MSE)
     train_MAE = np.mean(np.abs( data_dict["train_predictions"] - data_dict["train_targets"]), axis=1)
     learning_times = data_dict["learning_times"]
 
+    # Relative squared error
+    train_RSE = np.sum((data_dict["train_predictions"] - data_dict["train_targets"]) ** 2) / \
+               np.sum((np.mean(data_dict["train_targets"]) - data_dict["train_targets"])**2)
+
+    print("train RSE ", train_RSE)
+
     # plot_data(test_MSE, label="test MSE")
     # plot_data(test_MAE, label="test MAE")
-
-    print("test_MSE ", test_MSE)
 
     print("NN moments MSE sum ",  np.sum(np.mean(nn_means_mse, axis=0)))
 
     print("mean test MSE ", np.mean(test_MSE))
+    print("mean test RSE ", np.mean(test_RSE))
     print("mean test RMSE ", np.mean(test_RMSE))
     print("mean test MAE ", np.mean(test_MAE))
     print("max test MSE ", np.max(test_MSE))
     print("max test RMSE ", np.max(test_RMSE))
     print("max test MAE ", np.max(test_MAE))
 
+    print("train_MSE ", train_MSE)
+
     print("mean train MSE ", np.mean(train_MSE))
+    print("mean train RSE ", np.mean(train_RSE))
     print("mean train RMSE ", np.mean(train_RMSE))
     print("mean train MAE ", np.mean(train_MAE))
     print("max train MSE ", np.max(train_MSE))
@@ -650,7 +909,10 @@ def analyze_statistics(config):
     print("######################################")
 
 
-def run_GNN(config, stats=True, train=True, log=False):
+    return train_MSE, test_MSE, train_RSE, test_RSE
+
+
+def run_GNN(config, stats=True, train=True, log=False, seed=1234):
 
     loss = MeanSquaredError()  # var_loss_function#
     accuracy_func = MSE_moments
@@ -661,15 +923,17 @@ def run_GNN(config, stats=True, train=True, log=False):
     optimizer = tf.optimizers.Adam(learning_rate=config['learning_rate'])
     batch_size = config['batch_size']#2000
     epochs = config['epochs']#1000
-    hidden_regularization = None  # l2(2e-10)
 
+    print("seed ", seed)
+
+    hidden_regularization = None  # l2(2e-10)
     graph_creation_time = config['graph_creation_time']
     if graph_creation_time == 0:
         graph_creator_preproces_time = time.process_time()
-        graph_creator(config['output_dir'], config['hdf_path'], config['mesh'], level=config['level'])
+        graph_creator(config['output_dir'], config['nn_hdf_path'], config['mesh'], level=config['level'])
         graph_creation_time = time.process_time() - graph_creator_preproces_time
         print("graph creation time ", graph_creation_time)
-        #exit()
+        exit()
 
     preprocess_start_time = time.process_time()
     # Load data
@@ -677,7 +941,7 @@ def run_GNN(config, stats=True, train=True, log=False):
     data = data#[:10000]
 
     #print("len data ", len(data))
-    data.shuffle()
+    data.shuffle()#seed=seed)
     preprocess_time = time.process_time() - preprocess_start_time
     #print("preproces time ", preprocess_time)
     preprocess_time = preprocess_time + graph_creation_time
@@ -691,7 +955,7 @@ def run_GNN(config, stats=True, train=True, log=False):
     # Train/valid/test split
     data_tr, data_te = data[:train_data_len], data[train_data_len:]
 
-    gnn = config['get_gnn']()[0]
+    gnn = config['gnn'](**config['model_config'])
     print("gnn ", gnn)
 
     if hasattr(gnn._loss,'__name__'):
@@ -741,6 +1005,7 @@ def run_GNN(config, stats=True, train=True, log=False):
     if train:
         # gnn.run_eagerly = True
         train_targets = gnn.fit(loader_tr, loader_va, loader_te)
+
 
     # states = gnn._states
     # if len(states) > 0:
@@ -814,7 +1079,7 @@ def run_GNN(config, stats=True, train=True, log=False):
                    l_0_predictions)
 
 
-def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=1000, log=False, stats=False, corr_field_config=None):
+def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=1000, log=False, stats=False, corr_field_config=None, seed=1234):
     #graph_creator(output_dir, hdf_path, mesh, level=0)
     # Load data
 
@@ -824,6 +1089,7 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
 
     data = FlowDataset(output_dir=output_dir, log=log)#, mesh=mesh, corr_field_config=corr_field_config)
     #data = data  # [:10000]
+    #data.shuffle(seed=seed)
 
     predict_time_start = time.process_time()
     data.a = conv_layer.preprocess(data.a)

@@ -121,8 +121,9 @@ def cnn_model():
 
 def dnn_model():
     return keras.Sequential([
-        preprocessing.Normalization(),
+        #preprocessing.Normalization(),
+        layers.Dense(128, activation="relu"),
+        layers.Dense(64, activation="relu"),
         layers.Dense(32, activation="relu"),
-        #layers.Dense(32, activation="relu"),
-        layers.Dense(1, activation=abs_activation)
+        layers.Dense(1)
     ])

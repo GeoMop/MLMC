@@ -163,7 +163,7 @@ class Distribution:
         domain = (np.min(samples), np.max(samples))
         self.adjust_domain(domain)
         N = len(samples)
-        bins = self._grid(0.5 * np.sqrt(N))
+        bins = self._grid(int(0.5 * np.sqrt(N)))
         self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
 
         # Ecdf
@@ -399,7 +399,7 @@ class ArticleDistribution(Distribution):
         # if self._reg_param == 0:
         #     self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4, label="derivative of Bspline CDF")
 
-    def add_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0):
+    def add_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0, color=None, line_style=None):
         """
         Add plot for distribution 'distr_object' with given label.
         :param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain
@@ -415,21 +415,90 @@ class ArticleDistribution(Distribution):
         d_size = domain[1] - domain[0]
         slack = 0  # 0.05
         extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
-        X = self._grid(1000, domain=domain)
+        X = self._grid(10000, domain=domain)
 
         line_styles = ['-', ':', '-.', '--']
         plots = []
 
         Y_pdf = distr_object.density(X)
-        self.ax_pdf.plot(X, Y_pdf, color=self.pdf_color)
+
+        if line_style is None:
+            line_style = "-"
+
+        if color is None:
+            color = self.pdf_color
+
+        self.ax_pdf.plot(X, Y_pdf, color=color, label=label, linestyle=line_style)
 
         Y_cdf = distr_object.cdf(X)
 
         if self.ax_cdf is not None:
-            self.ax_cdf.plot(X, Y_cdf, color=self.cdf_color)
+            if line_style is None:
+                line_style = "-"
+            if color is None:
+                color = self.cdf_color
+            self.ax_cdf.plot(X, Y_cdf, color=color, linestyle=line_style)
             #self._plot_borders(self.ax_cdf, self.cdf_color, domain)
 
         self.i_plot += 1
+
+
+class MomentsPlots(Distribution):
+    def __init__(self, title="", quantity_name="i-th moment", legend_title="", log_mean_y=False, log_var_y=False):
+        """
+        """
+        self._domain = None
+        self._title = title
+        self._legend_title = legend_title
+        self.plot_matrix = []
+        self.i_plot = 0
+
+        self.cmap = plt.cm.tab20
+        self.ax_var = None
+        self.ax_log_density = None
+        self.x_lim = None
+
+        # mean_colors = ["brown", "salmon", "orange", "goldenrod", "red"]
+        # var_colors = ["blue", "slateblue", "indigo", "darkseagreen", "green"]
+        #
+        # self.mean_color = iter(mean_colors)
+        # self.cdf_color = iter(var_colors)
+
+        self.fig, axes = plt.subplots(1, 2, figsize=(22, 10))
+        self.ax_mean = axes[0]
+        self.ax_var = axes[1]
+
+        #self.fig.suptitle(title, y=0.99)
+        x_axis_label = quantity_name
+
+        self.ax_mean.set_ylabel("Mean")
+        self.ax_mean.set_xlabel(x_axis_label)
+        self.ax_mean.tick_params(axis='y')
+
+        self.ax_var.set_ylabel("Var")
+        self.ax_var.tick_params(axis='y')
+        self.ax_var.set_xlabel(x_axis_label)
+
+        if log_mean_y:
+            self.ax_mean.set_yscale('log')
+
+        if log_var_y:
+            self.ax_var.set_yscale('log')
+
+    def add_moments(self, moments, label=None):
+        means, vars = moments
+        X = range(0, len(means))
+
+        self.ax_mean.scatter(X, means, color=self.cmap(self.i_plot), label=label)
+        self.ax_var.scatter(X, vars, color=self.cmap(self.i_plot), label=label)
+        #self._plot_borders(self.ax_cdf, self.cdf_color, domain)
+        self.i_plot += 1
+
+    def show(self, file=""):
+        self.ax_mean.legend()
+        self.ax_var.legend()
+
+        _show_and_save(self.fig, file, self._title)
 
 
 class Eigenvalues:
@@ -533,9 +602,6 @@ def moments(moments_fn, size=None, title="", file=""):
         color = cmap(m)
         ax.plot(X, y, color=color, linewidth=0.5)
     _show_and_save(fig, file, title)
-
-
-
 
 
 class VarianceBreakdown:
@@ -655,6 +721,9 @@ class Variance:
         self.max_step = 0
         self.data = {}
 
+        self.nn_min_step = 1e300
+        self.nn_max_step = 0
+        self.nn_data = {}
 
     def add_level_variances(self, steps, variances):
         """
@@ -678,31 +747,60 @@ class Variance:
             Y.extend(vars.tolist())
             self.data[m] = (X, Y)
 
+    def add_level_variances_nn(self, steps, variances):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        n_levels, n_moments = variances.shape
+        if self.n_moments is None:
+            self.n_moments = n_moments
+            self.moments_subset = moments_subset(n_moments, self.subset_type)
+        else:
+            assert self.n_moments == n_moments
 
-
-
-    # def add_diff_variances(self, step, variances):
-    #     pass
+        variances = variances[:, self.moments_subset]
+        self.nn_min_step = min(self.min_step, steps[-1])
+        self.nn_max_step = max(self.max_step, steps[0])
+        for m, vars in enumerate(variances.T):
+            X, Y = self.nn_data.get(m, ([], []))
+            X.extend(steps.tolist())
+            Y.extend(vars.tolist())
+            self.nn_data[m] = (X, Y)
 
     def show(self, file=""):
+        res = 5
         step_range = self.max_step / self.min_step
         log_scale = step_range ** 0.001 - 1
-        rv = st.lognorm(scale=1, s=log_scale)
+        #rv = st.lognorm(scale=1, s=log_scale)
         for m, (X, Y) in self.data.items():
+            # if m == 5:
+            #     break
             col = plt.cm.tab20(m)
             label = "M{}".format(self.moments_subset[m])
-            XX = np.array(X) * rv.rvs(size=len(X))
+            # print("X ", X)
+            # print("len(X) ", len(X))
+            # #print("rv.rvs(size=len(X)) ", rv.rvs(size=len(X)))
+            # print("Y ", Y)
+            XX = np.array(X) #* rv.rvs(size=len(X))
+            # print("XX ", X)
             self.ax.scatter(XX, Y, color=col, label=label)
-            #f = interpolate.interp1d(X, Y, kind='cubic')
-
             XX, YY = make_monotone(X, Y)
 
-            #f = interpolate.PchipInterpolator(XX[1:], YY[1:])
-            m = len(XX)-1
-            spl = interpolate.splrep(XX[1:], YY[1:], k=3, s=m - np.sqrt(2*m))
-            xf = np.geomspace(self.min_step, self.max_step, 100)
-            yf = interpolate.splev(xf, spl)
-            self.ax.plot(xf, yf, color=col)
+        # step_range = self.nn_max_step / self.nn_min_step
+        # log_scale = step_range ** 0.01 - 1
+        # rv = st.lognorm(scale=1, s=log_scale)
+        for m, (X, Y) in self.nn_data.items():
+            # if m == 5:
+            #     break
+            col = plt.cm.tab20(m)
+            label = "M{}".format(self.moments_subset[m])
+            XX = np.array(X) * 0.9#rv.rvs(size=len(X))
+
+            self.ax.scatter(XX, Y, color=col, label=label, marker='v')
+            XX, YY = make_monotone(X, Y)
+
         self.fig.legend()
         _show_and_save(self.fig, file, self.title)
 

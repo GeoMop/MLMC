@@ -53,7 +53,13 @@ class GNN:
         self._states = {}
         self._total_n_steps = 0
 
-        model = kwargs.get('model')
+        if 'model_class' in kwargs:
+            model_class = kwargs.get('model_class')
+            net_model_config = kwargs.get('net_model_config')
+            model = model_class(**net_model_config)
+            print("model class model ", model)
+        else:
+            model = kwargs.get('model')
 
         if model is None:
             self._model = Net1(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
@@ -119,9 +125,11 @@ class GNN:
                     #results_tr_0 = np.array(results_tr)
                     loss_tr = results_va[0]
                     self._states[loss_tr] = self
-                    # if self._current_patience == 0:
-                    #     print("Early stopping")
-                    #     break
+
+                    if self._current_patience == 0:
+                        #if self._update_loss(patience=True):
+                        print("Early stopping")
+                        break
 
                 # Print results
                 results_tr = np.array(results_tr)
@@ -136,17 +144,38 @@ class GNN:
                             *results_tr, *results_va, *results_te
                         )
                     )
-                self._update_loss()
+                #self._update_loss()
                 # Reset epoch
                 results_tr = []
                 step = 0
 
         return train_targets_list
 
-    def _update_loss(self):
-        condition_max_loss = self._loss_params["loss_max"] / self._n_moments
+    def _update_loss(self, patience=False):
+        condition_max_loss = self._loss_params["loss_max"] #/ self._n_moments
         #condition_max_loss = self._loss_params["loss_max"]
         # print("self.train_loss ", self._train_loss)
+        m_increment = 1
+
+        if patience and self._n_moments <= self._loss_params["max_moments"]:
+            self._n_moments += m_increment
+            moments_fn = self._loss_params['moments_class'](self._n_moments, self._loss_params["domain"])
+            self._loss = self._final_loss(moments_fn=moments_fn)
+            # self._loss = MSE_moments_2(moments_fn=moments_fn)
+
+            self._best_val_loss = np.inf
+            print("self._loss ", self._loss)
+        elif patience:
+            return True
+
+        # if self._train_loss[-1] > 1e10:
+        #     moments_fn = self._loss_params['moments_class'](self._n_moments, self._loss_params["domain"])
+        #     #self._loss = self._final_loss(moments_fn=moments_fn)
+        #     self._loss = MSE_moments_2(moments_fn=moments_fn)
+        # else:
+        #     moments_fn = self._loss_params['moments_class'](self._n_moments, self._loss_params["domain"])
+        #     self._loss = self._final_loss(moments_fn=moments_fn)
+
         if self._n_moments <= self._loss_params["max_moments"] and len(self._train_loss) > 0\
                 and self._train_loss[-1] < condition_max_loss and self._val_loss[-1] < condition_max_loss:
             # print("self._train_loss ", self._train_loss)
@@ -154,7 +183,7 @@ class GNN:
             #self._n_moments = self._loss_params["max_moments"]
 
             print("self._n_moments ", self._n_moments)
-            self._n_moments += 1
+            self._n_moments += m_increment
             moments_fn = self._loss_params['moments_class'](self._n_moments, self._loss_params["domain"])
             self._loss = self._final_loss(moments_fn=moments_fn)
             #self._loss = MSE_moments_2(moments_fn=moments_fn)
