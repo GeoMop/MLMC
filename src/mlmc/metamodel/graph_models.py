@@ -121,9 +121,60 @@ def cnn_model():
 
 def dnn_model():
     return keras.Sequential([
-        #preprocessing.Normalization(),
+        preprocessing.Normalization(),
         layers.Dense(128, activation="relu"),
         layers.Dense(64, activation="relu"),
         layers.Dense(32, activation="relu"),
         layers.Dense(1)
     ])
+
+
+# Build model
+class DNNNet(Model):
+    def __init__(self, conv_layer, hidden_activation, output_activation, kernel_regularization, normalizer, **kwargs):
+        super().__init__(**kwargs)
+        #self.normalizer = normalizer
+        #self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
+        self.conv1 = Dense(128, activation="relu")
+        self.conv2 = Dense(64, activation="relu"),
+        self.conv3 = Dense(32, activation="relu"),
+        # self.conv2 = conv_layer(128, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv3 = conv_layer(16, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv4 = conv_layer(8,  K=2,activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv2 = conv_layer(32, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv3 = conv_layer(16, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv3 = conv_layer(8, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        # self.conv4 = conv_layer(4, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        #self.conv3 = conv_layer(64, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        #self.flatten = GlobalSumPool()
+        #self.fc1 = Dense(32, activation=hidden_activation)
+        self.fc2 = Dense(1)#, activation=output_activation)  # linear activation for output neuron
+
+    def call(self, inputs):
+        x, a = inputs
+        #print("x ", x)
+        #x = self.normalizer(x)
+        #x = self.norm_layer(x)
+        #print("normalized x ", x)
+
+        #print("x[0,0,:] ", x[0, 0, :])
+        x = self.conv1([x])
+
+        #print("x[0,0,:] ", x[0,0,:])
+        # print("x[0, 0, :] ", tf.make_ndarray(x[0,0,:].op.get_attr('net1/strided_slice_1:0')))
+        #print("x.shape ", x.shape)
+        x = self.conv2([x])
+        # # print("conv2 x shape", x.shape)
+        x = self.conv3([x])
+        x = self.conv4([x])
+        #output1 = self.flatten(x)
+        #output2 = self.fc1(output1)
+        output = self.fc2(x)
+
+        # print("x1 " ,x1)
+        # print("output1 ", output1)
+        # print("output2 ", output2)
+        # print("output ", output)
+        #print("output ", output.shape)
+
+        return output

@@ -192,7 +192,7 @@ class GNN:
             print("self._loss ", self._loss)
 
     # Training function
-    #@tf.function
+    @tf.function
     def train_on_batch(self, inputs, target):
         with tf.GradientTape() as tape:
             predictions = self._model(inputs, training=True)
