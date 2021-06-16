@@ -195,7 +195,6 @@ def run_DNN(config, stats=True, train=True, log=False, seed=1234):
     estimate_density(predictions)
 
 
-
 def run_DNN_2(config, stats=True, train=True, log=False, seed=1234):
     batch_size = 200
     epochs = 350
@@ -488,7 +487,7 @@ def run_SVR(config, stats=True, train=True, log=False, seed=1234):
     print("train input ", train_input.shape)
     print("train output ", train_output.shape)
 
-    svr_rbf = SVR(kernel='rbf', verbose=True)  # 'linear' kernel fitting is never-ending and 'poly' kernel gives very bad score (e.g. -2450), sigmoid gives also bad score (e.g. -125)
+    svr_rbf = SVR(kernel='rbf', verbose=True, C=0.06)  # 'linear' kernel fitting is never-ending and 'poly' kernel gives very bad score (e.g. -2450), sigmoid gives also bad score (e.g. -125)
 
     print("svr_rbf ", svr_rbf)
     svr_rbf.fit(train_input, train_output)
@@ -506,6 +505,7 @@ def run_SVR(config, stats=True, train=True, log=False, seed=1234):
     # test_y = sc_y.fit_transform(test.y.to_numpy().reshape(-1,1))
 
     predictions = svr_rbf.predict(test_input)
+    train_predictions = svr_rbf.predict(train_input)
 
     print("train error ", train_error)
     print("test error ", test_error)
@@ -520,7 +520,8 @@ def run_SVR(config, stats=True, train=True, log=False, seed=1234):
 
     orig_targets = targets
     orig_predictions = predictions
-    print("MSE ", np.mean((predictions - targets) ** 2))
+    print("train MSE ", np.mean((train_predictions - train_output) ** 2))
+    print("test MSE ", np.mean((predictions - targets) ** 2))
 
     if log:
         targets = np.exp(targets)
@@ -609,6 +610,8 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
         predictions = np.exp(predictions)
     # analyze_results(targets, predictions)
     predict_time = time.process_time() - predict_time_start
+
+    print("L0 MSE ", np.mean((predictions - targets) ** 2))
     return targets, predictions, predict_time + sample_time * len(data)
 
 
@@ -721,16 +724,38 @@ def load_statistics(dir_path):
 
 def plot_sse(data_nn, data_mlmc, x_label="ith moment", y_label="MSE", title=""):
     import matplotlib
-    #matplotlib.rcParams.update({'font.size': 38})
-    matplotlib.rcParams.update({'lines.markersize': 14})
-    fig, axes = plt.subplots(1, 1, figsize=(22, 10))
+    matplotlib.rcParams.update({'font.size': 16})
+    matplotlib.rcParams.update({'lines.markersize': 8})
+    #fig, axes = plt.subplots(1, 1, figsize=(22, 10))
+    fig, axes = plt.subplots(1, 1, figsize=(8, 5))
     data = np.array(data_nn)
     x = range(data.shape[1])
     axes.set_title(title)
     axes.set_xlabel(x_label)
     axes.set_ylabel(y_label)
-    axes.errorbar(x, np.mean(data_nn, axis=0), yerr=np.sqrt(np.var(data_nn, axis=0)), fmt='o', label="NN MLMC", color="red")
-    axes.errorbar(x, np.mean(data_mlmc, axis=0), yerr=np.sqrt(np.var(data_mlmc, axis=0)), fmt='o', label="MLMC", color="blue")
+    axes.errorbar(x, np.mean(data_mlmc, axis=0), yerr=np.sqrt(np.var(data_mlmc, axis=0)), fmt='o', label="MC",
+                  color="blue")
+    axes.errorbar(x, np.mean(data_nn, axis=0), yerr=np.sqrt(np.var(data_nn, axis=0)), fmt='o',
+                  label="MLMC with meta-model", color="red")
+    fig.legend()
+    fig.savefig("{}.pdf".format(title))
+    fig.show()
+
+
+def plot_sse_scatter(data_nn, data_mlmc, x_label="ith moment", y_label="MSE", title=""):
+    import matplotlib
+    #matplotlib.rcParams.update({'font.size': 38})
+    matplotlib.rcParams.update({'lines.markersize': 14})
+    fig, axes = plt.subplots(1, 1, figsize=(22, 10))
+    data = np.array(data_nn)
+
+    print("data.shape ", data.shape)
+    x = range(len(data[0]))
+    axes.set_title(title)
+    axes.set_xlabel(x_label)
+    axes.set_ylabel(y_label)
+    axes.scatter(x, np.mean(data_nn, axis=0), label="NN MLMC", color="red")
+    axes.scatter(x, np.mean(data_mlmc, axis=0), label="MLMC", color="blue")
     fig.legend()
     fig.savefig("{}.pdf".format(title))
     fig.show()
@@ -752,9 +777,13 @@ def display_vars(mlmc_vars, nn_vars, target_variance, title=""):
 
     axes.axhline(y=target_variance, label="target var: {}".format(target_variance))
 
+    print("mlmc error bar ", np.sqrt(np.var(mlmc_vars, axis=0)))
     axes.errorbar(x, np.mean(mlmc_vars, axis=0), yerr=np.sqrt(np.var(mlmc_vars, axis=0)), fmt='o', label="MLMC vars",
                   color="blue")
 
+    print("mlmc vars ", mlmc_vars)
+    print("nn vars ", nn_vars)
+    print("nn error bar ", np.sqrt(np.var(nn_vars, axis=0)))
     axes.errorbar(x, np.mean(nn_vars, axis=0), yerr=np.sqrt(np.var(nn_vars, axis=0)), fmt='o', label="NN vars",
                   color="red")
 
@@ -782,9 +811,7 @@ def exp_values(data_1, data_2):
                 del new_data_1[-1]
                 continue
 
-
     #print("new data ", new_data_1)
-
     return np.array(new_data_1), np.array(new_data_2)
 
 
@@ -792,12 +819,16 @@ def remove_empty(data_1, data_2):
     new_data_1 = []
     new_data_2 = []
 
+    # print("data 1 ", data_1)
+    # print("data 2 ", data_2)
+
     for d1, d2 in zip(data_1, data_2):
         if len(d1) > 0 and len(d2) > 0:
-            new_data_1.append(np.exp(d1))
-            new_data_2.append(np.exp(d2))
+            new_data_1.append(d1)
+            new_data_2.append(d2)
 
     # print("new data ", new_data_1)
+    # print("new data ", new_data_2)
     return np.array(new_data_1), np.array(new_data_2)
 
 
@@ -819,6 +850,12 @@ def analyze_statistics(config):
     n_ops_all = []
     n_ops_predict_all = []
 
+    all_mlmc_moments_mean = []
+    all_nn_moments_mean = []
+
+    all_mlmc_moments_var = []
+    all_nn_moments_var = []
+
     mlmc_times = []
     nn_times = []
     mlmc_times_levels = []
@@ -837,11 +874,18 @@ def analyze_statistics(config):
     kl_mlmc_all = []
     kl_nn_all = []
 
+    orth_mlmc_means_mse = []
+    orth_nn_means_mse = []
+
+    limit = 1#0.0009
+
     for i in range(len(data_dict["test_targets"])):
-        # if i == 5:
+        # if i == 3:
         #     break
 
-        # if i not in [0]:
+        print("index ", i)
+
+        # if i not in [2, 5, 7]:
         #     continue
 
         # if i in [2, 11, 12]:
@@ -852,6 +896,7 @@ def analyze_statistics(config):
 
         # if i not in [13]:
         #     continue
+
         predictions = data_dict["test_predictions"][i]
         targets = data_dict["test_targets"][i]
         train_predictions = data_dict["train_predictions"][i]
@@ -863,14 +908,27 @@ def analyze_statistics(config):
         l1_sample_time = data_dict["l1_sample_time"][i]
         l0_sample_time = data_dict["l0_sample_time"][i]
         total_steps = data_dict["total_steps"][i]
+        learning_time = data_dict["learning_times"][i]
+        print("learning time ", learning_time)
+
+        iter_test_MSE = np.mean((predictions - targets) ** 2)
+        iter_train_MSE = np.mean((train_predictions - train_targets) ** 2)
+
+        # if iter_test_MSE > limit:
+        #     continue
+
+        print("iter test MSE ", iter_test_MSE)
+        print("iter train MSE ", iter_train_MSE)
+
         # if "current_patience" in data_dict:
         #     current_patience = data_dict["current_patience"][i]
         #     print("current patience ", current_patience)
 
         print("total steps ", total_steps)
-
+        #try:
         mlmc_n_collected, nn_mlmc_n_collected, n_ops, n_ops_predict, orig_moments_mean, predict_moments_mean,\
-        ref_moments_mean, orig_level_params, nn_level_params, kl_mlmc, kl_nn, target_variance = process_mlmc(config['nn_hdf_path'],
+        ref_moments_mean, orig_level_params, nn_level_params, kl_mlmc, kl_nn, target_variance, \
+        orig_orth_moments, predict_orth_moments, ref_orth_moments = process_mlmc(config['nn_hdf_path'],
                                                                             config['sampling_info_path'],
                                                                             config['ref_mlmc_file'], targets,
                        predictions, train_targets,
@@ -880,7 +938,9 @@ def analyze_statistics(config):
                        nn_level=config['level'],
                        replace_level=config['replace_level'],
                         mlmc_hdf_file = config['mlmc_hdf_path'],
-                       stats=True)
+                       stats=True, learning_time=learning_time)
+        # except:
+        #     continue
 
         mlmc_n_collected_all.append(mlmc_n_collected)
         nn_n_collected_all.append(nn_mlmc_n_collected)
@@ -904,15 +964,44 @@ def analyze_statistics(config):
         nn_vars_mse.append((ref_moments_mean.var - predict_moments_mean.var) ** 2)
 
         mlmc_means_mse.append((ref_moments_mean.mean - orig_moments_mean.mean) ** 2)
-        nn_means_mse.append((ref_moments_mean.mean - predict_moments_mean.mean) ** 2)
+        nn_means_mse.append((ref_moments_mean.mean) ** 2 - predict_moments_mean.mean)
+
+        #print("np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean)) ", np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean)))
+        #print("ref_orth_moments.mean[:np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean))] ", ref_orth_moments.mean[:np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean))])
+        if ref_orth_moments is not None:
+            orth_mlmc_means_mse.append((ref_orth_moments.mean[:np.min((len(ref_orth_moments.mean), len(orig_orth_moments.mean)))] -
+                                        orig_orth_moments.mean[:np.min((len(ref_orth_moments.mean), len(orig_orth_moments.mean)))]) ** 2)
+            orth_nn_means_mse.append((ref_orth_moments.mean[:np.min((len(ref_orth_moments.mean), len(predict_orth_moments.mean)))]
+                                      - predict_orth_moments.mean[:np.min((len(ref_orth_moments.mean), len(predict_orth_moments.mean)))]) ** 2)
+
+        all_mlmc_moments_mean.append(orig_moments_mean.mean)
+        all_nn_moments_mean.append(predict_moments_mean.mean)
+
+        all_mlmc_moments_var.append(orig_moments_mean.var)
+        all_nn_moments_var.append(predict_moments_mean.var)
 
         kl_mlmc_all.append(kl_mlmc)
         kl_nn_all.append(kl_nn)
+
+    moments_plot = plot.MomentsPlots(log_var_y=True)
+
+    print("all mlmc moments mean ", all_mlmc_moments_mean)
+    print("np.mean(all_mlmc_moments_var, axis=0) ", np.mean(all_mlmc_moments_var, axis=0))
+    moments_plot.add_moments((np.mean(all_mlmc_moments_mean, axis=0),
+                              np.mean(all_mlmc_moments_var, axis=0)), label="mlmc moments")
+    moments_plot.add_moments((np.mean(all_nn_moments_mean, axis=0),
+                              np.mean(all_nn_moments_var, axis=0)), label="nn moments")
+    moments_plot.add_moments((orig_moments_mean.mean,
+                              orig_moments_mean.var), label="orig moments")
+    moments_plot.show(None)
 
     display_vars(mlmc_vars, nn_vars, target_variance=target_variance)
 
     print("mlmc l vars ", np.mean(mlmc_l_vars, axis=0))
     print("nn l vars ", np.mean(nn_l_vars, axis=0))
+
+    print("var mlmc l vars ", np.var(mlmc_l_vars, axis=0))
+    print("var nn l vars ", np.var(nn_l_vars, axis=0))
 
     print("MAX mlmc l vars ", np.max(np.mean(mlmc_l_vars, axis=0), axis=1))
     print("MAX nn l vars ", np.max(np.mean(nn_l_vars, axis=0), axis=1))
@@ -961,13 +1050,16 @@ def analyze_statistics(config):
     print("nn n collected ", nn_n_collected)
 
     plt_var = plot.Variance()
+    plt_var.set_n_ops(np.mean(n_ops_predict_all, axis=0))
     l_vars = np.mean(mlmc_l_vars, axis=0)
     # print("np.squeeze(orig_level_params) ", orig_level_params)
     # print("l vars ", l_vars)
     # print("np.squeeze(orig_level_params) shape", orig_level_params.shape)
     # print("l vars shape", l_vars.shape)
+    print("orig level params ", orig_level_params)
     #plt_var.add_level_variances(np.squeeze(orig_level_params), l_vars)
     plt_var.add_level_variances(orig_level_params, l_vars)
+
     # plt_var.show(None)
     # plt_var.show("mlmc_vars")
     #
@@ -978,16 +1070,24 @@ def analyze_statistics(config):
     level_params = np.squeeze(nn_level_params)
     level_params[0] *= 2
     plt_var.add_level_variances_nn(level_params, l_vars)
-    plt_var.show(None)
     plt_var.show("nn_vars")
+    plt_var.show(None)
 
     plot_sse(nn_vars_mse, mlmc_vars_mse, title="moments_var")
     plot_sse(nn_means_mse, mlmc_means_mse, title="moments_mean")
+    plot_sse(mlmc_means_mse, mlmc_means_mse, title="mlmc moments_mean")
+
+    # if ref_orth_moments is not None:
+    #     print("orth nn means mse ", orth_nn_means_mse)
+    #     print("orth mlmc means mse ", orth_mlmc_means_mse)
+    #     plot_sse(orth_nn_means_mse, orth_mlmc_means_mse, title="orthogonal moments_mean")
 
     data_dict["test_targets"] = np.array(data_dict["test_targets"])
     data_dict["test_predictions"] = np.array(data_dict["test_predictions"])
     data_dict["train_targets"] = np.array(data_dict["train_targets"])
     data_dict["train_predictions"] = np.array(data_dict["train_predictions"])
+
+    print("data dict train predictions ", data_dict["train_predictions"])
 
     # if data_dict["log"][0]:
     #     # print("np.exp(10)", np.exp(10))
@@ -1025,21 +1125,26 @@ def analyze_statistics(config):
     test_RMSE = np.sqrt(test_MSE)
     test_MAE = np.mean(np.abs(data_dict["test_predictions"] - data_dict["test_targets"]), axis=1)
 
+    print("test MSE ", test_MSE)
+
     all_test_RSE = []
     for index, t_targets in enumerate(data_dict["test_targets"]):
-        if test_MSE[index] > 1:
+        if test_MSE[index] > limit:
             continue
-
         mean_t = np.mean(t_targets)
-
-        RSE = np.sum((data_dict["test_predictions"][index, :] - t_targets) ** 2) / np.sum((t_targets - mean_t) ** 2)
-
+        RSE = np.sum((data_dict["test_predictions"][index] - t_targets) ** 2) / np.sum((t_targets - mean_t) ** 2)
         all_test_RSE.append(RSE)
 
+    all_train_RSE = []
+    for index, t_targets in enumerate(data_dict["train_targets"]):
+        if test_MSE[index] > limit:
+            continue
+        mean_t = np.mean(t_targets)
+        #print("train predictions index ", data_dict["train_predictions"][index])
+        RSE = np.sum((data_dict["train_predictions"][index] - t_targets) ** 2) / np.sum((t_targets - mean_t) ** 2)
+        all_train_RSE.append(RSE)
 
-    print("all test RSE ", np.mean(all_test_RSE))
-
-
+    #print("all test RSE ", np.mean(all_test_RSE))
 
     # Relative squared error
     test_RSE = np.sum((data_dict["test_predictions"] - data_dict["test_targets"])**2) /\
@@ -1047,14 +1152,11 @@ def analyze_statistics(config):
 
     print("test RSE ", test_RSE)
 
-
     test_RAE = np.sqrt(np.sum((data_dict["test_predictions"] - data_dict["test_targets"]) ** 2)) / \
                 np.sqrt(np.sum((data_dict["test_targets"]) ** 2))
 
 
     print("test MSE / mean targets" , np.mean(test_MSE)/np.mean(data_dict["test_targets"]))
-
-
 
     print("test RSE ", test_RSE)
     print("test RAE ", test_RAE)
@@ -1062,11 +1164,13 @@ def analyze_statistics(config):
 
     t_mse_sum = []
     for t_mse in test_MSE:
-        if t_mse > 0.01:# 0.009:
+        # Note: je mozne odstranit vetsi hodnoty MSE pro L4, protoze by slo dosahnout mensich hodnot pokud by se navysil pocet iteraci nebo by se vysledek pro nejlepsi train + val MSE a ne posledni vysledek
+        if t_mse > limit:# 0.009:
             continue
         t_mse_sum.append(t_mse)
 
     print("t mse ", t_mse_sum)
+    print("LEN t mse ", len(t_mse_sum))
     print("T MSE sum ", np.mean(t_mse_sum))
 
     # print("train_predictions ", data_dict["train_predictions"])
@@ -1074,7 +1178,7 @@ def analyze_statistics(config):
 
     data_dict["train_predictions"], data_dict["train_targets"] = remove_empty(data_dict["train_predictions"], data_dict["train_targets"])
 
-    data_dict["train_predictions"] = np.squeeze(data_dict["train_predictions"])
+    #data_dict["train_predictions"] = np.squeeze(data_dict["train_predictions"])
 
     train_MSE = np.mean((data_dict["train_predictions"] - data_dict["train_targets"]) ** 2, axis=1)
     train_RMSE = np.sqrt(train_MSE)
@@ -1108,6 +1212,9 @@ def analyze_statistics(config):
     print("train_MSE ", train_MSE)
 
     print("mean train MSE ", np.mean(train_MSE))
+
+    print("test RSE ", np.mean(all_test_RSE))
+    print("test RSE ", np.mean(all_train_RSE))
     #print("mean train RSE ", np.mean(train_RSE))
     #print("mean train RMSE ", np.mean(train_RMSE))
     #print("mean train MAE ", np.mean(train_MAE))
@@ -1118,8 +1225,17 @@ def analyze_statistics(config):
     print("mean learning time ", np.mean(learning_times))
     print("max learning time ", np.max(learning_times))
 
+    print("############# OUTPUT ################")
+    print("train MSE ", np.mean(train_MSE))
+    print("test MSE ", np.mean(test_MSE))
+    print("train RSE ", np.mean(all_train_RSE))
+    print("test RSE ", np.mean(all_test_RSE))
+
+    print("nn total time ", nn_total_time)
+    print("mlmc total time ", mlmc_total_time)
+
     print("######################################")
-    return train_MSE, test_MSE, train_RSE, test_RSE
+    return train_MSE, test_MSE, np.mean(all_train_RSE), np.mean(all_test_RSE)
 
 
 def run_GNN(config, stats=True, train=True, log=False, seed=1234):
@@ -1138,6 +1254,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=1234):
 
     hidden_regularization = None  # l2(2e-10)
     graph_creation_time = config['graph_creation_time']
+    print("graph creation time ", graph_creation_time)
     if graph_creation_time == 0:
         graph_creator_preproces_time = time.process_time()
         graph_creator(config['output_dir'], config['nn_hdf_path'], config['mesh'], level=config['level'])
@@ -1216,7 +1333,6 @@ def run_GNN(config, stats=True, train=True, log=False, seed=1234):
         # gnn.run_eagerly = True
         train_targets = gnn.fit(loader_tr, loader_va, loader_te)
 
-
     # states = gnn._states
     # if len(states) > 0:
     #     min_key = np.min(list(states.keys()))
@@ -1272,6 +1388,8 @@ def run_GNN(config, stats=True, train=True, log=False, seed=1234):
         l1_sample_time = preprocess_time / len(data) + learning_time / len(data)
         l0_sample_time = predict_l_0_time / len(l_0_targets)
 
+        print("l0_sample_time ", l0_sample_time)
+
         # print("targets ", targets)
         # print("predictions ", predictions)
 
@@ -1297,17 +1415,22 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
     if corr_field_config:
         sample_time = corr_field_sample_time(mesh, corr_field_config)
 
+    predict_time_start = time.process_time()
+
     data = FlowDataset(output_dir=output_dir, log=log)#, mesh=mesh, corr_field_config=corr_field_config)
     #data = data  # [:10000]
     #data.shuffle(seed=seed)
 
-    predict_time_start = time.process_time()
+    #predict_time_start = time.process_time()
+
     data.a = conv_layer.preprocess(data.a)
     data.a = sp_matrix_to_sp_tensor(data.a)
 
     loader_te = MixedLoader(data, batch_size=batch_size)
 
+    call_predict_time = time.process_time()
     targets, predictions = nn.predict(loader_te)
+    print("predict call time ", (time.process_time() - call_predict_time)/len(targets))
     predictions = np.squeeze(predictions)
 
     if not stats:
@@ -1321,7 +1444,7 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
 
     predict_time = time.process_time() - predict_time_start
 
-    return targets, predictions, predict_time + sample_time*len(data)
+    return targets, predictions, predict_time + sample_time*len(targets)
 
 
 def save_times(path, load=False, preprocess=None, learning_time=None, predict_l_0=None):

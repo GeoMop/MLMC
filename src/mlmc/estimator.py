@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import scipy.stats as st
 import scipy.integrate as integrate
@@ -355,10 +356,10 @@ class Estimate:
         moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(self._moments_fn,
                                                                                                      cov_mat,
                                                                                                      tol=orth_moments_tol)
+
         moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_obj))
         est_moments = moments_mean.mean
         est_vars = moments_mean.var
-
         # if exact_pdf is not None:
         #     exact_moments = mlmc.tool.simple_distribution.compute_exact_moments(moments_obj, exact_pdf)
 
@@ -370,7 +371,7 @@ class Estimate:
                                                                      domain=moments_obj.domain)
         result = distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
 
-        return distr_obj, info, result, moments_obj
+        return distr_obj, info, result, moments_obj, moments_mean
 
     def get_level_samples(self, level_id, n_samples=None):
         """
