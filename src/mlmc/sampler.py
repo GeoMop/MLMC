@@ -93,13 +93,13 @@ class Sampler:
         :return: None
         """
         if n_samples is None:
-            n_samples = [100, 3]
+            n_samples = [100, 10]
         # Num of samples to ndarray
         n_samples = np.atleast_1d(n_samples)
 
         # Just maximal number of samples is set
         if len(n_samples) == 1:
-            n_samples = np.array([n_samples[0], 3])
+            n_samples = np.array([n_samples[0], 10])
 
         # Create number of samples for all levels
         if len(n_samples) == 2:

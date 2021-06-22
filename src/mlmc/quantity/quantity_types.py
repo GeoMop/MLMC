@@ -215,7 +215,7 @@ class DictType(QType):
         return next(iter(self._dict.values())).base_qtype()
 
     def size(self) -> int:
-        return int(np.sum(q_type.size() for _, q_type in self._dict.items()))
+        return int(sum(q_type.size() for _, q_type in self._dict.items()))
 
     def get_qtypes(self):
         return self._dict.values()

@@ -1,5 +1,5 @@
 import numpy as np
-import mlmc.estimator
+from mlmc.estimator import Estimate, estimate_n_samples_for_target_variance
 from mlmc.sampler import Sampler
 from mlmc.sample_storage import Memory
 from mlmc.sampling_pool import OneProcessPool
@@ -7,31 +7,39 @@ from examples.shooting.simulation_shooting_1D import ShootingSimulation1D
 from mlmc.quantity.quantity import make_root_quantity
 from mlmc.quantity.quantity_estimate import moments, estimate_mean
 from mlmc.moments import Legendre
+from mlmc.plot.plots import Distribution
 
 
-class ProcessShooting:
+# Tutorial class for 1D shooting simulation, includes
+# - samples scheduling
+# - process results:
+#           - create Quantity instance
+#           - approximate density
+class ProcessShooting1D:
 
     def __init__(self):
-        n_levels = 5
+        n_levels = 2
         # Number of MLMC levels
-        step_range = [1, 0.0005]
+        step_range = [1, 1e-3]
         # step_range [simulation step at the coarsest level, simulation step at the finest level]
-        level_parameters = ProcessShooting.determine_level_parameters(n_levels, step_range)
-        # Determine level parameters at each level (In this case, simulation step at each level) are set automatically.
-        # level_parameters should be simulation dependent for MLMC to be
-        self._sample_sleep = 30
+        level_parameters = ProcessShooting1D.determine_level_parameters(n_levels, step_range)
+        # Determine each level parameters (in this case, simulation step at each level), level_parameters should be
+        # simulation dependent
+        self._sample_sleep = 0#30
+        # Time to do nothing just to make sure the simulations aren't constantly checked, useful mainly for PBS run
         self._sample_timeout = 60
+        # Maximum waiting time for running simulations
         self._adding_samples_coef = 0.1
-        self._n_moments = 10
+        self._n_moments = 20
+        # number of generalized statistical moments used for MLMC number of samples estimation
         self._quantile = 0.01
         # Setting parameters that are utilized when scheduling samples
-
         """
         Run MLMC
         """
         sampler = self.create_sampler(level_parameters=level_parameters)
         # Create sampler (mlmc.Sampler instance) - crucial class that actually schedules MLMC samples
-        self.generate_samples(sampler, n_samples=None, target_var=1e-4)
+        self.generate_samples(sampler, n_samples=None, target_var=1e-3)
         # Generate MLMC samples, there are two ways:
         # 1) set exact number of samples at each level,
         #    e.g. for 5 levels - self.generate_samples(sampler, n_samples=[1000, 500, 250, 100, 50])
@@ -40,19 +48,19 @@ class ProcessShooting:
 
         self.all_collect(sampler)
         # Check if all samples are finished
-
         self.process_results(sampler, n_levels)
         # Postprocessing, MLMC is finished at this point
 
     def create_sampler(self, level_parameters):
         """
         Create:
-        # sampling pool - determines how sample simulations are performed
+        # sampling pool - the way sample simulations are executed
         # sample storage - stores sample results
         # sampler - controls MLMC execution
+        :param level_parameters: mlmc.sampler.Sampler instance
         :return: mlmc.sampler.Sampler instance
         """
-        # Create OneProcessPool - all run in same process
+        # Create OneProcessPool - all run in the same process
         sampling_pool = OneProcessPool()
         # There is another option mlmc.sampling_pool.ProcessPool() - supports local parallel sample simulation run
         # sampling_pool = ProcessPool(n), n - number of parallel simulations, depends on computer architecture
@@ -73,8 +81,8 @@ class ProcessShooting:
         # Create simple sample storage
         # Memory keeps samples in computer main memory
         sample_storage = Memory()
-        # There is another sample storage mlmc.sample_storage_hdf.SampleStorageHDF() - supports local parallel sample simulation run
-        # sample_storage = SampleStorgaeHDF(file_path=path_to_HDF5_file)
+        # We support also HDF file storage mlmc.sample_storage_hdf.SampleStorageHDF()
+        # sample_storage = SampleStorageHDF(file_path=path_to_HDF5_file)
 
         # Create sampler
         # Controls the execution of MLMC
@@ -113,18 +121,14 @@ class ProcessShooting:
             # The MLMC algorithm determine number of samples according to moments variance,
             # Type of moments function (Legendre by default) might affect the total number of MLMC samples
             moments_fn = self.set_moments(root_quantity, sampler.sample_storage, n_moments=self._n_moments)
-            estimate_obj = mlmc.estimator.Estimate(root_quantity, sample_storage=sampler.sample_storage,
+            estimate_obj = Estimate(root_quantity, sample_storage=sampler.sample_storage,
                                                    moments_fn=moments_fn)
 
             # Initial estimation of the number of samples at each level
             variances, n_ops = estimate_obj.estimate_diff_vars_regression(sampler.n_finished_samples)
-            print("variances ", variances)
-            print("n ops ", n_ops)
             # Firstly, a variance of moments and execution time of samples at each level are calculated from already finished samples.
-            n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+            n_estimated = estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                            n_levels=sampler.n_levels)
-
-            print("n estimated ", n_estimated)
 
             #####
             # MLMC sampling algorithm - gradually schedules samples and refines the total number of samples
@@ -134,11 +138,11 @@ class ProcessShooting:
                                                      timeout=self._sample_timeout):
                 # New estimation according to already finished samples
                 variances, n_ops = estimate_obj.estimate_diff_vars_regression(sampler._n_scheduled_samples)
-                n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-                                                                               n_levels=sampler.n_levels)
+                n_estimated = estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                     n_levels=sampler.n_levels)
 
     def set_moments(self, quantity, sample_storage, n_moments=25):
-        true_domain = mlmc.estimator.Estimate.estimate_domain(quantity, sample_storage, quantile=self._quantile)
+        true_domain = Estimate.estimate_domain(quantity, sample_storage, quantile=self._quantile)
         return Legendre(n_moments, true_domain)
 
     def all_collect(self, sampler):
@@ -157,28 +161,25 @@ class ProcessShooting:
         sample_storage = sampler.sample_storage
         # Load result format from sample storage
         result_format = sample_storage.load_result_format()
-        # Create quantity instance representing our real quantity of interest
+        # Create Quantity instance representing our real quantity of interest
         root_quantity = make_root_quantity(sample_storage, result_format)
 
-        # It is possible to access item of quantity according to result format
+        # It is possible to access items of quantity according to result format
         target = root_quantity['target']
-        time = target[10]  # times: [1]
-        position = time['0']  # locations: ['0']
+        time = target[10]
+        position = time['0']
         q_value = position[0]
 
         # Compute moments
-        estimated_domain = mlmc.estimator.Estimate.estimate_domain(q_value, sample_storage, quantile=self._quantile)
+        estimated_domain = Estimate.estimate_domain(q_value, sample_storage, quantile=self._quantile)
         moments_fn = Legendre(self._n_moments, estimated_domain)
 
         # Create estimator for your quantity
-        estimator = mlmc.estimator.Estimate(quantity=q_value, sample_storage=sample_storage, moments_fn=moments_fn)
+        estimator = Estimate(quantity=q_value, sample_storage=sample_storage, moments_fn=moments_fn)
+        # Estimate moment means and variances
         means, vars = estimator.estimate_moments(moments_fn)
-
-        print("means ", means)
-        print("vars ", vars)
-
         # Generally root quantity has different domain than its items
-        root_quantity_estimated_domain = mlmc.estimator.Estimate.estimate_domain(root_quantity, sample_storage,
+        root_quantity_estimated_domain = Estimate.estimate_domain(root_quantity, sample_storage,
                                                                                  quantile=self._quantile)
         root_quantity_moments_fn = Legendre(self._n_moments, root_quantity_estimated_domain)
 
@@ -190,21 +191,17 @@ class ProcessShooting:
         location_mean = time_mean['0']  # locations: ['0']
         value_mean = location_mean[0]  # result shape: (1,)
         assert value_mean.mean[0] == 1
+        self.approx_distribution(estimator, n_levels, tol=1e-8)
 
-        # estimator.sub_subselect(sample_vector=[10000])
-        self.construct_density(estimator, n_levels, tol=1e-8)
-
-    def construct_density(self, estimator, n_levels, tol=1.95, reg_param=0.0):
+    def approx_distribution(self, estimator, n_levels, tol=1.95):
         """
-        Construct approximation of the density using given moment functions.
+        Probability density function approximation using given moment functions.
         :param estimator: mlmc.estimator.Estimate instance, it contains quantity for which the density is reconstructed
         :param tol: Tolerance of the fitting problem, with account for variances in moments.
-        Default value 1.95 corresponds to the two tail confidence 0.95.
-        :param reg_param: regularization parameter
         :return: None
         """
-        distr_obj, result, _, _ = estimator.construct_density(tol=tol, reg_param=reg_param)
-        distr_plot = mlmc.plot.plots.Distribution(title="distribution")
+        distr_obj, result, _, _ = estimator.construct_density(tol=tol)
+        distr_plot = Distribution(title="distributions", error_plot=None)
         distr_plot.add_distribution(distr_obj)
 
         if n_levels == 1:
@@ -220,7 +217,7 @@ class ProcessShooting:
         In this case, a step of fine simulation at each level
         :param n_levels: number of MLMC levels
         :param step_range: simulation step range
-        :return: List
+        :return: list of lists
         """
         assert step_range[0] > step_range[1]
         level_parameters = []
@@ -232,41 +229,6 @@ class ProcessShooting:
             level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
         return level_parameters
 
-    @staticmethod
-    def determine_n_samples(n_levels, n_samples=None):
-        """
-        Set target number of samples for each level
-        :param n_levels: number of levels
-        :param n_samples: array of number of samples
-        :return: None
-        """
-        if n_samples is None:
-            n_samples = [100, 3]
-        # Num of samples to ndarray
-        n_samples = np.atleast_1d(n_samples)
-
-        # Just maximal number of samples is set
-        if len(n_samples) == 1:
-            n_samples = np.array([n_samples[0], 3])
-
-        # Create number of samples for all levels
-        if len(n_samples) == 2:
-            n0, nL = n_samples
-            n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), n_levels))).astype(int)
-
-        return n_samples
-
 
 if __name__ == "__main__":
-    ProcessShooting()
-
-    # import cProfile
-    # import pstats
-    # pr = cProfile.Profile()
-    # pr.enable()
-    #
-    # my_result = ProcessSimple()
-    #
-    # pr.disable()
-    # ps = pstats.Stats(pr).sort_stats('cumtime')
-    # ps.print_stats()
+    ProcessShooting1D()
