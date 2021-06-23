@@ -10,8 +10,8 @@ from mlmc.level_simulation import LevelSimulation
 
 def create_corr_field(model='gauss', corr_length=0.1, dim=1, log=True, sigma=1, mode_no=1000):
     """
-    Create random fields
-    :return:
+    Create correlated random field
+    :return: mlmc.random.correlated_field.Field instance
     """
     if model == 'exp':
         model = gstools.Exponential(dim=dim, len_scale=corr_length)
@@ -29,26 +29,13 @@ def create_corr_field(model='gauss', corr_length=0.1, dim=1, log=True, sigma=1, 
 
 class ShootingSimulation1D(Simulation):
 
-    n_nans = 0
-    nan_fraction = 0
-    len_results = 0
-    result_dict = {}
-
-    # Artificial simulation. Just random parameter + numerical error."""
     def __init__(self, config):
         """
-        :param config: Dict:
-                distr= particular distribution,
-                complexity=2,
-                nan_fraction=fraction of failed samples
-                sim_method=used method for calculating sample result
+        :param config: Dict, simulation configuration
         """
         super().__init__()
         self._config = config
-        ShootingSimulation1D.n_nans = 0
-        ShootingSimulation1D.nan_fraction = config.get('nan_fraction', 0.0)
-        ShootingSimulation1D.len_results = 0
-        # This attribute is obligatory
+        # This attribute is obligatory, if True workspace is created
         self.need_workspace: bool = False
 
     def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]) -> LevelSimulation:
@@ -90,16 +77,19 @@ class ShootingSimulation1D(Simulation):
                                                                                            coarse_step=config["coarse"]["step"],
                                                                                            n_fine_elements=n_fine_points)
 
-        fine_res = ShootingSimulation1D._run_sample(config, fine_input_sample, config["fine"]["n_elements"])
-        coarse_res = ShootingSimulation1D._run_sample(config, coarse_input_sample, config["coarse"]["n_elements"])
+        fine_res = ShootingSimulation1D._run_sample(config, fine_input_sample)
+        coarse_res = ShootingSimulation1D._run_sample(config, coarse_input_sample)
 
         return fine_res, coarse_res
 
     @staticmethod
-    def _run_sample(config, rnd_input_samples, n_elements):
+    def _run_sample(config, rnd_input_samples):
         """
         Simulation of 1D shooting
+        :param config: dictionary containing simulation configuration
+        :param rnd_input_samples: np.ndarray, shape: (number of elements )
         """
+        n_elements = len(rnd_input_samples)
         x, y, time, n = 0, 0, 0, 0
         X = config["start_position"]
         V = config['start_velocity']
@@ -107,7 +97,6 @@ class ShootingSimulation1D(Simulation):
         # Time step
         if n_elements != 0:
             dt = config['max_time'] / n_elements
-
         # Loop through random array F
         for i in range(n_elements):
             # New coordinates

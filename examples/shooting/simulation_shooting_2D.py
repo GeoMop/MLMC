@@ -27,25 +27,12 @@ def create_corr_field(model='gauss', corr_length=0.1, dim=1, log=True, sigma=1, 
 
 class ShootingSimulation2D(Simulation):
 
-    n_nans = 0
-    nan_fraction = 0
-    len_results = 0
-    result_dict = {}
-
-    # Artificial simulation. Just random parameter + numerical error."""
     def __init__(self, config):
         """
-        :param config: Dict:
-                distr= particular distribution,
-                complexity=2,
-                nan_fraction=fraction of failed samples
-                sim_method=used method for calculating sample result
+        :param config: Dict, simulation configuration
         """
         super().__init__()
         self.config = config
-        ShootingSimulation2D.n_nans = 0
-        ShootingSimulation2D.nan_fraction = config.get('nan_fraction', 0.0)
-        ShootingSimulation2D.len_results = 0
         # This attribute is obligatory
         self.need_workspace: bool = False
 
@@ -90,16 +77,19 @@ class ShootingSimulation2D(Simulation):
                                                                                              coarse_step=config["coarse"]["step"],
                                                                                              n_fine_elements=n_fine_points)
 
-        fine_res = ShootingSimulation2D._run_sample(config, fine_input_sample, config["fine"]["n_elements"])
-        coarse_res = ShootingSimulation2D._run_sample(config, fine_input_sample, config["fine"]["n_elements"])
+        fine_res = ShootingSimulation2D._run_sample(config, fine_input_sample)
+        coarse_res = ShootingSimulation2D._run_sample(config, fine_input_sample)
 
         return fine_res, coarse_res
 
     @staticmethod
-    def _run_sample(config, rnd_input_samples, n_elements):
+    def _run_sample(config, rnd_input_samples):
         """
         Simulation of 2D shooting
+        :param config: dictionary containing simulation configuration
+        :param rnd_input_samples: np.ndarray, shape: (number of elements )
         """
+        n_elements = len(rnd_input_samples)
         X = config["start_position"]
         V = config['start_velocity']
 
