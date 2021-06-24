@@ -1,0 +1,545 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.mlmc.sampling_pool_pbs &#8212; MLMC daf documentation</title>
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.mlmc.sampling_pool_pbs</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">from</span> <span class="nn">mlmc.level_simulation</span> <span class="k">import</span> <span class="n">LevelSimulation</span>
+<span class="kn">from</span> <span class="nn">mlmc.sampling_pool</span> <span class="k">import</span> <span class="n">SamplingPool</span>
+<span class="kn">from</span> <span class="nn">mlmc.tool.pbs_job</span> <span class="k">import</span> <span class="n">PbsJob</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SamplingPoolPBS description</span>
+<span class="sd">    - this class inherits from SampleStorage, both abstract methods and other crucial ones are described</span>
+
+<span class="sd">    schedule_sample(sample_id, level_sim)</span>
+<span class="sd">        - serialize level_sim (mlmc/level_simulation.py), pickle is used</span>
+<span class="sd">        - compute random seed from sample_id</span>
+<span class="sd">        - add (level_sim._level_id, sample_id, seed) to job&#39;s scheduled samples </span>
+<span class="sd">        - add job weight, increment number of samples in job and execute if job_weight is exceeded</span>
+
+<span class="sd">    execute()</span>
+<span class="sd">        - it is call when job weight (Maximum sum of task sizes summation in single one job) is exceeded</span>
+<span class="sd">        - methods from mlmc/pbs_job.py are called</span>
+<span class="sd">            - PbsJob class is created and serialized (PbsJob static method does both)</span>
+<span class="sd">            - scheduled samples are saved through PbsJob class static method</span>
+<span class="sd">        - pbs script is written out and ready to run</span>
+
+<span class="sd">    get_finished()</span>
+<span class="sd">        - run execute()</span>
+<span class="sd">        - get finished_pbs_jobs and unfinished_pbs_jobs from qstat output</span>
+<span class="sd">        - call get_result_files(), it returns successful samples, failed samples and times all of that is return to Sampler</span>
+
+<span class="sd">    _get_result_files()</span>
+<span class="sd">        - set n_running - number of running samples, it is given from unfinished_pbs_jobs</span>
+<span class="sd">        - successful samples, failed samples and run times are retrieved from PbsJob class with given job_id</span>
+<span class="sd">        - if there are _unfinished_sample_ids (&#39;renew&#39; command was use) these samples are appended to previous ones</span>
+
+
+<span class="sd">    This class cooperate with PbsJob (mlmc/pbs_job), which is used as &quot;mediator&quot; between master process and</span>
+<span class="sd">    worker (job) process. Data which are necessary for worker process are passed to PbsJob from SampleStoragePbs. </span>
+<span class="sd">    Master process serializes PbsJob instance.</span>
+<span class="sd">    Then PbsJob is deserialized in worker process.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="SamplingPoolPBS"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS">[docs]</a><span class="k">class</span> <span class="nc">SamplingPoolPBS</span><span class="p">(</span><span class="n">SamplingPool</span><span class="p">):</span>
+    <span class="n">OUTPUT_DIR</span> <span class="o">=</span> <span class="s2">&quot;output&quot;</span>
+    <span class="n">JOBS_DIR</span> <span class="o">=</span> <span class="s2">&quot;jobs&quot;</span>
+    <span class="n">LEVEL_SIM_CONFIG</span> <span class="o">=</span> <span class="s2">&quot;level_</span><span class="si">{}</span><span class="s2">_simulation_config&quot;</span>  <span class="c1"># Serialized level simulation</span>
+    <span class="n">JOB</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_job.sh&quot;</span>  <span class="c1"># Pbs process</span>
+    <span class="n">QSUB_FAILED_MAX_N</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># Ignore 10 consecutive &#39;&#39;qsub&#39; command failures</span>
+    <span class="n">QSTAT_FAILED_MAX_N</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># Ignore 10 consecutive &#39;qstat&#39; command failures</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work_dir</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param work_dir: Path to working directory</span>
+<span class="sd">        :param debug: bool, if True keep sample directories</span>
+<span class="sd">                      it is the strongest parameter so it overshadows &#39;clean&#39; param</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_work_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">work_dir</span><span class="p">)</span>
+        <span class="c1"># Working directory - other subdirectories are created in this one</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_job_weight</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># Current job weight.</span>
+        <span class="c1"># Job is scheduled when current job weight is above 1 (this condition replaces previous job_weight param)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_samples_in_job</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># Number of samples in job</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pbs_script</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_config</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Data inserted to the pbs script</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_header_template</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Lines to put at the beginning of the PBS script.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scheduled</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># List of scheduled samples</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_ids</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># List of pbs job ids which should run</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_unfinished_sample_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="c1"># List of sample id which are not collected - collection attempts are done in the get_finished()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="n">debug</span>
+        <span class="c1"># If true then keep sample directories</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_work_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dir</span><span class="p">(</span><span class="n">directory</span><span class="o">=</span><span class="n">SamplingPoolPBS</span><span class="o">.</span><span class="n">JOBS_DIR</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_job_count</span><span class="p">()</span>
+        <span class="c1"># Current number of jobs - sort of jobID</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_qsub_failed_n</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_qstat_failed_n</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># Number of failed execution of commands qsub, qstat</span>
+
+    <span class="k">def</span> <span class="nf">_get_job_count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get number of created jobs</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">files_pattern</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">,</span> <span class="s2">&quot;*_job.sh&quot;</span><span class="p">)</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">files_pattern</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">files</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="n">job_id</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\d+)_job.sh&#39;</span><span class="p">,</span> <span class="n">files</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">_save_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save structure of files which are needed for pbs process run</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">files_structure</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;job_dir&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">,</span>
+                           <span class="s2">&quot;level_sim_config&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">SamplingPoolPBS</span><span class="o">.</span><span class="n">LEVEL_SIM_CONFIG</span><span class="p">)</span>
+                           <span class="p">}</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_files_structure</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">writer</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">files_structure</span><span class="p">,</span> <span class="n">writer</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SamplingPoolPBS.pbs_common_setting"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.pbs_common_setting">[docs]</a>    <span class="k">def</span> <span class="nf">pbs_common_setting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Values for common header of script</span>
+<span class="sd">        :param kwargs: Dict[</span>
+<span class="sd">                            env_setting: environmental setting - load modules, install packages, ...</span>
+<span class="sd">                            n_nodes: number of used nodes,</span>
+<span class="sd">                            n_cores: number of cores a node,</span>
+<span class="sd">                            mem: used memory a job,</span>
+<span class="sd">                            queue: used queue on the server,</span>
+
+<span class="sd">                            optional params:</span>
+<span class="sd">                                select_flags: other select flags, see https://wiki.metacentrum.cz/wiki/About_scheduling_system for other possible parameters</span>
+<span class="sd">                                python: python command, default: python3</span>
+<span class="sd">        ]</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Script header</span>
+        <span class="n">select_flags_list</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;select_flags&#39;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="k">if</span> <span class="n">select_flags_list</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;select_flags&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">select_flags_list</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;select_flags&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="c1"># Python3 by default</span>
+        <span class="k">if</span> <span class="s1">&#39;python&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;python&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;python3&quot;</span>
+
+        <span class="k">if</span> <span class="s1">&#39;std_out_err&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;std_out_err&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;oe&#39;</span>  <span class="c1"># Standard error and standard output are  merged  into standard output.</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_header_template</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;#!/bin/bash&quot;</span><span class="p">,</span>
+                                     <span class="s1">&#39;#PBS -S /bin/bash&#39;</span><span class="p">,</span>
+                                     <span class="s1">&#39;#PBS -l select=</span><span class="si">{n_nodes}</span><span class="s1">:ncpus=</span><span class="si">{n_cores}</span><span class="s1">:mem=</span><span class="si">{mem}{select_flags}</span><span class="s1">&#39;</span><span class="p">,</span>
+                                     <span class="s1">&#39;#PBS -l walltime=</span><span class="si">{walltime}</span><span class="s1">&#39;</span><span class="p">,</span>
+                                     <span class="s1">&#39;#PBS -q </span><span class="si">{queue}</span><span class="s1">&#39;</span><span class="p">,</span>
+                                     <span class="s1">&#39;#PBS -N </span><span class="si">{pbs_name}</span><span class="s1">&#39;</span><span class="p">,</span>
+                                     <span class="s1">&#39;#PBS -j </span><span class="si">{std_out_err}</span><span class="s1">&#39;</span><span class="p">,</span>  <span class="c1"># Specifies  whether and how to join the job&#39;s</span>
+                                     <span class="c1"># standard error and standard output streams.</span>
+                                     <span class="s1">&#39;#PBS -o </span><span class="si">{pbs_output_dir}</span><span class="s1">/</span><span class="si">{job_name}</span><span class="s1">.OU&#39;</span><span class="p">,</span>
+                                     <span class="s1">&#39;#PBS -e </span><span class="si">{pbs_output_dir}</span><span class="s1">/</span><span class="si">{job_name}</span><span class="s1">.ER&#39;</span>
+                                     <span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_header_template</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;optional_pbs_requests&#39;</span><span class="p">])</span>  <span class="c1"># e.g. [&#39;#PBS -m ae&#39;] means mail is sent when the job aborts or terminates</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_header_template</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="s1">&#39;MLMC_WORKDIR=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_work_dir</span><span class="p">),))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_header_template</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;env_setting&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_header_template</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="s1">&#39;</span><span class="si">{python}</span><span class="s1"> -m mlmc.tool.pbs_job </span><span class="si">{output_dir}</span><span class="s1"> </span><span class="si">{job_name}</span><span class="s1"> &gt;&#39;</span>
+                                          <span class="s1">&#39;</span><span class="si">{pbs_output_dir}</span><span class="s1">/</span><span class="si">{job_name}</span><span class="s1">_STDOUT 2&gt;&amp;1&#39;</span><span class="p">,))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_config</span> <span class="o">=</span> <span class="n">kwargs</span></div>
+
+<div class="viewcode-block" id="SamplingPoolPBS.schedule_sample"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.schedule_sample">[docs]</a>    <span class="k">def</span> <span class="nf">schedule_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add sample to current PBS package</span>
+<span class="sd">        :param sample_id: unique sample id from Sampler</span>
+<span class="sd">        :param level_sim: LevelSimulation instance</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serialize_level_sim</span><span class="p">(</span><span class="n">level_sim</span><span class="p">)</span>
+
+        <span class="n">seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_seed</span><span class="p">(</span><span class="n">sample_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scheduled</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">level_sim</span><span class="o">.</span><span class="n">_level_id</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">seed</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_samples_in_job</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_job_weight</span> <span class="o">+=</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">task_size</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_job_weight</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_samples_in_job</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SamplingPoolPBS.serialize_level_sim"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.serialize_level_sim">[docs]</a>    <span class="k">def</span> <span class="nf">serialize_level_sim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">:</span> <span class="n">LevelSimulation</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pickle LevelSimulation instance</span>
+<span class="sd">        :param level_sim: LevelSimulation</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">SamplingPoolPBS</span><span class="o">.</span><span class="n">LEVEL_SIM_CONFIG</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">level_sim</span><span class="o">.</span><span class="n">_level_id</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">level_sim</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SamplingPoolPBS.execute"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Execute pbs script</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_scheduled</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{:04d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_count</span><span class="p">)</span>
+            <span class="c1"># Create pbs job</span>
+            <span class="n">pbs_process</span> <span class="o">=</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span>
+                                            <span class="n">SamplingPoolPBS</span><span class="o">.</span><span class="n">LEVEL_SIM_CONFIG</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">)</span>
+            <span class="c1"># Write scheduled samples to file</span>
+            <span class="n">pbs_process</span><span class="o">.</span><span class="n">save_scheduled</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_scheduled</span><span class="p">)</span>
+
+            <span class="c1"># Format pbs script</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_create_script</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pbs_script</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_samples_in_job</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span>
+
+            <span class="c1"># Write pbs script</span>
+            <span class="n">job_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">,</span> <span class="n">SamplingPoolPBS</span><span class="o">.</span><span class="n">JOB</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">))</span>
+            <span class="n">script_content</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pbs_script</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write_script</span><span class="p">(</span><span class="n">script_content</span><span class="p">,</span> <span class="n">job_file</span><span class="p">)</span>
+
+            <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s1">&#39;qsub&#39;</span><span class="p">,</span> <span class="n">job_file</span><span class="p">],</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">))</span>
+                <span class="c1"># Find all finished jobs</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_qsub_failed_n</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="c1"># Write current job count</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_job_count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                <span class="c1"># Get pbs_id from qsub output</span>
+                <span class="n">pbs_id</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="c1"># Store pbs id for future qstat calls</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pbs_id</span><span class="p">)</span>
+                <span class="n">pbs_process</span><span class="o">.</span><span class="n">write_pbs_id</span><span class="p">(</span><span class="n">pbs_id</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">_current_job_weight</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_n_samples_in_job</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_scheduled</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_qsub_failed_n</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_qsub_failed_n</span> <span class="o">&gt;</span> <span class="n">SamplingPoolPBS</span><span class="o">.</span><span class="n">QSUB_FAILED_MAX_N</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">_create_script</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Format pbs script</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Job output with similar name to job</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_config</span><span class="p">[</span><span class="s1">&#39;job_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{:04d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_count</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_config</span><span class="p">[</span><span class="s1">&#39;pbs_output_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_config</span><span class="p">[</span><span class="s1">&#39;output_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_config</span><span class="p">[</span><span class="s1">&#39;work_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_work_dir</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pbs_script</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_pbs_config</span><span class="p">)</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_header_template</span><span class="p">]</span>
+
+<div class="viewcode-block" id="SamplingPoolPBS.write_script"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.write_script">[docs]</a>    <span class="k">def</span> <span class="nf">write_script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">job_file</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create</span>
+<span class="sd">        :param content: script content</span>
+<span class="sd">        :param job_file: job file path</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">job_file</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">job_file</span><span class="p">,</span> <span class="mo">0o774</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SamplingPoolPBS.get_finished"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.get_finished">[docs]</a>    <span class="k">def</span> <span class="nf">get_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get results</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+        <span class="n">finished_pbs_jobs</span><span class="p">,</span> <span class="n">unfinished_pbs_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_qstat_pbs_job</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_result_files</span><span class="p">(</span><span class="n">finished_pbs_jobs</span><span class="p">,</span> <span class="n">unfinished_pbs_jobs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_qstat_pbs_job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse qstat output and get all unfinished job ids</span>
+<span class="sd">        :return: finished and unfinished jobs both list of job ids (str)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">finished_pbs_jobs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pbs_ids</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Get PBS id&#39;s status,</span>
+            <span class="c1"># &#39;-x&#39; - displays status information for finished and moved jobs in addition to queued and running jobs.</span>
+            <span class="n">qstat_call</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;qstat&quot;</span><span class="p">,</span> <span class="s2">&quot;-x&quot;</span><span class="p">]</span>
+            <span class="n">qstat_call</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pbs_ids</span><span class="p">)</span>
+
+            <span class="c1"># qstat call</span>
+            <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">qstat_call</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">))</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">)</span>
+                <span class="c1"># Find all finished jobs</span>
+                <span class="n">finished_pbs_jobs</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(\d+)\..*\d+ F&quot;</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_qstat_failed_n</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_qstat_failed_n</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_qstat_failed_n</span> <span class="o">&gt;</span> <span class="n">SamplingPoolPBS</span><span class="o">.</span><span class="n">QSTAT_FAILED_MAX_N</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">))</span>
+                <span class="n">finished_pbs_jobs</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Get unfinished as diff between planned and finished</span>
+        <span class="n">unfinished_pbs_jobs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pbs_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_ids</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">pbs_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">finished_pbs_jobs</span><span class="p">:</span>
+                <span class="n">unfinished_pbs_jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pbs_id</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Remove finished ids from all saved pbs_ids</span>
+                <span class="c1"># It prevents qstat exception: &quot;Unknown Job Id&quot;,</span>
+                <span class="c1"># that occurs because there is some kind of qstat &#39;forgetfulness&#39; of terminated jobs</span>
+                <span class="c1"># It is a very rare phenomenon, which is observed only during the long run (e.g. 8 hours for a job)</span>
+                <span class="c1"># of many (e.g. 2500) simulations, here it happened after around a day and a half of running MLMC.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_ids</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">pbs_id</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">finished_pbs_jobs</span><span class="p">,</span> <span class="n">unfinished_pbs_jobs</span>
+
+    <span class="k">def</span> <span class="nf">_get_result_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">finished_pbs_jobs</span><span class="p">,</span> <span class="n">unfinished_pbs_jobs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get results from files</span>
+<span class="sd">        :param finished_pbs_jobs: List[str], finished pbs jobs,</span>
+<span class="sd">        :param unfinished_pbs_jobs: List[str], unfinished pbs jobs,</span>
+<span class="sd">        :return: successful_results: Dict[level_id, List[Tuple[sample_id: str, Tuple[fine_result: np.ndarray, coarse_result: n.ndarray]]]]</span>
+<span class="sd">                 failed_results: Dict[level_id, List[Tuple[sample_id: str, err_msg: str]]]</span>
+<span class="sd">                 n_running: int, number of running samples</span>
+<span class="sd">                 times:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">)</span>
+
+        <span class="c1"># Get number of running samples</span>
+        <span class="n">n_running</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">pbs_id</span> <span class="ow">in</span> <span class="n">unfinished_pbs_jobs</span><span class="p">:</span>
+            <span class="n">reg</span> <span class="o">=</span> <span class="s2">&quot;*_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pbs_id</span><span class="p">)</span>
+            <span class="n">file</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">reg</span><span class="p">)</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\d+)_\d+&#39;</span><span class="p">,</span> <span class="n">file</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">n_running</span> <span class="o">+=</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">get_job_n_running</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">)</span>
+
+        <span class="n">successful_results</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">failed_results</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">times</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">pbs_id</span> <span class="ow">in</span> <span class="n">finished_pbs_jobs</span><span class="p">:</span>
+            <span class="n">reg</span> <span class="o">=</span> <span class="s2">&quot;*_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pbs_id</span><span class="p">)</span>  <span class="c1"># JobID_PbsId file</span>
+            <span class="n">file</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">reg</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">file</span><span class="p">:</span>
+                <span class="c1"># Find jobID</span>
+                <span class="n">file</span> <span class="o">=</span> <span class="n">file</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">job_id</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\d+)_\d+&#39;</span><span class="p">,</span> <span class="n">file</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="c1"># Get sample results</span>
+                <span class="n">successful</span><span class="p">,</span> <span class="n">failed</span><span class="p">,</span> <span class="n">time</span> <span class="o">=</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">read_results</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">)</span>
+
+                <span class="c1"># Split results to levels</span>
+                <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">results</span> <span class="ow">in</span> <span class="n">successful</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">successful_results</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">results</span> <span class="ow">in</span> <span class="n">failed</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">failed_results</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">results</span> <span class="ow">in</span> <span class="n">time</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">level_id</span> <span class="ow">in</span> <span class="n">times</span><span class="p">:</span>
+                        <span class="n">times</span><span class="p">[</span><span class="n">level_id</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">results</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">times</span><span class="p">[</span><span class="n">level_id</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">results</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">times</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+                <span class="c1"># Delete pbsID file - it means job is finished</span>
+                <span class="n">SamplingPoolPBS</span><span class="o">.</span><span class="n">delete_pbs_id_file</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unfinished_sample_ids</span><span class="p">:</span>
+            <span class="n">successful_results</span><span class="p">,</span> <span class="n">failed_results</span><span class="p">,</span> <span class="n">times</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_collect_unfinished</span><span class="p">(</span><span class="n">successful_results</span><span class="p">,</span>
+                                                                                 <span class="n">failed_results</span><span class="p">,</span> <span class="n">times</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">successful_results</span><span class="p">,</span> <span class="n">failed_results</span><span class="p">,</span> <span class="n">n_running</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">times</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">_load_sample_id_job_id_map</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_dir</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param sample_dir: path to sample directory</span>
+<span class="sd">        :return: str, job id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sample_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">PERMANENT_SAMPLE</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">))</span>
+        <span class="n">file</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">file_name</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">job_id</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;.jobID_(\d+)&#39;</span><span class="p">,</span> <span class="n">file</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">job_id</span>
+
+    <span class="k">def</span> <span class="nf">_collect_unfinished</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">successful_results</span><span class="p">,</span> <span class="n">failed_results</span><span class="p">,</span> <span class="n">times</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Collect samples which had finished after main process crashed, append them to new collected samples</span>
+<span class="sd">        :param successful_results: dict</span>
+<span class="sd">        :param failed_results: dict</span>
+<span class="sd">        :param times: dict</span>
+<span class="sd">        :return: all input dictionaries</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">already_collected</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">sample_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unfinished_sample_ids</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">sample_id</span> <span class="ow">in</span> <span class="n">already_collected</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">sample_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">)</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_sample_id_job_id_map</span><span class="p">(</span><span class="n">sample_dir</span><span class="p">)</span>
+
+            <span class="n">successful</span><span class="p">,</span> <span class="n">failed</span><span class="p">,</span> <span class="n">time</span> <span class="o">=</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">read_results</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">)</span>
+
+            <span class="c1"># Split results to levels</span>
+            <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">results</span> <span class="ow">in</span> <span class="n">successful</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unfinished_sample_ids</span><span class="p">:</span>
+                        <span class="n">already_collected</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="n">successful_results</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">results</span> <span class="ow">in</span> <span class="n">failed_results</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unfinished_sample_ids</span><span class="p">:</span>
+                        <span class="n">already_collected</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="n">failed_results</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">results</span> <span class="ow">in</span> <span class="n">times</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unfinished_sample_ids</span><span class="p">:</span>
+                        <span class="n">times</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+                <span class="n">times</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">results</span>
+
+            <span class="c1"># Delete pbsID file - it means job is finished</span>
+            <span class="c1"># SamplingPoolPBS.delete_pbs_id_file(file)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_unfinished_sample_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">successful_results</span><span class="p">,</span> <span class="n">failed_results</span><span class="p">,</span> <span class="n">times</span>
+
+<div class="viewcode-block" id="SamplingPoolPBS.have_permanent_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.have_permanent_samples">[docs]</a>    <span class="k">def</span> <span class="nf">have_permanent_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        List of unfinished sample ids, the corresponding samples are collecting in next get_finished() call .</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_unfinished_sample_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">sample_ids</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SamplingPoolPBS.delete_pbs_id_file"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.delete_pbs_id_file">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">delete_pbs_id_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete jobId_pbsId file - it indicates finished job</span>
+<span class="sd">        :param file_path: str</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Failed to remove PBS id file, file not found&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">MLMC</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.html">src.mlmc package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Jan Brezina, Martin Spetlik.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

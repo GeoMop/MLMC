@@ -1,0 +1,435 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.mlmc.sampling_pool &#8212; MLMC daf documentation</title>
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.mlmc.sampling_pool</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">queue</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="k">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="k">import</span> <span class="n">Pool</span> <span class="k">as</span> <span class="n">ProcPool</span>
+<span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="k">import</span> <span class="n">pool</span>
+<span class="kn">from</span> <span class="nn">mlmc.level_simulation</span> <span class="k">import</span> <span class="n">LevelSimulation</span>
+
+
+<div class="viewcode-block" id="SamplingPool"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool">[docs]</a><span class="k">class</span> <span class="nc">SamplingPool</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+    <span class="n">FAILED_DIR</span> <span class="o">=</span> <span class="s1">&#39;failed&#39;</span>
+    <span class="n">SEVERAL_SUCCESSFUL_DIR</span> <span class="o">=</span> <span class="s1">&#39;several_successful&#39;</span>
+    <span class="n">N_SUCCESSFUL</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="c1"># Number of successful samples to store</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param work_dir: Path to working directory</span>
+<span class="sd">        :param debug: bool, if True keep sample directories</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">work_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">work_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">work_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">&quot;output&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="n">debug</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_dir</span><span class="p">()</span>  <span class="c1"># prepare output dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_dir</span><span class="p">(</span><span class="n">SamplingPool</span><span class="o">.</span><span class="n">FAILED_DIR</span><span class="p">)</span>  <span class="c1"># prepare failed dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_successful_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dir</span><span class="p">(</span><span class="n">SamplingPool</span><span class="o">.</span><span class="n">SEVERAL_SUCCESSFUL_DIR</span><span class="p">)</span>  <span class="c1"># prepare several successful dir</span>
+
+    <span class="k">def</span> <span class="nf">_create_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create output directory, in &#39;debug&#39; mode not remove existing output_dir</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">directory</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">:</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="mo">0o775</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">directory</span>
+
+<div class="viewcode-block" id="SamplingPool.schedule_sample"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.schedule_sample">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">schedule_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">:</span> <span class="n">LevelSimulation</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method for calculating simulation samples</span>
+<span class="sd">        :param sample_id: str</span>
+<span class="sd">        :param level_sim: level_simulation.LevelSimulation instance</span>
+<span class="sd">        :return: Tuple[str, List]</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="SamplingPool.have_permanent_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.have_permanent_samples">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">have_permanent_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Informs the Pool about sample_ids that have been scheduled but not yet finished</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="SamplingPool.get_finished"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.get_finished">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">get_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return finished samples</span>
+<span class="sd">        :return: list of results, number of running samples</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="SamplingPool.compute_seed"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.compute_seed">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute_seed</span><span class="p">(</span><span class="n">sample_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate seed for given sample id</span>
+<span class="sd">        :param sample_id: str</span>
+<span class="sd">        :return: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">sample_id</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">))</span>
+        <span class="n">seed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">frombuffer</span><span class="p">(</span><span class="nb">hash</span><span class="o">.</span><span class="n">digest</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;uint32&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">seed</span></div>
+
+<div class="viewcode-block" id="SamplingPool.calculate_sample"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.calculate_sample">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">calculate_sample</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">,</span> <span class="n">work_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method for calculating results</span>
+<span class="sd">        :param sample_id: str</span>
+<span class="sd">        :param level_sim: LevelSimulation</span>
+<span class="sd">        :param work_dir: working directory</span>
+<span class="sd">        :param seed: random seed</span>
+<span class="sd">        :return: sample id, sample result, error message with traceback, running time</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">seed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">seed</span> <span class="o">=</span> <span class="n">SamplingPool</span><span class="o">.</span><span class="n">compute_seed</span><span class="p">(</span><span class="n">sample_id</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">err_msg</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">running_time</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">:</span>
+            <span class="n">SamplingPool</span><span class="o">.</span><span class="n">handle_sim_files</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">_calculate</span><span class="p">(</span><span class="n">level_sim</span><span class="o">.</span><span class="n">config_dict</span><span class="p">,</span> <span class="n">seed</span><span class="p">)</span>
+            <span class="n">running_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+
+            <span class="c1"># Check result format</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="ow">is</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="ow">is</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+                <span class="n">flatten_fine_res</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                <span class="n">flatten_coarse_res</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+                <span class="n">res_expected_len</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">quantity_spec</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">quantity_spec</span><span class="o">.</span><span class="n">times</span><span class="p">)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">quantity_spec</span><span class="o">.</span><span class="n">locations</span><span class="p">)</span>
+                     <span class="k">for</span> <span class="n">quantity_spec</span> <span class="ow">in</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">_result_format</span><span class="p">()])</span>
+
+                <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">flatten_fine_res</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">flatten_coarse_res</span><span class="p">)</span> <span class="o">==</span> <span class="n">res_expected_len</span><span class="p">,</span> \
+                    <span class="s2">&quot;Unexpected result format, expected length: </span><span class="si">{}</span><span class="s2">, resultf length: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">res_expected_len</span><span class="p">,</span>
+                                                                                               <span class="nb">len</span><span class="p">(</span><span class="n">flatten_fine_res</span><span class="p">))</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">str_list</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exception</span><span class="p">(</span><span class="o">*</span><span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">())</span>
+            <span class="n">err_msg</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">str_list</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span> <span class="n">err_msg</span><span class="p">,</span> <span class="n">running_time</span></div>
+
+<div class="viewcode-block" id="SamplingPool.change_to_sample_directory"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.change_to_sample_directory">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">change_to_sample_directory</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create sample directory and change working directory</span>
+<span class="sd">        :param path: str</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sample_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">sample_dir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">sample_dir</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="mo">0o775</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sample_dir</span></div>
+
+<div class="viewcode-block" id="SamplingPool.copy_sim_files"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.copy_sim_files">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">copy_sim_files</span><span class="p">(</span><span class="n">files</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">sample_dir</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Copy simulation common files to current simulation sample directory</span>
+<span class="sd">        :param files: List of files</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">sample_dir</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SamplingPool.handle_sim_files"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.handle_sim_files">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">handle_sim_files</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Change working directory to sample dir and copy common files</span>
+<span class="sd">        :param sample_id: str</span>
+<span class="sd">        :param level_sim: LevelSimulation</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">:</span>
+            <span class="n">sample_dir</span> <span class="o">=</span> <span class="n">SamplingPool</span><span class="o">.</span><span class="n">change_to_sample_directory</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">common_files</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">SamplingPool</span><span class="o">.</span><span class="n">copy_sim_files</span><span class="p">(</span><span class="n">level_sim</span><span class="o">.</span><span class="n">common_files</span><span class="p">,</span> <span class="n">sample_dir</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">sample_dir</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SamplingPool.move_successful_rm"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.move_successful_rm">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">move_successful_rm</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">dest_dir</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">sample_id</span><span class="p">[</span><span class="o">-</span><span class="mi">7</span><span class="p">:])</span> <span class="o">&lt;</span> <span class="n">SamplingPool</span><span class="o">.</span><span class="n">N_SUCCESSFUL</span><span class="p">:</span>
+            <span class="n">SamplingPool</span><span class="o">.</span><span class="n">move_dir</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">dest_dir</span><span class="o">=</span><span class="n">dest_dir</span><span class="p">)</span>
+        <span class="n">SamplingPool</span><span class="o">.</span><span class="n">remove_sample_dir</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SamplingPool.move_failed_rm"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.move_failed_rm">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">move_failed_rm</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">dest_dir</span><span class="p">):</span>
+        <span class="n">SamplingPool</span><span class="o">.</span><span class="n">move_dir</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">dest_dir</span><span class="o">=</span><span class="n">dest_dir</span><span class="p">)</span>
+        <span class="n">SamplingPool</span><span class="o">.</span><span class="n">remove_sample_dir</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SamplingPool.move_dir"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.move_dir">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">move_dir</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">sample_workspace</span><span class="p">,</span> <span class="n">work_dir</span><span class="p">,</span> <span class="n">dest_dir</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Move failed sample dir to failed directory</span>
+<span class="sd">        :param sample_id: str</span>
+<span class="sd">        :param sample_workspace: bool, simulation needs workspace</span>
+<span class="sd">        :param work_dir: str</span>
+<span class="sd">        :param dest_dir: destination</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">sample_workspace</span> <span class="ow">and</span> <span class="n">work_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">dest_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">destination_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">dest_dir</span><span class="p">)</span>
+            <span class="n">sample_dir</span> <span class="o">=</span> <span class="n">SamplingPool</span><span class="o">.</span><span class="n">change_to_sample_directory</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">destination_dir</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">)):</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">destination_dir</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">),</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copytree</span><span class="p">(</span><span class="n">sample_dir</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">destination_dir</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SamplingPool.remove_sample_dir"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.SamplingPool.remove_sample_dir">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">remove_sample_dir</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">sample_workspace</span><span class="p">,</span> <span class="n">work_dir</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remove sample directory</span>
+<span class="sd">        :param sample_id: str</span>
+<span class="sd">        :param sample_workspace: bool, simulation needs workspace</span>
+<span class="sd">        :param work_dir: str</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">sample_workspace</span> <span class="ow">and</span> <span class="n">work_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample_dir</span> <span class="o">=</span> <span class="n">SamplingPool</span><span class="o">.</span><span class="n">change_to_sample_directory</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">)</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">sample_dir</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="OneProcessPool"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.OneProcessPool">[docs]</a><span class="k">class</span> <span class="nc">OneProcessPool</span><span class="p">(</span><span class="n">SamplingPool</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Everything is running in one process</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">work_dir</span><span class="o">=</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_failed_queues</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queues</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_running</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">times</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="OneProcessPool.schedule_sample"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.OneProcessPool.schedule_sample">[docs]</a>    <span class="k">def</span> <span class="nf">schedule_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_running</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+
+        <span class="n">sample_id</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">err_msg</span><span class="p">,</span> <span class="n">running_time</span> <span class="o">=</span> <span class="n">SamplingPool</span><span class="o">.</span><span class="n">calculate_sample</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">,</span>
+                                                                                 <span class="n">work_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_process_result</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">err_msg</span><span class="p">,</span> <span class="n">running_time</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_process_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">err_msg</span><span class="p">,</span> <span class="n">running_time</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save sample result</span>
+<span class="sd">        :param sample_id: sample identifier from calculate_sample()</span>
+<span class="sd">        :param result: sample result from calculate_sample()</span>
+<span class="sd">        :param err_msg: sample error message from calculate_sample()</span>
+<span class="sd">        :param running_time: running time for sample from calculate_sample()</span>
+<span class="sd">        :param level_sim: level_simulation instance</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Save running time for n_ops</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_running_time</span><span class="p">(</span><span class="n">level_sim</span><span class="o">.</span><span class="n">_level_id</span><span class="p">,</span> <span class="n">running_time</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">err_msg</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_queues</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_sim</span><span class="o">.</span><span class="n">_level_id</span><span class="p">,</span> <span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">())</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">sample_id</span><span class="p">,</span> <span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">result</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">:</span>
+                <span class="n">SamplingPool</span><span class="o">.</span><span class="n">move_successful_rm</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">dest_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_successful_dir</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Sample </span><span class="si">{}</span><span class="s2"> error: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">err_msg</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">SamplingPool</span><span class="o">.</span><span class="n">move_failed_rm</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">dest_dir</span><span class="o">=</span><span class="n">SamplingPool</span><span class="o">.</span><span class="n">FAILED_DIR</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_failed_queues</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_sim</span><span class="o">.</span><span class="n">_level_id</span><span class="p">,</span> <span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">())</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">err_msg</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_save_running_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">running_time</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save running time to dictionary, store total time and number of samples</span>
+<span class="sd">        :param level_id: int</span>
+<span class="sd">        :param running_time: float</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Save sample times [total time, number of samples]</span>
+        <span class="k">if</span> <span class="n">level_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">times</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># Failed samples have running time equal 0 by default</span>
+        <span class="k">if</span> <span class="n">running_time</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="n">level_id</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">running_time</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="n">level_id</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+<div class="viewcode-block" id="OneProcessPool.have_permanent_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.OneProcessPool.have_permanent_samples">[docs]</a>    <span class="k">def</span> <span class="nf">have_permanent_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="OneProcessPool.get_finished"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.OneProcessPool.get_finished">[docs]</a>    <span class="k">def</span> <span class="nf">get_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        return results from queue - list of (sample_id, pair_of_result_vectors, error_message)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">successful</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queues_to_list</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_queues</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+        <span class="n">failed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queues_to_list</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_failed_queues</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+
+        <span class="k">return</span> <span class="n">successful</span><span class="p">,</span> <span class="n">failed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_running</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">times</span><span class="o">.</span><span class="n">items</span><span class="p">())</span></div>
+
+    <span class="k">def</span> <span class="nf">_queues_to_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue_dict_list</span><span class="p">):</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">queue_dict_list</span><span class="p">:</span>
+            <span class="n">queue_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">queue</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">queue_list</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">results</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">queue_list</span>
+            <span class="c1"># Thread safe clear</span>
+            <span class="k">with</span> <span class="n">q</span><span class="o">.</span><span class="n">mutex</span><span class="p">:</span>
+                <span class="n">q</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_n_running</span> <span class="o">-=</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="n">level_id</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">results</span></div>
+
+
+<div class="viewcode-block" id="ProcessPool"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.ProcessPool">[docs]</a><span class="k">class</span> <span class="nc">ProcessPool</span><span class="p">(</span><span class="n">OneProcessPool</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Suitable for local parallel sampling for simulations WITHOUT external program call</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_processes</span><span class="p">,</span> <span class="n">work_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pool</span> <span class="o">=</span> <span class="n">ProcPool</span><span class="p">(</span><span class="n">n_processes</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">work_dir</span><span class="o">=</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ProcessPool.res_callback"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.ProcessPool.res_callback">[docs]</a>    <span class="k">def</span> <span class="nf">res_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Process simulation results</span>
+<span class="sd">        :param result: tuple</span>
+<span class="sd">        :param level_sim: LevelSimulation instance</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_process_result</span><span class="p">(</span><span class="o">*</span><span class="n">result</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ProcessPool.schedule_sample"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.ProcessPool.schedule_sample">[docs]</a>    <span class="k">def</span> <span class="nf">schedule_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_running</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pool</span><span class="o">.</span><span class="n">apply_async</span><span class="p">(</span><span class="n">SamplingPool</span><span class="o">.</span><span class="n">calculate_sample</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">),</span>
+                               <span class="n">callback</span><span class="o">=</span><span class="k">lambda</span> <span class="n">res</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">res_callback</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">),</span>
+                               <span class="n">error_callback</span><span class="o">=</span><span class="k">lambda</span> <span class="n">res</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">res_callback</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="ThreadPool"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool.ThreadPool">[docs]</a><span class="k">class</span> <span class="nc">ThreadPool</span><span class="p">(</span><span class="n">ProcessPool</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Suitable local parallel sampling for simulations WITH external program call</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_thread</span><span class="p">,</span> <span class="n">work_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">n_thread</span><span class="p">,</span> <span class="n">work_dir</span><span class="o">=</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pool</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">ThreadPool</span><span class="p">(</span><span class="n">n_thread</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_failed_queues</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queues</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_running</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">times</span> <span class="o">=</span> <span class="p">{}</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">MLMC</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.html">src.mlmc package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Jan Brezina, Martin Spetlik.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

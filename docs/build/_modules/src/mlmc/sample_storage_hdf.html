@@ -1,0 +1,372 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.mlmc.sample_storage_hdf &#8212; MLMC daf documentation</title>
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.mlmc.sample_storage_hdf</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">mlmc.sample_storage</span> <span class="k">import</span> <span class="n">SampleStorage</span>
+<span class="kn">from</span> <span class="nn">mlmc.quantity.quantity_spec</span> <span class="k">import</span> <span class="n">QuantitySpec</span><span class="p">,</span> <span class="n">ChunkSpec</span>
+<span class="kn">import</span> <span class="nn">mlmc.tool.hdf5</span> <span class="k">as</span> <span class="nn">hdf</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">VisibleDeprecationWarning</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SampleStorageHDF"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF">[docs]</a><span class="k">class</span> <span class="nc">SampleStorageHDF</span><span class="p">(</span><span class="n">SampleStorage</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        HDF5 storage, provide method to interact with storage</span>
+<span class="sd">        :param file_path: absolute path to hdf file (which not exists at the moment)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="c1"># If file exists load not create new file</span>
+        <span class="n">load_from_file</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="k">else</span> <span class="kc">False</span>
+
+        <span class="c1"># HDF5 interface</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hdf_object</span> <span class="o">=</span> <span class="n">hdf</span><span class="o">.</span><span class="n">HDF5</span><span class="p">(</span><span class="n">file_path</span><span class="o">=</span><span class="n">file_path</span><span class="p">,</span> <span class="n">load_from_file</span><span class="o">=</span><span class="n">load_from_file</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># &#39;Load&#39; level groups</span>
+        <span class="k">if</span> <span class="n">load_from_file</span><span class="p">:</span>
+            <span class="c1"># Create level group for each level</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hdf_object</span><span class="o">.</span><span class="n">level_parameters</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i_level</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hdf_object</span><span class="o">.</span><span class="n">level_parameters</span><span class="p">)):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hdf_object</span><span class="o">.</span><span class="n">add_level_group</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i_level</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">_hdf_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">locations</span><span class="p">,</span> <span class="n">times</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        QuantitySpec data type, necessary for hdf storage</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">locations</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">tuple_dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,)))</span>
+            <span class="n">loc_dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">((</span><span class="n">tuple_dtype</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">locations</span><span class="p">),)))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">loc_dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">((</span><span class="s1">&#39;S50&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">locations</span><span class="p">),)))</span>
+
+        <span class="n">result_dtype</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;names&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;unit&#39;</span><span class="p">,</span> <span class="s1">&#39;shape&#39;</span><span class="p">,</span> <span class="s1">&#39;times&#39;</span><span class="p">,</span> <span class="s1">&#39;locations&#39;</span><span class="p">),</span>
+                        <span class="s1">&#39;formats&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;S50&#39;</span><span class="p">,</span>
+                                    <span class="s1">&#39;S50&#39;</span><span class="p">,</span>
+                                    <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="p">,))),</span>
+                                    <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">times</span><span class="p">),))),</span>
+                                    <span class="n">loc_dtype</span>
+                                    <span class="p">)</span>
+                        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">result_dtype</span>
+
+<div class="viewcode-block" id="SampleStorageHDF.save_global_data"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_global_data">[docs]</a>    <span class="k">def</span> <span class="nf">save_global_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">],</span> <span class="n">result_format</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save hdf5 file global attributes</span>
+<span class="sd">        :param level_parameters: list of simulation steps</span>
+<span class="sd">        :param result_format: simulation result format</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">res_dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hdf_result_format</span><span class="p">(</span><span class="n">result_format</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">locations</span><span class="p">,</span> <span class="n">result_format</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">times</span><span class="p">)</span>
+
+        <span class="c1"># Create file structure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hdf_object</span><span class="o">.</span><span class="n">create_file_structure</span><span class="p">(</span><span class="n">level_parameters</span><span class="p">)</span>
+
+        <span class="c1"># Create group for each level</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">level_parameters</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">i_level</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">level_parameters</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hdf_object</span><span class="o">.</span><span class="n">add_level_group</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i_level</span><span class="p">)))</span>
+
+        <span class="c1"># Save result format (QuantitySpec)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_result_format</span><span class="p">(</span><span class="n">result_format</span><span class="p">,</span> <span class="n">res_dtype</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.load_scheduled_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.load_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">load_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get scheduled samples for each level</span>
+<span class="sd">        :return:  Dict[level_id, List[sample_id: str]]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">scheduled</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">:</span>
+            <span class="n">scheduled</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="p">[</span><span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span> <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">level</span><span class="o">.</span><span class="n">scheduled</span><span class="p">()]</span>
+        <span class="k">return</span> <span class="n">scheduled</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.save_result_format"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">save_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result_format</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">],</span> <span class="n">res_dtype</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save result format to hdf</span>
+<span class="sd">        :param result_format: List[QuantitySpec]</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_result_format</span><span class="p">()</span> <span class="o">!=</span> <span class="n">result_format</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;You are setting a new different result format for an existing sample storage&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hdf_object</span><span class="o">.</span><span class="n">save_result_format</span><span class="p">(</span><span class="n">result_format</span><span class="p">,</span> <span class="n">res_dtype</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.load_result_format"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.load_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">load_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load result format</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">results_format</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hdf_object</span><span class="o">.</span><span class="n">load_result_format</span><span class="p">()</span>
+        <span class="n">quantities</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">res_format</span> <span class="ow">in</span> <span class="n">results_format</span><span class="p">:</span>
+            <span class="n">spec</span> <span class="o">=</span> <span class="n">QuantitySpec</span><span class="p">(</span><span class="n">res_format</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(),</span> <span class="n">res_format</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(),</span> <span class="n">res_format</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">res_format</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+                                <span class="p">[</span><span class="n">loc</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span> <span class="k">for</span> <span class="n">loc</span> <span class="ow">in</span> <span class="n">res_format</span><span class="p">[</span><span class="mi">4</span><span class="p">]])</span>
+
+            <span class="n">quantities</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">quantities</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.save_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_samples">[docs]</a>    <span class="k">def</span> <span class="nf">save_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">successful</span><span class="p">,</span> <span class="n">failed</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save successful and failed samples</span>
+<span class="sd">        :param successful: List[Tuple[sample_id: str, Tuple[ndarray, ndarray]]]</span>
+<span class="sd">        :param failed: List[Tuple[sample_id: str, error_message: str]]</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_succesful</span><span class="p">(</span><span class="n">successful</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_failed</span><span class="p">(</span><span class="n">failed</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_save_succesful</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">successful_samples</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">level</span><span class="p">,</span> <span class="n">samples</span> <span class="ow">in</span> <span class="n">successful_samples</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="n">level</span><span class="p">]</span><span class="o">.</span><span class="n">append_successful</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">samples</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_save_failed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">failed_samples</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">level</span><span class="p">,</span> <span class="n">samples</span> <span class="ow">in</span> <span class="n">failed_samples</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="n">level</span><span class="p">]</span><span class="o">.</span><span class="n">append_failed</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SampleStorageHDF.save_scheduled_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">save_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">samples</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Append scheduled samples</span>
+<span class="sd">        :param level_id: int</span>
+<span class="sd">        :param samples: list of sample identifiers</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span><span class="o">.</span><span class="n">append_scheduled</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_level_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SampleStorageHDF.sample_pairs"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.sample_pairs">[docs]</a>    <span class="k">def</span> <span class="nf">sample_pairs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load results from hdf file</span>
+<span class="sd">        :return: List[Array[M, N, 2]]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;self._level_groups shouldn&#39;t be empty, save_global_data() method should have set it, &quot;</span>
+                            <span class="s2">&quot;that method is always called from mlmc.sampler.Sampler constructor.&quot;</span>
+                            <span class="s2">&quot; In other cases, call save_global_data() directly&quot;</span><span class="p">)</span>
+
+        <span class="n">levels_results</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">)))</span>
+
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">:</span>
+            <span class="n">chunk_spec</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">level_id</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">),</span>
+                                          <span class="n">n_samples</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_n_collected</span><span class="p">()[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]))</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_pairs_level</span><span class="p">(</span><span class="n">chunk_spec</span><span class="p">)</span>  <span class="c1"># return all samples no chunks</span>
+            <span class="k">if</span> <span class="n">results</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">levels_results</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">continue</span>
+            <span class="n">levels_results</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="n">results</span>
+        <span class="k">return</span> <span class="n">levels_results</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.sample_pairs_level"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.sample_pairs_level">[docs]</a>    <span class="k">def</span> <span class="nf">sample_pairs_level</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get result for particular level and chunk</span>
+<span class="sd">        :param chunk_spec: object containing chunk identifier level identifier and chunk_slice - slice() object</span>
+<span class="sd">        :return: np.ndarray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">level_id</span> <span class="o">=</span> <span class="n">chunk_spec</span><span class="o">.</span><span class="n">level_id</span>
+        <span class="k">if</span> <span class="n">chunk_spec</span><span class="o">.</span><span class="n">level_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">level_id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level_id</span><span class="p">)]</span><span class="o">.</span><span class="n">collected</span><span class="p">(</span><span class="n">chunk_spec</span><span class="o">.</span><span class="n">chunk_slice</span><span class="p">)</span>
+
+        <span class="c1"># Remove auxiliary zeros from level zero sample pairs</span>
+        <span class="k">if</span> <span class="n">level_id</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunk</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="k">return</span> <span class="n">chunk</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>  <span class="c1"># [M, chunk size, 2]</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.n_finished"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.n_finished">[docs]</a>    <span class="k">def</span> <span class="nf">n_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of finished samples on each level</span>
+<span class="sd">        :return: List[int]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_finished</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">:</span>
+            <span class="n">n_finished</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">get_finished_ids</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="n">n_finished</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.unfinished_ids"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.unfinished_ids">[docs]</a>    <span class="k">def</span> <span class="nf">unfinished_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        List of unfinished ids</span>
+<span class="sd">        :return: list</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">unfinished</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">:</span>
+            <span class="n">unfinished</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">get_unfinished_ids</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="n">unfinished</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.failed_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.failed_samples">[docs]</a>    <span class="k">def</span> <span class="nf">failed_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Dictionary of failed samples</span>
+<span class="sd">        :return: dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">failed_samples</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">:</span>
+            <span class="n">failed_samples</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">get_failed_ids</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">failed_samples</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.clear_failed"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.clear_failed">[docs]</a>    <span class="k">def</span> <span class="nf">clear_failed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">:</span>
+            <span class="n">level</span><span class="o">.</span><span class="n">clear_failed_dataset</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.save_n_ops"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_n_ops">[docs]</a>    <span class="k">def</span> <span class="nf">save_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_ops</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save number of operations (time) of samples</span>
+<span class="sd">        :param n_ops: Dict[level_id, List[overall time, number of successful samples]]</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">)</span> <span class="ow">in</span> <span class="n">n_ops</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span><span class="o">.</span><span class="n">n_ops_estimate</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span><span class="o">.</span><span class="n">n_ops_estimate</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">n_samples</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">n_ops_saved</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span><span class="o">.</span><span class="n">n_ops_estimate</span>
+                <span class="n">n_ops_saved</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">time</span>
+                <span class="n">n_ops_saved</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">n_samples</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span><span class="o">.</span><span class="n">n_ops_estimate</span> <span class="o">=</span> <span class="n">n_ops_saved</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.get_n_ops"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_ops">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get number of estimated operations on each level</span>
+<span class="sd">        :return: List</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_ops</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">)))</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">level</span><span class="o">.</span><span class="n">n_ops_estimate</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">n_ops</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="n">level</span><span class="o">.</span><span class="n">n_ops_estimate</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">level</span><span class="o">.</span><span class="n">n_ops_estimate</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">n_ops</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="n">n_ops</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.get_level_ids"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_level_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_level_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.get_level_parameters"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_level_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_level_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hdf_object</span><span class="o">.</span><span class="n">load_level_parameters</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.get_n_collected"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_collected">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_collected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get number of collected samples at each level</span>
+<span class="sd">        :return: List</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_collected</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">)))</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">:</span>
+            <span class="n">n_collected</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="n">level</span><span class="o">.</span><span class="n">collected_n_items</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">n_collected</span></div>
+
+<div class="viewcode-block" id="SampleStorageHDF.get_n_levels"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_levels">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_levels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get number of levels</span>
+<span class="sd">        :return: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">MLMC</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.html">src.mlmc package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Jan Brezina, Martin Spetlik.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
