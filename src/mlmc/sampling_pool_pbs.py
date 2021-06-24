@@ -330,8 +330,9 @@ class SamplingPoolPBS(SamplingPool):
         for pbs_id in unfinished_pbs_jobs:
             reg = "*_{}".format(pbs_id)
             file = glob.glob(reg)
-            job_id = re.findall(r'(\d+)_\d+', file[0])[0]
-            n_running += PbsJob.get_job_n_running(job_id, self._jobs_dir)
+            if len(file) > 0:
+                job_id = re.findall(r'(\d+)_\d+', file[0])[0]
+                n_running += PbsJob.get_job_n_running(job_id, self._jobs_dir)
 
         successful_results = {}
         failed_results = {}
