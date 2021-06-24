@@ -98,7 +98,8 @@ def moments(quantity, moments_fn, mom_at_bottom=True):
     Create quantity with operation that evaluates moments_fn
     :param quantity: Quantity
     :param moments_fn: mlmc.moments.Moments child
-    :param mom_at_bottom: bool, if True moments_fn are underneath
+    :param mom_at_bottom: bool, if True moments are underneath,
+                                a scalar is substituted with an array of moments of that scalar
     :return: Quantity
     """
     def eval_moments(x):
@@ -123,7 +124,8 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
     Create quantity with operation that evaluates covariance matrix
     :param quantity: Quantity
     :param moments_fn: mlmc.moments.Moments child
-    :param cov_at_bottom: bool, if True cov matrices are underneath
+    :param cov_at_bottom: bool, if True cov matrices are underneath,
+                                a scalar is substituted with a matrix of moments of that scalar
     :return: Quantity
     """
     def eval_cov(x):
