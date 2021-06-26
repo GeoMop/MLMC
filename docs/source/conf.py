@@ -12,6 +12,7 @@
 #
 import os
 import sys
+import datetime
 sys.path.append(os.path.abspath('../..'))
 sys.path.append(os.path.abspath('../../src'))
 sys.path.append(os.path.abspath('../../src/mlmc'))
@@ -57,13 +58,28 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = "sphinx_rtd_theme" #'alabaster'
+
+html_theme_options = {
+    #    'canonical_url': '',
+    #    'analytics_id': '',
+    "logo_only": False,
+    "display_version": True,
+    "prev_next_buttons_location": "top",
+    #    'style_external_links': False,
+    #    'vcs_pageview_mode': '',
+    # Toc options
+    "collapse_navigation": False,
+    "sticky_navigation": True,
+    "navigation_depth": 4,
+    "includehidden": True,
+    "titles_only": False,
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
-
+#html_static_path = ['_static']
 
 autosummary_generate = True
 
@@ -76,3 +92,11 @@ autosummary_generate = True
 #     'inherited-members': True,
 #     'no-special-members': True,
 # }
+master_doc = "contents"
+
+
+# General information about the project.
+curr_year = datetime.datetime.now().year
+project = "mlmc"
+copyright = "{}, Jan Březina, Martin Špetlík".format(curr_year)
+author = "Jan Březina, Martin Špetlík"

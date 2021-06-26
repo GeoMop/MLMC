@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.quantity.quantity &#8212; MLMC daf documentation</title>
+    <title>mlmc.quantity.quantity &#8212; MLMC daf documentation</title>
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
@@ -30,7 +30,7 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.quantity.quantity</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.quantity.quantity</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">operator</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">scipy.stats</span>
@@ -44,7 +44,7 @@
 <span class="n">RNG</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">()</span>
 
 
-<div class="viewcode-block" id="make_root_quantity"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.make_root_quantity">[docs]</a><span class="k">def</span> <span class="nf">make_root_quantity</span><span class="p">(</span><span class="n">storage</span><span class="p">:</span> <span class="n">SampleStorage</span><span class="p">,</span> <span class="n">q_specs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]):</span>
+<div class="viewcode-block" id="make_root_quantity"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.make_root_quantity">[docs]</a><span class="k">def</span> <span class="nf">make_root_quantity</span><span class="p">(</span><span class="n">storage</span><span class="p">:</span> <span class="n">SampleStorage</span><span class="p">,</span> <span class="n">q_specs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create a root quantity that has QuantityStorage as the input quantity,</span>
 <span class="sd">    QuantityStorage is the only class that directly accesses the stored data.</span>
@@ -65,7 +65,7 @@
     <span class="k">return</span> <span class="n">QuantityStorage</span><span class="p">(</span><span class="n">storage</span><span class="p">,</span> <span class="n">dict_type</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Quantity"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity">[docs]</a><span class="k">class</span> <span class="nc">Quantity</span><span class="p">:</span>
+<div class="viewcode-block" id="Quantity"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity">[docs]</a><span class="k">class</span> <span class="nc">Quantity</span><span class="p">:</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">quantity_type</span><span class="p">,</span> <span class="n">operation</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="p">[]):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Quantity class represents real quantity and also provides operation that can be performed with stored values.</span>
@@ -85,7 +85,7 @@
         <span class="c1"># Identifier of selection, should be set in select() method</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_selection_ids</span><span class="p">()</span>
 
-<div class="viewcode-block" id="Quantity.get_quantity_storage"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.get_quantity_storage">[docs]</a>    <span class="k">def</span> <span class="nf">get_quantity_storage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Quantity.get_quantity_storage"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.get_quantity_storage">[docs]</a>    <span class="k">def</span> <span class="nf">get_quantity_storage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get QuantityStorage instance</span>
 <span class="sd">        :return: None, QuantityStorage</span>
@@ -99,7 +99,7 @@
                 <span class="k">return</span> <span class="n">storage</span>
         <span class="k">return</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="Quantity.set_selection_id"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.set_selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">set_selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Quantity.set_selection_id"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.set_selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">set_selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set selection id</span>
 <span class="sd">        selection id is None by default,</span>
@@ -128,7 +128,7 @@
             <span class="k">if</span> <span class="n">sel_id</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">selection_id</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;Not all input quantities come from the same quantity storage&quot;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Quantity.selection_id"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Quantity.selection_id"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get storage ids of all input quantities</span>
 <span class="sd">        :return: List[int]</span>
@@ -140,14 +140,14 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantity_storage</span><span class="p">()</span>
             <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Quantity.size"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<div class="viewcode-block" id="Quantity.size"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Quantity size from qtype</span>
 <span class="sd">        :return: int</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">size</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Quantity.get_cache_key"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.get_cache_key">[docs]</a>    <span class="k">def</span> <span class="nf">get_cache_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+<div class="viewcode-block" id="Quantity.get_cache_key"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.get_cache_key">[docs]</a>    <span class="k">def</span> <span class="nf">get_cache_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create cache key</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -156,7 +156,7 @@
             <span class="n">chunk_size</span> <span class="o">=</span> <span class="n">chunk_spec</span><span class="o">.</span><span class="n">chunk_slice</span><span class="o">.</span><span class="n">stop</span> <span class="o">-</span> <span class="n">chunk_spec</span><span class="o">.</span><span class="n">chunk_slice</span><span class="o">.</span><span class="n">start</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">chunk_spec</span><span class="o">.</span><span class="n">level_id</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="o">.</span><span class="n">chunk_id</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">,</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>  <span class="c1"># redundant parentheses needed due to py36, py37</span></div>
 
-<div class="viewcode-block" id="Quantity.samples"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.samples">[docs]</a>    <span class="nd">@cached</span><span class="p">(</span><span class="n">custom_key_maker</span><span class="o">=</span><span class="n">get_cache_key</span><span class="p">)</span>
+<div class="viewcode-block" id="Quantity.samples"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.samples">[docs]</a>    <span class="nd">@cached</span><span class="p">(</span><span class="n">custom_key_maker</span><span class="o">=</span><span class="n">get_cache_key</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return list of sample chunks for individual levels.</span>
@@ -179,7 +179,7 @@
         <span class="c1"># Quantity from QuantityConst instances</span>
         <span class="k">return</span> <span class="n">QuantityConst</span><span class="p">(</span><span class="n">quantities</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">operation</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">q</span><span class="o">.</span><span class="n">_value</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">quantities</span><span class="p">]))</span>
 
-<div class="viewcode-block" id="Quantity.select"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.select">[docs]</a>    <span class="k">def</span> <span class="nf">select</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+<div class="viewcode-block" id="Quantity.select"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.select">[docs]</a>    <span class="k">def</span> <span class="nf">select</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Performs sample selection based on conditions</span>
 <span class="sd">        :param args: Quantity</span>
@@ -237,7 +237,7 @@
     <span class="k">def</span> <span class="nf">__rmod__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">create_quantity</span><span class="p">([</span><span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">),</span> <span class="bp">self</span><span class="p">],</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">mod_op</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Quantity.create_quantity"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.create_quantity">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.create_quantity"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.create_quantity">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">create_quantity</span><span class="p">(</span><span class="n">quantities</span><span class="p">,</span> <span class="n">operation</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create new quantity (Quantity or QuantityConst) based on given quantities and operation.</span>
@@ -255,23 +255,23 @@
         <span class="c1"># Quantity from QuantityConst instances</span>
         <span class="k">return</span> <span class="n">QuantityConst</span><span class="p">(</span><span class="n">quantities</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">operation</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">q</span><span class="o">.</span><span class="n">_value</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">quantities</span><span class="p">]))</span></div>
 
-<div class="viewcode-block" id="Quantity.add_op"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.add_op">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.add_op"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.add_op">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">add_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span></div>
 
-<div class="viewcode-block" id="Quantity.sub_op"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.sub_op">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.sub_op"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.sub_op">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">sub_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span></div>
 
-<div class="viewcode-block" id="Quantity.mult_op"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.mult_op">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.mult_op"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.mult_op">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">mult_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span></div>
 
-<div class="viewcode-block" id="Quantity.truediv_op"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.truediv_op">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.truediv_op"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.truediv_op">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">truediv_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">x</span> <span class="o">/</span> <span class="n">y</span></div>
 
-<div class="viewcode-block" id="Quantity.mod_op"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.mod_op">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.mod_op"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.mod_op">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">mod_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">x</span> <span class="o">%</span> <span class="n">y</span></div>
 
@@ -337,7 +337,7 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_mask</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">ne</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mask_quantity</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">ne_op</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Quantity.pick_samples"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.pick_samples">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.pick_samples"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.pick_samples">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">pick_samples</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">subsample_params</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Pick samples some samples from chunk in order to have &#39;k&#39; samples from &#39;n&#39; after all chunks are processed</span>
@@ -355,7 +355,7 @@
         <span class="n">subsample_params</span><span class="o">.</span><span class="n">n</span> <span class="o">-=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">out</span></div>
 
-<div class="viewcode-block" id="Quantity.subsample"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.subsample">[docs]</a>    <span class="k">def</span> <span class="nf">subsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_vec</span><span class="p">):</span>
+<div class="viewcode-block" id="Quantity.subsample"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.subsample">[docs]</a>    <span class="k">def</span> <span class="nf">subsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_vec</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Subsampling</span>
 <span class="sd">        :param sample_vec: list of number of samples at each level</span>
@@ -461,7 +461,7 @@
         <span class="n">result_qtype</span> <span class="o">=</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_result_qtype</span><span class="p">(</span><span class="n">_ufunc_call</span><span class="p">,</span> <span class="n">quantities</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Quantity</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">result_qtype</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">quantities</span><span class="p">),</span> <span class="n">operation</span><span class="o">=</span><span class="n">_ufunc_call</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Quantity.wrap"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.wrap">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.wrap"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.wrap">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">wrap</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert flat, bool or array (list) to Quantity</span>
@@ -504,26 +504,26 @@
         <span class="n">qtype</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">qtype</span><span class="o">=</span><span class="n">Quantity</span><span class="o">.</span><span class="n">_get_base_qtype</span><span class="p">(</span><span class="n">quantities</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">qtype</span>
 
-<div class="viewcode-block" id="Quantity.QArray"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.QArray">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.QArray"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QArray">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">QArray</span><span class="p">(</span><span class="n">quantities</span><span class="p">):</span>
         <span class="n">flat_quantities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">quantities</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
         <span class="n">qtype</span> <span class="o">=</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_check_same_qtype</span><span class="p">(</span><span class="n">flat_quantities</span><span class="p">)</span>
         <span class="n">array_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">quantities</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">qtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_concatenate</span><span class="p">(</span><span class="n">flat_quantities</span><span class="p">,</span> <span class="n">qtype</span><span class="o">=</span><span class="n">array_type</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Quantity.QDict"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.QDict">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.QDict"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QDict">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">QDict</span><span class="p">(</span><span class="n">key_quantity</span><span class="p">):</span>
         <span class="n">dict_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">DictType</span><span class="p">([(</span><span class="n">key</span><span class="p">,</span> <span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">key_quantity</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_concatenate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">key_quantity</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">qtype</span><span class="o">=</span><span class="n">dict_type</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Quantity.QTimeSeries"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.QTimeSeries">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.QTimeSeries"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QTimeSeries">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">QTimeSeries</span><span class="p">(</span><span class="n">time_quantity</span><span class="p">):</span>
         <span class="n">qtype</span> <span class="o">=</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_check_same_qtype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">time_quantity</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">])</span>
         <span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">time_quantity</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_concatenate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">time_quantity</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">qtype</span><span class="o">=</span><span class="n">qt</span><span class="o">.</span><span class="n">TimeSeriesType</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="n">times</span><span class="p">,</span> <span class="n">qtype</span><span class="o">=</span><span class="n">qtype</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="Quantity.QField"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.Quantity.QField">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Quantity.QField"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QField">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">QField</span><span class="p">(</span><span class="n">key_quantity</span><span class="p">):</span>
         <span class="n">Quantity</span><span class="o">.</span><span class="n">_check_same_qtype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">key_quantity</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">])</span>
         <span class="n">field_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">FieldType</span><span class="p">([(</span><span class="n">key</span><span class="p">,</span> <span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">key_quantity</span><span class="p">])</span>
@@ -538,7 +538,7 @@
         <span class="k">return</span> <span class="n">qtype</span></div>
 
 
-<div class="viewcode-block" id="QuantityConst"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.QuantityConst">[docs]</a><span class="k">class</span> <span class="nc">QuantityConst</span><span class="p">(</span><span class="n">Quantity</span><span class="p">):</span>
+<div class="viewcode-block" id="QuantityConst"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityConst">[docs]</a><span class="k">class</span> <span class="nc">QuantityConst</span><span class="p">(</span><span class="n">Quantity</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">quantity_type</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        QuantityConst class represents constant quantity and also provides operation</span>
@@ -564,7 +564,7 @@
             <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">value</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">value</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
 
-<div class="viewcode-block" id="QuantityConst.selection_id"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.QuantityConst.selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="QuantityConst.selection_id"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityConst.selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get storage ids of all input quantities</span>
 <span class="sd">        :return: List[int]</span>
@@ -581,7 +581,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">value</span>
 
-<div class="viewcode-block" id="QuantityConst.samples"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.QuantityConst.samples">[docs]</a>    <span class="nd">@cached</span><span class="p">(</span><span class="n">custom_key_maker</span><span class="o">=</span><span class="n">Quantity</span><span class="o">.</span><span class="n">get_cache_key</span><span class="p">)</span>
+<div class="viewcode-block" id="QuantityConst.samples"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityConst.samples">[docs]</a>    <span class="nd">@cached</span><span class="p">(</span><span class="n">custom_key_maker</span><span class="o">=</span><span class="n">Quantity</span><span class="o">.</span><span class="n">get_cache_key</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get constant values with an enlarged number of axes</span>
@@ -591,7 +591,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adjust_value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_value</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="o">.</span><span class="n">level_id</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="QuantityMean"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.QuantityMean">[docs]</a><span class="k">class</span> <span class="nc">QuantityMean</span><span class="p">:</span>
+<div class="viewcode-block" id="QuantityMean"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityMean">[docs]</a><span class="k">class</span> <span class="nc">QuantityMean</span><span class="p">:</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">quantity_type</span><span class="p">,</span> <span class="n">l_means</span><span class="p">,</span> <span class="n">l_vars</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">n_rm_samples</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -677,7 +677,7 @@
                             <span class="n">n_rm_samples</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_rm_samples</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="QuantityStorage"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.QuantityStorage">[docs]</a><span class="k">class</span> <span class="nc">QuantityStorage</span><span class="p">(</span><span class="n">Quantity</span><span class="p">):</span>
+<div class="viewcode-block" id="QuantityStorage"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage">[docs]</a><span class="k">class</span> <span class="nc">QuantityStorage</span><span class="p">(</span><span class="n">Quantity</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">storage</span><span class="p">,</span> <span class="n">qtype</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Special Quantity for direct access to SampleStorage</span>
@@ -689,27 +689,27 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_input_quantities</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_operation</span> <span class="o">=</span> <span class="kc">None</span>
 
-<div class="viewcode-block" id="QuantityStorage.level_ids"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.QuantityStorage.level_ids">[docs]</a>    <span class="k">def</span> <span class="nf">level_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="QuantityStorage.level_ids"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.level_ids">[docs]</a>    <span class="k">def</span> <span class="nf">level_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Number of levels</span>
 <span class="sd">        :return: List[int]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="o">.</span><span class="n">get_level_ids</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="QuantityStorage.selection_id"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.QuantityStorage.selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="QuantityStorage.selection_id"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Identity of QuantityStorage instance</span>
 <span class="sd">        :return: int</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="QuantityStorage.get_quantity_storage"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.QuantityStorage.get_quantity_storage">[docs]</a>    <span class="k">def</span> <span class="nf">get_quantity_storage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="QuantityStorage.get_quantity_storage"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.get_quantity_storage">[docs]</a>    <span class="k">def</span> <span class="nf">get_quantity_storage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
-<div class="viewcode-block" id="QuantityStorage.chunks"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.QuantityStorage.chunks">[docs]</a>    <span class="k">def</span> <span class="nf">chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="QuantityStorage.chunks"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.chunks">[docs]</a>    <span class="k">def</span> <span class="nf">chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">level_id</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="QuantityStorage.samples"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.QuantityStorage.samples">[docs]</a>    <span class="k">def</span> <span class="nf">samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+<div class="viewcode-block" id="QuantityStorage.samples"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.samples">[docs]</a>    <span class="k">def</span> <span class="nf">samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get results for given level id and chunk id</span>
 <span class="sd">        :param chunk_spec: object containing chunk identifier level identifier and chunk_slice - slice() object</span>
@@ -717,7 +717,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="o">.</span><span class="n">sample_pairs_level</span><span class="p">(</span><span class="n">chunk_spec</span><span class="p">)</span>  <span class="c1"># Array[M, chunk size, 2]</span></div>
 
-<div class="viewcode-block" id="QuantityStorage.n_collected"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity.QuantityStorage.n_collected">[docs]</a>    <span class="k">def</span> <span class="nf">n_collected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="QuantityStorage.n_collected"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.n_collected">[docs]</a>    <span class="k">def</span> <span class="nf">n_collected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="o">.</span><span class="n">get_n_collected</span><span class="p">()</span></div></div>
 </pre></div>
 
@@ -739,8 +739,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.html">src.mlmc package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.quantity.html">mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.html">mlmc package</a></li>
 </ul>
 
 <div class="relations">

@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.sample_storage_hdf &#8212; MLMC daf documentation</title>
+    <title>mlmc.sample_storage_hdf &#8212; MLMC daf documentation</title>
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
@@ -30,7 +30,7 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.sample_storage_hdf</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.sample_storage_hdf</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span>
@@ -41,7 +41,7 @@
 <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">VisibleDeprecationWarning</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="SampleStorageHDF"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF">[docs]</a><span class="k">class</span> <span class="nc">SampleStorageHDF</span><span class="p">(</span><span class="n">SampleStorage</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF">[docs]</a><span class="k">class</span> <span class="nc">SampleStorageHDF</span><span class="p">(</span><span class="n">SampleStorage</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -85,7 +85,7 @@
 
         <span class="k">return</span> <span class="n">result_dtype</span>
 
-<div class="viewcode-block" id="SampleStorageHDF.save_global_data"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_global_data">[docs]</a>    <span class="k">def</span> <span class="nf">save_global_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">],</span> <span class="n">result_format</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]):</span>
+<div class="viewcode-block" id="SampleStorageHDF.save_global_data"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.save_global_data">[docs]</a>    <span class="k">def</span> <span class="nf">save_global_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">],</span> <span class="n">result_format</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save hdf5 file global attributes</span>
 <span class="sd">        :param level_parameters: list of simulation steps</span>
@@ -105,7 +105,7 @@
         <span class="c1"># Save result format (QuantitySpec)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save_result_format</span><span class="p">(</span><span class="n">result_format</span><span class="p">,</span> <span class="n">res_dtype</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.load_scheduled_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.load_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">load_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.load_scheduled_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.load_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">load_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get scheduled samples for each level</span>
 <span class="sd">        :return:  Dict[level_id, List[sample_id: str]]</span>
@@ -115,7 +115,7 @@
             <span class="n">scheduled</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="p">[</span><span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span> <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">level</span><span class="o">.</span><span class="n">scheduled</span><span class="p">()]</span>
         <span class="k">return</span> <span class="n">scheduled</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.save_result_format"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">save_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result_format</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">],</span> <span class="n">res_dtype</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.save_result_format"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.save_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">save_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result_format</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">],</span> <span class="n">res_dtype</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save result format to hdf</span>
 <span class="sd">        :param result_format: List[QuantitySpec]</span>
@@ -128,7 +128,7 @@
             <span class="k">pass</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_hdf_object</span><span class="o">.</span><span class="n">save_result_format</span><span class="p">(</span><span class="n">result_format</span><span class="p">,</span> <span class="n">res_dtype</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.load_result_format"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.load_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">load_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]:</span>
+<div class="viewcode-block" id="SampleStorageHDF.load_result_format"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.load_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">load_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load result format</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -142,7 +142,7 @@
 
         <span class="k">return</span> <span class="n">quantities</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.save_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_samples">[docs]</a>    <span class="k">def</span> <span class="nf">save_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">successful</span><span class="p">,</span> <span class="n">failed</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.save_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.save_samples">[docs]</a>    <span class="k">def</span> <span class="nf">save_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">successful</span><span class="p">,</span> <span class="n">failed</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save successful and failed samples</span>
 <span class="sd">        :param successful: List[Tuple[sample_id: str, Tuple[ndarray, ndarray]]]</span>
@@ -162,7 +162,7 @@
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="n">level</span><span class="p">]</span><span class="o">.</span><span class="n">append_failed</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SampleStorageHDF.save_scheduled_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">save_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">samples</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+<div class="viewcode-block" id="SampleStorageHDF.save_scheduled_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.save_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">save_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">samples</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Append scheduled samples</span>
 <span class="sd">        :param level_id: int</span>
@@ -174,7 +174,7 @@
     <span class="k">def</span> <span class="nf">_level_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SampleStorageHDF.sample_pairs"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.sample_pairs">[docs]</a>    <span class="k">def</span> <span class="nf">sample_pairs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.sample_pairs"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.sample_pairs">[docs]</a>    <span class="k">def</span> <span class="nf">sample_pairs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load results from hdf file</span>
 <span class="sd">        :return: List[Array[M, N, 2]]</span>
@@ -196,7 +196,7 @@
             <span class="n">levels_results</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="n">results</span>
         <span class="k">return</span> <span class="n">levels_results</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.sample_pairs_level"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.sample_pairs_level">[docs]</a>    <span class="k">def</span> <span class="nf">sample_pairs_level</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.sample_pairs_level"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.sample_pairs_level">[docs]</a>    <span class="k">def</span> <span class="nf">sample_pairs_level</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get result for particular level and chunk</span>
 <span class="sd">        :param chunk_spec: object containing chunk identifier level identifier and chunk_slice - slice() object</span>
@@ -213,7 +213,7 @@
 
         <span class="k">return</span> <span class="n">chunk</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>  <span class="c1"># [M, chunk size, 2]</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.n_finished"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.n_finished">[docs]</a>    <span class="k">def</span> <span class="nf">n_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.n_finished"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.n_finished">[docs]</a>    <span class="k">def</span> <span class="nf">n_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Number of finished samples on each level</span>
 <span class="sd">        :return: List[int]</span>
@@ -224,7 +224,7 @@
 
         <span class="k">return</span> <span class="n">n_finished</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.unfinished_ids"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.unfinished_ids">[docs]</a>    <span class="k">def</span> <span class="nf">unfinished_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.unfinished_ids"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.unfinished_ids">[docs]</a>    <span class="k">def</span> <span class="nf">unfinished_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        List of unfinished ids</span>
 <span class="sd">        :return: list</span>
@@ -236,7 +236,7 @@
 
         <span class="k">return</span> <span class="n">unfinished</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.failed_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.failed_samples">[docs]</a>    <span class="k">def</span> <span class="nf">failed_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.failed_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.failed_samples">[docs]</a>    <span class="k">def</span> <span class="nf">failed_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Dictionary of failed samples</span>
 <span class="sd">        :return: dict</span>
@@ -246,11 +246,11 @@
             <span class="n">failed_samples</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">get_failed_ids</span><span class="p">())</span>
         <span class="k">return</span> <span class="n">failed_samples</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.clear_failed"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.clear_failed">[docs]</a>    <span class="k">def</span> <span class="nf">clear_failed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.clear_failed"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.clear_failed">[docs]</a>    <span class="k">def</span> <span class="nf">clear_failed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">:</span>
             <span class="n">level</span><span class="o">.</span><span class="n">clear_failed_dataset</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.save_n_ops"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_n_ops">[docs]</a>    <span class="k">def</span> <span class="nf">save_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_ops</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.save_n_ops"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.save_n_ops">[docs]</a>    <span class="k">def</span> <span class="nf">save_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_ops</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save number of operations (time) of samples</span>
 <span class="sd">        :param n_ops: Dict[level_id, List[overall time, number of successful samples]]</span>
@@ -266,7 +266,7 @@
                 <span class="n">n_ops_saved</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">n_samples</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span><span class="o">.</span><span class="n">n_ops_estimate</span> <span class="o">=</span> <span class="n">n_ops_saved</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.get_n_ops"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_ops">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.get_n_ops"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.get_n_ops">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get number of estimated operations on each level</span>
 <span class="sd">        :return: List</span>
@@ -279,13 +279,13 @@
                 <span class="n">n_ops</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">return</span> <span class="n">n_ops</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.get_level_ids"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_level_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_level_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.get_level_ids"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.get_level_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_level_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)</span> <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_groups</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.get_level_parameters"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_level_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_level_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.get_level_parameters"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.get_level_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_level_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hdf_object</span><span class="o">.</span><span class="n">load_level_parameters</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.get_n_collected"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_collected">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_collected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.get_n_collected"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.get_n_collected">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_collected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get number of collected samples at each level</span>
 <span class="sd">        :return: List</span>
@@ -295,7 +295,7 @@
             <span class="n">n_collected</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level</span><span class="o">.</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="n">level</span><span class="o">.</span><span class="n">collected_n_items</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">n_collected</span></div>
 
-<div class="viewcode-block" id="SampleStorageHDF.get_n_levels"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_levels">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_levels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorageHDF.get_n_levels"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage_hdf.SampleStorageHDF.get_n_levels">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_levels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get number of levels</span>
 <span class="sd">        :return: int</span>
@@ -321,8 +321,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.html">src.mlmc package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.quantity.html">mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html">mlmc package</a></li>
 </ul>
 
 <div class="relations">

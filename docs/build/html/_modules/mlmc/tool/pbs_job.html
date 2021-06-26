@@ -1,0 +1,597 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>mlmc.tool.pbs_job &mdash; mlmc daf documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">MLMC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../index.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../index.html#quickstart">Quickstart</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../index.html#create-mlmc-sampler">Create MLMC Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../index.html#schedule-mlmc-samples">Schedule MLMC samples</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples.shooting.html">examples.shooting package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#module-examples.shooting.shooting_1D">examples.shooting.shooting_1D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#module-examples.shooting.shooting_2D">examples.shooting.shooting_2D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#module-examples.shooting.simulation_shooting_1D">examples.shooting.simulation_shooting_1D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#module-examples.shooting.simulation_shooting_2D">examples.shooting.simulation_shooting_2D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#module-examples.shooting">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#module-examples.shooting_02">examples.shooting_02 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#module-examples.shooting_03">examples.shooting_03 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#module-examples.shooting_04">examples.shooting_04 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#module-examples.simple_example">examples.simple_example module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#module-examples">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html">MLMC package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html#subpackages">Subpackages</a><ul class="simple">
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>mlmc.tool.pbs_job</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for mlmc.tool.pbs_job</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">ruamel.yaml</span> <span class="k">as</span> <span class="nn">yaml</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">from</span> <span class="nn">mlmc.sampling_pool</span> <span class="k">import</span> <span class="n">SamplingPool</span>
+<span class="kn">from</span> <span class="nn">ruamel.yaml.error</span> <span class="k">import</span> <span class="n">ReusedAnchorWarning</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">ReusedAnchorWarning</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PbsJob"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.pbs_job.PbsJob">[docs]</a><span class="k">class</span> <span class="nc">PbsJob</span><span class="p">:</span>
+    <span class="n">SCHEDULED</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_scheduled.yaml&quot;</span>
+    <span class="c1"># Store scheduled samples as List[(level_sim._level_id, sample_id, seed)]</span>
+    <span class="n">SUCCESSFUL_RESULTS</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_successful_results.yaml&quot;</span>
+    <span class="c1"># Simulation results as Dict[level_id, List[Tuple[sample_id, (fine result, coarse result)]]]</span>
+    <span class="n">FAILED_RESULTS</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_failed_results.yaml&quot;</span>
+    <span class="c1"># Failed samples as Dict[level_id, List[Tuple[sample id, error message]]]</span>
+    <span class="n">TIME</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_times.yaml&quot;</span>
+    <span class="c1"># Dict[level_id, List[time, finished samples]]</span>
+    <span class="n">PBS_ID</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_&quot;</span>
+    <span class="c1"># File which name assign our job id to pbs jobs id &#39;JobID_Pbs_ID&#39;</span>
+    <span class="n">CLASS_FILE</span> <span class="o">=</span> <span class="s2">&quot;pbs_process_serialized.txt&quot;</span>
+    <span class="c1"># Serialized data which are &quot;passed&quot; from sampling pool to pbs process</span>
+    <span class="n">PERMANENT_SAMPLE</span> <span class="o">=</span> <span class="s2">&quot;permanent_jobID_</span><span class="si">{}</span><span class="s2">&quot;</span>
+
+    <span class="c1"># Indicates that sample is stored in _successful_results.yaml or _failed_results.yaml</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">jobs_dir</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">level_sim_file</span><span class="p">,</span> <span class="n">debug</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Class representing both pbs job in SamplingPoolPBS and true pbs process</span>
+<span class="sd">        :param output_dir: output directory path</span>
+<span class="sd">        :param jobs_dir: jobs directory path</span>
+<span class="sd">        :param job_id: unique job id</span>
+<span class="sd">        :param level_sim_file: file name of serialized LevelSimulation instance</span>
+<span class="sd">        :param debug: bool, if True keep sample directories</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span> <span class="o">=</span> <span class="n">output_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span> <span class="o">=</span> <span class="n">jobs_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span> <span class="o">=</span> <span class="n">job_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_level_sim_file</span> <span class="o">=</span> <span class="n">level_sim_file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="n">debug</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_level_simulations</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># LevelSimulations instances</span>
+
+<div class="viewcode-block" id="PbsJob.create_job"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.create_job">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">create_job</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">jobs_dir</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">level_sim_file</span><span class="p">,</span> <span class="n">debug</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create PbsProcess instance from SamplingPoolPBS</span>
+<span class="sd">        :param output_dir: str</span>
+<span class="sd">        :param jobs_dir: str</span>
+<span class="sd">        :param job_id: str</span>
+<span class="sd">        :param level_sim_file: str, file name format of LevelSimulation serialization</span>
+<span class="sd">        :param debug: bool, if True keep sample directories</span>
+<span class="sd">        :return: PbsProcess instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pbs_process</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="n">jobs_dir</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">level_sim_file</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+        <span class="n">PbsJob</span><span class="o">.</span><span class="n">_serialize_pbs_process</span><span class="p">(</span><span class="n">pbs_process</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">pbs_process</span></div>
+
+<div class="viewcode-block" id="PbsJob.create_process"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.create_process">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">create_process</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create PbsProcess via PBS</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">job_id</span><span class="p">,</span> <span class="n">output_dir</span> <span class="o">=</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">command_params</span><span class="p">()</span>
+        <span class="n">jobs_dir</span><span class="p">,</span> <span class="n">level_sim_file_format</span><span class="p">,</span> <span class="n">debug</span> <span class="o">=</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">_deserialize_pbs_process</span><span class="p">(</span><span class="n">output_dir</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="n">jobs_dir</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">level_sim_file_format</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_serialize_pbs_process</span><span class="p">(</span><span class="n">pbs_process</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write down files necessary for pbs process call of this class - jobs_dir and format of file with serialized</span>
+<span class="sd">                                                                        LevelSimulation</span>
+<span class="sd">        :param pbs_process: PbsProcess instance</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pbs_process</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">CLASS_FILE</span><span class="p">)):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pbs_process</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">CLASS_FILE</span><span class="p">),</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">writer</span><span class="p">:</span>
+                <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">pbs_process</span><span class="o">.</span><span class="n">_jobs_dir</span> <span class="o">+</span> <span class="s2">&quot;;&quot;</span><span class="p">)</span>
+                <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">pbs_process</span><span class="o">.</span><span class="n">_level_sim_file</span> <span class="o">+</span> <span class="s2">&quot;;&quot;</span><span class="p">)</span>
+                <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">pbs_process</span><span class="o">.</span><span class="n">_debug</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;;&quot;</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_deserialize_pbs_process</span><span class="p">(</span><span class="n">output_dir</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get jobs_dir and level_sim_file from serialized PbsProcess</span>
+<span class="sd">        :param output_dir: str</span>
+<span class="sd">        :return: jobs_dir, level_sim_file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">CLASS_FILE</span><span class="p">),</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">line</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;True&#39;</span> <span class="k">else</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="PbsJob.command_params"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.command_params">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">command_params</span><span class="p">():</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read command parameters - job identifier and file with necessary files</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">output_dir</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">job_id</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">output_dir</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_level_sim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Deserialize LevelSimulation object</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_sim_file</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">level_id</span><span class="p">)),</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+            <span class="n">l_sim</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_level_simulations</span><span class="p">[</span><span class="n">l_sim</span><span class="o">.</span><span class="n">_level_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">l_sim</span>
+
+    <span class="k">def</span> <span class="nf">_get_level_id_sample_id_seed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get scheduled samples</span>
+<span class="sd">        :return: List[Tuple[level_id: int, sample_id: str, seed: int]] sorted by level_id ASC</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">SCHEDULED</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span><span class="p">)))</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+            <span class="n">level_id_sample_id_seed</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">yaml</span><span class="o">.</span><span class="n">Loader</span><span class="p">)</span>
+
+        <span class="n">level_id_sample_id_seed</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">tup</span><span class="p">:</span> <span class="n">tup</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">level_id_sample_id_seed</span>
+
+<div class="viewcode-block" id="PbsJob.calculate_samples"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.calculate_samples">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate scheduled samples</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_success_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">SUCCESSFUL_RESULTS</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_failed_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">FAILED_RESULTS</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_times_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">TIME</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span><span class="p">))</span>
+
+        <span class="c1"># List of Tuple[level id, sample id, random seed]</span>
+        <span class="n">level_id_sample_id_seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_level_id_sample_id_seed</span><span class="p">()</span>
+
+        <span class="n">failed</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Failed samples - Tuple(level_id, sample_id, error_msg)</span>
+        <span class="n">success</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Successful samples - Tuple(level_id, sample_id, (fine result, coarse result))</span>
+        <span class="n">current_level</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">current_samples</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Currently saved samples, permanent sample file is created for them</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">times</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Sample calculation time - Tuple(level_id, [n samples, cumul time for n sample])</span>
+        <span class="n">n_times</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">successful_dest_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">SamplingPool</span><span class="o">.</span><span class="n">SEVERAL_SUCCESSFUL_DIR</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">level_id_sample_id_seed</span><span class="p">:</span>
+            <span class="c1"># Deserialize level simulation config</span>
+            <span class="k">if</span> <span class="n">level_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_simulations</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_get_level_sim</span><span class="p">(</span><span class="n">level_id</span><span class="p">)</span>
+
+            <span class="c1"># Start measuring time</span>
+            <span class="k">if</span> <span class="n">current_level</span> <span class="o">!=</span> <span class="n">level_id</span><span class="p">:</span>
+                <span class="c1"># Save previous level times</span>
+                <span class="n">times</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">current_level</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">,</span> <span class="n">n_times</span><span class="p">))</span>
+                <span class="n">n_times</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                <span class="n">current_level</span> <span class="o">=</span> <span class="n">level_id</span>
+
+            <span class="n">level_sim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_simulations</span><span class="p">[</span><span class="n">current_level</span><span class="p">]</span>
+            <span class="k">assert</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">_level_id</span> <span class="o">==</span> <span class="n">current_level</span>
+            <span class="c1"># Calculate sample</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span> <span class="n">err_msg</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">SamplingPool</span><span class="o">.</span><span class="n">calculate_sample</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">,</span> <span class="n">work_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">err_msg</span><span class="p">:</span>
+                <span class="n">success</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">current_level</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span>
+                <span class="c1"># Increment number of successful samples for measured time</span>
+                <span class="n">SamplingPool</span><span class="o">.</span><span class="n">move_dir</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span>
+                                      <span class="n">dest_dir</span><span class="o">=</span><span class="n">successful_dest_dir</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">:</span>
+                    <span class="n">SamplingPool</span><span class="o">.</span><span class="n">remove_sample_dir</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">failed</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">current_level</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">err_msg</span><span class="p">))</span>
+                <span class="n">SamplingPool</span><span class="o">.</span><span class="n">move_dir</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span>
+                                      <span class="n">dest_dir</span><span class="o">=</span><span class="n">SamplingPool</span><span class="o">.</span><span class="n">FAILED_DIR</span><span class="p">)</span>
+                <span class="n">SamplingPool</span><span class="o">.</span><span class="n">remove_sample_dir</span><span class="p">(</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">)</span>
+
+            <span class="n">current_samples</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sample_id</span><span class="p">)</span>
+            <span class="n">n_times</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">times</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">current_level</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">,</span> <span class="n">n_times</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_save_to_file</span><span class="p">(</span><span class="n">success</span><span class="p">,</span> <span class="n">failed</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="n">current_samples</span><span class="p">)</span>
+
+            <span class="n">success</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">failed</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">current_samples</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_to_file</span><span class="p">(</span><span class="n">success</span><span class="p">,</span> <span class="n">failed</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="n">current_samples</span><span class="p">)</span></div>
+
+        <span class="c1"># self._write_end_mark(self._success_file)</span>
+        <span class="c1"># self._write_end_mark(self._failed_file)</span>
+        <span class="c1"># self._write_end_mark(self._times_file)</span>
+
+    <span class="k">def</span> <span class="nf">_save_to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">success</span><span class="p">,</span> <span class="n">failed</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="n">current_samples</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save sample results to files, create file which indicates that sample in stored</span>
+<span class="sd">        :param success: dict</span>
+<span class="sd">        :param failed: dict</span>
+<span class="sd">        :param times: dict</span>
+<span class="sd">        :param current_samples: list</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Write results to files</span>
+        <span class="k">if</span> <span class="n">success</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_append_file</span><span class="p">(</span><span class="n">success</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_success_file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">failed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_append_file</span><span class="p">(</span><span class="n">failed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_failed_file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">times</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_append_file</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_times_file</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_sample_id_job_id_map</span><span class="p">(</span><span class="n">current_samples</span><span class="p">)</span>
+
+    <span class="c1"># def _write_end_mark(self, path):</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#     Write end mark to the file</span>
+    <span class="c1">#     :param path: str, file path</span>
+    <span class="c1">#     :return: None</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#     if os.path.exists(path):</span>
+    <span class="c1">#         with open(path, &quot;a&quot;) as f:</span>
+    <span class="c1">#             yaml.dump(&quot;end&quot;, f)</span>
+
+    <span class="k">def</span> <span class="nf">_save_sample_id_job_id_map</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">current_samples</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">sample_id</span> <span class="ow">in</span> <span class="n">current_samples</span><span class="p">:</span>
+            <span class="n">sample_dir</span> <span class="o">=</span> <span class="n">SamplingPool</span><span class="o">.</span><span class="n">change_to_sample_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">sample_dir</span><span class="p">):</span>
+                <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sample_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">PERMANENT_SAMPLE</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span><span class="p">))</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+                    <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_append_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Append result files, it works on read - update - write basis</span>
+<span class="sd">        :param data: Data to append</span>
+<span class="sd">        :param path: file path</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_handle_sim_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Change working directory to sample dir and copy common files</span>
+<span class="sd">        :param sample_id: str</span>
+<span class="sd">        :param level_sim: LevelSimulation</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">need_sample_workspace</span><span class="p">:</span>
+            <span class="n">SamplingPool</span><span class="o">.</span><span class="n">change_to_sample_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_dir</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">level_sim</span><span class="o">.</span><span class="n">common_files</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">SamplingPool</span><span class="o">.</span><span class="n">copy_sim_files</span><span class="p">(</span><span class="n">level_sim</span><span class="o">.</span><span class="n">common_files</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">())</span>
+
+<div class="viewcode-block" id="PbsJob.read_results"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.read_results">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">read_results</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">jobs_dir</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read result file for given job id</span>
+<span class="sd">        :param job_id: str</span>
+<span class="sd">        :param jobs_dir: path to jobs directory</span>
+<span class="sd">        :return: successful: Dict[level_id, List[Tuple[sample_id:str, Tuple[ndarray, ndarray]]]]</span>
+<span class="sd">                 failed: Dict[level_id, List[Tuple[sample_id: str, error message: str]]]</span>
+<span class="sd">                 time: Dict[level_id: int, List[total time: float, number of success samples: int]]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">successful</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">failed</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Save successful results</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">SUCCESSFUL_RESULTS</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">))):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">SUCCESSFUL_RESULTS</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">)),</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+                <span class="n">successful_samples</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">successful_samples</span><span class="p">:</span>
+                    <span class="n">successful</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">result</span><span class="p">))</span>
+
+        <span class="c1"># Save failed results</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">FAILED_RESULTS</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">))):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">FAILED_RESULTS</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">)),</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+                <span class="n">failed_samples</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">err_msg</span> <span class="ow">in</span> <span class="n">failed_samples</span><span class="p">:</span>
+                    <span class="n">failed</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sample_id</span><span class="p">,</span> <span class="n">err_msg</span><span class="p">))</span>
+
+        <span class="c1"># Save time</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">TIME</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">))):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">TIME</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">)),</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+                <span class="n">times</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">times</span><span class="p">:</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">t</span><span class="p">))</span>
+
+        <span class="c1"># Deal with not finished (failed) samples in finished job</span>
+        <span class="n">level_id_sample_id_seed</span> <span class="o">=</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">get_scheduled_sample_ids</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">jobs_dir</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">level_id_sample_id_seed</span><span class="p">:</span>
+            <span class="n">successfull_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">success</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">success</span> <span class="ow">in</span> <span class="n">successful</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])]</span>
+            <span class="n">failed_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">failed</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])]</span>
+            <span class="k">if</span> <span class="n">sample_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">failed_ids</span> <span class="ow">and</span> <span class="n">sample_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">successfull_ids</span><span class="p">:</span>
+                <span class="n">failed</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sample_id</span><span class="p">,</span> <span class="s2">&quot;job failed&quot;</span><span class="p">))</span>
+
+        <span class="c1"># if &quot;end&quot; in successful:</span>
+        <span class="c1">#     del successful[&quot;end&quot;]</span>
+        <span class="c1"># if &quot;end&quot; in failed:</span>
+        <span class="c1">#     del failed[&quot;end&quot;]</span>
+        <span class="c1"># if &quot;end&quot; in time:</span>
+        <span class="c1">#     del time[&quot;end&quot;]</span>
+
+        <span class="k">return</span> <span class="n">successful</span><span class="p">,</span> <span class="n">failed</span><span class="p">,</span> <span class="n">time</span></div>
+
+<div class="viewcode-block" id="PbsJob.get_scheduled_sample_ids"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.get_scheduled_sample_ids">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_scheduled_sample_ids</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">jobs_dir</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get scheduled samples</span>
+<span class="sd">        :param job_id: str</span>
+<span class="sd">        :param jobs_dir: str</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">SCHEDULED</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">)))</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+            <span class="n">level_id_sample_id_seed</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">yaml</span><span class="o">.</span><span class="n">Loader</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">level_id_sample_id_seed</span></div>
+
+<div class="viewcode-block" id="PbsJob.write_pbs_id"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.write_pbs_id">[docs]</a>    <span class="k">def</span> <span class="nf">write_pbs_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pbs_job_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create empty file name contains pbs jobID and our jobID</span>
+<span class="sd">        :param pbs_job_id: str</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">PBS_ID</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span><span class="p">))</span>
+        <span class="n">file_name</span> <span class="o">+=</span> <span class="n">pbs_job_id</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+            <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="PbsJob.save_scheduled"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.save_scheduled">[docs]</a>    <span class="k">def</span> <span class="nf">save_scheduled</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scheduled</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save scheduled samples to yaml file</span>
+<span class="sd">        format: List[Tuple[level_id, sample_id]]</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">SCHEDULED</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span><span class="p">)),</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                <span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">scheduled</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Make sure you call _create_files method previously&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PbsJob.get_job_n_running"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.get_job_n_running">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_job_n_running</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">jobs_dir</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get number of running (scheduled) samples for given unfinished jobs</span>
+<span class="sd">        :param job_id: str</span>
+<span class="sd">        :param jobs_dir: str, path to jobs directory</span>
+<span class="sd">        :return: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">jobs_dir</span><span class="p">,</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">SCHEDULED</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">)))</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">yaml</span><span class="o">.</span><span class="n">Loader</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">pbs_process</span> <span class="o">=</span> <span class="n">PbsJob</span><span class="o">.</span><span class="n">create_process</span><span class="p">()</span>
+    <span class="n">pbs_process</span><span class="o">.</span><span class="n">calculate_samples</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Jan Březina, Martin Špetlík.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

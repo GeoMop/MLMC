@@ -1,21 +1,21 @@
-src.mlmc.sim package
+mlmc.sim package
 ====================
 
 Submodules
 ----------
 
-src.mlmc.sim.simulation module
+mlmc.sim.simulation module
 ------------------------------
 
-.. automodule:: src.mlmc.sim.simulation
+.. automodule:: mlmc.sim.simulation
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.sim.synth\_simulation module
+mlmc.sim.synth\_simulation module
 -------------------------------------
 
-.. automodule:: src.mlmc.sim.synth_simulation
+.. automodule:: mlmc.sim.synth_simulation
    :members:
    :undoc-members:
    :show-inheritance:
@@ -23,7 +23,7 @@ src.mlmc.sim.synth\_simulation module
 Module contents
 ---------------
 
-.. automodule:: src.mlmc.sim
+.. automodule:: mlmc.sim
    :members:
    :undoc-members:
    :show-inheritance:

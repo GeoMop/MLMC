@@ -58,9 +58,9 @@ setup(
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
 
-    packages=find_packages('src'),
-    package_dir={'': 'src'},
-    py_modules=[splitext(basename(path))[0] for path in glob.glob('src/*.py')],
+    packages=find_packages('mlmc'),
+    package_dir={'': 'mlmc'},
+    py_modules=[splitext(basename(path))[0] for path in glob.glob('mlmc/*.py')],
     package_data={
         # If any package contains *.txt or *.rst files, include them:
         '': ['*.txt', '*.rst'],

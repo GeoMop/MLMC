@@ -210,7 +210,6 @@ class ProcessShooting1D:
         :param quantity: mlmc.quantity.Quantity instance
         """
 
-
     def approx_distribution(self, estimator, n_levels, tol=1.95):
         """
         Probability density function approximation

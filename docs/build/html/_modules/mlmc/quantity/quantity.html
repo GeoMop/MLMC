@@ -1,0 +1,904 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>mlmc.quantity.quantity &mdash; mlmc daf documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">MLMC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../index.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../index.html#quickstart">Quickstart</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../index.html#create-mlmc-sampler">Create MLMC Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../index.html#schedule-mlmc-samples">Schedule MLMC samples</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples.shooting.html">examples.shooting package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#module-examples.shooting.shooting_1D">examples.shooting.shooting_1D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#module-examples.shooting.shooting_2D">examples.shooting.shooting_2D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#module-examples.shooting.simulation_shooting_1D">examples.shooting.simulation_shooting_1D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#module-examples.shooting.simulation_shooting_2D">examples.shooting.simulation_shooting_2D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../examples.shooting.html#module-examples.shooting">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#module-examples.shooting_02">examples.shooting_02 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#module-examples.shooting_03">examples.shooting_03 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#module-examples.shooting_04">examples.shooting_04 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#module-examples.simple_example">examples.simple_example module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples.html#module-examples">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html">MLMC package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html#subpackages">Subpackages</a><ul class="simple">
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>mlmc.quantity.quantity</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for mlmc.quantity.quantity</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">operator</span>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="k">import</span> <span class="n">signature</span>
+<span class="kn">from</span> <span class="nn">memoization</span> <span class="k">import</span> <span class="n">cached</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">mlmc.sample_storage</span> <span class="k">import</span> <span class="n">SampleStorage</span>
+<span class="kn">from</span> <span class="nn">mlmc.quantity.quantity_spec</span> <span class="k">import</span> <span class="n">QuantitySpec</span><span class="p">,</span> <span class="n">ChunkSpec</span>
+<span class="kn">import</span> <span class="nn">mlmc.quantity.quantity_types</span> <span class="k">as</span> <span class="nn">qt</span>
+
+
+<div class="viewcode-block" id="make_root_quantity"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.make_root_quantity">[docs]</a><span class="k">def</span> <span class="nf">make_root_quantity</span><span class="p">(</span><span class="n">storage</span><span class="p">:</span> <span class="n">SampleStorage</span><span class="p">,</span> <span class="n">q_specs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a root quantity that has QuantityStorage as the input quantity,</span>
+<span class="sd">    QuantityStorage is the only class that directly accesses the stored data.</span>
+<span class="sd">    Quantity type is created based on the q_spec parameter</span>
+<span class="sd">    :param storage: SampleStorage</span>
+<span class="sd">    :param q_specs: same as result format in simulation class</span>
+<span class="sd">    :return: QuantityStorage</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">dict_types</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">q_spec</span> <span class="ow">in</span> <span class="n">q_specs</span><span class="p">:</span>
+        <span class="n">scalar_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">ScalarType</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">array_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">(</span><span class="n">q_spec</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">scalar_type</span><span class="p">)</span>
+        <span class="n">field_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">FieldType</span><span class="p">([(</span><span class="n">loc</span><span class="p">,</span> <span class="n">array_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">loc</span> <span class="ow">in</span> <span class="n">q_spec</span><span class="o">.</span><span class="n">locations</span><span class="p">])</span>
+        <span class="n">ts_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">TimeSeriesType</span><span class="p">(</span><span class="n">q_spec</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">field_type</span><span class="p">)</span>
+        <span class="n">dict_types</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">q_spec</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">ts_type</span><span class="p">))</span>
+    <span class="n">dict_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">DictType</span><span class="p">(</span><span class="n">dict_types</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">QuantityStorage</span><span class="p">(</span><span class="n">storage</span><span class="p">,</span> <span class="n">dict_type</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Quantity"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity">[docs]</a><span class="k">class</span> <span class="nc">Quantity</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">quantity_type</span><span class="p">,</span> <span class="n">operation</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Quantity class represents real quantity and also provides operation that can be performed with stored values.</span>
+<span class="sd">        Each Quantity has Qtype which describes its structure.</span>
+<span class="sd">        :param quantity_type: QType instance</span>
+<span class="sd">        :param operation: function</span>
+<span class="sd">        :param input_quantities: List[Quantity]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span> <span class="o">=</span> <span class="n">quantity_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_operation</span> <span class="o">=</span> <span class="n">operation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_input_quantities</span> <span class="o">=</span> <span class="n">input_quantities</span>
+        <span class="c1"># List of quantities on which the &#39;self&#39; depends, their number have to match number of arguments</span>
+        <span class="c1"># to the operation.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantity_storage</span><span class="p">()</span>
+        <span class="c1"># QuantityStorage instance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_selection_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_selection_id</span><span class="p">()</span>
+        <span class="c1"># Identifier of selection, should be set in select() method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_selection_ids</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_op_additional_params</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Quantity.get_quantity_storage"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.get_quantity_storage">[docs]</a>    <span class="k">def</span> <span class="nf">get_quantity_storage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get QuantityStorage instance</span>
+<span class="sd">        :return: None, QuantityStorage</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_input_quantities</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">in_quantity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_quantities</span><span class="p">:</span>
+            <span class="n">storage</span> <span class="o">=</span> <span class="n">in_quantity</span><span class="o">.</span><span class="n">get_quantity_storage</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">storage</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span> <span class="o">=</span> <span class="n">storage</span>
+                <span class="k">return</span> <span class="n">storage</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="Quantity.set_selection_id"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.set_selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">set_selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set selection id</span>
+<span class="sd">        selection id is None by default,</span>
+<span class="sd">         but if we create new quantity from quantities that are result of selection we need to pass selection id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">selection_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">input_quantity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_quantities</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">selection_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">selection_id</span> <span class="o">=</span> <span class="n">input_quantity</span><span class="o">.</span><span class="n">selection_id</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">input_quantity</span><span class="o">.</span><span class="n">selection_id</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">selection_id</span> <span class="o">!=</span> <span class="n">input_quantity</span><span class="o">.</span><span class="n">selection_id</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Different selection IDs among input quantities&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">selection_id</span></div>
+
+    <span class="k">def</span> <span class="nf">_check_selection_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Make sure the all input quantities come from the same QuantityStorage</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># All input quantities are QuantityConst instances</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="c1"># Check selection ids otherwise</span>
+        <span class="k">for</span> <span class="n">input_quantity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_quantities</span><span class="p">:</span>
+            <span class="n">sel_id</span> <span class="o">=</span> <span class="n">input_quantity</span><span class="o">.</span><span class="n">selection_id</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">sel_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">sel_id</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">selection_id</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;Not all input quantities come from the same quantity storage&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_op_additional_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Handle operation additional params</span>
+<span class="sd">        There are level_id a i_chunk params used in the sampling method and during the selection procedure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_additional_params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">sig_params</span> <span class="o">=</span> <span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_operation</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span>
+        <span class="k">if</span> <span class="s1">&#39;chunk_spec&#39;</span> <span class="ow">in</span> <span class="n">sig_params</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_additional_params</span><span class="p">[</span><span class="s1">&#39;chunk_spec&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="Quantity.selection_id"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get storage ids of all input quantities</span>
+<span class="sd">        :return: List[int]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selection_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selection_id</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantity_storage</span><span class="p">()</span>
+            <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Quantity.size"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Quantity size from qtype</span>
+<span class="sd">        :return: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">size</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Quantity.get_cache_key"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.get_cache_key">[docs]</a>    <span class="k">def</span> <span class="nf">get_cache_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create cache key</span>
+<span class="sd">        :param chunk_spec: ChunkSpec instance</span>
+<span class="sd">        :return: tuple</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">chunk_spec</span><span class="o">.</span><span class="n">level_id</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="o">.</span><span class="n">chunk_id</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="o">.</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">,</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>  <span class="c1"># redundant parentheses needed due to py36, py37</span></div>
+
+<div class="viewcode-block" id="Quantity.samples"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.samples">[docs]</a>    <span class="nd">@cached</span><span class="p">(</span><span class="n">custom_key_maker</span><span class="o">=</span><span class="n">get_cache_key</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Yields list of sample chunks for individual levels.</span>
+<span class="sd">        Possibly calls underlying quantities.</span>
+<span class="sd">        :param chunk_spec: ChunkSpec instance, it contains level_id, chunk_id and</span>
+<span class="sd">                                               it may contain n_samples - number of which we want to retrieve</span>
+<span class="sd">        :return: np.ndarray or None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">chunks_quantity_level</span> <span class="o">=</span> <span class="p">[</span><span class="n">q</span><span class="o">.</span><span class="n">samples</span><span class="p">(</span><span class="n">chunk_spec</span><span class="p">)</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_quantities</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_additional_params</span><span class="p">):</span>  <span class="c1"># dictionary is empty</span>
+            <span class="k">if</span> <span class="s1">&#39;chunk_spec&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_additional_params</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_additional_params</span><span class="p">[</span><span class="s1">&#39;chunk_spec&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chunk_spec</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_operation</span><span class="p">(</span><span class="o">*</span><span class="n">chunks_quantity_level</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_additional_params</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_reduction_op</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">quantities</span><span class="p">,</span> <span class="n">operation</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param quantities: List[Quantity]</span>
+<span class="sd">        :param operation: function which is run with given quantities</span>
+<span class="sd">        :return: Quantity</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">quantities</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">QuantityConst</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">Quantity</span><span class="p">(</span><span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="n">operation</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="n">quantities</span><span class="p">)</span>
+        <span class="c1"># Quantity from QuantityConst instances</span>
+        <span class="k">return</span> <span class="n">QuantityConst</span><span class="p">(</span><span class="n">quantities</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">operation</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">q</span><span class="o">.</span><span class="n">_value</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">quantities</span><span class="p">]))</span>
+
+<div class="viewcode-block" id="Quantity.select"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.select">[docs]</a>    <span class="k">def</span> <span class="nf">select</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Performs sample selection based on conditions</span>
+<span class="sd">        :param args: Quantity</span>
+<span class="sd">        :return: Quantity</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># args always has len() at least 1</span>
+        <span class="n">masks</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">base_qtype</span><span class="p">(),</span> <span class="n">qt</span><span class="o">.</span><span class="n">BoolType</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Quantity: </span><span class="si">{}</span><span class="s2"> doesn&#39;t have BoolType, instead it has QType: </span><span class="si">{}</span><span class="s2">&quot;</span>
+                                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">base_qtype</span><span class="p">()))</span>
+
+        <span class="c1"># More conditions leads to default AND</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="n">masks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">masks</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>  <span class="c1"># method from this module</span>
+
+        <span class="k">def</span> <span class="nf">op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">mask</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">x</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="p">:]</span>  <span class="c1"># [...sample size, cut number of samples, 2]</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">Quantity</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="p">,</span> <span class="n">masks</span><span class="p">],</span> <span class="n">operation</span><span class="o">=</span><span class="n">op</span><span class="p">)</span>
+        <span class="n">q</span><span class="o">.</span><span class="n">_selection_id</span> <span class="o">=</span> <span class="nb">id</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">q</span></div>
+
+    <span class="k">def</span> <span class="nf">__array_ufunc__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ufunc</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_method</span><span class="p">(</span><span class="n">ufunc</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">create_quantity</span><span class="p">([</span><span class="bp">self</span><span class="p">,</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">)],</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">add_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">create_quantity</span><span class="p">([</span><span class="bp">self</span><span class="p">,</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">)],</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">sub_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">create_quantity</span><span class="p">([</span><span class="bp">self</span><span class="p">,</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">)],</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">mult_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__truediv__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">create_quantity</span><span class="p">([</span><span class="bp">self</span><span class="p">,</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">)],</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">truediv_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__mod__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">create_quantity</span><span class="p">([</span><span class="bp">self</span><span class="p">,</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">)],</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">mod_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__radd__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">create_quantity</span><span class="p">([</span><span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">),</span> <span class="bp">self</span><span class="p">],</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">add_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__rsub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">create_quantity</span><span class="p">([</span><span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">),</span> <span class="bp">self</span><span class="p">],</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">sub_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__rmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">create_quantity</span><span class="p">([</span><span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">),</span> <span class="bp">self</span><span class="p">],</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">mult_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__rtruediv__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">create_quantity</span><span class="p">([</span><span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">),</span> <span class="bp">self</span><span class="p">],</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">truediv_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__rmod__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">create_quantity</span><span class="p">([</span><span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">),</span> <span class="bp">self</span><span class="p">],</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">mod_op</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Quantity.create_quantity"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.create_quantity">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">create_quantity</span><span class="p">(</span><span class="n">quantities</span><span class="p">,</span> <span class="n">operation</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create new quantity (Quantity or QuantityConst) based on given quantities and operation.</span>
+<span class="sd">        There are two scenarios:</span>
+<span class="sd">        1. At least one of quantities is Quantity instance then all quantities are considered to be input_quantities</span>
+<span class="sd">         of new Quantity</span>
+<span class="sd">        2. All of quantities are QuantityConst instances then new QuantityConst is created</span>
+<span class="sd">        :param quantities: List[Quantity]</span>
+<span class="sd">        :param operation: function which is run with given quantities</span>
+<span class="sd">        :return: Quantity</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">quantities</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">QuantityConst</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">Quantity</span><span class="p">(</span><span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="n">operation</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="n">quantities</span><span class="p">)</span>
+        <span class="c1"># Quantity from QuantityConst instances</span>
+        <span class="k">return</span> <span class="n">QuantityConst</span><span class="p">(</span><span class="n">quantities</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">operation</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">q</span><span class="o">.</span><span class="n">_value</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">quantities</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="Quantity.add_op"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.add_op">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">add_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span></div>
+
+<div class="viewcode-block" id="Quantity.sub_op"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.sub_op">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">sub_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span></div>
+
+<div class="viewcode-block" id="Quantity.mult_op"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.mult_op">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">mult_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span></div>
+
+<div class="viewcode-block" id="Quantity.truediv_op"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.truediv_op">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">truediv_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">/</span> <span class="n">y</span></div>
+
+<div class="viewcode-block" id="Quantity.mod_op"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.mod_op">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">mod_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">%</span> <span class="n">y</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_process_mask</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">operator</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create samples mask</span>
+<span class="sd">        All values for sample must meet given condition, if any value doesn&#39;t meet the condition,</span>
+<span class="sd">        whole sample is eliminated</span>
+<span class="sd">        :param x: Quantity chunk</span>
+<span class="sd">        :param y: Quantity chunk or int, float</span>
+<span class="sd">        :param operator: operator module function</span>
+<span class="sd">        :return: np.ndarray of bools</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">operator</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mask</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)))</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_mask_quantity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="n">op</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create quantity that represent bool mask</span>
+<span class="sd">        :param other: number or Quantity</span>
+<span class="sd">        :param op: operation</span>
+<span class="sd">        :return: Quantity</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">bool_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">BoolType</span><span class="p">()</span>
+        <span class="n">new_qtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span>
+        <span class="n">new_qtype</span> <span class="o">=</span> <span class="n">new_qtype</span><span class="o">.</span><span class="n">replace_scalar</span><span class="p">(</span><span class="n">bool_type</span><span class="p">)</span>
+        <span class="n">other</span> <span class="o">=</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">base_qtype</span><span class="p">(),</span> <span class="n">qt</span><span class="o">.</span><span class="n">ScalarType</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">base_qtype</span><span class="p">(),</span> <span class="n">qt</span><span class="o">.</span><span class="n">ScalarType</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Quantity has base qtype </span><span class="si">{}</span><span class="s2">. &quot;</span>
+                            <span class="s2">&quot;Quantities with base qtype ScalarType are the only ones that support comparison&quot;</span><span class="o">.</span>
+                            <span class="nb">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">base_qtype</span><span class="p">()))</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">new_qtype</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">],</span> <span class="n">operation</span><span class="o">=</span><span class="n">op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">lt_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_process_mask</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">lt</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mask_quantity</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">lt_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__le__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">le_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_mask</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">le</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mask_quantity</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">le_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__gt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">gt_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_mask</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">gt</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mask_quantity</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">gt_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__ge__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">ge_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_mask</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">ge</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mask_quantity</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">ge_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">eq_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_mask</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">eq</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mask_quantity</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">eq_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">ne_op</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_mask</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">ne</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mask_quantity</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">ne_op</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Quantity.subsample"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.subsample">[docs]</a>    <span class="k">def</span> <span class="nf">subsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_vec</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Random subsampling</span>
+<span class="sd">        :param sample_vec: list of number of samples at each level</span>
+<span class="sd">        :return: np.ndarray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">quantity_storage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantity_storage</span><span class="p">()</span>
+        <span class="n">n_collected</span> <span class="o">=</span> <span class="n">quantity_storage</span><span class="o">.</span><span class="n">n_collected</span><span class="p">()</span>
+
+        <span class="n">rnd_indices</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">level_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantity_storage</span><span class="p">()</span><span class="o">.</span><span class="n">level_ids</span><span class="p">():</span>
+            <span class="n">rnd_indices</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">n_collected</span><span class="p">[</span><span class="n">level_id</span><span class="p">],</span> <span class="n">size</span><span class="o">=</span><span class="n">sample_vec</span><span class="p">[</span><span class="n">level_id</span><span class="p">]))</span>
+
+        <span class="k">def</span> <span class="nf">mask_gen</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+            <span class="n">chunks_info</span> <span class="o">=</span> <span class="n">quantity_storage</span><span class="o">.</span><span class="n">get_chunks_info</span><span class="p">(</span><span class="n">chunk_spec</span><span class="p">)</span>  <span class="c1"># start and end index in collected values</span>
+            <span class="n">chunk_indices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">*</span><span class="n">chunks_info</span><span class="p">))</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span><span class="n">rnd_indices</span><span class="p">[</span><span class="n">level_id</span><span class="p">],</span> <span class="n">chunk_indices</span><span class="p">)</span>
+            <span class="n">final_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">chunk_indices</span><span class="p">,</span> <span class="n">indices</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">bool</span><span class="p">)</span>
+            <span class="n">mask</span><span class="p">[</span><span class="n">final_indices</span><span class="p">[:</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">return</span> <span class="n">mask</span>
+
+        <span class="k">return</span> <span class="n">Quantity</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">replace_scalar</span><span class="p">(</span><span class="n">qt</span><span class="o">.</span><span class="n">BoolType</span><span class="p">()),</span>
+                        <span class="n">input_quantities</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="p">],</span> <span class="n">operation</span><span class="o">=</span><span class="n">mask_gen</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get items from Quantity, quantity type must support brackets access</span>
+<span class="sd">        :param key: str, int, tuple</span>
+<span class="sd">        :return: Quantity</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_qtype</span><span class="p">,</span> <span class="n">start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">get_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>  <span class="c1"># New quantity type</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">):</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">start</span> <span class="o">+</span> <span class="n">new_qtype</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
+
+        <span class="k">def</span> <span class="nf">_make_getitem_op</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">_make_getitem_op</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Quantity</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">new_qtype</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="p">],</span> <span class="n">operation</span><span class="o">=</span><span class="n">_make_getitem_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="n">static_fun</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>  <span class="c1"># We support only static function call forwarding</span>
+
+        <span class="k">def</span> <span class="nf">apply_on_quantity</span><span class="p">(</span><span class="o">*</span><span class="n">attr</span><span class="p">,</span> <span class="o">**</span><span class="n">d_attr</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">static_fun</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">attr</span><span class="p">,</span> <span class="o">**</span><span class="n">d_attr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">apply_on_quantity</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_concatenate</span><span class="p">(</span><span class="n">quantities</span><span class="p">,</span> <span class="n">qtype</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Concatenate level_chunks</span>
+<span class="sd">        :param quantities: list of quantities</span>
+<span class="sd">        :param qtype: QType</span>
+<span class="sd">        :param axis: int</span>
+<span class="sd">        :return: Quantity</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">op_concatenate</span><span class="p">(</span><span class="o">*</span><span class="n">chunks</span><span class="p">):</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">chunks</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">y</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="p">(</span><span class="n">qtype</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">quantities</span><span class="p">],</span> <span class="n">operation</span><span class="o">=</span><span class="n">op_concatenate</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_base_qtype</span><span class="p">(</span><span class="n">args_quantities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get quantities base Qtype</span>
+<span class="sd">        :param args_quantities: list of quantities and other passed arguments,</span>
+<span class="sd">         we expect at least one of the arguments is Quantity</span>
+<span class="sd">        :return: base QType, ScalarType if any quantity has that base type, otherwise BoolType</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Either all quantities are BoolType or it is considered to be ScalarType</span>
+        <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">args_quantities</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">Quantity</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">base_qtype</span><span class="p">())</span> <span class="o">==</span> <span class="n">qt</span><span class="o">.</span><span class="n">ScalarType</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">qt</span><span class="o">.</span><span class="n">ScalarType</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">qt</span><span class="o">.</span><span class="n">BoolType</span><span class="p">()</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_method</span><span class="p">(</span><span class="n">ufunc</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Process input parameters to perform numpy ufunc.</span>
+<span class="sd">        Get base QType of passed quantities, QuantityStorage instance, ...</span>
+<span class="sd">        Determine the resulting QType from the first few samples</span>
+<span class="sd">        :param ufunc: ufunc object that was called</span>
+<span class="sd">        :param method: string, indicating which Ufunc method was called</span>
+<span class="sd">        :param args: tuple of the input arguments to the ufunc</span>
+<span class="sd">        :param kwargs: dictionary containing the optional input arguments of the ufunc</span>
+<span class="sd">        :return: Quantity</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">_ufunc_call</span><span class="p">(</span><span class="o">*</span><span class="n">input_quantities_chunks</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">ufunc</span><span class="p">,</span> <span class="n">method</span><span class="p">)(</span><span class="o">*</span><span class="n">input_quantities_chunks</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="n">quantities</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="n">quantities</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Quantity</span><span class="o">.</span><span class="n">wrap</span><span class="p">(</span><span class="n">arg</span><span class="p">))</span>
+
+        <span class="n">result_qtype</span> <span class="o">=</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_result_qtype</span><span class="p">(</span><span class="n">_ufunc_call</span><span class="p">,</span> <span class="n">quantities</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">result_qtype</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">quantities</span><span class="p">),</span> <span class="n">operation</span><span class="o">=</span><span class="n">_ufunc_call</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Quantity.wrap"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.wrap">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">wrap</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert flat, bool or array (list) to Quantity</span>
+<span class="sd">        :param value: flat, bool, array (list) or Quantity</span>
+<span class="sd">        :return: Quantity</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Quantity</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">value</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="n">quantity</span> <span class="o">=</span> <span class="n">QuantityConst</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">qt</span><span class="o">.</span><span class="n">ScalarType</span><span class="p">(),</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="n">quantity</span> <span class="o">=</span> <span class="n">QuantityConst</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">qt</span><span class="o">.</span><span class="n">BoolType</span><span class="p">(),</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="n">qtype</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">value</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">qtype</span><span class="o">=</span><span class="n">qt</span><span class="o">.</span><span class="n">ScalarType</span><span class="p">())</span>
+            <span class="n">quantity</span> <span class="o">=</span> <span class="n">QuantityConst</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">qtype</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Values </span><span class="si">{}</span><span class="s2"> are not flat, bool or array (list)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">quantity</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_result_qtype</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">quantities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Determine QType from evaluation with given method and first few samples from storage</span>
+<span class="sd">        :param quantities: list of Quantities</span>
+<span class="sd">        :param method: ufunc function</span>
+<span class="sd">        :return: QType</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">chunks_quantity_level</span> <span class="o">=</span> <span class="p">[</span><span class="n">q</span><span class="o">.</span><span class="n">samples</span><span class="p">(</span><span class="n">ChunkSpec</span><span class="p">(</span><span class="n">level_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">chunk_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">10</span><span class="p">))</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">quantities</span><span class="p">]</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">method</span><span class="p">(</span><span class="o">*</span><span class="n">chunks_quantity_level</span><span class="p">)</span>  <span class="c1"># numpy array of [M, &lt;=10, 2]</span>
+        <span class="n">qtype</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">qtype</span><span class="o">=</span><span class="n">Quantity</span><span class="o">.</span><span class="n">_get_base_qtype</span><span class="p">(</span><span class="n">quantities</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">qtype</span>
+
+<div class="viewcode-block" id="Quantity.QArray"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QArray">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">QArray</span><span class="p">(</span><span class="n">quantities</span><span class="p">):</span>
+        <span class="n">flat_quantities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">quantities</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">qtype</span> <span class="o">=</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_check_same_qtype</span><span class="p">(</span><span class="n">flat_quantities</span><span class="p">)</span>
+        <span class="n">array_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">quantities</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">qtype</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_concatenate</span><span class="p">(</span><span class="n">flat_quantities</span><span class="p">,</span> <span class="n">qtype</span><span class="o">=</span><span class="n">array_type</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Quantity.QDict"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QDict">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">QDict</span><span class="p">(</span><span class="n">key_quantity</span><span class="p">):</span>
+        <span class="n">dict_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">DictType</span><span class="p">([(</span><span class="n">key</span><span class="p">,</span> <span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">key_quantity</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_concatenate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">key_quantity</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">qtype</span><span class="o">=</span><span class="n">dict_type</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Quantity.QTimeSeries"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QTimeSeries">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">QTimeSeries</span><span class="p">(</span><span class="n">time_quantity</span><span class="p">):</span>
+        <span class="n">qtype</span> <span class="o">=</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_check_same_qtype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">time_quantity</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">time_quantity</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_concatenate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">time_quantity</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">qtype</span><span class="o">=</span><span class="n">qt</span><span class="o">.</span><span class="n">TimeSeriesType</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="n">times</span><span class="p">,</span> <span class="n">qtype</span><span class="o">=</span><span class="n">qtype</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Quantity.QField"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QField">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">QField</span><span class="p">(</span><span class="n">key_quantity</span><span class="p">):</span>
+        <span class="n">Quantity</span><span class="o">.</span><span class="n">_check_same_qtype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">key_quantity</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">field_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">FieldType</span><span class="p">([(</span><span class="n">key</span><span class="p">,</span> <span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">key_quantity</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">Quantity</span><span class="o">.</span><span class="n">_concatenate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">key_quantity</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">qtype</span><span class="o">=</span><span class="n">field_type</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_check_same_qtype</span><span class="p">(</span><span class="n">quantities</span><span class="p">):</span>
+        <span class="n">qtype</span> <span class="o">=</span> <span class="n">quantities</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">qtype</span>
+        <span class="k">for</span> <span class="n">quantity</span> <span class="ow">in</span> <span class="n">quantities</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="k">if</span> <span class="n">qtype</span> <span class="o">!=</span> <span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Quantities don&#39;t have same QType&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">qtype</span></div>
+
+
+<div class="viewcode-block" id="QuantityConst"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityConst">[docs]</a><span class="k">class</span> <span class="nc">QuantityConst</span><span class="p">(</span><span class="n">Quantity</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">quantity_type</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        QuantityConst class represents constant quantity and also provides operation</span>
+<span class="sd">        that can be performed with quantity values.</span>
+<span class="sd">        The quantity is constant, meaning that this class stores the data itself</span>
+<span class="sd">        :param quantity_type: QType instance</span>
+<span class="sd">        :param value: quantity value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span> <span class="o">=</span> <span class="n">quantity_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_value</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_input_quantities</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># List of input quantities should be empty,</span>
+        <span class="c1"># but we still need this attribute due to storage_id() and level_ids() method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_selection_id</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_process_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reshape value if array, otherwise create array first</span>
+<span class="sd">        :param value: quantity value</span>
+<span class="sd">        :return: value with shape [M, 1, 1] which suitable for further broadcasting</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">value</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">value</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+
+<div class="viewcode-block" id="QuantityConst.get_cache_key"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityConst.get_cache_key">[docs]</a>    <span class="k">def</span> <span class="nf">get_cache_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create cache key</span>
+<span class="sd">        :param chunk_spec: ChunkSpec instance</span>
+<span class="sd">        :return: tuple</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuantityConst.selection_id"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityConst.selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get storage ids of all input quantities</span>
+<span class="sd">        :return: List[int]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selection_id</span></div>
+
+<div class="viewcode-block" id="QuantityConst.samples"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityConst.samples">[docs]</a>    <span class="nd">@cached</span><span class="p">(</span><span class="n">custom_key_maker</span><span class="o">=</span><span class="n">get_cache_key</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get constant values with an enlarged number of axes</span>
+<span class="sd">        :param chunk_spec: ChunkSpec instance</span>
+<span class="sd">        :return: np.ndarray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span></div></div>
+
+
+<div class="viewcode-block" id="QuantityMean"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityMean">[docs]</a><span class="k">class</span> <span class="nc">QuantityMean</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">quantity_type</span><span class="p">,</span> <span class="n">l_means</span><span class="p">,</span> <span class="n">l_vars</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">n_rm_samples</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        QuantityMean represents results of mlmc.quantity_estimate.estimate_mean method</span>
+<span class="sd">        :param quantity_type: QType</span>
+<span class="sd">        :param l_means: np.ndarray, shape: L, M</span>
+<span class="sd">        :param l_vars: np.ndarray, shape: L, M</span>
+<span class="sd">        :param n_samples: List, number of samples that were used for means at each level</span>
+<span class="sd">        :param n_rm_samples: List, number of removed samples at each level,</span>
+<span class="sd">                             n_samples + n_rm_samples = all successfully collected samples</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span> <span class="o">=</span> <span class="n">quantity_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_var</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_l_means</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">l_means</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_l_vars</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">l_vars</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_rm_samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">n_rm_samples</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_calculate_mean_var</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the overall estimates of the mean and the variance from the means and variances at each level</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_l_means</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_l_vars</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_samples</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Sums full of zeros leads to NaN</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mean</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_var</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">mean</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mean_var</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mean</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">var</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_var</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mean_var</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_var</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">l_means</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_reshape</span><span class="p">(</span><span class="n">means</span><span class="p">)</span> <span class="k">for</span> <span class="n">means</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_l_means</span><span class="p">])</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">l_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_reshape</span><span class="p">(</span><span class="nb">vars</span><span class="p">)</span> <span class="k">for</span> <span class="nb">vars</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_l_vars</span><span class="p">])</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_samples</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_rm_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_rm_samples</span>
+
+    <span class="k">def</span> <span class="nf">_reshape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reshape passed data, expected means or vars</span>
+<span class="sd">        :param data: flatten np.ndarray</span>
+<span class="sd">        :return: np.ndarray, reshaped data, the final data shape depends on the particular QType</span>
+<span class="sd">                             there is currently a reshape for ArrayType only</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get item from current QuantityMean, quantity type must support brackets access</span>
+<span class="sd">        All levels means and vars are reshaped to their QType shape and then the item is gotten,</span>
+<span class="sd">        ath the end, new QuantityMean instance is created with flatten selected means and vars</span>
+<span class="sd">        :param key: str, int, tuple</span>
+<span class="sd">        :return: QuantityMean</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_qtype</span><span class="p">,</span> <span class="n">start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">get_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>  <span class="c1"># New quantity type</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">):</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">start</span> <span class="o">+</span> <span class="n">new_qtype</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
+
+        <span class="c1"># Getting items, it performs reshape inside</span>
+        <span class="n">l_means</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">l_means</span><span class="p">[:,</span> <span class="n">key</span><span class="p">]</span>
+        <span class="n">l_vars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">l_vars</span><span class="p">[:,</span> <span class="n">key</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">QuantityMean</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">new_qtype</span><span class="p">,</span> <span class="n">l_means</span><span class="o">=</span><span class="n">l_means</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">l_means</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)),</span>
+                            <span class="n">l_vars</span><span class="o">=</span><span class="n">l_vars</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">l_vars</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)),</span> <span class="n">n_samples</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_samples</span><span class="p">,</span>
+                            <span class="n">n_rm_samples</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_rm_samples</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="QuantityStorage"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage">[docs]</a><span class="k">class</span> <span class="nc">QuantityStorage</span><span class="p">(</span><span class="n">Quantity</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">storage</span><span class="p">,</span> <span class="n">qtype</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Special Quantity for direct access to SampleStorage</span>
+<span class="sd">        :param storage: mlmc._sample_storage.SampleStorage child</span>
+<span class="sd">        :param qtype: QType</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span> <span class="o">=</span> <span class="n">storage</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span> <span class="o">=</span> <span class="n">qtype</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_input_quantities</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_operation</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="QuantityStorage.level_ids"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.level_ids">[docs]</a>    <span class="k">def</span> <span class="nf">level_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of levels</span>
+<span class="sd">        :return: List[int]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="o">.</span><span class="n">get_level_ids</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="QuantityStorage.selection_id"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.selection_id">[docs]</a>    <span class="k">def</span> <span class="nf">selection_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Identity of QuantityStorage instance</span>
+<span class="sd">        :return: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuantityStorage.get_quantity_storage"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.get_quantity_storage">[docs]</a>    <span class="k">def</span> <span class="nf">get_quantity_storage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="QuantityStorage.samples"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.samples">[docs]</a>    <span class="k">def</span> <span class="nf">samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get results for given level id and chunk id</span>
+<span class="sd">        :param chunk_spec: mlmc.quantity_spec.ChunkSpec instance</span>
+<span class="sd">        :return: Array[M, chunk size, 2]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">level_chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="o">.</span><span class="n">sample_pairs_level</span><span class="p">(</span><span class="n">chunk_spec</span><span class="p">)</span>  <span class="c1"># Array[M, chunk size, 2]</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="n">level_chunk</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">level_chunk</span></div>
+
+<div class="viewcode-block" id="QuantityStorage.get_chunks_info"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.get_chunks_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_chunks_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="o">.</span><span class="n">get_chunks_info</span><span class="p">(</span><span class="n">chunk_spec</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QuantityStorage.n_collected"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.n_collected">[docs]</a>    <span class="k">def</span> <span class="nf">n_collected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="o">.</span><span class="n">get_n_collected</span><span class="p">()</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Jan Březina, Martin Špetlík.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

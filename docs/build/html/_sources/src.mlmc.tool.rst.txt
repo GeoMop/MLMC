@@ -1,77 +1,77 @@
-src.mlmc.tool package
+mlmc.tool package
 =====================
 
 Submodules
 ----------
 
-src.mlmc.tool.context\_statprof module
+mlmc.tool.context\_statprof module
 --------------------------------------
 
-.. automodule:: src.mlmc.tool.context_statprof
+.. automodule:: mlmc.tool.context_statprof
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.tool.distribution module
+mlmc.tool.distribution module
 ---------------------------------
 
-.. automodule:: src.mlmc.tool.distribution
+.. automodule:: mlmc.tool.distribution
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.tool.flow\_mc module
+mlmc.tool.flow\_mc module
 -----------------------------
 
-.. automodule:: src.mlmc.tool.flow_mc
+.. automodule:: mlmc.tool.flow_mc
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.tool.gmsh\_io module
+mlmc.tool.gmsh\_io module
 -----------------------------
 
-.. automodule:: src.mlmc.tool.gmsh_io
+.. automodule:: mlmc.tool.gmsh_io
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.tool.hdf5 module
+mlmc.tool.hdf5 module
 -------------------------
 
-.. automodule:: src.mlmc.tool.hdf5
+.. automodule:: mlmc.tool.hdf5
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.tool.pbs\_job module
+mlmc.tool.pbs\_job module
 -----------------------------
 
-.. automodule:: src.mlmc.tool.pbs_job
+.. automodule:: mlmc.tool.pbs_job
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.tool.process\_base module
+mlmc.tool.process\_base module
 ----------------------------------
 
-.. automodule:: src.mlmc.tool.process_base
+.. automodule:: mlmc.tool.process_base
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.tool.simple\_distribution module
+mlmc.tool.simple\_distribution module
 -----------------------------------------
 
-.. automodule:: src.mlmc.tool.simple_distribution
+.. automodule:: mlmc.tool.simple_distribution
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.tool.stats\_tests module
+mlmc.tool.stats\_tests module
 ---------------------------------
 
-.. automodule:: src.mlmc.tool.stats_tests
+.. automodule:: mlmc.tool.stats_tests
    :members:
    :undoc-members:
    :show-inheritance:
@@ -79,7 +79,7 @@ src.mlmc.tool.stats\_tests module
 Module contents
 ---------------
 
-.. automodule:: src.mlmc.tool
+.. automodule:: mlmc.tool
    :members:
    :undoc-members:
    :show-inheritance:

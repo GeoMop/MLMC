@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.tool.process_base &#8212; mlmc daf documentation</title>
+    <title>mlmc.tool.process_base &#8212; mlmc daf documentation</title>
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
@@ -30,7 +30,7 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.tool.process_base</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.tool.process_base</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
@@ -38,7 +38,7 @@
 <span class="kn">from</span> <span class="nn">mlmc.moments</span> <span class="k">import</span> <span class="n">Legendre</span>
 
 
-<div class="viewcode-block" id="ProcessBase"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase">[docs]</a><span class="k">class</span> <span class="nc">ProcessBase</span><span class="p">:</span>
+<div class="viewcode-block" id="ProcessBase"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase">[docs]</a><span class="k">class</span> <span class="nc">ProcessBase</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Parent class for particular simulation processes</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -59,7 +59,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">clean</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">renew</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;renew&#39;</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
-<div class="viewcode-block" id="ProcessBase.get_arguments"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.get_arguments">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ProcessBase.get_arguments"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.get_arguments">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">get_arguments</span><span class="p">(</span><span class="n">arguments</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Getting arguments from console</span>
@@ -83,7 +83,7 @@
 
         <span class="k">return</span> <span class="n">args</span></div>
 
-<div class="viewcode-block" id="ProcessBase.run"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">renew</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.run"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">renew</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Run mlmc</span>
 <span class="sd">        :return: None</span>
@@ -135,7 +135,7 @@
     <span class="c1">#</span>
     <span class="c1">#     self.process_analysis(cl)</span>
 
-<div class="viewcode-block" id="ProcessBase.set_environment_variables"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.set_environment_variables">[docs]</a>    <span class="k">def</span> <span class="nf">set_environment_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.set_environment_variables"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.set_environment_variables">[docs]</a>    <span class="k">def</span> <span class="nf">set_environment_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set pbs config, flow123d, gmsh</span>
 <span class="sd">        :return: None</span>
@@ -170,7 +170,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">flow123d</span> <span class="o">=</span> <span class="s2">&quot;/home/jb/workspace/flow123d/bin/fterm flow123d dbg&quot;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">gmsh</span> <span class="o">=</span> <span class="s2">&quot;/home/jb/local/gmsh-3.0.5-git-Linux/bin/gmsh&quot;</span></div>
 
-<div class="viewcode-block" id="ProcessBase.setup_config"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.setup_config">[docs]</a>    <span class="k">def</span> <span class="nf">setup_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">clean</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.setup_config"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.setup_config">[docs]</a>    <span class="k">def</span> <span class="nf">setup_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">clean</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set simulation configuration depends on particular task</span>
 <span class="sd">        :param n_levels: Number of levels</span>
@@ -179,7 +179,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Simulation configuration is not set&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="ProcessBase.rm_files"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.rm_files">[docs]</a>    <span class="k">def</span> <span class="nf">rm_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.rm_files"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.rm_files">[docs]</a>    <span class="k">def</span> <span class="nf">rm_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Rm files and dirs</span>
 <span class="sd">        :param output_dir: Output directory path</span>
@@ -189,7 +189,7 @@
             <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="mo">0o775</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="ProcessBase.create_pbs_object"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.create_pbs_object">[docs]</a>    <span class="k">def</span> <span class="nf">create_pbs_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">clean</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.create_pbs_object"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.create_pbs_object">[docs]</a>    <span class="k">def</span> <span class="nf">create_pbs_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">clean</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialize object for PBS execution</span>
 <span class="sd">        :param output_dir: Output directory</span>
@@ -207,7 +207,7 @@
                                <span class="n">clean</span><span class="o">=</span><span class="n">clean</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pbs_obj</span><span class="o">.</span><span class="n">pbs_common_setting</span><span class="p">(</span><span class="n">flow_3</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">pbs_config</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="ProcessBase.generate_jobs"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.generate_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">generate_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mlmc</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.generate_jobs"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.generate_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">generate_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mlmc</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate level samples</span>
 <span class="sd">        :param n_samples: None or list, number of samples for each level</span>
@@ -221,7 +221,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">pbs_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
         <span class="n">mlmc</span><span class="o">.</span><span class="n">wait_for_simulations</span><span class="p">(</span><span class="n">sleep</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_sleep</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_timeout</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="ProcessBase.set_moments"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.set_moments">[docs]</a>    <span class="k">def</span> <span class="nf">set_moments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_moments</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.set_moments"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.set_moments">[docs]</a>    <span class="k">def</span> <span class="nf">set_moments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_moments</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create moments function instance</span>
 <span class="sd">        :param n_moments: int, number of moments</span>
@@ -231,7 +231,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">moments_fn</span> <span class="o">=</span> <span class="n">Legendre</span><span class="p">(</span><span class="n">n_moments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">domain</span><span class="p">,</span> <span class="n">safe_eval</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="n">log</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">moments_fn</span></div>
 
-<div class="viewcode-block" id="ProcessBase.n_sample_estimate"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.n_sample_estimate">[docs]</a>    <span class="k">def</span> <span class="nf">n_sample_estimate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mlmc</span><span class="p">,</span> <span class="n">target_variance</span><span class="o">=</span><span class="mf">0.001</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.n_sample_estimate"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.n_sample_estimate">[docs]</a>    <span class="k">def</span> <span class="nf">n_sample_estimate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mlmc</span><span class="p">,</span> <span class="n">target_variance</span><span class="o">=</span><span class="mf">0.001</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Estimate number of level samples considering target variance</span>
 <span class="sd">        :param mlmc: MLMC object</span>
@@ -248,7 +248,7 @@
 
         <span class="n">mlmc</span><span class="o">.</span><span class="n">target_var_adding_samples</span><span class="p">(</span><span class="n">target_variance</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">moments_fn</span><span class="p">,</span> <span class="n">pbs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pbs_obj</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="ProcessBase.all_collect"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.all_collect">[docs]</a>    <span class="k">def</span> <span class="nf">all_collect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sampler_list</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.all_collect"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.all_collect">[docs]</a>    <span class="k">def</span> <span class="nf">all_collect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sampler_list</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Collect samples</span>
 <span class="sd">        :param mlmc_list: List of mlmc.MLMC objects</span>
@@ -261,7 +261,7 @@
                 <span class="n">running</span> <span class="o">+=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">ask_sampling_pool_for_samples</span><span class="p">(</span><span class="n">sleep</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_sleep</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;N running: &quot;</span><span class="p">,</span> <span class="n">running</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="ProcessBase.process_analysis"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.process_analysis">[docs]</a>    <span class="k">def</span> <span class="nf">process_analysis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.process_analysis"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.process_analysis">[docs]</a>    <span class="k">def</span> <span class="nf">process_analysis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Main analysis function. Particular types of analysis called from here.</span>
 <span class="sd">        :param cl: Instance of CompareLevels - list of Estimate objects</span>
@@ -278,7 +278,7 @@
         <span class="c1"># analyze_error_of_regression_level_variances(cl, mlmc_level)</span>
         <span class="c1"># analyze_error_of_log_variance(cl, mlmc_level)</span>
 
-<div class="viewcode-block" id="ProcessBase.analyze_pdf_approx"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.analyze_pdf_approx">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_pdf_approx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.analyze_pdf_approx"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_pdf_approx">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_pdf_approx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot densities</span>
 <span class="sd">        :param cl: mlmc.estimate.CompareLevels</span>
@@ -297,7 +297,7 @@
         <span class="c1"># cl[il].construct_density(tol = 0.01, reg_param = 1)</span>
         <span class="n">cl</span><span class="o">.</span><span class="n">plot_densities</span><span class="p">(</span><span class="n">i_sample_mlmc</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="ProcessBase.analyze_regression_of_variance"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.analyze_regression_of_variance">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_regression_of_variance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.analyze_regression_of_variance"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_regression_of_variance">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_regression_of_variance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Analyze regression of variance</span>
 <span class="sd">        :param cl: mlmc.estimate.CompareLevels instance</span>
@@ -311,7 +311,7 @@
         <span class="n">mc</span><span class="o">.</span><span class="n">mlmc</span><span class="o">.</span><span class="n">subsample</span><span class="p">(</span><span class="n">sample_vec</span><span class="p">[</span><span class="n">mc</span><span class="o">.</span><span class="n">n_levels</span><span class="p">])</span>
         <span class="n">mc</span><span class="o">.</span><span class="n">plot_var_regression</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">20</span><span class="p">])</span></div>
 
-<div class="viewcode-block" id="ProcessBase.analyze_error_of_variance"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.analyze_error_of_variance">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_error_of_variance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.analyze_error_of_variance"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_error_of_variance">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_error_of_variance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Analyze error of variance for particular mlmc method or for all collected methods</span>
 <span class="sd">        :param cl: mlmc.estimate.CompareLevels instance</span>
@@ -336,7 +336,7 @@
         <span class="c1"># cl.plot_var_compare(9)</span>
         <span class="n">mc</span><span class="o">.</span><span class="n">plot_bs_var_error_contributions</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ProcessBase.analyze_error_of_regression_variance"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.analyze_error_of_regression_variance">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_error_of_regression_variance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.analyze_error_of_regression_variance"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_error_of_regression_variance">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_error_of_regression_variance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Analyze error of regression variance</span>
 <span class="sd">        :param cl: CompareLevels</span>
@@ -355,7 +355,7 @@
         <span class="c1"># cl.plot_var_compare(9)</span>
         <span class="n">mc</span><span class="o">.</span><span class="n">plot_bs_var_error_contributions</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ProcessBase.analyze_error_of_level_variances"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.analyze_error_of_level_variances">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_error_of_level_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.analyze_error_of_level_variances"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_error_of_level_variances">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_error_of_level_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Analyze error of level variances</span>
 <span class="sd">        :param cl: mlmc.estimate.CompareLevels instance</span>
@@ -382,7 +382,7 @@
         <span class="c1"># cl.plot_var_compare(9)</span>
         <span class="n">mc</span><span class="o">.</span><span class="n">plot_bs_level_variances_error</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ProcessBase.analyze_error_of_regression_level_variances"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.analyze_error_of_regression_level_variances">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_error_of_regression_level_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.analyze_error_of_regression_level_variances"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_error_of_regression_level_variances">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_error_of_regression_level_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Analyze error of level variances</span>
 <span class="sd">        :param cl: mlmc.estimate.CompareLevels instance</span>
@@ -408,7 +408,7 @@
         <span class="c1"># cl.plot_var_compare(9)</span>
         <span class="n">mc</span><span class="o">.</span><span class="n">plot_bs_level_variances_error</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ProcessBase.analyze_error_of_log_variance"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.process_base.ProcessBase.analyze_error_of_log_variance">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_error_of_log_variance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessBase.analyze_error_of_log_variance"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_error_of_log_variance">[docs]</a>    <span class="k">def</span> <span class="nf">analyze_error_of_log_variance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cl</span><span class="p">,</span> <span class="n">mlmc_level</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Analyze error of level variances</span>
 <span class="sd">        :param cl: mlmc.estimate.CompareLevels instance</span>
@@ -445,8 +445,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.html">src.mlmc package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.quantity.html">mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.html">mlmc package</a></li>
 </ul>
 
 <div class="relations">

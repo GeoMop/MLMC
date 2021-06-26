@@ -1,4 +1,4 @@
-src.mlmc package
+mlmc package
 ================
 
 Subpackages
@@ -7,75 +7,75 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   src.mlmc.plot
-   src.mlmc.quantity
-   src.mlmc.random
-   src.mlmc.sim
-   src.mlmc.tool
+   mlmc.plot
+   mlmc.quantity
+   mlmc.random
+   mlmc.sim
+   mlmc.tool
 
 Submodules
 ----------
 
-src.mlmc.estimator module
+mlmc.estimator module
 -------------------------
 
-.. automodule:: src.mlmc.estimator
+.. automodule:: mlmc.estimator
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.level\_simulation module
+mlmc.level\_simulation module
 ---------------------------------
 
-.. automodule:: src.mlmc.level_simulation
+.. automodule:: mlmc.level_simulation
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.moments module
+mlmc.moments module
 -----------------------
 
-.. automodule:: src.mlmc.moments
+.. automodule:: mlmc.moments
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.sample\_storage module
+mlmc.sample\_storage module
 -------------------------------
 
-.. automodule:: src.mlmc.sample_storage
+.. automodule:: mlmc.sample_storage
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.sample\_storage\_hdf module
+mlmc.sample\_storage\_hdf module
 ------------------------------------
 
-.. automodule:: src.mlmc.sample_storage_hdf
+.. automodule:: mlmc.sample_storage_hdf
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.sampler module
+mlmc.sampler module
 -----------------------
 
-.. automodule:: src.mlmc.sampler
+.. automodule:: mlmc.sampler
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.sampling\_pool module
+mlmc.sampling\_pool module
 ------------------------------
 
-.. automodule:: src.mlmc.sampling_pool
+.. automodule:: mlmc.sampling_pool
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.sampling\_pool\_pbs module
+mlmc.sampling\_pool\_pbs module
 -----------------------------------
 
-.. automodule:: src.mlmc.sampling_pool_pbs
+.. automodule:: mlmc.sampling_pool_pbs
    :members:
    :undoc-members:
    :show-inheritance:
@@ -83,7 +83,7 @@ src.mlmc.sampling\_pool\_pbs module
 Module contents
 ---------------
 
-.. automodule:: src.mlmc
+.. automodule:: mlmc
    :members:
    :undoc-members:
    :show-inheritance:

@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.sampling_pool_pbs &#8212; MLMC daf documentation</title>
+    <title>mlmc.sampling_pool_pbs &#8212; MLMC daf documentation</title>
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
@@ -30,7 +30,7 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.sampling_pool_pbs</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.sampling_pool_pbs</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">import</span> <span class="nn">subprocess</span>
@@ -78,7 +78,7 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 
-<div class="viewcode-block" id="SamplingPoolPBS"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS">[docs]</a><span class="k">class</span> <span class="nc">SamplingPoolPBS</span><span class="p">(</span><span class="n">SamplingPool</span><span class="p">):</span>
+<div class="viewcode-block" id="SamplingPoolPBS"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampling_pool_pbs.SamplingPoolPBS">[docs]</a><span class="k">class</span> <span class="nc">SamplingPoolPBS</span><span class="p">(</span><span class="n">SamplingPool</span><span class="p">):</span>
     <span class="n">OUTPUT_DIR</span> <span class="o">=</span> <span class="s2">&quot;output&quot;</span>
     <span class="n">JOBS_DIR</span> <span class="o">=</span> <span class="s2">&quot;jobs&quot;</span>
     <span class="n">LEVEL_SIM_CONFIG</span> <span class="o">=</span> <span class="s2">&quot;level_</span><span class="si">{}</span><span class="s2">_simulation_config&quot;</span>  <span class="c1"># Serialized level simulation</span>
@@ -145,7 +145,7 @@
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_files_structure</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">writer</span><span class="p">:</span>
             <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">files_structure</span><span class="p">,</span> <span class="n">writer</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SamplingPoolPBS.pbs_common_setting"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.pbs_common_setting">[docs]</a>    <span class="k">def</span> <span class="nf">pbs_common_setting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="SamplingPoolPBS.pbs_common_setting"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampling_pool_pbs.SamplingPoolPBS.pbs_common_setting">[docs]</a>    <span class="k">def</span> <span class="nf">pbs_common_setting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Values for common header of script</span>
 <span class="sd">        :param kwargs: Dict[</span>
@@ -195,7 +195,7 @@
                                           <span class="s1">&#39;</span><span class="si">{pbs_output_dir}</span><span class="s1">/</span><span class="si">{job_name}</span><span class="s1">_STDOUT 2&gt;&amp;1&#39;</span><span class="p">,))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_config</span> <span class="o">=</span> <span class="n">kwargs</span></div>
 
-<div class="viewcode-block" id="SamplingPoolPBS.schedule_sample"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.schedule_sample">[docs]</a>    <span class="k">def</span> <span class="nf">schedule_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">):</span>
+<div class="viewcode-block" id="SamplingPoolPBS.schedule_sample"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampling_pool_pbs.SamplingPoolPBS.schedule_sample">[docs]</a>    <span class="k">def</span> <span class="nf">schedule_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add sample to current PBS package</span>
 <span class="sd">        :param sample_id: unique sample id from Sampler</span>
@@ -212,7 +212,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_job_weight</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_samples_in_job</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="SamplingPoolPBS.serialize_level_sim"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.serialize_level_sim">[docs]</a>    <span class="k">def</span> <span class="nf">serialize_level_sim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">:</span> <span class="n">LevelSimulation</span><span class="p">):</span>
+<div class="viewcode-block" id="SamplingPoolPBS.serialize_level_sim"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampling_pool_pbs.SamplingPoolPBS.serialize_level_sim">[docs]</a>    <span class="k">def</span> <span class="nf">serialize_level_sim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_sim</span><span class="p">:</span> <span class="n">LevelSimulation</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Pickle LevelSimulation instance</span>
 <span class="sd">        :param level_sim: LevelSimulation</span>
@@ -224,7 +224,7 @@
             <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
                 <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">level_sim</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SamplingPoolPBS.execute"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SamplingPoolPBS.execute"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampling_pool_pbs.SamplingPoolPBS.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Execute pbs script</span>
 <span class="sd">        :return: None</span>
@@ -284,7 +284,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">pbs_script</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_pbs_config</span><span class="p">)</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pbs_header_template</span><span class="p">]</span>
 
-<div class="viewcode-block" id="SamplingPoolPBS.write_script"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.write_script">[docs]</a>    <span class="k">def</span> <span class="nf">write_script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">job_file</span><span class="p">):</span>
+<div class="viewcode-block" id="SamplingPoolPBS.write_script"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampling_pool_pbs.SamplingPoolPBS.write_script">[docs]</a>    <span class="k">def</span> <span class="nf">write_script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">job_file</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create</span>
 <span class="sd">        :param content: script content</span>
@@ -295,7 +295,7 @@
             <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
         <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">job_file</span><span class="p">,</span> <span class="mo">0o774</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SamplingPoolPBS.get_finished"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.get_finished">[docs]</a>    <span class="k">def</span> <span class="nf">get_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SamplingPoolPBS.get_finished"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampling_pool_pbs.SamplingPoolPBS.get_finished">[docs]</a>    <span class="k">def</span> <span class="nf">get_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get results</span>
 <span class="sd">        :return:</span>
@@ -457,13 +457,13 @@
 
         <span class="k">return</span> <span class="n">successful_results</span><span class="p">,</span> <span class="n">failed_results</span><span class="p">,</span> <span class="n">times</span>
 
-<div class="viewcode-block" id="SamplingPoolPBS.have_permanent_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.have_permanent_samples">[docs]</a>    <span class="k">def</span> <span class="nf">have_permanent_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">):</span>
+<div class="viewcode-block" id="SamplingPoolPBS.have_permanent_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampling_pool_pbs.SamplingPoolPBS.have_permanent_samples">[docs]</a>    <span class="k">def</span> <span class="nf">have_permanent_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        List of unfinished sample ids, the corresponding samples are collecting in next get_finished() call .</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_unfinished_sample_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">sample_ids</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SamplingPoolPBS.delete_pbs_id_file"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.delete_pbs_id_file">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="SamplingPoolPBS.delete_pbs_id_file"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampling_pool_pbs.SamplingPoolPBS.delete_pbs_id_file">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">delete_pbs_id_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Delete jobId_pbsId file - it indicates finished job</span>
@@ -494,8 +494,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.html">src.mlmc package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.quantity.html">mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html">mlmc package</a></li>
 </ul>
 
 <div class="relations">

@@ -1,0 +1,315 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>MLMC package &mdash; mlmc daf documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="mlmc.plot package" href="mlmc.plot.html" />
+    <link rel="prev" title="examples.shooting package" href="examples.shooting.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">MLMC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="index.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#quickstart">Quickstart</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="index.html#create-mlmc-sampler">Create MLMC Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="index.html#schedule-mlmc-samples">Schedule MLMC samples</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples.shooting.html">examples.shooting package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#module-examples.shooting.shooting_1D">examples.shooting.shooting_1D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#module-examples.shooting.shooting_2D">examples.shooting.shooting_2D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#module-examples.shooting.simulation_shooting_1D">examples.shooting.simulation_shooting_1D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#module-examples.shooting.simulation_shooting_2D">examples.shooting.simulation_shooting_2D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#module-examples.shooting">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#module-examples.shooting_02">examples.shooting_02 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#module-examples.shooting_03">examples.shooting_03 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#module-examples.shooting_04">examples.shooting_04 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#module-examples.simple_example">examples.simple_example module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#module-examples">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">MLMC package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.plot.html">mlmc.plot package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-mlmc.plot.plots">mlmc.plot.plots module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-mlmc.plot.violinplot">mlmc.plot.violinplot module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-mlmc.plot">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.quantity.html">mlmc.quantity package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity">mlmc.quantity.quantity module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_estimate">mlmc.quantity.quantity_estimate module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_spec">mlmc.quantity.quantity_spec module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_types">mlmc.quantity.quantity_types module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.random.html">mlmc.random package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#module-mlmc.random.correlated_field">mlmc.random.correlated_field module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#mlmc-random-frac-geom-module">mlmc.random.frac_geom module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#module-mlmc.random.gstools_wrapper">mlmc.random.gstools_wrapper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#module-mlmc.random">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.sim.html">mlmc.sim package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim.simulation">mlmc.sim.simulation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim.synth_simulation">mlmc.sim.synth_simulation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.tool.html">mlmc.tool package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#mlmc-tool-context-statprof-module">mlmc.tool.context_statprof module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.distribution">mlmc.tool.distribution module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.flow_mc">mlmc.tool.flow_mc module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.gmsh_io">mlmc.tool.gmsh_io module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.hdf5">mlmc.tool.hdf5 module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.pbs_job">mlmc.tool.pbs_job module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.process_base">mlmc.tool.process_base module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.simple_distribution">mlmc.tool.simple_distribution module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.stats_tests">mlmc.tool.stats_tests module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>MLMC package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/mlmc.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <div class="rst-breadcrumbs-buttons" role="navigation" aria-label="breadcrumb navigation">
+      
+        <a href="mlmc.plot.html" class="btn btn-neutral float-right" title="mlmc.plot package" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+      
+      
+        <a href="examples.shooting.html" class="btn btn-neutral float-left" title="examples.shooting package" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+      
+  </div>
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-mlmc">
+<span id="mlmc-package"></span><h1>MLMC package<a class="headerlink" href="#module-mlmc" title="Permalink to this headline">¶</a></h1>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="mlmc.plot.html#module-mlmc.plot" title="mlmc.plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity" title="mlmc.quantity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">quantity</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="mlmc.random.html#module-mlmc.random" title="mlmc.random"><code class="xref py py-obj docutils literal notranslate"><span class="pre">random</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim" title="mlmc.sim"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sim</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool" title="mlmc.tool"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tool</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Jan Březina, Martin Špetlík.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

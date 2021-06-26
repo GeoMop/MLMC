@@ -10,8 +10,8 @@ Welcome to mlmc's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   src.mlmc.quantity
-   src.mlmc
+   mlmc.quantity
+   mlmc
 
 
 

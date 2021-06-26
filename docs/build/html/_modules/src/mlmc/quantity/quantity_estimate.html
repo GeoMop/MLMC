@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.quantity.quantity_estimate &#8212; MLMC daf documentation</title>
+    <title>mlmc.quantity.quantity_estimate &#8212; MLMC daf documentation</title>
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
@@ -30,13 +30,13 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.quantity.quantity_estimate</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.quantity.quantity_estimate</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">mlmc.quantity.quantity</span>
 <span class="kn">import</span> <span class="nn">mlmc.quantity.quantity_types</span> <span class="k">as</span> <span class="nn">qt</span>
 
 
-<div class="viewcode-block" id="mask_nan_samples"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity_estimate.mask_nan_samples">[docs]</a><span class="k">def</span> <span class="nf">mask_nan_samples</span><span class="p">(</span><span class="n">chunk</span><span class="p">):</span>
+<div class="viewcode-block" id="mask_nan_samples"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.mask_nan_samples">[docs]</a><span class="k">def</span> <span class="nf">mask_nan_samples</span><span class="p">(</span><span class="n">chunk</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Mask out samples that contain NaN in either fine or coarse part of the result</span>
 <span class="sd">    :param chunk: np.ndarray [M, chunk_size, 2]</span>
@@ -47,12 +47,12 @@
     <span class="k">return</span> <span class="n">chunk</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="o">~</span><span class="n">mask</span><span class="p">,</span> <span class="p">:],</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="cache_clear"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity_estimate.cache_clear">[docs]</a><span class="k">def</span> <span class="nf">cache_clear</span><span class="p">():</span>
+<div class="viewcode-block" id="cache_clear"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.cache_clear">[docs]</a><span class="k">def</span> <span class="nf">cache_clear</span><span class="p">():</span>
     <span class="n">mlmc</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">Quantity</span><span class="o">.</span><span class="n">samples</span><span class="o">.</span><span class="n">cache_clear</span><span class="p">()</span>
     <span class="n">mlmc</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">QuantityConst</span><span class="o">.</span><span class="n">samples</span><span class="o">.</span><span class="n">cache_clear</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="estimate_mean"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity_estimate.estimate_mean">[docs]</a><span class="k">def</span> <span class="nf">estimate_mean</span><span class="p">(</span><span class="n">quantity</span><span class="p">):</span>
+<div class="viewcode-block" id="estimate_mean"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.estimate_mean">[docs]</a><span class="k">def</span> <span class="nf">estimate_mean</span><span class="p">(</span><span class="n">quantity</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    MLMC mean estimator.</span>
 <span class="sd">    The MLMC method is used to compute the mean estimate to the Quantity dependent on the collected samples.</span>
@@ -113,7 +113,7 @@
                                                <span class="n">n_rm_samples</span><span class="o">=</span><span class="n">n_rm_samples</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="moment"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity_estimate.moment">[docs]</a><span class="k">def</span> <span class="nf">moment</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">moments_fn</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<div class="viewcode-block" id="moment"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.moment">[docs]</a><span class="k">def</span> <span class="nf">moment</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">moments_fn</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create quantity with operation that evaluates particular moment</span>
 <span class="sd">    :param quantity: Quantity instance</span>
@@ -126,12 +126,13 @@
     <span class="k">return</span> <span class="n">mlmc</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">Quantity</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="p">[</span><span class="n">quantity</span><span class="p">],</span> <span class="n">operation</span><span class="o">=</span><span class="n">eval_moment</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="moments"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity_estimate.moments">[docs]</a><span class="k">def</span> <span class="nf">moments</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">moments_fn</span><span class="p">,</span> <span class="n">mom_at_bottom</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="moments"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.moments">[docs]</a><span class="k">def</span> <span class="nf">moments</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">moments_fn</span><span class="p">,</span> <span class="n">mom_at_bottom</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create quantity with operation that evaluates moments_fn</span>
 <span class="sd">    :param quantity: Quantity</span>
 <span class="sd">    :param moments_fn: mlmc.moments.Moments child</span>
-<span class="sd">    :param mom_at_bottom: bool, if True moments_fn are underneath</span>
+<span class="sd">    :param mom_at_bottom: bool, if True moments are underneath,</span>
+<span class="sd">                                a scalar is substituted with an array of moments of that scalar</span>
 <span class="sd">    :return: Quantity</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">eval_moments</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
@@ -151,12 +152,13 @@
     <span class="k">return</span> <span class="n">mlmc</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">Quantity</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">moments_qtype</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="p">[</span><span class="n">quantity</span><span class="p">],</span> <span class="n">operation</span><span class="o">=</span><span class="n">eval_moments</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="covariance"><a class="viewcode-back" href="../../../../src.mlmc.quantity.html#src.mlmc.quantity.quantity_estimate.covariance">[docs]</a><span class="k">def</span> <span class="nf">covariance</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">moments_fn</span><span class="p">,</span> <span class="n">cov_at_bottom</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="covariance"><a class="viewcode-back" href="../../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.covariance">[docs]</a><span class="k">def</span> <span class="nf">covariance</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">moments_fn</span><span class="p">,</span> <span class="n">cov_at_bottom</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create quantity with operation that evaluates covariance matrix</span>
 <span class="sd">    :param quantity: Quantity</span>
 <span class="sd">    :param moments_fn: mlmc.moments.Moments child</span>
-<span class="sd">    :param cov_at_bottom: bool, if True cov matrices are underneath</span>
+<span class="sd">    :param cov_at_bottom: bool, if True cov matrices are underneath,</span>
+<span class="sd">                                a scalar is substituted with a matrix of moments of that scalar</span>
 <span class="sd">    :return: Quantity</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">eval_cov</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
@@ -203,11 +205,6 @@
 
 
 <h3>Navigation</h3>
-<p class="caption"><span class="caption-text">Contents:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.html">src.mlmc package</a></li>
-</ul>
 
 <div class="relations">
 <h3>Related Topics</h3>

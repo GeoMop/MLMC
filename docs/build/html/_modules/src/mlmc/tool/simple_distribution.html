@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.tool.simple_distribution &#8212; mlmc daf documentation</title>
+    <title>mlmc.tool.simple_distribution &#8212; mlmc daf documentation</title>
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
@@ -30,7 +30,7 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.tool.simple_distribution</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.tool.simple_distribution</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">scipy</span> <span class="k">as</span> <span class="nn">sc</span>
 <span class="kn">import</span> <span class="nn">scipy.integrate</span> <span class="k">as</span> <span class="nn">integrate</span>
@@ -39,7 +39,7 @@
 
 <span class="n">EXACT_QUAD_LIMIT</span> <span class="o">=</span> <span class="mi">1000</span>
 
-<div class="viewcode-block" id="SimpleDistribution"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.SimpleDistribution">[docs]</a><span class="k">class</span> <span class="nc">SimpleDistribution</span><span class="p">:</span>
+<div class="viewcode-block" id="SimpleDistribution"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution">[docs]</a><span class="k">class</span> <span class="nc">SimpleDistribution</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Calculation of the distribution</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -79,7 +79,7 @@
         <span class="c1"># Panalty coef for endpoint derivatives</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_penalty_coef</span> <span class="o">=</span> <span class="mi">0</span>
 
-<div class="viewcode-block" id="SimpleDistribution.estimate_density_minimize"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.SimpleDistribution.estimate_density_minimize">[docs]</a>    <span class="k">def</span> <span class="nf">estimate_density_minimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span> <span class="n">reg_param</span> <span class="o">=</span><span class="mf">0.01</span><span class="p">):</span>
+<div class="viewcode-block" id="SimpleDistribution.estimate_density_minimize"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution.estimate_density_minimize">[docs]</a>    <span class="k">def</span> <span class="nf">estimate_density_minimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span> <span class="n">reg_param</span> <span class="o">=</span><span class="mf">0.01</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Optimize density estimation</span>
 <span class="sd">        :param tol: Tolerance for the nonlinear system residual, after division by std errors for</span>
@@ -123,7 +123,7 @@
 
         <span class="k">return</span> <span class="n">result</span></div>
 
-<div class="viewcode-block" id="SimpleDistribution.density"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.SimpleDistribution.density">[docs]</a>    <span class="k">def</span> <span class="nf">density</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<div class="viewcode-block" id="SimpleDistribution.density"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution.density">[docs]</a>    <span class="k">def</span> <span class="nf">density</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param value: float or np.array</span>
 <span class="sd">        :param moments_fn: counting moments function</span>
@@ -135,7 +135,7 @@
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">power</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="SimpleDistribution.cdf"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.SimpleDistribution.cdf">[docs]</a>    <span class="k">def</span> <span class="nf">cdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+<div class="viewcode-block" id="SimpleDistribution.cdf"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution.cdf">[docs]</a>    <span class="k">def</span> <span class="nf">cdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
         <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
         <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
         <span class="n">last_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">domain</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -181,7 +181,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_end_point_diff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_point_derivatives</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_update_quadrature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">multipliers</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SimpleDistribution.eval_moments"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.SimpleDistribution.eval_moments">[docs]</a>    <span class="k">def</span> <span class="nf">eval_moments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<div class="viewcode-block" id="SimpleDistribution.eval_moments"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution.eval_moments">[docs]</a>    <span class="k">def</span> <span class="nf">eval_moments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">moments_fn</span><span class="o">.</span><span class="n">eval_all</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">approx_size</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_calculate_exact_moment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">multipliers</span><span class="p">,</span> <span class="n">m</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">full_output</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
@@ -267,7 +267,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_last_multipliers</span> <span class="o">=</span> <span class="n">multipliers</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_last_gradient</span> <span class="o">=</span> <span class="n">integral</span>
 
-<div class="viewcode-block" id="SimpleDistribution.end_point_derivatives"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.SimpleDistribution.end_point_derivatives">[docs]</a>    <span class="k">def</span> <span class="nf">end_point_derivatives</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SimpleDistribution.end_point_derivatives"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution.end_point_derivatives">[docs]</a>    <span class="k">def</span> <span class="nf">end_point_derivatives</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute approximation of moment derivatives at endpoints of the domain.</span>
 <span class="sd">        :return: array (2, n_moments)</span>
@@ -357,7 +357,7 @@
         <span class="k">return</span> <span class="n">jacobian_matrix</span></div>
 
 
-<div class="viewcode-block" id="compute_exact_moments"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.compute_exact_moments">[docs]</a><span class="k">def</span> <span class="nf">compute_exact_moments</span><span class="p">(</span><span class="n">moments_fn</span><span class="p">,</span> <span class="n">density</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">):</span>
+<div class="viewcode-block" id="compute_exact_moments"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.compute_exact_moments">[docs]</a><span class="k">def</span> <span class="nf">compute_exact_moments</span><span class="p">(</span><span class="n">moments_fn</span><span class="p">,</span> <span class="n">density</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Compute approximation of moments using exact density.</span>
 <span class="sd">    :param moments_fn: Moments function.</span>
@@ -376,7 +376,7 @@
     <span class="k">return</span> <span class="n">integral</span></div>
 
 
-<div class="viewcode-block" id="compute_semiexact_moments"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.compute_semiexact_moments">[docs]</a><span class="k">def</span> <span class="nf">compute_semiexact_moments</span><span class="p">(</span><span class="n">moments_fn</span><span class="p">,</span> <span class="n">density</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">):</span>
+<div class="viewcode-block" id="compute_semiexact_moments"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.compute_semiexact_moments">[docs]</a><span class="k">def</span> <span class="nf">compute_semiexact_moments</span><span class="p">(</span><span class="n">moments_fn</span><span class="p">,</span> <span class="n">density</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">):</span>
     <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">moments_fn</span><span class="o">.</span><span class="n">domain</span>
     <span class="n">m</span> <span class="o">=</span> <span class="n">moments_fn</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span>
 
@@ -408,7 +408,7 @@
     <span class="k">return</span> <span class="n">moments</span></div>
 
 
-<div class="viewcode-block" id="compute_exact_cov"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.compute_exact_cov">[docs]</a><span class="k">def</span> <span class="nf">compute_exact_cov</span><span class="p">(</span><span class="n">moments_fn</span><span class="p">,</span> <span class="n">density</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">):</span>
+<div class="viewcode-block" id="compute_exact_cov"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.compute_exact_cov">[docs]</a><span class="k">def</span> <span class="nf">compute_exact_cov</span><span class="p">(</span><span class="n">moments_fn</span><span class="p">,</span> <span class="n">density</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Compute approximation of covariance matrix using exact density.</span>
 <span class="sd">    :param moments_fn: Moments function.</span>
@@ -429,7 +429,7 @@
     <span class="k">return</span> <span class="n">integral</span></div>
 
 
-<div class="viewcode-block" id="compute_semiexact_cov"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.compute_semiexact_cov">[docs]</a><span class="k">def</span> <span class="nf">compute_semiexact_cov</span><span class="p">(</span><span class="n">moments_fn</span><span class="p">,</span> <span class="n">density</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">):</span>
+<div class="viewcode-block" id="compute_semiexact_cov"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.compute_semiexact_cov">[docs]</a><span class="k">def</span> <span class="nf">compute_semiexact_cov</span><span class="p">(</span><span class="n">moments_fn</span><span class="p">,</span> <span class="n">density</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Compute approximation of covariance matrix using exact density.</span>
 <span class="sd">    :param moments_fn: Moments function.</span>
@@ -470,7 +470,7 @@
     <span class="k">return</span> <span class="n">jacobian_matrix</span></div>
 
 
-<div class="viewcode-block" id="KL_divergence"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.KL_divergence">[docs]</a><span class="k">def</span> <span class="nf">KL_divergence</span><span class="p">(</span><span class="n">prior_density</span><span class="p">,</span> <span class="n">posterior_density</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+<div class="viewcode-block" id="KL_divergence"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.KL_divergence">[docs]</a><span class="k">def</span> <span class="nf">KL_divergence</span><span class="p">(</span><span class="n">prior_density</span><span class="p">,</span> <span class="n">posterior_density</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Compute D_KL(P | Q) = \int_R P(x) \log( P(X)/Q(x)) \dx</span>
 <span class="sd">    :param prior_density: P</span>
@@ -489,7 +489,7 @@
     <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">1e-10</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="L2_distance"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.L2_distance">[docs]</a><span class="k">def</span> <span class="nf">L2_distance</span><span class="p">(</span><span class="n">prior_density</span><span class="p">,</span> <span class="n">posterior_density</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+<div class="viewcode-block" id="L2_distance"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.L2_distance">[docs]</a><span class="k">def</span> <span class="nf">L2_distance</span><span class="p">(</span><span class="n">prior_density</span><span class="p">,</span> <span class="n">posterior_density</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
     <span class="n">integrand</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">posterior_density</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">prior_density</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span>
     <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">integrate</span><span class="o">.</span><span class="n">quad</span><span class="p">(</span><span class="n">integrand</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span></div>
 
@@ -565,7 +565,7 @@
 <span class="c1">#     return i_treshold, p_vals[i_min]</span>
 
 
-<div class="viewcode-block" id="best_fit_all"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.best_fit_all">[docs]</a><span class="k">def</span> <span class="nf">best_fit_all</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">range_a</span><span class="p">,</span> <span class="n">range_b</span><span class="p">):</span>
+<div class="viewcode-block" id="best_fit_all"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.best_fit_all">[docs]</a><span class="k">def</span> <span class="nf">best_fit_all</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">range_a</span><span class="p">,</span> <span class="n">range_b</span><span class="p">):</span>
     <span class="n">best_fit</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">best_fit_value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
     <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">range_a</span><span class="p">:</span>
@@ -587,7 +587,7 @@
 
 
 
-<div class="viewcode-block" id="best_p1_fit"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.best_p1_fit">[docs]</a><span class="k">def</span> <span class="nf">best_p1_fit</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+<div class="viewcode-block" id="best_p1_fit"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.best_p1_fit">[docs]</a><span class="k">def</span> <span class="nf">best_p1_fit</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Find indices a &lt; b such that linear fit for values[a:b]</span>
 <span class="sd">    have smallest residual / (b - a)** alpha</span>
@@ -611,7 +611,7 @@
 
 
 
-<div class="viewcode-block" id="detect_treshold_slope_change"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.detect_treshold_slope_change">[docs]</a><span class="k">def</span> <span class="nf">detect_treshold_slope_change</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="detect_treshold_slope_change"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.detect_treshold_slope_change">[docs]</a><span class="k">def</span> <span class="nf">detect_treshold_slope_change</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Find a longest subsequence with linear fit residual X% higher then the best</span>
 <span class="sd">    at least 4 point fit. Extrapolate this fit to the left.</span>
@@ -752,7 +752,7 @@
 <span class="c1">#     return std_evals</span>
 
 
-<div class="viewcode-block" id="lsq_reconstruct"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.lsq_reconstruct">[docs]</a><span class="k">def</span> <span class="nf">lsq_reconstruct</span><span class="p">(</span><span class="n">cov</span><span class="p">,</span> <span class="nb">eval</span><span class="p">,</span> <span class="n">evec</span><span class="p">,</span> <span class="n">treshold</span><span class="p">):</span>
+<div class="viewcode-block" id="lsq_reconstruct"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.lsq_reconstruct">[docs]</a><span class="k">def</span> <span class="nf">lsq_reconstruct</span><span class="p">(</span><span class="n">cov</span><span class="p">,</span> <span class="nb">eval</span><span class="p">,</span> <span class="n">evec</span><span class="p">,</span> <span class="n">treshold</span><span class="p">):</span>
     <span class="c1">#eval = np.flip(eval)</span>
     <span class="c1">#evec = np.flip(evec, axis=1)</span>
 
@@ -783,7 +783,7 @@
 
     <span class="k">return</span> <span class="n">Q</span></div>
 
-<div class="viewcode-block" id="construct_ortogonal_moments"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.simple_distribution.construct_ortogonal_moments">[docs]</a><span class="k">def</span> <span class="nf">construct_ortogonal_moments</span><span class="p">(</span><span class="n">moments</span><span class="p">,</span> <span class="n">cov</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="construct_ortogonal_moments"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.simple_distribution.construct_ortogonal_moments">[docs]</a><span class="k">def</span> <span class="nf">construct_ortogonal_moments</span><span class="p">(</span><span class="n">moments</span><span class="p">,</span> <span class="n">cov</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    For given moments find the basis orthogonal with respect to the covariance matrix, estimated from samples.</span>
 <span class="sd">    :param moments: moments object</span>
@@ -1025,8 +1025,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.html">src.mlmc package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.quantity.html">mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.html">mlmc package</a></li>
 </ul>
 
 <div class="relations">

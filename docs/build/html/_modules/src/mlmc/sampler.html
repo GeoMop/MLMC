@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.sampler &#8212; MLMC daf documentation</title>
+    <title>mlmc.sampler &#8212; MLMC daf documentation</title>
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
@@ -30,7 +30,7 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.sampler</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.sampler</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span>
@@ -39,7 +39,7 @@
 <span class="kn">from</span> <span class="nn">mlmc.sim.simulation</span> <span class="k">import</span> <span class="n">Simulation</span>
 
 
-<div class="viewcode-block" id="Sampler"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampler.Sampler">[docs]</a><span class="k">class</span> <span class="nc">Sampler</span><span class="p">:</span>
+<div class="viewcode-block" id="Sampler"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampler.Sampler">[docs]</a><span class="k">class</span> <span class="nc">Sampler</span><span class="p">:</span>
 
     <span class="n">ADDING_SAMPLES_TIMEOUT</span> <span class="o">=</span> <span class="mf">1e-15</span>
 
@@ -109,7 +109,7 @@
             <span class="n">level_sim</span><span class="o">.</span><span class="n">_level_id</span> <span class="o">=</span> <span class="n">level_id</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_level_sim_objects</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">level_sim</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Sampler.sample_range"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampler.Sampler.sample_range">[docs]</a>    <span class="k">def</span> <span class="nf">sample_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n0</span><span class="p">,</span> <span class="n">nL</span><span class="p">):</span>
+<div class="viewcode-block" id="Sampler.sample_range"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampler.Sampler.sample_range">[docs]</a>    <span class="k">def</span> <span class="nf">sample_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n0</span><span class="p">,</span> <span class="n">nL</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Geometric sequence of L elements decreasing from n0 to nL.</span>
 <span class="sd">        Useful to set number of samples explicitly.</span>
@@ -119,7 +119,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp2</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">n0</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">nL</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_levels</span><span class="p">)))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Sampler.set_initial_n_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampler.Sampler.set_initial_n_samples">[docs]</a>    <span class="k">def</span> <span class="nf">set_initial_n_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Sampler.set_initial_n_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampler.Sampler.set_initial_n_samples">[docs]</a>    <span class="k">def</span> <span class="nf">set_initial_n_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set target number of samples for each level</span>
 <span class="sd">        :param n_samples: array of number of samples</span>
@@ -149,7 +149,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="s2">&quot;L</span><span class="si">{:02d}</span><span class="s2">_S</span><span class="si">{:07d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_scheduled_samples</span><span class="p">[</span><span class="n">level_id</span><span class="p">]))</span>
 
-<div class="viewcode-block" id="Sampler.schedule_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampler.Sampler.schedule_samples">[docs]</a>    <span class="k">def</span> <span class="nf">schedule_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Sampler.schedule_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampler.Sampler.schedule_samples">[docs]</a>    <span class="k">def</span> <span class="nf">schedule_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create simulation samples, loop through &quot;levels&quot; and its samples (given the number of target samples):</span>
 <span class="sd">            1) generate sample tag (same for fine and coarse simulation)</span>
@@ -187,7 +187,7 @@
         <span class="n">unfinished_sample_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_storage</span><span class="o">.</span><span class="n">unfinished_ids</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_sampling_pool</span><span class="o">.</span><span class="n">have_permanent_samples</span><span class="p">(</span><span class="n">unfinished_sample_ids</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Sampler.ask_sampling_pool_for_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampler.Sampler.ask_sampling_pool_for_samples">[docs]</a>    <span class="k">def</span> <span class="nf">ask_sampling_pool_for_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sleep</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Sampler.ask_sampling_pool_for_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampler.Sampler.ask_sampling_pool_for_samples">[docs]</a>    <span class="k">def</span> <span class="nf">ask_sampling_pool_for_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sleep</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Waiting for running simulations</span>
 <span class="sd">        :param sleep: time for doing nothing</span>
@@ -222,7 +222,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_storage</span><span class="o">.</span><span class="n">save_samples</span><span class="p">(</span><span class="n">successful_samples</span><span class="p">,</span> <span class="n">failed_samples</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_storage</span><span class="o">.</span><span class="n">save_n_ops</span><span class="p">(</span><span class="n">n_ops</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Sampler.process_adding_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampler.Sampler.process_adding_samples">[docs]</a>    <span class="k">def</span> <span class="nf">process_adding_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_estimated</span><span class="p">,</span> <span class="n">sleep</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">add_coeff</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">ADDING_SAMPLES_TIMEOUT</span><span class="p">):</span>
+<div class="viewcode-block" id="Sampler.process_adding_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampler.Sampler.process_adding_samples">[docs]</a>    <span class="k">def</span> <span class="nf">process_adding_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_estimated</span><span class="p">,</span> <span class="n">sleep</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">add_coeff</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">ADDING_SAMPLES_TIMEOUT</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Process adding samples</span>
 <span class="sd">        Note: n_estimated are wrong if n_ops is similar through all levels</span>
@@ -258,7 +258,7 @@
 
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">n_estimated</span><span class="p">[</span><span class="n">greater_items</span><span class="p">]</span> <span class="o">==</span> <span class="n">n_scheduled</span><span class="p">[</span><span class="n">greater_items</span><span class="p">])</span></div>
 
-<div class="viewcode-block" id="Sampler.set_scheduled_and_wait"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampler.Sampler.set_scheduled_and_wait">[docs]</a>    <span class="k">def</span> <span class="nf">set_scheduled_and_wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_scheduled</span><span class="p">,</span> <span class="n">greater_items</span><span class="p">,</span> <span class="n">sleep</span><span class="p">,</span> <span class="n">fin_sample_coef</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">1e-7</span><span class="p">):</span>
+<div class="viewcode-block" id="Sampler.set_scheduled_and_wait"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampler.Sampler.set_scheduled_and_wait">[docs]</a>    <span class="k">def</span> <span class="nf">set_scheduled_and_wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_scheduled</span><span class="p">,</span> <span class="n">greater_items</span><span class="p">,</span> <span class="n">sleep</span><span class="p">,</span> <span class="n">fin_sample_coef</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">1e-7</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Scheduled samples on each level and wait until at least half of the samples is done</span>
 <span class="sd">        :param n_scheduled: ndarray, number of scheduled samples on each level</span>
@@ -281,7 +281,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">ask_sampling_pool_for_samples</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
             <span class="n">n_finished</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_finished_samples</span></div>
 
-<div class="viewcode-block" id="Sampler.set_level_target_n_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampler.Sampler.set_level_target_n_samples">[docs]</a>    <span class="k">def</span> <span class="nf">set_level_target_n_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">):</span>
+<div class="viewcode-block" id="Sampler.set_level_target_n_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampler.Sampler.set_level_target_n_samples">[docs]</a>    <span class="k">def</span> <span class="nf">set_level_target_n_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set level number of target samples</span>
 <span class="sd">        :param n_samples: list, each level target samples</span>
@@ -290,14 +290,14 @@
         <span class="k">for</span> <span class="n">level</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">n_samples</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_n_target_samples</span><span class="p">[</span><span class="n">level</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_target_samples</span><span class="p">[</span><span class="n">level</span><span class="p">],</span> <span class="n">n</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Sampler.l_scheduled_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampler.Sampler.l_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">l_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Sampler.l_scheduled_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampler.Sampler.l_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">l_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get all levels number of scheduled samples</span>
 <span class="sd">        :return: list</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_scheduled_samples</span></div>
 
-<div class="viewcode-block" id="Sampler.renew_failed_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sampler.Sampler.renew_failed_samples">[docs]</a>    <span class="k">def</span> <span class="nf">renew_failed_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Sampler.renew_failed_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sampler.Sampler.renew_failed_samples">[docs]</a>    <span class="k">def</span> <span class="nf">renew_failed_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Resurrect failed samples</span>
 <span class="sd">        :return: None</span>
@@ -334,8 +334,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.html">src.mlmc package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.quantity.html">mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html">mlmc package</a></li>
 </ul>
 
 <div class="relations">

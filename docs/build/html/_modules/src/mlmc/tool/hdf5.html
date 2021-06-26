@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.tool.hdf5 &#8212; mlmc daf documentation</title>
+    <title>mlmc.tool.hdf5 &#8212; mlmc daf documentation</title>
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
@@ -30,13 +30,13 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.tool.hdf5</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.tool.hdf5</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">h5py</span>
 <span class="kn">from</span> <span class="nn">mlmc.quantity.quantity_spec</span> <span class="k">import</span> <span class="n">ChunkSpec</span>
 
 
-<div class="viewcode-block" id="HDF5"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.HDF5">[docs]</a><span class="k">class</span> <span class="nc">HDF5</span><span class="p">:</span>
+<div class="viewcode-block" id="HDF5"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.HDF5">[docs]</a><span class="k">class</span> <span class="nc">HDF5</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    HDF5 file is organized into groups (h5py.Group objects)</span>
 <span class="sd">    which is somewhat like dictionaries in python terminology - &#39;keys&#39; are names of group members</span>
@@ -89,7 +89,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_from_file</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">load_from_file</span><span class="p">()</span>
 
-<div class="viewcode-block" id="HDF5.create_file_structure"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.HDF5.create_file_structure">[docs]</a>    <span class="k">def</span> <span class="nf">create_file_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_parameters</span><span class="p">):</span>
+<div class="viewcode-block" id="HDF5.create_file_structure"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.HDF5.create_file_structure">[docs]</a>    <span class="k">def</span> <span class="nf">create_file_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_parameters</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create hdf structure</span>
 <span class="sd">        :param level_parameters: List[float]</span>
@@ -101,7 +101,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">clear_groups</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">init_header</span><span class="p">(</span><span class="n">level_parameters</span><span class="o">=</span><span class="n">level_parameters</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="HDF5.load_from_file"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.HDF5.load_from_file">[docs]</a>    <span class="k">def</span> <span class="nf">load_from_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="HDF5.load_from_file"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.HDF5.load_from_file">[docs]</a>    <span class="k">def</span> <span class="nf">load_from_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load root group attributes from existing HDF5 file</span>
 <span class="sd">        :return: None</span>
@@ -114,7 +114,7 @@
         <span class="k">if</span> <span class="s1">&#39;level_parameters&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;&#39;level_parameters&#39; aren&#39;t store in HDF file, so unable to create level groups&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="HDF5.clear_groups"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.HDF5.clear_groups">[docs]</a>    <span class="k">def</span> <span class="nf">clear_groups</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="HDF5.clear_groups"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.HDF5.clear_groups">[docs]</a>    <span class="k">def</span> <span class="nf">clear_groups</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Remove HDF5 group Levels, it allows run same mlmc object more times</span>
 <span class="sd">        :return: None</span>
@@ -123,7 +123,7 @@
             <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">hdf_file</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
                 <span class="k">del</span> <span class="n">hdf_file</span><span class="p">[</span><span class="n">item</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="HDF5.init_header"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.HDF5.init_header">[docs]</a>    <span class="k">def</span> <span class="nf">init_header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_parameters</span><span class="p">):</span>
+<div class="viewcode-block" id="HDF5.init_header"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.HDF5.init_header">[docs]</a>    <span class="k">def</span> <span class="nf">init_header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_parameters</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add h5py.File metadata to .attrs (attrs objects are of class h5py.AttributeManager)</span>
 <span class="sd">        :param level_parameters: MLMC level range of steps</span>
@@ -136,7 +136,7 @@
             <span class="c1"># Create h5py.Group Levels, it contains other groups with mlmc.Level data</span>
             <span class="n">hdf_file</span><span class="o">.</span><span class="n">create_group</span><span class="p">(</span><span class="s2">&quot;Levels&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="HDF5.add_level_group"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.HDF5.add_level_group">[docs]</a>    <span class="k">def</span> <span class="nf">add_level_group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">):</span>
+<div class="viewcode-block" id="HDF5.add_level_group"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.HDF5.add_level_group">[docs]</a>    <span class="k">def</span> <span class="nf">add_level_group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create group for particular level, parent group is &#39;Levels&#39;</span>
 <span class="sd">        :param level_id: str, mlmc.Level identifier</span>
@@ -161,7 +161,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="s2">&quot;result_format&quot;</span>
 
-<div class="viewcode-block" id="HDF5.save_result_format"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.HDF5.save_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">save_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result_format</span><span class="p">,</span> <span class="n">res_dtype</span><span class="p">):</span>
+<div class="viewcode-block" id="HDF5.save_result_format"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.HDF5.save_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">save_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result_format</span><span class="p">,</span> <span class="n">res_dtype</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save result format to dataset</span>
 <span class="sd">        :param result_format: List[QuantitySpec]</span>
@@ -195,7 +195,7 @@
             <span class="n">dataset</span> <span class="o">=</span> <span class="n">hdf_file</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">result_format_dset_name</span><span class="p">]</span>
             <span class="n">dataset</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">result_array</span></div>
 
-<div class="viewcode-block" id="HDF5.load_result_format"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.HDF5.load_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">load_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="HDF5.load_result_format"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.HDF5.load_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">load_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load format result, it just read dataset</span>
 <span class="sd">        :return:</span>
@@ -207,7 +207,7 @@
             <span class="n">dataset</span> <span class="o">=</span> <span class="n">hdf_file</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">result_format_dset_name</span><span class="p">]</span>
             <span class="k">return</span> <span class="n">dataset</span><span class="p">[()]</span></div>
 
-<div class="viewcode-block" id="HDF5.load_level_parameters"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.HDF5.load_level_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">load_level_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="HDF5.load_level_parameters"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.HDF5.load_level_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">load_level_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_name</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">hdf_file</span><span class="p">:</span>
             <span class="c1"># Set global attributes to root group (h5py.Group)</span>
             <span class="k">if</span> <span class="s1">&#39;level_parameters&#39;</span> <span class="ow">in</span> <span class="n">hdf_file</span><span class="o">.</span><span class="n">attrs</span><span class="p">:</span>
@@ -216,7 +216,7 @@
                 <span class="k">return</span> <span class="p">[]</span></div></div>
 
 
-<div class="viewcode-block" id="LevelGroup"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup">[docs]</a><span class="k">class</span> <span class="nc">LevelGroup</span><span class="p">:</span>
+<div class="viewcode-block" id="LevelGroup"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup">[docs]</a><span class="k">class</span> <span class="nc">LevelGroup</span><span class="p">:</span>
     <span class="c1"># Row format for dataset (h5py.Dataset) scheduled</span>
     <span class="n">SCHEDULED_DTYPE</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;names&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;sample_id&#39;</span><span class="p">],</span>
                        <span class="s1">&#39;formats&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;S100&#39;</span><span class="p">]}</span>
@@ -323,7 +323,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="s2">&quot;failed&quot;</span>
 
-<div class="viewcode-block" id="LevelGroup.append_scheduled"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup.append_scheduled">[docs]</a>    <span class="k">def</span> <span class="nf">append_scheduled</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scheduled_samples</span><span class="p">):</span>
+<div class="viewcode-block" id="LevelGroup.append_scheduled"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.append_scheduled">[docs]</a>    <span class="k">def</span> <span class="nf">append_scheduled</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scheduled_samples</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save scheduled samples to dataset (h5py.Dataset)</span>
 <span class="sd">        :param scheduled_samples: list of sample ids</span>
@@ -333,7 +333,7 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">scheduled_samples</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_append_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduled_dset</span><span class="p">,</span> <span class="n">scheduled_samples</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="LevelGroup.append_successful"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup.append_successful">[docs]</a>    <span class="k">def</span> <span class="nf">append_successful</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">samples</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">):</span>
+<div class="viewcode-block" id="LevelGroup.append_successful"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.append_successful">[docs]</a>    <span class="k">def</span> <span class="nf">append_successful</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">samples</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save level samples to datasets (h5py.Dataset), save ids of collected samples and their results</span>
 <span class="sd">        :param samples: np.ndarray</span>
@@ -352,7 +352,7 @@
         <span class="n">d_name</span> <span class="o">=</span> <span class="s1">&#39;collected_values&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_append_dataset</span><span class="p">(</span><span class="n">d_name</span><span class="p">,</span> <span class="p">[</span><span class="n">val</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">values</span><span class="p">])</span></div>
 
-<div class="viewcode-block" id="LevelGroup.append_failed"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup.append_failed">[docs]</a>    <span class="k">def</span> <span class="nf">append_failed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">failed_samples</span><span class="p">):</span>
+<div class="viewcode-block" id="LevelGroup.append_failed"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.append_failed">[docs]</a>    <span class="k">def</span> <span class="nf">append_failed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">failed_samples</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save level failed sample ids (not append samples)</span>
 <span class="sd">        :param failed_samples: set; Level sample ids</span>
@@ -374,7 +374,7 @@
             <span class="c1"># Append new values to the end of dataset</span>
             <span class="n">dataset</span><span class="p">[</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">):]</span> <span class="o">=</span> <span class="n">values</span>
 
-<div class="viewcode-block" id="LevelGroup.scheduled"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup.scheduled">[docs]</a>    <span class="k">def</span> <span class="nf">scheduled</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="LevelGroup.scheduled"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.scheduled">[docs]</a>    <span class="k">def</span> <span class="nf">scheduled</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Read level dataset with scheduled samples</span>
 <span class="sd">        :return:</span>
@@ -383,7 +383,7 @@
             <span class="n">scheduled_dset</span> <span class="o">=</span> <span class="n">hdf_file</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">level_group_path</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduled_dset</span><span class="p">]</span>
             <span class="k">return</span> <span class="n">scheduled_dset</span><span class="p">[()]</span></div>
 
-<div class="viewcode-block" id="LevelGroup.chunks"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup.chunks">[docs]</a>    <span class="k">def</span> <span class="nf">chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="LevelGroup.chunks"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.chunks">[docs]</a>    <span class="k">def</span> <span class="nf">chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">hdf_file</span><span class="p">:</span>
             <span class="k">if</span> <span class="s1">&#39;collected_values&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">hdf_file</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">level_group_path</span><span class="p">]:</span>
                 <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;No collected values in level group &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">level_id</span><span class="p">))</span>
@@ -395,7 +395,7 @@
                 <span class="k">for</span> <span class="n">chunk_id</span><span class="p">,</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">iter_chunks</span><span class="p">()):</span>
                     <span class="k">yield</span> <span class="n">ChunkSpec</span><span class="p">(</span><span class="n">chunk_id</span><span class="o">=</span><span class="n">chunk_id</span><span class="p">,</span> <span class="n">chunk_slice</span><span class="o">=</span><span class="n">chunk</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">level_id</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">level_id</span><span class="p">))</span>  <span class="c1"># slice, level_id</span></div>
 
-<div class="viewcode-block" id="LevelGroup.collected"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup.collected">[docs]</a>    <span class="k">def</span> <span class="nf">collected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_slice</span><span class="p">):</span>
+<div class="viewcode-block" id="LevelGroup.collected"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.collected">[docs]</a>    <span class="k">def</span> <span class="nf">collected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_slice</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Read collected data by chunks,</span>
 <span class="sd">        number of items in chunk is determined by LevelGroup.chunk_size (number of bytes)</span>
@@ -408,7 +408,7 @@
             <span class="n">dataset</span> <span class="o">=</span> <span class="n">hdf_file</span><span class="p">[</span><span class="s2">&quot;/&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">level_group_path</span><span class="p">,</span> <span class="s2">&quot;collected_values&quot;</span><span class="p">])]</span>
             <span class="k">return</span> <span class="n">dataset</span><span class="p">[</span><span class="n">chunk_slice</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="LevelGroup.collected_n_items"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup.collected_n_items">[docs]</a>    <span class="k">def</span> <span class="nf">collected_n_items</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="LevelGroup.collected_n_items"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.collected_n_items">[docs]</a>    <span class="k">def</span> <span class="nf">collected_n_items</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Number of collected samples</span>
 <span class="sd">        :return: int</span>
@@ -420,7 +420,7 @@
             <span class="n">collected_n_items</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">[()])</span>
         <span class="k">return</span> <span class="n">collected_n_items</span></div>
 
-<div class="viewcode-block" id="LevelGroup.get_finished_ids"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup.get_finished_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_finished_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="LevelGroup.get_finished_ids"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.get_finished_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_finished_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get collected and failed samples ids</span>
 <span class="sd">        :return: NumPy array</span>
@@ -430,7 +430,7 @@
             <span class="n">successful_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span> <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">hdf_file</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">level_group_path</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">collected_ids_dset</span><span class="p">][()]]</span>
             <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">successful_ids</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">failed_ids</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="LevelGroup.get_unfinished_ids"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup.get_unfinished_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_unfinished_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="LevelGroup.get_unfinished_ids"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.get_unfinished_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_unfinished_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get unfinished sample ids as difference between scheduled ids and finished ids</span>
 <span class="sd">        :return: list</span>
@@ -438,7 +438,7 @@
         <span class="n">scheduled_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span> <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduled</span><span class="p">()]</span>
         <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">scheduled_ids</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_finished_ids</span><span class="p">()))</span></div>
 
-<div class="viewcode-block" id="LevelGroup.get_failed_ids"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup.get_failed_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_failed_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="LevelGroup.get_failed_ids"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.get_failed_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_failed_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Failed samples ids</span>
 <span class="sd">        :return: list of failed sample ids</span>
@@ -448,7 +448,7 @@
 
         <span class="k">return</span> <span class="n">failed_ids</span></div>
 
-<div class="viewcode-block" id="LevelGroup.clear_failed_dataset"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.hdf5.LevelGroup.clear_failed_dataset">[docs]</a>    <span class="k">def</span> <span class="nf">clear_failed_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="LevelGroup.clear_failed_dataset"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.clear_failed_dataset">[docs]</a>    <span class="k">def</span> <span class="nf">clear_failed_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Clear failed_ids dataset</span>
 <span class="sd">        :return: None</span>
@@ -502,8 +502,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.html">src.mlmc package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.quantity.html">mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.html">mlmc package</a></li>
 </ul>
 
 <div class="relations">

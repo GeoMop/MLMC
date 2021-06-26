@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.sample_storage &#8212; MLMC daf documentation</title>
+    <title>mlmc.sample_storage &#8212; MLMC daf documentation</title>
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
@@ -30,7 +30,7 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.sample_storage</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.sample_storage</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">abc</span> <span class="k">import</span> <span class="n">ABCMeta</span>
@@ -39,53 +39,53 @@
 <span class="kn">from</span> <span class="nn">mlmc.quantity.quantity_spec</span> <span class="k">import</span> <span class="n">QuantitySpec</span><span class="p">,</span> <span class="n">ChunkSpec</span>
 
 
-<div class="viewcode-block" id="SampleStorage"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage">[docs]</a><span class="k">class</span> <span class="nc">SampleStorage</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">ABCMeta</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorage"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage">[docs]</a><span class="k">class</span> <span class="nc">SampleStorage</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">ABCMeta</span><span class="p">):</span>
 
-<div class="viewcode-block" id="SampleStorage.save_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.save_samples">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.save_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.save_samples">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">save_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">successful_samples</span><span class="p">,</span> <span class="n">failed_samples</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Write results to storage</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.save_result_format"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.save_result_format">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.save_result_format"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.save_result_format">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">save_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">res_spec</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save result format</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.load_result_format"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.load_result_format">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.load_result_format"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.load_result_format">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">load_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load result format</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.save_global_data"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.save_global_data">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.save_global_data"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.save_global_data">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">save_global_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result_format</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">],</span> <span class="n">level_parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save global data, at the moment: _result_format, level_parameters</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.save_scheduled_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.save_scheduled_samples">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.save_scheduled_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.save_scheduled_samples">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">save_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">samples</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save scheduled samples ids</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.load_scheduled_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.load_scheduled_samples">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.load_scheduled_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.load_scheduled_samples">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">load_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load scheduled samples</span>
 <span class="sd">        :return: Dict[_level_id, List[sample_id: str]]</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.sample_pairs"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.sample_pairs">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.sample_pairs"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.sample_pairs">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">sample_pairs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get results from storage</span>
 <span class="sd">        :return: List[Array[M, N, 2]]</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.chunks"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.chunks">[docs]</a>    <span class="k">def</span> <span class="nf">chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="SampleStorage.chunks"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.chunks">[docs]</a>    <span class="k">def</span> <span class="nf">chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create chunks generator</span>
 <span class="sd">        :param level_id: int, if not None return chunks for a given level</span>
@@ -105,56 +105,56 @@
 <span class="sd">        :return: generator of ChunkSpec objects</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="SampleStorage.n_finished"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.n_finished">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.n_finished"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.n_finished">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">n_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Number of finished samples</span>
 <span class="sd">        :return: List</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.save_n_ops"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.save_n_ops">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.save_n_ops"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.save_n_ops">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">save_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_ops</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save number of operations (time)</span>
 <span class="sd">        :param n_ops: Dict[_level_id, List[overall time, number of valid samples]]</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.get_n_ops"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.get_n_ops">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.get_n_ops"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.get_n_ops">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">get_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Number of operations (time) per sample for each level</span>
 <span class="sd">        :return: List[float]</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.unfinished_ids"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.unfinished_ids">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.unfinished_ids"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.unfinished_ids">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">unfinished_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get unfinished sample&#39;s ids</span>
 <span class="sd">        :return: list</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.get_level_ids"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.get_level_ids">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.get_level_ids"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.get_level_ids">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">get_level_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get number of levels</span>
 <span class="sd">        :return: int</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.get_n_levels"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.get_n_levels">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.get_n_levels"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.get_n_levels">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">get_n_levels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get number of levels</span>
 <span class="sd">        :return: int</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.get_level_parameters"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.get_level_parameters">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.get_level_parameters"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.get_level_parameters">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">get_level_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get level parameters</span>
 <span class="sd">        :return: list</span>
 <span class="sd">        &quot;&quot;&quot;</span></div>
 
-<div class="viewcode-block" id="SampleStorage.get_n_collected"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.SampleStorage.get_n_collected">[docs]</a>    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SampleStorage.get_n_collected"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.SampleStorage.get_n_collected">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">get_n_collected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get number of collected results at each evel</span>
@@ -162,7 +162,7 @@
 <span class="sd">        &quot;&quot;&quot;</span></div></div>
 
 
-<div class="viewcode-block" id="Memory"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory">[docs]</a><span class="k">class</span> <span class="nc">Memory</span><span class="p">(</span><span class="n">SampleStorage</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory">[docs]</a><span class="k">class</span> <span class="nc">Memory</span><span class="p">(</span><span class="n">SampleStorage</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_failed</span> <span class="o">=</span> <span class="p">{}</span>
@@ -175,7 +175,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_level_parameters</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
-<div class="viewcode-block" id="Memory.save_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.save_samples">[docs]</a>    <span class="k">def</span> <span class="nf">save_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">successful_samples</span><span class="p">,</span> <span class="n">failed_samples</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.save_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.save_samples">[docs]</a>    <span class="k">def</span> <span class="nf">save_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">successful_samples</span><span class="p">,</span> <span class="n">failed_samples</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save successful samples - store result pairs</span>
 <span class="sd">             failed samples - store sample ids and corresponding error messages</span>
@@ -184,7 +184,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_save_successful</span><span class="p">(</span><span class="n">successful_samples</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_save_failed</span><span class="p">(</span><span class="n">failed_samples</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Memory.save_global_data"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.save_global_data">[docs]</a>    <span class="k">def</span> <span class="nf">save_global_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result_format</span><span class="p">,</span> <span class="n">level_parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.save_global_data"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.save_global_data">[docs]</a>    <span class="k">def</span> <span class="nf">save_global_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result_format</span><span class="p">,</span> <span class="n">level_parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save_result_format</span><span class="p">(</span><span class="n">result_format</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_level_parameters</span> <span class="o">=</span> <span class="n">level_parameters</span></div>
 
@@ -229,7 +229,7 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_n_finished</span><span class="p">[</span><span class="n">level_id</span><span class="p">]</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Memory.save_result_format"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.save_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">save_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">res_spec</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]):</span>
+<div class="viewcode-block" id="Memory.save_result_format"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.save_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">save_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">res_spec</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save sample result format</span>
 <span class="sd">        :param res_spec: List[QuantitySpec]</span>
@@ -237,7 +237,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_result_specification</span> <span class="o">=</span> <span class="n">res_spec</span></div>
 
-<div class="viewcode-block" id="Memory.n_finished"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.n_finished">[docs]</a>    <span class="k">def</span> <span class="nf">n_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.n_finished"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.n_finished">[docs]</a>    <span class="k">def</span> <span class="nf">n_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Number of finished samples on each level</span>
 <span class="sd">        :return: List</span>
@@ -248,13 +248,13 @@
 
         <span class="k">return</span> <span class="n">n_finished</span></div>
 
-<div class="viewcode-block" id="Memory.load_result_format"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.load_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">load_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]:</span>
+<div class="viewcode-block" id="Memory.load_result_format"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.load_result_format">[docs]</a>    <span class="k">def</span> <span class="nf">load_result_format</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load result format</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result_specification</span></div>
 
-<div class="viewcode-block" id="Memory.save_scheduled_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.save_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">save_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">samples</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.save_scheduled_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.save_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">save_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">samples</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save scheduled sample ids</span>
 <span class="sd">        :param level_id: int</span>
@@ -263,13 +263,13 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_scheduled</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">level_id</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Memory.load_scheduled_samples"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.load_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">load_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.load_scheduled_samples"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.load_scheduled_samples">[docs]</a>    <span class="k">def</span> <span class="nf">load_scheduled_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :return: Dict[_level_id, List[sample_id: str]]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scheduled</span></div>
 
-<div class="viewcode-block" id="Memory.sample_pairs"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.sample_pairs">[docs]</a>    <span class="k">def</span> <span class="nf">sample_pairs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.sample_pairs"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.sample_pairs">[docs]</a>    <span class="k">def</span> <span class="nf">sample_pairs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sample results split to numpy arrays</span>
 <span class="sd">        :return: List[Array[M, N, 2]]</span>
@@ -285,7 +285,7 @@
     <span class="k">def</span> <span class="nf">_level_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_id</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">yield</span> <span class="n">ChunkSpec</span><span class="p">(</span><span class="n">chunk_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">chunk_slice</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">[</span><span class="n">level_id</span><span class="p">][:</span><span class="n">n_samples</span><span class="p">]),</span> <span class="mi">1</span><span class="p">),</span> <span class="n">level_id</span><span class="o">=</span><span class="n">level_id</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Memory.sample_pairs_level"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.sample_pairs_level">[docs]</a>    <span class="k">def</span> <span class="nf">sample_pairs_level</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.sample_pairs_level"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.sample_pairs_level">[docs]</a>    <span class="k">def</span> <span class="nf">sample_pairs_level</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_spec</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get samples for given level, chunks does not make sense in Memory storage so all data are retrieved at once</span>
 <span class="sd">        :param chunk_spec: object containing chunk identifier level identifier and chunk_slice - slice() object</span>
@@ -311,7 +311,7 @@
             <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunk</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
         <span class="k">return</span> <span class="n">chunk</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>  <span class="c1"># [M, chunk size, 2]</span></div>
 
-<div class="viewcode-block" id="Memory.save_n_ops"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.save_n_ops">[docs]</a>    <span class="k">def</span> <span class="nf">save_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_ops</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.save_n_ops"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.save_n_ops">[docs]</a>    <span class="k">def</span> <span class="nf">save_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_ops</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save number of operations</span>
 <span class="sd">        :param n_ops: Dict[_level_id, List[time, number of valid samples]]</span>
@@ -324,7 +324,7 @@
             <span class="k">if</span> <span class="n">n_samples</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_n_ops</span><span class="p">[</span><span class="n">level</span><span class="p">]</span> <span class="o">+=</span> <span class="n">time</span><span class="o">/</span><span class="n">n_samples</span></div>
 
-<div class="viewcode-block" id="Memory.get_n_ops"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.get_n_ops">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.get_n_ops"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.get_n_ops">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get number of operations on each level</span>
 <span class="sd">        :return: List[float]</span>
@@ -334,17 +334,17 @@
             <span class="n">n_ops</span><span class="p">[</span><span class="n">level</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span>
         <span class="k">return</span> <span class="n">n_ops</span></div>
 
-<div class="viewcode-block" id="Memory.unfinished_ids"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.unfinished_ids">[docs]</a>    <span class="k">def</span> <span class="nf">unfinished_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.unfinished_ids"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.unfinished_ids">[docs]</a>    <span class="k">def</span> <span class="nf">unfinished_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        We finished all samples in memory</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[]</span></div>
 
-<div class="viewcode-block" id="Memory.get_level_ids"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.get_level_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_level_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.get_level_ids"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.get_level_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_level_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span></div>
 
-<div class="viewcode-block" id="Memory.get_n_collected"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.get_n_collected">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_collected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.get_n_collected"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.get_n_collected">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_collected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Number of collected samples at each level</span>
 <span class="sd">        :return: List</span>
@@ -354,14 +354,14 @@
             <span class="n">n_collected</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level_id</span><span class="p">)]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">level_id</span><span class="p">)])</span>
         <span class="k">return</span> <span class="n">n_collected</span></div>
 
-<div class="viewcode-block" id="Memory.get_n_levels"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.get_n_levels">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_levels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.get_n_levels"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.get_n_levels">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_levels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get number of levels</span>
 <span class="sd">        :return: int</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Memory.get_level_parameters"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.sample_storage.Memory.get_level_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_level_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Memory.get_level_parameters"><a class="viewcode-back" href="../../../mlmc.html#mlmc.sample_storage.Memory.get_level_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_level_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_level_parameters</span></div></div>
 </pre></div>
 
@@ -383,8 +383,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.html">src.mlmc package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.quantity.html">mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html">mlmc package</a></li>
 </ul>
 
 <div class="relations">

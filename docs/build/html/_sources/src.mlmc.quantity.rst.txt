@@ -1,37 +1,37 @@
-src.mlmc.quantity package
+mlmc.quantity package
 =========================
 
 Submodules
 ----------
 
-src.mlmc.quantity.quantity module
+mlmc.quantity.quantity module
 ---------------------------------
 
-.. automodule:: src.mlmc.quantity.quantity
+.. automodule:: mlmc.quantity.quantity
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.quantity.quantity\_estimate module
+mlmc.quantity.quantity\_estimate module
 -------------------------------------------
 
-.. automodule:: src.mlmc.quantity.quantity_estimate
+.. automodule:: mlmc.quantity.quantity_estimate
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.quantity.quantity\_spec module
+mlmc.quantity.quantity\_spec module
 ---------------------------------------
 
-.. automodule:: src.mlmc.quantity.quantity_spec
+.. automodule:: mlmc.quantity.quantity_spec
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mlmc.quantity.quantity\_types module
+mlmc.quantity.quantity\_types module
 ----------------------------------------
 
-.. automodule:: src.mlmc.quantity.quantity_types
+.. automodule:: mlmc.quantity.quantity_types
    :members:
    :undoc-members:
    :show-inheritance:
@@ -39,7 +39,7 @@ src.mlmc.quantity.quantity\_types module
 Module contents
 ---------------
 
-.. automodule:: src.mlmc.quantity
+.. automodule:: mlmc.quantity
    :members:
    :undoc-members:
    :show-inheritance:

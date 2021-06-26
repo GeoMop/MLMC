@@ -1,1276 +1,259 @@
 
-<!DOCTYPE html>
 
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc package &#8212; MLMC daf documentation</title>
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
-    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>MLMC package &mdash; mlmc daf documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="src.mlmc.plot package" href="src.mlmc.plot.html" />
-    <link rel="prev" title="src.mlmc.quantity package" href="src.mlmc.quantity.html" />
+    <link rel="prev" title="examples.shooting package" href="examples.shooting.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
    
-  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
-  
-  
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
-
-  </head><body>
-  
-
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
           
 
-          <div class="body" role="main">
+          
+            <a href="contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
             
-  <div class="section" id="src-mlmc-package">
-<h1>src.mlmc package<a class="headerlink" href="#src-mlmc-package" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="subpackages">
-<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="src.mlmc.plot.html">src.mlmc.plot package</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.plot.html#submodules">Submodules</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.plot.html#module-src.mlmc.plot.plots">src.mlmc.plot.plots module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.plot.html#module-src.mlmc.plot.violinplot">src.mlmc.plot.violinplot module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.plot.html#module-src.mlmc.plot">Module contents</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="src.mlmc.quantity.html">src.mlmc.quantity package</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.quantity.html#submodules">Submodules</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.quantity.html#module-src.mlmc.quantity.quantity">src.mlmc.quantity.quantity module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.quantity.html#module-src.mlmc.quantity.quantity_estimate">src.mlmc.quantity.quantity_estimate module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.quantity.html#module-src.mlmc.quantity.quantity_spec">src.mlmc.quantity.quantity_spec module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.quantity.html#module-src.mlmc.quantity.quantity_types">src.mlmc.quantity.quantity_types module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.quantity.html#module-src.mlmc.quantity">Module contents</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="src.mlmc.random.html">src.mlmc.random package</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.random.html#submodules">Submodules</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.random.html#module-src.mlmc.random.correlated_field">src.mlmc.random.correlated_field module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.random.html#src-mlmc-random-frac-geom-module">src.mlmc.random.frac_geom module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.random.html#module-src.mlmc.random.gstools_wrapper">src.mlmc.random.gstools_wrapper module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.random.html#module-src.mlmc.random">Module contents</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="src.mlmc.sim.html">src.mlmc.sim package</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.sim.html#submodules">Submodules</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.sim.html#module-src.mlmc.sim.simulation">src.mlmc.sim.simulation module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.sim.html#module-src.mlmc.sim.synth_simulation">src.mlmc.sim.synth_simulation module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.sim.html#module-src.mlmc.sim">Module contents</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="src.mlmc.tool.html">src.mlmc.tool package</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.tool.html#submodules">Submodules</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.tool.html#src-mlmc-tool-context-statprof-module">src.mlmc.tool.context_statprof module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.tool.html#module-src.mlmc.tool.distribution">src.mlmc.tool.distribution module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.tool.html#module-src.mlmc.tool.flow_mc">src.mlmc.tool.flow_mc module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.tool.html#module-src.mlmc.tool.gmsh_io">src.mlmc.tool.gmsh_io module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.tool.html#module-src.mlmc.tool.hdf5">src.mlmc.tool.hdf5 module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.tool.html#module-src.mlmc.tool.pbs_job">src.mlmc.tool.pbs_job module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.tool.html#module-src.mlmc.tool.process_base">src.mlmc.tool.process_base module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.tool.html#module-src.mlmc.tool.simple_distribution">src.mlmc.tool.simple_distribution module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.tool.html#module-src.mlmc.tool.stats_tests">src.mlmc.tool.stats_tests module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="src.mlmc.tool.html#module-src.mlmc.tool">Module contents</a></li>
-</ul>
-</li>
-</ul>
-</div>
-</div>
-<div class="section" id="submodules">
-<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
-</div>
-<div class="section" id="module-src.mlmc.estimator">
-<span id="src-mlmc-estimator-module"></span><h2>src.mlmc.estimator module<a class="headerlink" href="#module-src.mlmc.estimator" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
-<dt id="src.mlmc.estimator.Estimate">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.estimator.</span></code><code class="sig-name descname"><span class="pre">Estimate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quantity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_storage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moments_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.bs_target_var_n_estimated">
-<code class="sig-name descname"><span class="pre">bs_target_var_n_estimated</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target_var</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_vec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.bs_target_var_n_estimated"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.bs_target_var_n_estimated" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.construct_density">
-<code class="sig-name descname"><span class="pre">construct_density</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reg_param</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orth_moments_tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exact_pdf</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.construct_density"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.construct_density" title="Permalink to this definition">¶</a></dt>
-<dd><p>Construct approximation of the density using given moment functions.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.est_bootstrap">
-<code class="sig-name descname"><span class="pre">est_bootstrap</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_subsamples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_vector</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moments_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.est_bootstrap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.est_bootstrap" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.estimate_covariance">
-<code class="sig-name descname"><span class="pre">estimate_covariance</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moments_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.estimate_covariance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.estimate_covariance" title="Permalink to this definition">¶</a></dt>
-<dd><p>Use collected samples to estimate covariance matrix and variance of this estimate.
-:param moments_fn: moments function
-:return: estimate_of_moment_means, estimate_of_variance_of_estimate ; arrays of length n_moments</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.estimate_diff_vars">
-<code class="sig-name descname"><span class="pre">estimate_diff_vars</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moments_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.estimate_diff_vars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.estimate_diff_vars" title="Permalink to this definition">¶</a></dt>
-<dd><p>Estimate moments_fn variance from samples
-:param moments_fn: Moment evaluation functions
-:return: (diff_variance, n_samples);</p>
-<blockquote>
-<div><p>diff_variance - shape LxR, variances of diffs of moments_fn
-n_samples -  shape L, num samples for individual levels.</p>
-</div></blockquote>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.estimate_diff_vars_regression">
-<code class="sig-name descname"><span class="pre">estimate_diff_vars_regression</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_created_samples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moments_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_vars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.estimate_diff_vars_regression"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.estimate_diff_vars_regression" title="Permalink to this definition">¶</a></dt>
-<dd><p>Estimate variances using linear regression model.
-Assumes increasing variance with moments_fn, use only two moments_fn with highest average variance.
-:param n_created_samples: number of created samples on each level
-:param moments_fn: Moment evaluation function
-:return: array of variances, n_ops_estimate</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.estimate_domain">
-<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">estimate_domain</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quantity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_storage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.estimate_domain"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.estimate_domain" title="Permalink to this definition">¶</a></dt>
-<dd><p>Estimate moments domain from MLMC samples.
-:param quantity: mlmc.quantity.Quantity instance, represents the real quantity
-:param sample_storage: mlmc.sample_storage.SampleStorage instance, provides all the samples
-:param quantile: float in interval (0, 1), None means whole sample range
-:return: lower_bound, upper_bound</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.estimate_moments">
-<code class="sig-name descname"><span class="pre">estimate_moments</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moments_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.estimate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.estimate_moments" title="Permalink to this definition">¶</a></dt>
-<dd><p>Use collected samples to estimate moments and variance of this estimate.
-:param moments_fn: moments function
-:return: estimate_of_moment_means, estimate_of_variance_of_estimate ; arrays of length n_moments</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.fine_coarse_violinplot">
-<code class="sig-name descname"><span class="pre">fine_coarse_violinplot</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.fine_coarse_violinplot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.fine_coarse_violinplot" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.get_level_samples">
-<code class="sig-name descname"><span class="pre">get_level_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.get_level_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.get_level_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get level samples from storage
-:param level_id: int, level identifier
-:param n_samples&gt; int, number of samples to retrieve, if None first chunk of data is retrieved
-:return: level samples, shape: (M, N, 1) for level 0, (M, N, 2) otherwise</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.n_moments">
-<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">n_moments</span></code><a class="headerlink" href="#src.mlmc.estimator.Estimate.n_moments" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.plot_bs_var_log">
-<code class="sig-name descname"><span class="pre">plot_bs_var_log</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_vec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.plot_bs_var_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.plot_bs_var_log" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.plot_variances">
-<code class="sig-name descname"><span class="pre">plot_variances</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_vec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#Estimate.plot_variances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.Estimate.plot_variances" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.estimator.Estimate.quantity">
-<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">quantity</span></code><a class="headerlink" href="#src.mlmc.estimator.Estimate.quantity" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py function">
-<dt id="src.mlmc.estimator.calc_level_params">
-<code class="sig-prename descclassname"><span class="pre">src.mlmc.estimator.</span></code><code class="sig-name descname"><span class="pre">calc_level_params</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step_range</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#calc_level_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.calc_level_params" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt id="src.mlmc.estimator.determine_level_parameters">
-<code class="sig-prename descclassname"><span class="pre">src.mlmc.estimator.</span></code><code class="sig-name descname"><span class="pre">determine_level_parameters</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_range</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#determine_level_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.determine_level_parameters" title="Permalink to this definition">¶</a></dt>
-<dd><p>Determine level parameters,
-In this case, a step of fine simulation at each level
-:param n_levels: number of MLMC levels
-:param step_range: simulation step range
-:return: List</p>
-</dd></dl>
-
-<dl class="py function">
-<dt id="src.mlmc.estimator.determine_n_samples">
-<code class="sig-prename descclassname"><span class="pre">src.mlmc.estimator.</span></code><code class="sig-name descname"><span class="pre">determine_n_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#determine_n_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.determine_n_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set target number of samples for each level
-:param n_levels: number of levels
-:param n_samples: array of number of samples
-:return: None</p>
-</dd></dl>
-
-<dl class="py function">
-<dt id="src.mlmc.estimator.determine_sample_vec">
-<code class="sig-prename descclassname"><span class="pre">src.mlmc.estimator.</span></code><code class="sig-name descname"><span class="pre">determine_sample_vec</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_collected_samples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_vector</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#determine_sample_vec"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.determine_sample_vec" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt id="src.mlmc.estimator.estimate_n_samples_for_target_variance">
-<code class="sig-prename descclassname"><span class="pre">src.mlmc.estimator.</span></code><code class="sig-name descname"><span class="pre">estimate_n_samples_for_target_variance</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target_variance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prescribe_vars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_ops</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/estimator.html#estimate_n_samples_for_target_variance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.estimator.estimate_n_samples_for_target_variance" title="Permalink to this definition">¶</a></dt>
-<dd><p>Estimate optimal number of samples for individual levels that should provide a target variance of
-resulting moment estimate.
-This also set given moment functions to be used for further estimates if not specified otherwise.
-:param target_variance: Constrain to achieve this variance.
-:param prescribe_vars: vars[ L, M] for all levels L and moments_fn M safe the (zeroth) constant moment with zero variance.
-:param n_ops: number of operations at each level
-:param n_levels: number of levels
-:return: np.array with number of optimal samples for individual levels and moments_fn, array (LxR)</p>
-</dd></dl>
-
-</div>
-<div class="section" id="module-src.mlmc.level_simulation">
-<span id="src-mlmc-level-simulation-module"></span><h2>src.mlmc.level_simulation module<a class="headerlink" href="#module-src.mlmc.level_simulation" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
-<dt id="src.mlmc.level_simulation.LevelSimulation">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.level_simulation.</span></code><code class="sig-name descname"><span class="pre">LevelSimulation</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_dict</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">common_files</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">need_sample_workspace</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calculate</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">result_format</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">mlmc.quantity.quantity_spec.QuantitySpec</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/level_simulation.html#LevelSimulation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.level_simulation.LevelSimulation" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>This class is used to pass simulation data at a given level between a Sampler and a SamplingPool
-User should’t change this class</p>
-<dl class="py attribute">
-<dt id="src.mlmc.level_simulation.LevelSimulation.common_files">
-<code class="sig-name descname"><span class="pre">common_files</span></code><em class="property"><span class="pre">:</span> <span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#src.mlmc.level_simulation.LevelSimulation.common_files" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="src.mlmc.level_simulation.LevelSimulation.config_dict">
-<code class="sig-name descname"><span class="pre">config_dict</span></code><em class="property"><span class="pre">:</span> <span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#src.mlmc.level_simulation.LevelSimulation.config_dict" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="src.mlmc.level_simulation.LevelSimulation.need_sample_workspace">
-<code class="sig-name descname"><span class="pre">need_sample_workspace</span></code><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><a class="headerlink" href="#src.mlmc.level_simulation.LevelSimulation.need_sample_workspace" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="src.mlmc.level_simulation.LevelSimulation.task_size">
-<code class="sig-name descname"><span class="pre">task_size</span></code><em class="property"><span class="pre">:</span> <span class="pre">int</span></em><a class="headerlink" href="#src.mlmc.level_simulation.LevelSimulation.task_size" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-</div>
-<div class="section" id="module-src.mlmc.moments">
-<span id="src-mlmc-moments-module"></span><h2>src.mlmc.moments module<a class="headerlink" href="#module-src.mlmc.moments" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
-<dt id="src.mlmc.moments.Fourier">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.moments.</span></code><code class="sig-name descname"><span class="pre">Fourier</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">domain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0,</span> <span class="pre">6.283185307179586)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_domain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">safe_eval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Fourier"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Fourier" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#src.mlmc.moments.Moments" title="src.mlmc.moments.Moments"><code class="xref py py-class docutils literal notranslate"><span class="pre">src.mlmc.moments.Moments</span></code></a></p>
-<dl class="py method">
-<dt id="src.mlmc.moments.Fourier.eval">
-<code class="sig-name descname"><span class="pre">eval</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Fourier.eval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Fourier.eval" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt id="src.mlmc.moments.Legendre">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.moments.</span></code><code class="sig-name descname"><span class="pre">Legendre</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">domain</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_domain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">safe_eval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Legendre"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Legendre" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#src.mlmc.moments.Moments" title="src.mlmc.moments.Moments"><code class="xref py py-class docutils literal notranslate"><span class="pre">src.mlmc.moments.Moments</span></code></a></p>
-</dd></dl>
-
-<dl class="py class">
-<dt id="src.mlmc.moments.Moments">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.moments.</span></code><code class="sig-name descname"><span class="pre">Moments</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">domain</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">safe_eval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Moments" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>Class for _moments_fn of random distribution</p>
-<dl class="py method">
-<dt id="src.mlmc.moments.Moments.change_size">
-<code class="sig-name descname"><span class="pre">change_size</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Moments.change_size"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Moments.change_size" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return moment object with different size.
-:param size: int, new number of _moments_fn</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.moments.Moments.clip">
-<code class="sig-name descname"><span class="pre">clip</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Moments.clip"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Moments.clip" title="Permalink to this definition">¶</a></dt>
-<dd><p>Remove outliers and replace them with NaN
-:param value: array of numbers
-:return: masked_array, out</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.moments.Moments.eval">
-<code class="sig-name descname"><span class="pre">eval</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Moments.eval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Moments.eval" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.moments.Moments.eval_all">
-<code class="sig-name descname"><span class="pre">eval_all</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Moments.eval_all"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Moments.eval_all" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.moments.Moments.eval_all_der">
-<code class="sig-name descname"><span class="pre">eval_all_der</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">degree</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Moments.eval_all_der"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Moments.eval_all_der" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.moments.Moments.eval_diff">
-<code class="sig-name descname"><span class="pre">eval_diff</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Moments.eval_diff"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Moments.eval_diff" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.moments.Moments.eval_diff2">
-<code class="sig-name descname"><span class="pre">eval_diff2</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Moments.eval_diff2"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Moments.eval_diff2" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.moments.Moments.eval_single_moment">
-<code class="sig-name descname"><span class="pre">eval_single_moment</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Moments.eval_single_moment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Moments.eval_single_moment" title="Permalink to this definition">¶</a></dt>
-<dd><p>Be aware this implementation is inefficient for large i
-:param i: int, order of moment
-:param value: float
-:return: np.ndarray</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.moments.Moments.inv_linear">
-<code class="sig-name descname"><span class="pre">inv_linear</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Moments.inv_linear"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Moments.inv_linear" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.moments.Moments.linear">
-<code class="sig-name descname"><span class="pre">linear</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Moments.linear"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Moments.linear" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt id="src.mlmc.moments.Monomial">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.moments.</span></code><code class="sig-name descname"><span class="pre">Monomial</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">domain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_domain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">safe_eval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Monomial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Monomial" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#src.mlmc.moments.Moments" title="src.mlmc.moments.Moments"><code class="xref py py-class docutils literal notranslate"><span class="pre">src.mlmc.moments.Moments</span></code></a></p>
-<dl class="py method">
-<dt id="src.mlmc.moments.Monomial.eval">
-<code class="sig-name descname"><span class="pre">eval</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#Monomial.eval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.Monomial.eval" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt id="src.mlmc.moments.TransformedMoments">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.moments.</span></code><code class="sig-name descname"><span class="pre">TransformedMoments</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other_moments</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">matrix</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/moments.html#TransformedMoments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.moments.TransformedMoments" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#src.mlmc.moments.Moments" title="src.mlmc.moments.Moments"><code class="xref py py-class docutils literal notranslate"><span class="pre">src.mlmc.moments.Moments</span></code></a></p>
-</dd></dl>
-
-</div>
-<div class="section" id="module-src.mlmc.sample_storage">
-<span id="src-mlmc-sample-storage-module"></span><h2>src.mlmc.sample_storage module<a class="headerlink" href="#module-src.mlmc.sample_storage" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
-<dt id="src.mlmc.sample_storage.Memory">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.sample_storage.</span></code><code class="sig-name descname"><span class="pre">Memory</span></code><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#src.mlmc.sample_storage.SampleStorage" title="src.mlmc.sample_storage.SampleStorage"><code class="xref py py-class docutils literal notranslate"><span class="pre">src.mlmc.sample_storage.SampleStorage</span></code></a></p>
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.get_level_ids">
-<code class="sig-name descname"><span class="pre">get_level_ids</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.get_level_ids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.get_level_ids" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get number of levels
-:return: int</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.get_level_parameters">
-<code class="sig-name descname"><span class="pre">get_level_parameters</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.get_level_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.get_level_parameters" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get level parameters
-:return: list</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.get_n_collected">
-<code class="sig-name descname"><span class="pre">get_n_collected</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.get_n_collected"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.get_n_collected" title="Permalink to this definition">¶</a></dt>
-<dd><p>Number of collected samples at each level
-:return: List</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.get_n_levels">
-<code class="sig-name descname"><span class="pre">get_n_levels</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.get_n_levels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.get_n_levels" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get number of levels
-:return: int</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.get_n_ops">
-<code class="sig-name descname"><span class="pre">get_n_ops</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.get_n_ops"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.get_n_ops" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get number of operations on each level
-:return: List[float]</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.load_result_format">
-<code class="sig-name descname"><span class="pre">load_result_format</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; <span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">mlmc.quantity.quantity_spec.QuantitySpec</span><span class="p"><span class="pre">]</span></span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.load_result_format"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.load_result_format" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load result format</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.load_scheduled_samples">
-<code class="sig-name descname"><span class="pre">load_scheduled_samples</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.load_scheduled_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.load_scheduled_samples" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>Dict[_level_id, List[sample_id: str]]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.n_finished">
-<code class="sig-name descname"><span class="pre">n_finished</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.n_finished"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.n_finished" title="Permalink to this definition">¶</a></dt>
-<dd><p>Number of finished samples on each level
-:return: List</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.sample_pairs">
-<code class="sig-name descname"><span class="pre">sample_pairs</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.sample_pairs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.sample_pairs" title="Permalink to this definition">¶</a></dt>
-<dd><p>Sample results split to numpy arrays
-:return: List[Array[M, N, 2]]</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.sample_pairs_level">
-<code class="sig-name descname"><span class="pre">sample_pairs_level</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chunk_spec</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.sample_pairs_level"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.sample_pairs_level" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get samples for given level, chunks does not make sense in Memory storage so all data are retrieved at once
-:param chunk_spec: object containing chunk identifier level identifier and chunk_slice - slice() object
-:return: np.ndarray</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.save_global_data">
-<code class="sig-name descname"><span class="pre">save_global_data</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result_format</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_parameters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.save_global_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.save_global_data" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save global data, at the moment: _result_format, level_parameters</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.save_n_ops">
-<code class="sig-name descname"><span class="pre">save_n_ops</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_ops</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.save_n_ops"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.save_n_ops" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save number of operations
-:param n_ops: Dict[_level_id, List[time, number of valid samples]]
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.save_result_format">
-<code class="sig-name descname"><span class="pre">save_result_format</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">res_spec</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">mlmc.quantity.quantity_spec.QuantitySpec</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.save_result_format"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.save_result_format" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save sample result format
-:param res_spec: List[QuantitySpec]
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.save_samples">
-<code class="sig-name descname"><span class="pre">save_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">successful_samples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">failed_samples</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.save_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.save_samples" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="simple">
-<dt>Save successful samples - store result pairs</dt><dd><p>failed samples - store sample ids and corresponding error messages</p>
-</dd>
-</dl>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.save_scheduled_samples">
-<code class="sig-name descname"><span class="pre">save_scheduled_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.save_scheduled_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.save_scheduled_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save scheduled sample ids
-:param level_id: int
-:param samples: List[str]
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.Memory.unfinished_ids">
-<code class="sig-name descname"><span class="pre">unfinished_ids</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#Memory.unfinished_ids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.Memory.unfinished_ids" title="Permalink to this definition">¶</a></dt>
-<dd><p>We finished all samples in memory
-:return:</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt id="src.mlmc.sample_storage.SampleStorage">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.sample_storage.</span></code><code class="sig-name descname"><span class="pre">SampleStorage</span></code><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.chunks">
-<code class="sig-name descname"><span class="pre">chunks</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.chunks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.chunks" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create chunks generator
-:param level_id: int, if not None return chunks for a given level
-:param n_samples: int, number of samples to retrieve
-:return: generator</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.get_level_ids">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">get_level_ids</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.get_level_ids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.get_level_ids" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get number of levels
-:return: int</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.get_level_parameters">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">get_level_parameters</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.get_level_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.get_level_parameters" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get level parameters
-:return: list</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.get_n_collected">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">get_n_collected</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.get_n_collected"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.get_n_collected" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get number of collected results at each evel
-:return: list</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.get_n_levels">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">get_n_levels</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.get_n_levels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.get_n_levels" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get number of levels
-:return: int</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.get_n_ops">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">get_n_ops</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.get_n_ops"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.get_n_ops" title="Permalink to this definition">¶</a></dt>
-<dd><p>Number of operations (time) per sample for each level
-:return: List[float]</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.load_result_format">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">load_result_format</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; <span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">mlmc.quantity.quantity_spec.QuantitySpec</span><span class="p"><span class="pre">]</span></span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.load_result_format"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.load_result_format" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load result format</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.load_scheduled_samples">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">load_scheduled_samples</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.load_scheduled_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.load_scheduled_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load scheduled samples
-:return: Dict[_level_id, List[sample_id: str]]</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.n_finished">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">n_finished</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.n_finished"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.n_finished" title="Permalink to this definition">¶</a></dt>
-<dd><p>Number of finished samples
-:return: List</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.sample_pairs">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">sample_pairs</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.sample_pairs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.sample_pairs" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get results from storage
-:return: List[Array[M, N, 2]]</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.save_global_data">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">save_global_data</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result_format</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">mlmc.quantity.quantity_spec.QuantitySpec</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_parameters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.save_global_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.save_global_data" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save global data, at the moment: _result_format, level_parameters</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.save_n_ops">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">save_n_ops</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_ops</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.save_n_ops"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.save_n_ops" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save number of operations (time)
-:param n_ops: Dict[_level_id, List[overall time, number of valid samples]]</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.save_result_format">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">save_result_format</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">res_spec</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">mlmc.quantity.quantity_spec.QuantitySpec</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.save_result_format"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.save_result_format" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save result format</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.save_samples">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">save_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">successful_samples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">failed_samples</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.save_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.save_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Write results to storage</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.save_scheduled_samples">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">save_scheduled_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.save_scheduled_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.save_scheduled_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save scheduled samples ids</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage.SampleStorage.unfinished_ids">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">unfinished_ids</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage.html#SampleStorage.unfinished_ids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage.SampleStorage.unfinished_ids" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get unfinished sample’s ids
-:return: list</p>
-</dd></dl>
-
-</dd></dl>
-
-</div>
-<div class="section" id="module-src.mlmc.sample_storage_hdf">
-<span id="src-mlmc-sample-storage-hdf-module"></span><h2>src.mlmc.sample_storage_hdf module<a class="headerlink" href="#module-src.mlmc.sample_storage_hdf" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.sample_storage_hdf.</span></code><code class="sig-name descname"><span class="pre">SampleStorageHDF</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mlmc.sample_storage.SampleStorage</span></code></p>
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.clear_failed">
-<code class="sig-name descname"><span class="pre">clear_failed</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.clear_failed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.clear_failed" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.failed_samples">
-<code class="sig-name descname"><span class="pre">failed_samples</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.failed_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.failed_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Dictionary of failed samples
-:return: dict</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.get_level_ids">
-<code class="sig-name descname"><span class="pre">get_level_ids</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.get_level_ids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_level_ids" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get number of levels
-:return: int</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.get_level_parameters">
-<code class="sig-name descname"><span class="pre">get_level_parameters</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.get_level_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_level_parameters" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get level parameters
-:return: list</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_collected">
-<code class="sig-name descname"><span class="pre">get_n_collected</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.get_n_collected"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_collected" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get number of collected samples at each level
-:return: List</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_levels">
-<code class="sig-name descname"><span class="pre">get_n_levels</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.get_n_levels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_levels" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get number of levels
-:return: int</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_ops">
-<code class="sig-name descname"><span class="pre">get_n_ops</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.get_n_ops"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.get_n_ops" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get number of estimated operations on each level
-:return: List</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.load_result_format">
-<code class="sig-name descname"><span class="pre">load_result_format</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; <span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">mlmc.quantity.quantity_spec.QuantitySpec</span><span class="p"><span class="pre">]</span></span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.load_result_format"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.load_result_format" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load result format</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.load_scheduled_samples">
-<code class="sig-name descname"><span class="pre">load_scheduled_samples</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.load_scheduled_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.load_scheduled_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get scheduled samples for each level
-:return:  Dict[level_id, List[sample_id: str]]</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.n_finished">
-<code class="sig-name descname"><span class="pre">n_finished</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.n_finished"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.n_finished" title="Permalink to this definition">¶</a></dt>
-<dd><p>Number of finished samples on each level
-:return: List[int]</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.sample_pairs">
-<code class="sig-name descname"><span class="pre">sample_pairs</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.sample_pairs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.sample_pairs" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load results from hdf file
-:return: List[Array[M, N, 2]]</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.sample_pairs_level">
-<code class="sig-name descname"><span class="pre">sample_pairs_level</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chunk_spec</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.sample_pairs_level"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.sample_pairs_level" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get result for particular level and chunk
-:param chunk_spec: object containing chunk identifier level identifier and chunk_slice - slice() object
-:return: np.ndarray</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.save_global_data">
-<code class="sig-name descname"><span class="pre">save_global_data</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level_parameters</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">result_format</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">mlmc.quantity.quantity_spec.QuantitySpec</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.save_global_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_global_data" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save hdf5 file global attributes
-:param level_parameters: list of simulation steps
-:param result_format: simulation result format
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.save_n_ops">
-<code class="sig-name descname"><span class="pre">save_n_ops</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_ops</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.save_n_ops"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_n_ops" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save number of operations (time) of samples
-:param n_ops: Dict[level_id, List[overall time, number of successful samples]]
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.save_result_format">
-<code class="sig-name descname"><span class="pre">save_result_format</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result_format</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">mlmc.quantity.quantity_spec.QuantitySpec</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">res_dtype</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.save_result_format"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_result_format" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save result format to hdf
-:param result_format: List[QuantitySpec]
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.save_samples">
-<code class="sig-name descname"><span class="pre">save_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">successful</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">failed</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.save_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save successful and failed samples
-:param successful: List[Tuple[sample_id: str, Tuple[ndarray, ndarray]]]
-:param failed: List[Tuple[sample_id: str, error_message: str]]
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.save_scheduled_samples">
-<code class="sig-name descname"><span class="pre">save_scheduled_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">samples</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.save_scheduled_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.save_scheduled_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Append scheduled samples
-:param level_id: int
-:param samples: list of sample identifiers
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sample_storage_hdf.SampleStorageHDF.unfinished_ids">
-<code class="sig-name descname"><span class="pre">unfinished_ids</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sample_storage_hdf.html#SampleStorageHDF.unfinished_ids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sample_storage_hdf.SampleStorageHDF.unfinished_ids" title="Permalink to this definition">¶</a></dt>
-<dd><p>List of unfinished ids
-:return: list</p>
-</dd></dl>
-
-</dd></dl>
-
-</div>
-<div class="section" id="module-src.mlmc.sampler">
-<span id="src-mlmc-sampler-module"></span><h2>src.mlmc.sampler module<a class="headerlink" href="#module-src.mlmc.sampler" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
-<dt id="src.mlmc.sampler.Sampler">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.sampler.</span></code><code class="sig-name descname"><span class="pre">Sampler</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_storage</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">mlmc.sample_storage.SampleStorage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sampling_pool</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">mlmc.sampling_pool.SamplingPool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sim_factory</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">mlmc.sim.simulation.Simulation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_parameters</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1234</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampler.html#Sampler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampler.Sampler" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<dl class="py attribute">
-<dt id="src.mlmc.sampler.Sampler.ADDING_SAMPLES_TIMEOUT">
-<code class="sig-name descname"><span class="pre">ADDING_SAMPLES_TIMEOUT</span></code><em class="property"> <span class="pre">=</span> <span class="pre">1e-15</span></em><a class="headerlink" href="#src.mlmc.sampler.Sampler.ADDING_SAMPLES_TIMEOUT" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampler.Sampler.ask_sampling_pool_for_samples">
-<code class="sig-name descname"><span class="pre">ask_sampling_pool_for_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sleep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampler.html#Sampler.ask_sampling_pool_for_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampler.Sampler.ask_sampling_pool_for_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Waiting for running simulations
-:param sleep: time for doing nothing
-:param timeout: maximum time for waiting on running simulations
-:return: int, number of running simulations</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampler.Sampler.l_scheduled_samples">
-<code class="sig-name descname"><span class="pre">l_scheduled_samples</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampler.html#Sampler.l_scheduled_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampler.Sampler.l_scheduled_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get all levels number of scheduled samples
-:return: list</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampler.Sampler.n_finished_samples">
-<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">n_finished_samples</span></code><a class="headerlink" href="#src.mlmc.sampler.Sampler.n_finished_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Retrieve number of all finished samples
-:return:</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampler.Sampler.n_levels">
-<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">n_levels</span></code><a class="headerlink" href="#src.mlmc.sampler.Sampler.n_levels" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampler.Sampler.process_adding_samples">
-<code class="sig-name descname"><span class="pre">process_adding_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_estimated</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sleep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_coeff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-15</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampler.html#Sampler.process_adding_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampler.Sampler.process_adding_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Process adding samples
-Note: n_estimated are wrong if n_ops is similar through all levels
-:param n_estimated: Number of estimated samples on each level, list
-:param sleep: Sample waiting time
-:param add_coeff: default value 0.1, The number of scheduled samples would be ‘add_coef’ fraction of difference</p>
-<blockquote>
-<div><p>between current number of target samples and new estimated number of target samples</p>
-</div></blockquote>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>timeout</strong> – ask sampling pool for finished samples timeout</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>bool, if True adding samples is complete</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampler.Sampler.renew_failed_samples">
-<code class="sig-name descname"><span class="pre">renew_failed_samples</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampler.html#Sampler.renew_failed_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampler.Sampler.renew_failed_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Resurrect failed samples
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampler.Sampler.sample_range">
-<code class="sig-name descname"><span class="pre">sample_range</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nL</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampler.html#Sampler.sample_range"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampler.Sampler.sample_range" title="Permalink to this definition">¶</a></dt>
-<dd><p>Geometric sequence of L elements decreasing from n0 to nL.
-Useful to set number of samples explicitly.
-:param n0: int
-:param nL: int
-:return: np.array of length L = n_levels.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampler.Sampler.schedule_samples">
-<code class="sig-name descname"><span class="pre">schedule_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampler.html#Sampler.schedule_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampler.Sampler.schedule_samples" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="simple">
-<dt>Create simulation samples, loop through “levels” and its samples (given the number of target samples):</dt><dd><ol class="arabic simple">
-<li><p>generate sample tag (same for fine and coarse simulation)</p></li>
-<li><p>get LevelSimulation instance by simulation factory</p></li>
-<li><p>schedule sample via sampling pool</p></li>
-<li><p>store scheduled samples in sample storage, separately for each level</p></li>
-</ol>
-</dd>
-</dl>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>timeout</strong> – int, get_finished - while break timeout in seconds</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>None</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampler.Sampler.set_initial_n_samples">
-<code class="sig-name descname"><span class="pre">set_initial_n_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampler.html#Sampler.set_initial_n_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampler.Sampler.set_initial_n_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set target number of samples for each level
-:param n_samples: array of number of samples
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampler.Sampler.set_level_target_n_samples">
-<code class="sig-name descname"><span class="pre">set_level_target_n_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_samples</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampler.html#Sampler.set_level_target_n_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampler.Sampler.set_level_target_n_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set level number of target samples
-:param n_samples: list, each level target samples
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampler.Sampler.set_scheduled_and_wait">
-<code class="sig-name descname"><span class="pre">set_scheduled_and_wait</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_scheduled</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">greater_items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sleep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fin_sample_coef</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-07</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampler.html#Sampler.set_scheduled_and_wait"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampler.Sampler.set_scheduled_and_wait" title="Permalink to this definition">¶</a></dt>
-<dd><p>Scheduled samples on each level and wait until at least half of the samples is done
-:param n_scheduled: ndarray, number of scheduled samples on each level
-:param greater_items: Items where n_estimated is greater than n_scheduled
-:param sleep: Time waiting for samples
-:param fin_sample_coef: The proportion of samples to finished for further estimate
-:return: None</p>
-</dd></dl>
-
-</dd></dl>
-
-</div>
-<div class="section" id="module-src.mlmc.sampling_pool">
-<span id="src-mlmc-sampling-pool-module"></span><h2>src.mlmc.sampling_pool module<a class="headerlink" href="#module-src.mlmc.sampling_pool" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
-<dt id="src.mlmc.sampling_pool.OneProcessPool">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.sampling_pool.</span></code><code class="sig-name descname"><span class="pre">OneProcessPool</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">work_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#OneProcessPool"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.OneProcessPool" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#src.mlmc.sampling_pool.SamplingPool" title="src.mlmc.sampling_pool.SamplingPool"><code class="xref py py-class docutils literal notranslate"><span class="pre">src.mlmc.sampling_pool.SamplingPool</span></code></a></p>
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.OneProcessPool.get_finished">
-<code class="sig-name descname"><span class="pre">get_finished</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#OneProcessPool.get_finished"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.OneProcessPool.get_finished" title="Permalink to this definition">¶</a></dt>
-<dd><p>return results from queue - list of (sample_id, pair_of_result_vectors, error_message)</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.OneProcessPool.have_permanent_samples">
-<code class="sig-name descname"><span class="pre">have_permanent_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_ids</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#OneProcessPool.have_permanent_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.OneProcessPool.have_permanent_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Informs the Pool about sample_ids that have been scheduled but not yet finished</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.OneProcessPool.schedule_sample">
-<code class="sig-name descname"><span class="pre">schedule_sample</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_sim</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#OneProcessPool.schedule_sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.OneProcessPool.schedule_sample" title="Permalink to this definition">¶</a></dt>
-<dd><p>Method for calculating simulation samples
-:param sample_id: str
-:param level_sim: level_simulation.LevelSimulation instance
-:return: Tuple[str, List]</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt id="src.mlmc.sampling_pool.ProcessPool">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.sampling_pool.</span></code><code class="sig-name descname"><span class="pre">ProcessPool</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_processes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">work_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#ProcessPool"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.ProcessPool" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#src.mlmc.sampling_pool.OneProcessPool" title="src.mlmc.sampling_pool.OneProcessPool"><code class="xref py py-class docutils literal notranslate"><span class="pre">src.mlmc.sampling_pool.OneProcessPool</span></code></a></p>
-<p>Suitable for local parallel sampling for simulations WITHOUT external program call</p>
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.ProcessPool.res_callback">
-<code class="sig-name descname"><span class="pre">res_callback</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_sim</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#ProcessPool.res_callback"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.ProcessPool.res_callback" title="Permalink to this definition">¶</a></dt>
-<dd><p>Process simulation results
-:param result: tuple
-:param level_sim: LevelSimulation instance
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.ProcessPool.schedule_sample">
-<code class="sig-name descname"><span class="pre">schedule_sample</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_sim</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#ProcessPool.schedule_sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.ProcessPool.schedule_sample" title="Permalink to this definition">¶</a></dt>
-<dd><p>Method for calculating simulation samples
-:param sample_id: str
-:param level_sim: level_simulation.LevelSimulation instance
-:return: Tuple[str, List]</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt id="src.mlmc.sampling_pool.SamplingPool">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.sampling_pool.</span></code><code class="sig-name descname"><span class="pre">SamplingPool</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">work_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">abc.ABC</span></code></p>
-<dl class="py attribute">
-<dt id="src.mlmc.sampling_pool.SamplingPool.FAILED_DIR">
-<code class="sig-name descname"><span class="pre">FAILED_DIR</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'failed'</span></em><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.FAILED_DIR" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="src.mlmc.sampling_pool.SamplingPool.N_SUCCESSFUL">
-<code class="sig-name descname"><span class="pre">N_SUCCESSFUL</span></code><em class="property"> <span class="pre">=</span> <span class="pre">5</span></em><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.N_SUCCESSFUL" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="src.mlmc.sampling_pool.SamplingPool.SEVERAL_SUCCESSFUL_DIR">
-<code class="sig-name descname"><span class="pre">SEVERAL_SUCCESSFUL_DIR</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'several_successful'</span></em><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.SEVERAL_SUCCESSFUL_DIR" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.calculate_sample">
-<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">calculate_sample</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">work_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.calculate_sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.calculate_sample" title="Permalink to this definition">¶</a></dt>
-<dd><p>Method for calculating results
-:param sample_id: str
-:param level_sim: LevelSimulation
-:param work_dir: working directory
-:param seed: random seed
-:return: sample id, sample result, error message with traceback, running time</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.change_to_sample_directory">
-<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">change_to_sample_directory</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">work_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.change_to_sample_directory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.change_to_sample_directory" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create sample directory and change working directory
-:param path: str
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.compute_seed">
-<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">compute_seed</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.compute_seed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.compute_seed" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate seed for given sample id
-:param sample_id: str
-:return: int</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.copy_sim_files">
-<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">copy_sim_files</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">files</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.copy_sim_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.copy_sim_files" title="Permalink to this definition">¶</a></dt>
-<dd><p>Copy simulation common files to current simulation sample directory
-:param files: List of files
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.get_finished">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">get_finished</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.get_finished"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.get_finished" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return finished samples
-:return: list of results, number of running samples</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.handle_sim_files">
-<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">handle_sim_files</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">work_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_sim</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.handle_sim_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.handle_sim_files" title="Permalink to this definition">¶</a></dt>
-<dd><p>Change working directory to sample dir and copy common files
-:param sample_id: str
-:param level_sim: LevelSimulation
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.have_permanent_samples">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">have_permanent_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_ids</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.have_permanent_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.have_permanent_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>Informs the Pool about sample_ids that have been scheduled but not yet finished</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.move_dir">
-<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">move_dir</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_workspace</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">work_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.move_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.move_dir" title="Permalink to this definition">¶</a></dt>
-<dd><p>Move failed sample dir to failed directory
-:param sample_id: str
-:param sample_workspace: bool, simulation needs workspace
-:param work_dir: str
-:param dest_dir: destination
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.move_failed_rm">
-<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">move_failed_rm</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.move_failed_rm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.move_failed_rm" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.move_successful_rm">
-<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">move_successful_rm</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.move_successful_rm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.move_successful_rm" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.remove_sample_dir">
-<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">remove_sample_dir</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_workspace</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">work_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.remove_sample_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.remove_sample_dir" title="Permalink to this definition">¶</a></dt>
-<dd><p>Remove sample directory
-:param sample_id: str
-:param sample_workspace: bool, simulation needs workspace
-:param work_dir: str
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool.SamplingPool.schedule_sample">
-<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">schedule_sample</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_sim</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">mlmc.level_simulation.LevelSimulation</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#SamplingPool.schedule_sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.SamplingPool.schedule_sample" title="Permalink to this definition">¶</a></dt>
-<dd><p>Method for calculating simulation samples
-:param sample_id: str
-:param level_sim: level_simulation.LevelSimulation instance
-:return: Tuple[str, List]</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt id="src.mlmc.sampling_pool.ThreadPool">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.sampling_pool.</span></code><code class="sig-name descname"><span class="pre">ThreadPool</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_thread</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">work_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool.html#ThreadPool"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool.ThreadPool" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#src.mlmc.sampling_pool.ProcessPool" title="src.mlmc.sampling_pool.ProcessPool"><code class="xref py py-class docutils literal notranslate"><span class="pre">src.mlmc.sampling_pool.ProcessPool</span></code></a></p>
-<p>Suitable local parallel sampling for simulations WITH external program call</p>
-</dd></dl>
-
-</div>
-<div class="section" id="module-src.mlmc.sampling_pool_pbs">
-<span id="src-mlmc-sampling-pool-pbs-module"></span><h2>src.mlmc.sampling_pool_pbs module<a class="headerlink" href="#module-src.mlmc.sampling_pool_pbs" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">src.mlmc.sampling_pool_pbs.</span></code><code class="sig-name descname"><span class="pre">SamplingPoolPBS</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">work_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool_pbs.html#SamplingPoolPBS"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">mlmc.sampling_pool.SamplingPool</span></code></p>
-<dl class="py attribute">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.JOB">
-<code class="sig-name descname"><span class="pre">JOB</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'{}_job.sh'</span></em><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.JOB" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.JOBS_DIR">
-<code class="sig-name descname"><span class="pre">JOBS_DIR</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'jobs'</span></em><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.JOBS_DIR" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.LEVEL_SIM_CONFIG">
-<code class="sig-name descname"><span class="pre">LEVEL_SIM_CONFIG</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'level_{}_simulation_config'</span></em><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.LEVEL_SIM_CONFIG" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.OUTPUT_DIR">
-<code class="sig-name descname"><span class="pre">OUTPUT_DIR</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'output'</span></em><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.OUTPUT_DIR" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.QSTAT_FAILED_MAX_N">
-<code class="sig-name descname"><span class="pre">QSTAT_FAILED_MAX_N</span></code><em class="property"> <span class="pre">=</span> <span class="pre">10</span></em><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.QSTAT_FAILED_MAX_N" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.QSUB_FAILED_MAX_N">
-<code class="sig-name descname"><span class="pre">QSUB_FAILED_MAX_N</span></code><em class="property"> <span class="pre">=</span> <span class="pre">10</span></em><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.QSUB_FAILED_MAX_N" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.delete_pbs_id_file">
-<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">delete_pbs_id_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool_pbs.html#SamplingPoolPBS.delete_pbs_id_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.delete_pbs_id_file" title="Permalink to this definition">¶</a></dt>
-<dd><p>Delete jobId_pbsId file - it indicates finished job
-:param file_path: str
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.execute">
-<code class="sig-name descname"><span class="pre">execute</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool_pbs.html#SamplingPoolPBS.execute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.execute" title="Permalink to this definition">¶</a></dt>
-<dd><p>Execute pbs script
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.get_finished">
-<code class="sig-name descname"><span class="pre">get_finished</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool_pbs.html#SamplingPoolPBS.get_finished"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.get_finished" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get results
-:return:</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.have_permanent_samples">
-<code class="sig-name descname"><span class="pre">have_permanent_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_ids</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool_pbs.html#SamplingPoolPBS.have_permanent_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.have_permanent_samples" title="Permalink to this definition">¶</a></dt>
-<dd><p>List of unfinished sample ids, the corresponding samples are collecting in next get_finished() call .</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.pbs_common_setting">
-<code class="sig-name descname"><span class="pre">pbs_common_setting</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool_pbs.html#SamplingPoolPBS.pbs_common_setting"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.pbs_common_setting" title="Permalink to this definition">¶</a></dt>
-<dd><p>Values for common header of script
-:param kwargs: Dict[</p>
-<blockquote>
-<div><p>env_setting: environmental setting - load modules, install packages, …
-n_nodes: number of used nodes,
-n_cores: number of cores a node,
-mem: used memory a job,
-queue: used queue on the server,</p>
-<dl class="simple">
-<dt>optional params:</dt><dd><p>select_flags: other select flags, see <a class="reference external" href="https://wiki.metacentrum.cz/wiki/About_scheduling_system">https://wiki.metacentrum.cz/wiki/About_scheduling_system</a> for other possible parameters
-python: python command, default: python3</p>
-</dd>
-</dl>
-</div></blockquote>
-<p>]
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.schedule_sample">
-<code class="sig-name descname"><span class="pre">schedule_sample</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level_sim</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool_pbs.html#SamplingPoolPBS.schedule_sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.schedule_sample" title="Permalink to this definition">¶</a></dt>
-<dd><p>Add sample to current PBS package
-:param sample_id: unique sample id from Sampler
-:param level_sim: LevelSimulation instance
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.serialize_level_sim">
-<code class="sig-name descname"><span class="pre">serialize_level_sim</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level_sim</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">mlmc.level_simulation.LevelSimulation</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool_pbs.html#SamplingPoolPBS.serialize_level_sim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.serialize_level_sim" title="Permalink to this definition">¶</a></dt>
-<dd><p>Pickle LevelSimulation instance
-:param level_sim: LevelSimulation
-:return: None</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="src.mlmc.sampling_pool_pbs.SamplingPoolPBS.write_script">
-<code class="sig-name descname"><span class="pre">write_script</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">content</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_file</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/mlmc/sampling_pool_pbs.html#SamplingPoolPBS.write_script"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.mlmc.sampling_pool_pbs.SamplingPoolPBS.write_script" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create
-:param content: script content
-:param job_file: job file path
-:return: None</p>
-</dd></dl>
-
-</dd></dl>
-
-</div>
-<div class="section" id="module-src.mlmc">
-<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-src.mlmc" title="Permalink to this headline">¶</a></h2>
-</div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
 </div>
 
-
-          </div>
           
         </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<h1 class="logo"><a href="index.html">MLMC</a></h1>
 
-
-
-
-
-
-
-
-<h3>Navigation</h3>
-<p class="caption"><span class="caption-text">Contents:</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">src.mlmc package</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#subpackages">Subpackages</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#submodules">Submodules</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-src.mlmc.estimator">src.mlmc.estimator module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-src.mlmc.level_simulation">src.mlmc.level_simulation module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-src.mlmc.moments">src.mlmc.moments module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-src.mlmc.sample_storage">src.mlmc.sample_storage module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-src.mlmc.sample_storage_hdf">src.mlmc.sample_storage_hdf module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-src.mlmc.sampler">src.mlmc.sampler module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-src.mlmc.sampling_pool">src.mlmc.sampling_pool module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-src.mlmc.sampling_pool_pbs">src.mlmc.sampling_pool_pbs module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-src.mlmc">Module contents</a></li>
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">MLMC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="index.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#quickstart">Quickstart</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="index.html#create-mlmc-sampler">Create MLMC Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="index.html#schedule-mlmc-samples">Schedule MLMC samples</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples.shooting.html">examples.shooting package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#module-examples.shooting.shooting_1D">examples.shooting.shooting_1D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#module-examples.shooting.shooting_2D">examples.shooting.shooting_2D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#module-examples.shooting.simulation_shooting_1D">examples.shooting.simulation_shooting_1D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#module-examples.shooting.simulation_shooting_2D">examples.shooting.simulation_shooting_2D module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples.shooting.html#module-examples.shooting">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#module-examples.shooting_02">examples.shooting_02 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#module-examples.shooting_03">examples.shooting_03 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#module-examples.shooting_04">examples.shooting_04 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#module-examples.simple_example">examples.simple_example module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#module-examples">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">MLMC package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#subpackages">Subpackages</a><ul class="simple">
 </ul>
 </li>
 </ul>
 
-<div class="relations">
-<h3>Related Topics</h3>
-<ul>
-  <li><a href="index.html">Documentation overview</a><ul>
-      <li>Previous: <a href="src.mlmc.quantity.html" title="previous chapter">src.mlmc.quantity package</a></li>
-      <li>Next: <a href="src.mlmc.plot.html" title="next chapter">src.mlmc.plot package</a></li>
-  </ul></li>
-</ul>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>MLMC package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/mlmc.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <div class="rst-breadcrumbs-buttons" role="navigation" aria-label="breadcrumb navigation">
+      
+      
+        <a href="examples.shooting.html" class="btn btn-neutral float-left" title="examples.shooting package" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+      
+  </div>
+  
+  <hr/>
 </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
-    </div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="mlmc-package">
+<h1>MLMC package<a class="headerlink" href="#mlmc-package" title="Permalink to this headline">¶</a></h1>
 </div>
-<script>$('#searchbox').show(0);</script>
+<div class="section" id="subpackages">
+<h1>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h1>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">random</span></code></p></td>
+<td><p>Random variable generators.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="toctree-wrapper compound">
+</div>
+</div>
 
 
+           </div>
+           
+          </div>
+          <footer>
 
+  <hr/>
 
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Jan Březina, Martin Špetlík.
 
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
-
-
+</footer>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="footer">
-      &copy;2021, Jan Brezina, Martin Spetlik.
-      
-      |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.1</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
-      
-      |
-      <a href="_sources/src.mlmc.rst.txt"
-          rel="nofollow">Page source</a>
-    </div>
 
-    
+    </section>
 
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
     
-  </body>
+   
+
+</body>
 </html>

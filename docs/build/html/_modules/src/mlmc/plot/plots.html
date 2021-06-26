@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.plot.plots &#8212; mlmc daf documentation</title>
+    <title>mlmc.plot.plots &#8212; mlmc daf documentation</title>
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
@@ -30,7 +30,7 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.plot.plots</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.plot.plots</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">scipy.stats</span> <span class="k">as</span> <span class="nn">st</span>
 <span class="kn">from</span> <span class="nn">scipy</span> <span class="k">import</span> <span class="n">interpolate</span>
@@ -41,7 +41,7 @@
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
 
-<div class="viewcode-block" id="create_color_bar"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.create_color_bar">[docs]</a><span class="k">def</span> <span class="nf">create_color_bar</span><span class="p">(</span><span class="nb">range</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="create_color_bar"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.create_color_bar">[docs]</a><span class="k">def</span> <span class="nf">create_color_bar</span><span class="p">(</span><span class="nb">range</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create colorbar for a variable with given range and add it to given axes.</span>
 <span class="sd">    :param range: single value as high bound or tuple (low bound, high bound)</span>
@@ -70,7 +70,7 @@
     <span class="k">return</span> <span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">colormap</span><span class="p">(</span><span class="n">normalize</span><span class="p">(</span><span class="n">v</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="moments_subset"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.moments_subset">[docs]</a><span class="k">def</span> <span class="nf">moments_subset</span><span class="p">(</span><span class="n">n_moments</span><span class="p">,</span> <span class="n">moments</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="moments_subset"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.moments_subset">[docs]</a><span class="k">def</span> <span class="nf">moments_subset</span><span class="p">(</span><span class="n">n_moments</span><span class="p">,</span> <span class="n">moments</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Return subset of range(n_moments) for ploting.</span>
 <span class="sd">    :param n_moments: Actual number of moments.</span>
@@ -104,14 +104,14 @@
         <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="make_monotone"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.make_monotone">[docs]</a><span class="k">def</span> <span class="nf">make_monotone</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">):</span>
+<div class="viewcode-block" id="make_monotone"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.make_monotone">[docs]</a><span class="k">def</span> <span class="nf">make_monotone</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">):</span>
 
     <span class="n">sX</span><span class="p">,</span> <span class="n">iX</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">return_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">sY</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Y</span><span class="p">)[</span><span class="n">iX</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">sX</span><span class="p">,</span> <span class="n">sY</span></div>
 
 
-<div class="viewcode-block" id="Distribution"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Distribution">[docs]</a><span class="k">class</span> <span class="nc">Distribution</span><span class="p">:</span>
+<div class="viewcode-block" id="Distribution"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Distribution">[docs]</a><span class="k">class</span> <span class="nc">Distribution</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    mlmc.plot.Distribution</span>
 
@@ -188,7 +188,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">ax_pdf_err</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ax_cdf_err</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Distribution.add_raw_samples"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Distribution.add_raw_samples">[docs]</a>    <span class="k">def</span> <span class="nf">add_raw_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">samples</span><span class="p">):</span>
+<div class="viewcode-block" id="Distribution.add_raw_samples"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Distribution.add_raw_samples">[docs]</a>    <span class="k">def</span> <span class="nf">add_raw_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">samples</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add histogram and ecdf for raw samples.</span>
 <span class="sd">        :param samples:</span>
@@ -215,7 +215,7 @@
         <span class="c1"># sX = np.linspace(domain[0], domain[1], 1000)</span>
         <span class="c1"># self.ax_pdf.plot(sX, spl.derivative()(sX), color=&#39;red&#39;, alpha=0.4)</span>
 
-<div class="viewcode-block" id="Distribution.add_distribution"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Distribution.add_distribution">[docs]</a>    <span class="k">def</span> <span class="nf">add_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">distr_object</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Distribution.add_distribution"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Distribution.add_distribution">[docs]</a>    <span class="k">def</span> <span class="nf">add_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">distr_object</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add plot for distribution &#39;distr_object&#39; with given label.</span>
 <span class="sd">        :param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain</span>
@@ -254,7 +254,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">i_plot</span> <span class="o">+=</span> <span class="mi">1</span></div>
 
-<div class="viewcode-block" id="Distribution.show"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Distribution.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="Distribution.show"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Distribution.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set colors according to the number of added plots.</span>
 <span class="sd">        Set domain from all plots.</span>
@@ -266,7 +266,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ax_pdf</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_legend_title</span><span class="p">,</span> <span class="n">loc</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">_show_and_save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Distribution.reset"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Distribution.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Distribution.reset"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Distribution.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_domain</span> <span class="o">=</span> <span class="kc">None</span></div>
 
@@ -281,7 +281,7 @@
         <span class="n">l2</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">domain</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">l1</span><span class="p">,</span> <span class="n">l2</span><span class="p">]</span>
 
-<div class="viewcode-block" id="Distribution.adjust_domain"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Distribution.adjust_domain">[docs]</a>    <span class="k">def</span> <span class="nf">adjust_domain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain</span><span class="p">):</span>
+<div class="viewcode-block" id="Distribution.adjust_domain"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Distribution.adjust_domain">[docs]</a>    <span class="k">def</span> <span class="nf">adjust_domain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Enlarge common domain by given bounds.</span>
 <span class="sd">        :param value: [lower_bound, upper_bound]</span>
@@ -321,7 +321,7 @@
         <span class="k">return</span> <span class="n">X</span></div>
 
 
-<div class="viewcode-block" id="Eigenvalues"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Eigenvalues">[docs]</a><span class="k">class</span> <span class="nc">Eigenvalues</span><span class="p">:</span>
+<div class="viewcode-block" id="Eigenvalues"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Eigenvalues">[docs]</a><span class="k">class</span> <span class="nc">Eigenvalues</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot of eigenvalues (of the covariance matrix), several sets of eigenvalues can be added</span>
 <span class="sd">    together with error bars and cut-tresholds.</span>
@@ -340,7 +340,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_y</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Eigenvalues.add_values"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Eigenvalues.add_values">[docs]</a>    <span class="k">def</span> <span class="nf">add_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="Eigenvalues.add_values"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Eigenvalues.add_values">[docs]</a>    <span class="k">def</span> <span class="nf">add_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add set of eigenvalues into the plot.</span>
 <span class="sd">        :param values: array (n,); eigen values in increasing or decreasing ordred, automatically flipped to decreasing.</span>
@@ -375,10 +375,10 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">i_plot</span> <span class="o">+=</span> <span class="mi">1</span></div>
 
-<div class="viewcode-block" id="Eigenvalues.add_linear_fit"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Eigenvalues.add_linear_fit">[docs]</a>    <span class="k">def</span> <span class="nf">add_linear_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+<div class="viewcode-block" id="Eigenvalues.add_linear_fit"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Eigenvalues.add_linear_fit">[docs]</a>    <span class="k">def</span> <span class="nf">add_linear_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
         <span class="k">pass</span></div>
 
-<div class="viewcode-block" id="Eigenvalues.show"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Eigenvalues.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="Eigenvalues.show"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Eigenvalues.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Show the plot or save to file.</span>
 <span class="sd">        :param file: filename base, None for show.</span>
@@ -387,7 +387,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Noise level&quot;</span><span class="p">)</span>
         <span class="n">_show_and_save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Eigenvalues.adjust_ylim"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Eigenvalues.adjust_ylim">[docs]</a>    <span class="k">def</span> <span class="nf">adjust_ylim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ylim</span><span class="p">):</span>
+<div class="viewcode-block" id="Eigenvalues.adjust_ylim"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Eigenvalues.adjust_ylim">[docs]</a>    <span class="k">def</span> <span class="nf">adjust_ylim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ylim</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Enlarge common domain by given bounds.</span>
 <span class="sd">        :param value: [lower_bound, upper_bound]</span>
@@ -398,7 +398,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_ylim</span> <span class="o">=</span> <span class="p">[</span><span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ylim</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ylim</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ylim</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">ylim</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span></div></div>
 
 
-<div class="viewcode-block" id="moments"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.moments">[docs]</a><span class="k">def</span> <span class="nf">moments</span><span class="p">(</span><span class="n">moments_fn</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="moments"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.moments">[docs]</a><span class="k">def</span> <span class="nf">moments</span><span class="p">(</span><span class="n">moments_fn</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot moment functions.</span>
 <span class="sd">    :param moments_fn:</span>
@@ -424,7 +424,7 @@
     <span class="n">_show_and_save</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">title</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="VarianceBreakdown"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.VarianceBreakdown">[docs]</a><span class="k">class</span> <span class="nc">VarianceBreakdown</span><span class="p">:</span>
+<div class="viewcode-block" id="VarianceBreakdown"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.VarianceBreakdown">[docs]</a><span class="k">class</span> <span class="nc">VarianceBreakdown</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot total variance average over moments and variances of individual moments,</span>
 <span class="sd">    Brake down to contribution of individual levels and optionally comparison to the reference level variances using</span>
@@ -444,7 +444,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">n_moments</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">subset_type</span> <span class="o">=</span> <span class="n">moments</span>
 
-<div class="viewcode-block" id="VarianceBreakdown.add_variances"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.VarianceBreakdown.add_variances">[docs]</a>    <span class="k">def</span> <span class="nf">add_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_vars</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">ref_level_vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="VarianceBreakdown.add_variances"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.VarianceBreakdown.add_variances">[docs]</a>    <span class="k">def</span> <span class="nf">add_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_vars</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">ref_level_vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add plot of variances for single MLMC instance.</span>
 
@@ -504,7 +504,7 @@
             <span class="n">sum_Y</span> <span class="o">+=</span> <span class="n">Y</span></div>
 
 
-<div class="viewcode-block" id="VarianceBreakdown.show"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.VarianceBreakdown.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="VarianceBreakdown.show"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.VarianceBreakdown.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Show the plot or save to file.</span>
 <span class="sd">        :param filename: filename base, None for show.</span>
@@ -516,7 +516,7 @@
         <span class="n">_show_and_save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="Variance"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Variance">[docs]</a><span class="k">class</span> <span class="nc">Variance</span><span class="p">:</span>
+<div class="viewcode-block" id="Variance"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Variance">[docs]</a><span class="k">class</span> <span class="nc">Variance</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot level variances, i.e. Var X^l as a function of the mesh step.</span>
 <span class="sd">    Selected moments are plotted.</span>
@@ -541,7 +541,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">max_step</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
 
-<div class="viewcode-block" id="Variance.add_level_variances"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Variance.add_level_variances">[docs]</a>    <span class="k">def</span> <span class="nf">add_level_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">steps</span><span class="p">,</span> <span class="n">variances</span><span class="p">):</span>
+<div class="viewcode-block" id="Variance.add_level_variances"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Variance.add_level_variances">[docs]</a>    <span class="k">def</span> <span class="nf">add_level_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">steps</span><span class="p">,</span> <span class="n">variances</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add variances for single MLMC instance.</span>
 <span class="sd">        :param steps, variances : as returned by Estimate.estimate_level_vars</span>
@@ -563,7 +563,7 @@
             <span class="n">Y</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">vars</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">m</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Variance.show"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Variance.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="Variance.show"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Variance.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
         <span class="n">step_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_step</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_step</span>
         <span class="n">log_scale</span> <span class="o">=</span> <span class="n">step_range</span> <span class="o">**</span> <span class="mf">0.001</span> <span class="o">-</span> <span class="mi">1</span>
         <span class="n">rv</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">lognorm</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">log_scale</span><span class="p">)</span>
@@ -586,14 +586,14 @@
         <span class="n">_show_and_save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="BSplots"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.BSplots">[docs]</a><span class="k">class</span> <span class="nc">BSplots</span><span class="p">:</span>
+<div class="viewcode-block" id="BSplots"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.BSplots">[docs]</a><span class="k">class</span> <span class="nc">BSplots</span><span class="p">:</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">bs_n_samples</span><span class="p">,</span> <span class="n">n_moments</span><span class="p">,</span> <span class="n">ref_level_var</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_bs_n_samples</span> <span class="o">=</span> <span class="n">bs_n_samples</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_n_samples</span> <span class="o">=</span> <span class="n">n_samples</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_n_moments</span> <span class="o">=</span> <span class="n">n_moments</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_ref_level_var</span> <span class="o">=</span> <span class="n">ref_level_var</span>
 
-<div class="viewcode-block" id="BSplots.set_moments_color_bar"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.BSplots.set_moments_color_bar">[docs]</a>    <span class="k">def</span> <span class="nf">set_moments_color_bar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">range</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="BSplots.set_moments_color_bar"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.BSplots.set_moments_color_bar">[docs]</a>    <span class="k">def</span> <span class="nf">set_moments_color_bar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">range</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create colorbar for a variable with given range and add it to given axes.</span>
 <span class="sd">        :param range: single value as high bound or tuple (low bound, high bound)</span>
@@ -647,7 +647,7 @@
             <span class="n">col</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n_levels</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">color</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
             <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="n">col</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="n">marker</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;var, m=&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i_moments</span><span class="p">[</span><span class="n">m</span><span class="p">]))</span>
 
-<div class="viewcode-block" id="BSplots.plot_bootstrap_variance_compare"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.BSplots.plot_bootstrap_variance_compare">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bootstrap_variance_compare</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="BSplots.plot_bootstrap_variance_compare"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.BSplots.plot_bootstrap_variance_compare">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bootstrap_variance_compare</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot fraction (MLMC var est) / (BS var set) for the total variance and level variances.</span>
 <span class="sd">        :return:</span>
@@ -682,7 +682,7 @@
         <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;bs_var_vs_var.pdf&#39;</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="BSplots.plot_bs_variances"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.BSplots.plot_bs_variances">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variances</span><span class="p">,</span> <span class="n">y_label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">y_lim</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="BSplots.plot_bs_variances"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.BSplots.plot_bs_variances">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variances</span><span class="p">,</span> <span class="n">y_label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">y_lim</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot BS estimate of error of variances of other related quantities.</span>
 <span class="sd">        :param variances: Data, shape: (n_levels + 1, n_moments).</span>
@@ -710,7 +710,7 @@
         <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;bs_var_var.pdf&#39;</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="BSplots.plot_bs_var_error_contributions"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.BSplots.plot_bs_var_error_contributions">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_var_error_contributions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="BSplots.plot_bs_var_error_contributions"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.BSplots.plot_bs_var_error_contributions">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_var_error_contributions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        MSE of total variance and contribution of individual levels.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -723,7 +723,7 @@
                                <span class="n">y_label</span><span class="o">=</span><span class="s2">&quot;MSE of total variance and contributions from individual levels.&quot;</span><span class="p">,</span>
                                <span class="p">)</span></div>
 
-<div class="viewcode-block" id="BSplots.plot_bs_level_variances_error"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.BSplots.plot_bs_level_variances_error">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_level_variances_error</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="BSplots.plot_bs_level_variances_error"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.BSplots.plot_bs_level_variances_error">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_level_variances_error</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot error of estimates of V_l. Scaled as V_l^2 / N_l</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -742,7 +742,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">plot_bs_variances</span><span class="p">(</span><span class="n">bs_variances</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                                <span class="n">y_label</span><span class="o">=</span><span class="s2">&quot;MSE of level variances estimators scaled by $V_l^2/N_l$.&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="BSplots.plot_bs_var_log_var"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.BSplots.plot_bs_var_log_var">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_var_log_var</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="BSplots.plot_bs_var_log_var"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.BSplots.plot_bs_var_log_var">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_var_log_var</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -767,7 +767,7 @@
     <span class="c1">#                            y_label=&quot;BS est. of var. of $\hat V^r$, $\hat V^r_l$ estimators.&quot;,</span>
     <span class="c1">#                            y_lim=(0.1, 20))</span>
 
-<div class="viewcode-block" id="BSplots.plot_means_and_vars"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.BSplots.plot_means_and_vars">[docs]</a>    <span class="k">def</span> <span class="nf">plot_means_and_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">moments_mean</span><span class="p">,</span> <span class="n">moments_var</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">exact_moments</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="BSplots.plot_means_and_vars"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.BSplots.plot_means_and_vars">[docs]</a>    <span class="k">def</span> <span class="nf">plot_means_and_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">moments_mean</span><span class="p">,</span> <span class="n">moments_var</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">exact_moments</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot means with variance whiskers to given axes.</span>
 <span class="sd">        :param moments_mean: array, moments mean</span>
@@ -793,7 +793,7 @@
         <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="BSplots.plot_var_regression"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.BSplots.plot_var_regression">[docs]</a>    <span class="k">def</span> <span class="nf">plot_var_regression</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">estimator</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">moments_fn</span><span class="p">,</span> <span class="n">i_moments</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="BSplots.plot_var_regression"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.BSplots.plot_var_regression">[docs]</a>    <span class="k">def</span> <span class="nf">plot_var_regression</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">estimator</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">moments_fn</span><span class="p">,</span> <span class="n">i_moments</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot total and level variances and their regression and errors of regression.</span>
 <span class="sd">        :param i_moments: List of moment indices to plot. If it is an int M, the range(M) is used.</span>
@@ -839,7 +839,7 @@
 
 
 
-<div class="viewcode-block" id="Aux"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Aux">[docs]</a><span class="k">class</span> <span class="nc">Aux</span><span class="p">:</span>
+<div class="viewcode-block" id="Aux"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Aux">[docs]</a><span class="k">class</span> <span class="nc">Aux</span><span class="p">:</span>
     <span class="k">def</span> <span class="nf">_scatter_level_moment_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">i_moments</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Scatter plot of given table of data for moments and levels.</span>
@@ -866,7 +866,7 @@
             <span class="n">col</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n_levels</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">color</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
             <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="n">col</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="n">marker</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;var, m=&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i_moments</span><span class="p">[</span><span class="n">m</span><span class="p">]))</span>
 
-<div class="viewcode-block" id="Aux.plot_bootstrap_variance_compare"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Aux.plot_bootstrap_variance_compare">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bootstrap_variance_compare</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Aux.plot_bootstrap_variance_compare"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Aux.plot_bootstrap_variance_compare">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bootstrap_variance_compare</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot fraction (MLMC var est) / (BS var set) for the total variance and level variances.</span>
 <span class="sd">        :param moments_fn:</span>
@@ -902,7 +902,7 @@
         <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;bs_var_vs_var.pdf&#39;</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Aux.plot_bs_variances"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Aux.plot_bs_variances">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variances</span><span class="p">,</span> <span class="n">y_label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">y_lim</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Aux.plot_bs_variances"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Aux.plot_bs_variances">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_variances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variances</span><span class="p">,</span> <span class="n">y_label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">y_lim</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot BS estimate of error of variances of other related quantities.</span>
 <span class="sd">        :param variances: Data, shape: (n_levels + 1, n_moments).</span>
@@ -930,7 +930,7 @@
         <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;bs_var_var.pdf&#39;</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Aux.plot_bs_var_error_contributions"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Aux.plot_bs_var_error_contributions">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_var_error_contributions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Aux.plot_bs_var_error_contributions"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Aux.plot_bs_var_error_contributions">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_var_error_contributions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        MSE of total variance and contribution of individual levels.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -943,7 +943,7 @@
                                <span class="n">y_label</span><span class="o">=</span><span class="s2">&quot;MSE of total variance and contributions from individual levels.&quot;</span><span class="p">,</span>
                                <span class="p">)</span></div>
 
-<div class="viewcode-block" id="Aux.plot_bs_level_variances_error"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Aux.plot_bs_level_variances_error">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_level_variances_error</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Aux.plot_bs_level_variances_error"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Aux.plot_bs_level_variances_error">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_level_variances_error</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot error of estimates of V_l. Scaled as V_l^2 / N_l</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -962,7 +962,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">plot_bs_variances</span><span class="p">(</span><span class="n">bs_variances</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                                <span class="n">y_label</span><span class="o">=</span><span class="s2">&quot;MSE of level variances estimators scaled by $V_l^2/N_l$.&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Aux.plot_bs_var_log_var"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Aux.plot_bs_var_log_var">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_var_log_var</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Aux.plot_bs_var_log_var"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Aux.plot_bs_var_log_var">[docs]</a>    <span class="k">def</span> <span class="nf">plot_bs_var_log_var</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -988,7 +988,7 @@
     <span class="c1">#                            y_lim=(0.1, 20))</span>
 
 
-<div class="viewcode-block" id="Aux.plot_means_and_vars"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Aux.plot_means_and_vars">[docs]</a>    <span class="k">def</span> <span class="nf">plot_means_and_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">moments_mean</span><span class="p">,</span> <span class="n">moments_var</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">exact_moments</span><span class="p">):</span>
+<div class="viewcode-block" id="Aux.plot_means_and_vars"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Aux.plot_means_and_vars">[docs]</a>    <span class="k">def</span> <span class="nf">plot_means_and_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">moments_mean</span><span class="p">,</span> <span class="n">moments_var</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">exact_moments</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot means with variance whiskers to given axes.</span>
 <span class="sd">        :param moments_mean: array, moments mean</span>
@@ -1019,7 +1019,7 @@
         <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="Aux.plot_var_regression"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.Aux.plot_var_regression">[docs]</a>    <span class="k">def</span> <span class="nf">plot_var_regression</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_moments</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Aux.plot_var_regression"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.Aux.plot_var_regression">[docs]</a>    <span class="k">def</span> <span class="nf">plot_var_regression</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_moments</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot total and level variances and their regression and errors of regression.</span>
 <span class="sd">        :param i_moments: List of moment indices to plot. If it is an int M, the range(M) is used.</span>
@@ -1095,7 +1095,7 @@
     <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
 
-<div class="viewcode-block" id="plot_diff_var_subsample"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.plot_diff_var_subsample">[docs]</a><span class="k">def</span> <span class="nf">plot_diff_var_subsample</span><span class="p">(</span><span class="n">level_variance_diff</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">):</span>
+<div class="viewcode-block" id="plot_diff_var_subsample"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.plot_diff_var_subsample">[docs]</a><span class="k">def</span> <span class="nf">plot_diff_var_subsample</span><span class="p">(</span><span class="n">level_variance_diff</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot diff between V* and V</span>
 <span class="sd">    :param level_variance_diff: array of moments sqrt(V/V*)</span>
@@ -1127,7 +1127,7 @@
         <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="plot_vars"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.plot_vars">[docs]</a><span class="k">def</span> <span class="nf">plot_vars</span><span class="p">(</span><span class="n">moments_mean</span><span class="p">,</span> <span class="n">moments_var</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">exact_moments</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ex_moments</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="plot_vars"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.plot_vars">[docs]</a><span class="k">def</span> <span class="nf">plot_vars</span><span class="p">(</span><span class="n">moments_mean</span><span class="p">,</span> <span class="n">moments_var</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">exact_moments</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ex_moments</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot means with variance whiskers</span>
 <span class="sd">    :param moments_mean: array, moments mean</span>
@@ -1158,7 +1158,7 @@
     <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="plot_convergence"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.plot_convergence">[docs]</a><span class="k">def</span> <span class="nf">plot_convergence</span><span class="p">(</span><span class="n">quantiles</span><span class="p">,</span> <span class="n">conv_val</span><span class="p">,</span> <span class="n">title</span><span class="p">):</span>
+<div class="viewcode-block" id="plot_convergence"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.plot_convergence">[docs]</a><span class="k">def</span> <span class="nf">plot_convergence</span><span class="p">(</span><span class="n">quantiles</span><span class="p">,</span> <span class="n">conv_val</span><span class="p">,</span> <span class="n">title</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot convergence with moment size for various quantiles.</span>
 <span class="sd">    :param quantiles: iterable with quantiles</span>
@@ -1185,7 +1185,7 @@
     <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="plot_diff_var"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.plot_diff_var">[docs]</a><span class="k">def</span> <span class="nf">plot_diff_var</span><span class="p">(</span><span class="n">ref_mc_diff_vars</span><span class="p">,</span> <span class="n">n_moments</span><span class="p">,</span> <span class="n">steps</span><span class="p">):</span>
+<div class="viewcode-block" id="plot_diff_var"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.plot_diff_var">[docs]</a><span class="k">def</span> <span class="nf">plot_diff_var</span><span class="p">(</span><span class="n">ref_mc_diff_vars</span><span class="p">,</span> <span class="n">n_moments</span><span class="p">,</span> <span class="n">steps</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot level diff vars</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1217,7 +1217,7 @@
     <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="plot_var_regression"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.plot_var_regression">[docs]</a><span class="k">def</span> <span class="nf">plot_var_regression</span><span class="p">(</span><span class="n">ref_level_vars</span><span class="p">,</span> <span class="n">reg_vars</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">n_moments</span><span class="p">):</span>
+<div class="viewcode-block" id="plot_var_regression"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.plot_var_regression">[docs]</a><span class="k">def</span> <span class="nf">plot_var_regression</span><span class="p">(</span><span class="n">ref_level_vars</span><span class="p">,</span> <span class="n">reg_vars</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">n_moments</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot levels variance regression</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1236,7 +1236,7 @@
     <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="plot_regression_diffs"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.plot_regression_diffs">[docs]</a><span class="k">def</span> <span class="nf">plot_regression_diffs</span><span class="p">(</span><span class="n">all_diffs</span><span class="p">,</span> <span class="n">n_moments</span><span class="p">):</span>
+<div class="viewcode-block" id="plot_regression_diffs"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.plot_regression_diffs">[docs]</a><span class="k">def</span> <span class="nf">plot_regression_diffs</span><span class="p">(</span><span class="n">all_diffs</span><span class="p">,</span> <span class="n">n_moments</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot level variance difference regression</span>
 <span class="sd">    :param all_diffs: list, difference between Estimate._variance_regression result and Estimate.estimate_diff_var result</span>
@@ -1256,7 +1256,7 @@
     <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="plot_mlmc_conv"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.plot_mlmc_conv">[docs]</a><span class="k">def</span> <span class="nf">plot_mlmc_conv</span><span class="p">(</span><span class="n">n_moments</span><span class="p">,</span> <span class="n">vars_est</span><span class="p">,</span> <span class="n">exact_mean</span><span class="p">,</span> <span class="n">means_est</span><span class="p">,</span> <span class="n">target_var</span><span class="p">):</span>
+<div class="viewcode-block" id="plot_mlmc_conv"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.plot_mlmc_conv">[docs]</a><span class="k">def</span> <span class="nf">plot_mlmc_conv</span><span class="p">(</span><span class="n">n_moments</span><span class="p">,</span> <span class="n">vars_est</span><span class="p">,</span> <span class="n">exact_mean</span><span class="p">,</span> <span class="n">means_est</span><span class="p">,</span> <span class="n">target_var</span><span class="p">):</span>
 
     <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">20</span><span class="p">))</span>
     <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_moments</span><span class="p">):</span>
@@ -1280,7 +1280,7 @@
         <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;observed var. of mean est.&quot;</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="plot_n_sample_est_distributions"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.plot_n_sample_est_distributions">[docs]</a><span class="k">def</span> <span class="nf">plot_n_sample_est_distributions</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">cost</span><span class="p">,</span> <span class="n">total_std</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">rel_moments</span><span class="p">):</span>
+<div class="viewcode-block" id="plot_n_sample_est_distributions"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.plot_n_sample_est_distributions">[docs]</a><span class="k">def</span> <span class="nf">plot_n_sample_est_distributions</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">cost</span><span class="p">,</span> <span class="n">total_std</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">rel_moments</span><span class="p">):</span>
     <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span><span class="mi">10</span><span class="p">))</span>
     <span class="n">ax1</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
     <span class="n">plot_error</span><span class="p">(</span><span class="n">cost</span><span class="p">,</span> <span class="n">ax1</span><span class="p">,</span> <span class="s2">&quot;cost err&quot;</span><span class="p">)</span>
@@ -1297,7 +1297,7 @@
     <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="plot_error"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.plot_error">[docs]</a><span class="k">def</span> <span class="nf">plot_error</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+<div class="viewcode-block" id="plot_error"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.plot_error">[docs]</a><span class="k">def</span> <span class="nf">plot_error</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
     <span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">normed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
     <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
     <span class="n">prc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="p">[</span><span class="mi">99</span><span class="p">])</span>
@@ -1314,7 +1314,7 @@
 <span class="c1">#         plot(x, y, &#39;r.&#39;, alpha=0.2)</span>
 
 
-<div class="viewcode-block" id="plot_pbs_flow_job_time"><a class="viewcode-back" href="../../../../src.mlmc.plot.html#src.mlmc.plot.plots.plot_pbs_flow_job_time">[docs]</a><span class="k">def</span> <span class="nf">plot_pbs_flow_job_time</span><span class="p">():</span>
+<div class="viewcode-block" id="plot_pbs_flow_job_time"><a class="viewcode-back" href="../../../../mlmc.plot.html#mlmc.plot.plots.plot_pbs_flow_job_time">[docs]</a><span class="k">def</span> <span class="nf">plot_pbs_flow_job_time</span><span class="p">():</span>
     <span class="kn">from</span> <span class="nn">mlmc.sample_storage_hdf</span> <span class="k">import</span> <span class="n">SampleStorageHDF</span>
     <span class="kn">import</span> <span class="nn">os</span>
     <span class="kn">import</span> <span class="nn">mlmc.tool.flow_mc</span>
@@ -1363,8 +1363,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.html">src.mlmc package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.quantity.html">mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.html">mlmc package</a></li>
 </ul>
 
 <div class="relations">

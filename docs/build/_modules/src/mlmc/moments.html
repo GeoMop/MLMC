@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.moments &#8212; MLMC daf documentation</title>
+    <title>mlmc.moments &#8212; MLMC daf documentation</title>
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
@@ -30,13 +30,13 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.moments</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.moments</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">numpy.ma</span> <span class="k">as</span> <span class="nn">ma</span>
 <span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="k">import</span> <span class="n">BSpline</span>
 
 
-<div class="viewcode-block" id="Moments"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Moments">[docs]</a><span class="k">class</span> <span class="nc">Moments</span><span class="p">:</span>
+<div class="viewcode-block" id="Moments"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Moments">[docs]</a><span class="k">class</span> <span class="nc">Moments</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class for _moments_fn of random distribution</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -81,14 +81,14 @@
                 <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_log</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_is_log</span> \
                 <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_clip</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_is_clip</span>
 
-<div class="viewcode-block" id="Moments.change_size"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Moments.change_size">[docs]</a>    <span class="k">def</span> <span class="nf">change_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+<div class="viewcode-block" id="Moments.change_size"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Moments.change_size">[docs]</a>    <span class="k">def</span> <span class="nf">change_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return moment object with different size.</span>
 <span class="sd">        :param size: int, new number of _moments_fn</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">domain</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_log</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_clip</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Moments.clip"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Moments.clip">[docs]</a>    <span class="k">def</span> <span class="nf">clip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<div class="viewcode-block" id="Moments.clip"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Moments.clip">[docs]</a>    <span class="k">def</span> <span class="nf">clip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Remove outliers and replace them with NaN</span>
 <span class="sd">        :param value: array of numbers</span>
@@ -99,19 +99,19 @@
         <span class="c1"># Replace outliers with NaN</span>
         <span class="k">return</span> <span class="n">ma</span><span class="o">.</span><span class="n">filled</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Moments.linear"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Moments.linear">[docs]</a>    <span class="k">def</span> <span class="nf">linear</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<div class="viewcode-block" id="Moments.linear"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Moments.linear">[docs]</a>    <span class="k">def</span> <span class="nf">linear</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">value</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_linear_shift</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_linear_scale</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">ref_domain</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="Moments.inv_linear"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Moments.inv_linear">[docs]</a>    <span class="k">def</span> <span class="nf">inv_linear</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<div class="viewcode-block" id="Moments.inv_linear"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Moments.inv_linear">[docs]</a>    <span class="k">def</span> <span class="nf">inv_linear</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">value</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">ref_domain</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_linear_scale</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_linear_shift</span></div>
 
     <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_all</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Moments.eval"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Moments.eval">[docs]</a>    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<div class="viewcode-block" id="Moments.eval"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Moments.eval">[docs]</a>    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_all</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="Moments.eval_single_moment"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Moments.eval_single_moment">[docs]</a>    <span class="k">def</span> <span class="nf">eval_single_moment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<div class="viewcode-block" id="Moments.eval_single_moment"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Moments.eval_single_moment">[docs]</a>    <span class="k">def</span> <span class="nf">eval_single_moment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Be aware this implementation is inefficient for large i</span>
 <span class="sd">        :param i: int, order of moment</span>
@@ -120,28 +120,28 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_all</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="Moments.eval_all"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Moments.eval_all">[docs]</a>    <span class="k">def</span> <span class="nf">eval_all</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Moments.eval_all"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Moments.eval_all">[docs]</a>    <span class="k">def</span> <span class="nf">eval_all</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_all</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Moments.eval_all_der"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Moments.eval_all_der">[docs]</a>    <span class="k">def</span> <span class="nf">eval_all_der</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">degree</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<div class="viewcode-block" id="Moments.eval_all_der"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Moments.eval_all_der">[docs]</a>    <span class="k">def</span> <span class="nf">eval_all_der</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">degree</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_all_der</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">degree</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Moments.eval_diff"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Moments.eval_diff">[docs]</a>    <span class="k">def</span> <span class="nf">eval_diff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Moments.eval_diff"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Moments.eval_diff">[docs]</a>    <span class="k">def</span> <span class="nf">eval_diff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_diff</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Moments.eval_diff2"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Moments.eval_diff2">[docs]</a>    <span class="k">def</span> <span class="nf">eval_diff2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Moments.eval_diff2"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Moments.eval_diff2">[docs]</a>    <span class="k">def</span> <span class="nf">eval_diff2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eval_diff2</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="Monomial"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Monomial">[docs]</a><span class="k">class</span> <span class="nc">Monomial</span><span class="p">(</span><span class="n">Moments</span><span class="p">):</span>
+<div class="viewcode-block" id="Monomial"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Monomial">[docs]</a><span class="k">class</span> <span class="nc">Monomial</span><span class="p">(</span><span class="n">Moments</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">ref_domain</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">safe_eval</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">ref_domain</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ref_domain</span> <span class="o">=</span> <span class="n">ref_domain</span>
@@ -155,12 +155,12 @@
         <span class="c1"># Vandermonde matrix</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">polynomial</span><span class="o">.</span><span class="n">polynomial</span><span class="o">.</span><span class="n">polyvander</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Monomial.eval"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Monomial.eval">[docs]</a>    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<div class="viewcode-block" id="Monomial.eval"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Monomial.eval">[docs]</a>    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">t</span><span class="o">**</span><span class="n">i</span></div></div>
 
 
-<div class="viewcode-block" id="Fourier"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Fourier">[docs]</a><span class="k">class</span> <span class="nc">Fourier</span><span class="p">(</span><span class="n">Moments</span><span class="p">):</span>
+<div class="viewcode-block" id="Fourier"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Fourier">[docs]</a><span class="k">class</span> <span class="nc">Fourier</span><span class="p">(</span><span class="n">Moments</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">),</span> <span class="n">ref_domain</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">safe_eval</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">ref_domain</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ref_domain</span> <span class="o">=</span> <span class="n">ref_domain</span>
@@ -188,7 +188,7 @@
         <span class="n">res</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">kx</span><span class="p">[:,</span> <span class="p">:</span> <span class="n">R</span> <span class="o">-</span> <span class="n">shorter_sin</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">res</span>
 
-<div class="viewcode-block" id="Fourier.eval"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Fourier.eval">[docs]</a>    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<div class="viewcode-block" id="Fourier.eval"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Fourier.eval">[docs]</a>    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
         <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="mi">1</span>
@@ -198,7 +198,7 @@
             <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">i</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="Legendre"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.Legendre">[docs]</a><span class="k">class</span> <span class="nc">Legendre</span><span class="p">(</span><span class="n">Moments</span><span class="p">):</span>
+<div class="viewcode-block" id="Legendre"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.Legendre">[docs]</a><span class="k">class</span> <span class="nc">Legendre</span><span class="p">(</span><span class="n">Moments</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">domain</span><span class="p">,</span> <span class="n">ref_domain</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">safe_eval</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">ref_domain</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -253,7 +253,7 @@
         <span class="k">return</span> <span class="n">P_n</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">diff2_mat</span></div>
 
 
-<div class="viewcode-block" id="TransformedMoments"><a class="viewcode-back" href="../../../src.mlmc.html#src.mlmc.moments.TransformedMoments">[docs]</a><span class="k">class</span> <span class="nc">TransformedMoments</span><span class="p">(</span><span class="n">Moments</span><span class="p">):</span>
+<div class="viewcode-block" id="TransformedMoments"><a class="viewcode-back" href="../../../mlmc.html#mlmc.moments.TransformedMoments">[docs]</a><span class="k">class</span> <span class="nc">TransformedMoments</span><span class="p">(</span><span class="n">Moments</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_moments</span><span class="p">,</span> <span class="n">matrix</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set a new moment functions as linear combination of the previous.</span>
@@ -316,8 +316,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../src.mlmc.html">src.mlmc package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.quantity.html">mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html">mlmc package</a></li>
 </ul>
 
 <div class="relations">

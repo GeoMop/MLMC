@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>src.mlmc.tool.flow_mc &#8212; mlmc daf documentation</title>
+    <title>mlmc.tool.flow_mc &#8212; mlmc daf documentation</title>
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
     <script id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
@@ -30,7 +30,7 @@
 
           <div class="body" role="main">
             
-  <h1>Source code for src.mlmc.tool.flow_mc</h1><div class="highlight"><pre>
+  <h1>Source code for mlmc.tool.flow_mc</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">os.path</span>
 <span class="kn">import</span> <span class="nn">subprocess</span>
@@ -46,7 +46,7 @@
 <span class="kn">from</span> <span class="nn">mlmc.random</span> <span class="k">import</span> <span class="n">correlated_field</span> <span class="k">as</span> <span class="n">cf</span>
 
 
-<div class="viewcode-block" id="create_corr_field"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.flow_mc.create_corr_field">[docs]</a><span class="k">def</span> <span class="nf">create_corr_field</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s1">&#39;gauss&#39;</span><span class="p">,</span> <span class="n">corr_length</span><span class="o">=</span><span class="mf">0.125</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mode_no</span><span class="o">=</span><span class="mi">1000</span><span class="p">):</span>
+<div class="viewcode-block" id="create_corr_field"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.flow_mc.create_corr_field">[docs]</a><span class="k">def</span> <span class="nf">create_corr_field</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s1">&#39;gauss&#39;</span><span class="p">,</span> <span class="n">corr_length</span><span class="o">=</span><span class="mf">0.125</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mode_no</span><span class="o">=</span><span class="mi">1000</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create random fields</span>
 <span class="sd">    :return:</span>
@@ -86,7 +86,7 @@
 
 
 
-<div class="viewcode-block" id="substitute_placeholders"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.flow_mc.substitute_placeholders">[docs]</a><span class="k">def</span> <span class="nf">substitute_placeholders</span><span class="p">(</span><span class="n">file_in</span><span class="p">,</span> <span class="n">file_out</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<div class="viewcode-block" id="substitute_placeholders"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.flow_mc.substitute_placeholders">[docs]</a><span class="k">def</span> <span class="nf">substitute_placeholders</span><span class="p">(</span><span class="n">file_in</span><span class="p">,</span> <span class="n">file_out</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Substitute for placeholders of format &#39;&lt;name&gt;&#39; from the dict &#39;params&#39;.</span>
 <span class="sd">    :param file_in: Template file.</span>
@@ -107,7 +107,7 @@
     <span class="k">return</span> <span class="n">used_params</span></div>
 
 
-<div class="viewcode-block" id="force_mkdir"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.flow_mc.force_mkdir">[docs]</a><span class="k">def</span> <span class="nf">force_mkdir</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="force_mkdir"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.flow_mc.force_mkdir">[docs]</a><span class="k">def</span> <span class="nf">force_mkdir</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Make directory &#39;path&#39; with all parents,</span>
 <span class="sd">    remove the leaf dir recursively if it already exists.</span>
@@ -121,7 +121,7 @@
     <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="mo">0o775</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="FlowSim"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.flow_mc.FlowSim">[docs]</a><span class="k">class</span> <span class="nc">FlowSim</span><span class="p">(</span><span class="n">Simulation</span><span class="p">):</span>
+<div class="viewcode-block" id="FlowSim"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.flow_mc.FlowSim">[docs]</a><span class="k">class</span> <span class="nc">FlowSim</span><span class="p">(</span><span class="n">Simulation</span><span class="p">):</span>
     <span class="c1"># placeholders in YAML</span>
     <span class="n">total_sim_id</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">MESH_FILE_VAR</span> <span class="o">=</span> <span class="s1">&#39;mesh_file&#39;</span>
@@ -183,7 +183,7 @@
 
         <span class="nb">super</span><span class="p">(</span><span class="n">Simulation</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
-<div class="viewcode-block" id="FlowSim.level_instance"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.flow_mc.FlowSim.level_instance">[docs]</a>    <span class="k">def</span> <span class="nf">level_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fine_level_params</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">coarse_level_params</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">LevelSimulation</span><span class="p">:</span>
+<div class="viewcode-block" id="FlowSim.level_instance"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.level_instance">[docs]</a>    <span class="k">def</span> <span class="nf">level_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fine_level_params</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">coarse_level_params</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">LevelSimulation</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Called from mlmc.Sampler, it creates single instance of LevelSimulation (mlmc.)</span>
 <span class="sd">        :param fine_level_params: in this version, it is just fine simulation step</span>
@@ -253,7 +253,7 @@
                                <span class="n">need_sample_workspace</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># If True, a sample directory is created</span>
                                <span class="p">)</span></div>
 
-<div class="viewcode-block" id="FlowSim.calculate"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.flow_mc.FlowSim.calculate">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FlowSim.calculate"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.calculate">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">calculate</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">seed</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Method that actually run the calculation, it&#39;s called from mlmc.tool.pbs_job.PbsJob.calculate_samples()</span>
@@ -309,7 +309,7 @@
 
         <span class="k">return</span> <span class="n">fine_res</span><span class="p">,</span> <span class="n">coarse_res</span></div>
 
-<div class="viewcode-block" id="FlowSim.make_fields"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.flow_mc.FlowSim.make_fields">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FlowSim.make_fields"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.make_fields">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">make_fields</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">fine_mesh_data</span><span class="p">,</span> <span class="n">coarse_mesh_data</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create random fields that are used by both coarse and fine simulation</span>
@@ -351,7 +351,7 @@
 
         <span class="k">return</span> <span class="n">FlowSim</span><span class="o">.</span><span class="n">_extract_result</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">())</span>
 
-<div class="viewcode-block" id="FlowSim.generate_random_sample"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.flow_mc.FlowSim.generate_random_sample">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FlowSim.generate_random_sample"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.generate_random_sample">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">generate_random_sample</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">coarse_step</span><span class="p">,</span> <span class="n">n_fine_elements</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate random field, both fine and coarse part.</span>
@@ -380,7 +380,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">[</span><span class="s1">&#39;gmsh&#39;</span><span class="p">],</span> <span class="s2">&quot;-2&quot;</span><span class="p">,</span> <span class="s1">&#39;-clscale&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">fine_step</span><span class="p">),</span> <span class="s1">&#39;-o&#39;</span><span class="p">,</span> <span class="n">mesh_file</span><span class="p">,</span> <span class="n">geo_file</span><span class="p">])</span>
 
-<div class="viewcode-block" id="FlowSim.extract_mesh"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.flow_mc.FlowSim.extract_mesh">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FlowSim.extract_mesh"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.extract_mesh">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">extract_mesh</span><span class="p">(</span><span class="n">mesh_file</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extract mesh from file</span>
@@ -477,7 +477,7 @@
             <span class="k">raise</span> <span class="ne">Exception</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="n">total_flux</span><span class="p">])</span>
 
-<div class="viewcode-block" id="FlowSim.result_format"><a class="viewcode-back" href="../../../../src.mlmc.tool.html#src.mlmc.tool.flow_mc.FlowSim.result_format">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="FlowSim.result_format"><a class="viewcode-back" href="../../../../mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.result_format">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">result_format</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantitySpec</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Define simulation result format</span>
@@ -528,8 +528,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.quantity.html">src.mlmc.quantity package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../src.mlmc.html">src.mlmc package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.quantity.html">mlmc.quantity package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../mlmc.html">mlmc package</a></li>
 </ul>
 
 <div class="relations">
