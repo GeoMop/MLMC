@@ -1,11 +1,16 @@
-mlmc.plot package
-=====================
+mlmc.plot
+=================
+
+.. automodule:: mlmc.plot
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Submodules
 ----------
 
 mlmc.plot.plots module
---------------------------
+----------------------
 
 .. automodule:: mlmc.plot.plots
    :members:
@@ -13,7 +18,7 @@ mlmc.plot.plots module
    :show-inheritance:
 
 mlmc.plot.violinplot module
--------------------------------
+---------------------------
 
 .. automodule:: mlmc.plot.violinplot
    :members:

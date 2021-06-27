@@ -1,11 +1,13 @@
-mlmc.tool package
-=====================
+mlmc.tool
+=================
+
+.. automodule:: mlmc.tool
 
 Submodules
 ----------
 
 mlmc.tool.context\_statprof module
---------------------------------------
+----------------------------------
 
 .. automodule:: mlmc.tool.context_statprof
    :members:
@@ -13,7 +15,7 @@ mlmc.tool.context\_statprof module
    :show-inheritance:
 
 mlmc.tool.distribution module
----------------------------------
+-----------------------------
 
 .. automodule:: mlmc.tool.distribution
    :members:
@@ -21,7 +23,7 @@ mlmc.tool.distribution module
    :show-inheritance:
 
 mlmc.tool.flow\_mc module
------------------------------
+-------------------------
 
 .. automodule:: mlmc.tool.flow_mc
    :members:
@@ -29,7 +31,7 @@ mlmc.tool.flow\_mc module
    :show-inheritance:
 
 mlmc.tool.gmsh\_io module
------------------------------
+-------------------------
 
 .. automodule:: mlmc.tool.gmsh_io
    :members:
@@ -37,7 +39,7 @@ mlmc.tool.gmsh\_io module
    :show-inheritance:
 
 mlmc.tool.hdf5 module
--------------------------
+---------------------
 
 .. automodule:: mlmc.tool.hdf5
    :members:
@@ -45,7 +47,7 @@ mlmc.tool.hdf5 module
    :show-inheritance:
 
 mlmc.tool.pbs\_job module
------------------------------
+-------------------------
 
 .. automodule:: mlmc.tool.pbs_job
    :members:
@@ -53,7 +55,7 @@ mlmc.tool.pbs\_job module
    :show-inheritance:
 
 mlmc.tool.process\_base module
-----------------------------------
+------------------------------
 
 .. automodule:: mlmc.tool.process_base
    :members:
@@ -61,7 +63,7 @@ mlmc.tool.process\_base module
    :show-inheritance:
 
 mlmc.tool.simple\_distribution module
------------------------------------------
+-------------------------------------
 
 .. automodule:: mlmc.tool.simple_distribution
    :members:
@@ -69,7 +71,7 @@ mlmc.tool.simple\_distribution module
    :show-inheritance:
 
 mlmc.tool.stats\_tests module
----------------------------------
+-----------------------------
 
 .. automodule:: mlmc.tool.stats_tests
    :members:

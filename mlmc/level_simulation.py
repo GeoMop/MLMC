@@ -7,7 +7,7 @@ from mlmc.quantity.quantity_spec import QuantitySpec
 class LevelSimulation:
     """
     This class is used to pass simulation data at a given level between a Sampler and a SamplingPool
-    User should't change this class
+    User shouldn't change this class
     """
     config_dict: Dict[Any, Any]
     # Calculate configuration.

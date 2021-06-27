@@ -8,6 +8,9 @@ from mlmc.quantity.quantity_spec import ChunkSpec
 
 
 class Estimate:
+    """
+    Provides wrapper methods for moments estimation, pdf approximation, ...
+    """
     def __init__(self, quantity, sample_storage, moments_fn=None):
         self._quantity = quantity
         self._sample_storage = sample_storage

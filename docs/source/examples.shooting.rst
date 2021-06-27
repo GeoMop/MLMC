@@ -4,6 +4,14 @@ examples.shooting package
 Submodules
 ----------
 
+examples.shooting.Shooting1DPBS module
+--------------------------------------
+
+.. automodule:: examples.shooting.Shooting1DPBS
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 examples.shooting.shooting\_1D module
 -------------------------------------
 

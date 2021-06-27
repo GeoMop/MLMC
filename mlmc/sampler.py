@@ -7,6 +7,9 @@ from mlmc.sim.simulation import Simulation
 
 
 class Sampler:
+    """
+    Manages samples scheduling, results collection, and result storage.
+    """
 
     ADDING_SAMPLES_TIMEOUT = 1e-15
 

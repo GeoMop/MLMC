@@ -1,11 +1,14 @@
-mlmc.quantity package
-=========================
+mlmc.quantity
+=====================
+
+.. automodule:: mlmc.quantity
+
 
 Submodules
 ----------
 
 mlmc.quantity.quantity module
----------------------------------
+-----------------------------
 
 .. automodule:: mlmc.quantity.quantity
    :members:
@@ -13,7 +16,7 @@ mlmc.quantity.quantity module
    :show-inheritance:
 
 mlmc.quantity.quantity\_estimate module
--------------------------------------------
+---------------------------------------
 
 .. automodule:: mlmc.quantity.quantity_estimate
    :members:
@@ -21,7 +24,7 @@ mlmc.quantity.quantity\_estimate module
    :show-inheritance:
 
 mlmc.quantity.quantity\_spec module
----------------------------------------
+-----------------------------------
 
 .. automodule:: mlmc.quantity.quantity_spec
    :members:
@@ -29,7 +32,7 @@ mlmc.quantity.quantity\_spec module
    :show-inheritance:
 
 mlmc.quantity.quantity\_types module
-----------------------------------------
+------------------------------------
 
 .. automodule:: mlmc.quantity.quantity_types
    :members:

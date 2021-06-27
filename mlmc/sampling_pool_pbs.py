@@ -37,7 +37,7 @@ SamplingPoolPBS description
         - if there are _unfinished_sample_ids ('renew' command was use) these samples are appended to previous ones
 
 
-    This class cooperate with PbsJob (mlmc/pbs_job), which is used as "mediator" between master process and
+    This class cooperates with PbsJob (mlmc/pbs_job), which is used as "mediator" between master process and
     worker (job) process. Data which are necessary for worker process are passed to PbsJob from SampleStoragePbs. 
     Master process serializes PbsJob instance.
     Then PbsJob is deserialized in worker process.
@@ -46,6 +46,10 @@ SamplingPoolPBS description
 
 
 class SamplingPoolPBS(SamplingPool):
+    """
+    Sampling pool PBS (Portable batch system) runtime environment
+    """
+
     OUTPUT_DIR = "output"
     JOBS_DIR = "jobs"
     LEVEL_SIM_CONFIG = "level_{}_simulation_config"  # Serialized level simulation

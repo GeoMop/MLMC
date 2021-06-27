@@ -9,6 +9,9 @@ warnings.simplefilter("ignore", np.VisibleDeprecationWarning)
 
 
 class SampleStorageHDF(SampleStorage):
+    """
+    Sample's data are stored in a HDF5 file
+    """
 
     def __init__(self, file_path):
         """

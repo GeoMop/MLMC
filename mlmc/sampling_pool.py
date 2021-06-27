@@ -14,6 +14,10 @@ from mlmc.level_simulation import LevelSimulation
 
 
 class SamplingPool(ABC):
+    """
+    Determining the runtime environment of samples, eg single process, multiple processes, running PBS, ...
+    """
+
     FAILED_DIR = 'failed'
     SEVERAL_SUCCESSFUL_DIR = 'several_successful'
     N_SUCCESSFUL = 5

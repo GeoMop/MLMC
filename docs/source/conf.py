@@ -13,24 +13,27 @@
 import os
 import sys
 import datetime
-sys.path.append(os.path.abspath('../..'))
-sys.path.append(os.path.abspath('../../src'))
-sys.path.append(os.path.abspath('../../src/mlmc'))
-sys.path.append(os.path.abspath('../../src/mlmc/plot'))
-sys.path.append(os.path.abspath('../../src/mlmc/quantity'))
-sys.path.append(os.path.abspath('../../src/mlmc/tool'))
-sys.path.append(os.path.abspath('../../src/mlmc/sim'))
-sys.path.append(os.path.abspath('../../src/mlmc/random'))
+sys.path.insert(0, os.path.abspath("../../"))
+#sys.path.append(os.path.abspath('../..'))
+# sys.path.append(os.path.abspath('../../examples'))
+# sys.path.append(os.path.abspath('../../mlmc/plot'))
+# sys.path.append(os.path.abspath('../../mlmc/quantity'))
+# sys.path.append(os.path.abspath('../../mlmc/tool'))
+# sys.path.append(os.path.abspath('../../mlmc/sim'))
+# sys.path.append(os.path.abspath('../../mlmc/random'))
 
+
+print(sys.path)
 
 # -- Project information -----------------------------------------------------
-
-project = 'MLMC'
-copyright = '2021, Jan Brezina, Martin Spetlik'
-author = 'Jan Brezina, Martin Spetlik'
+# General information about the project.
+curr_year = datetime.datetime.now().year
+project = "mlmc"
+copyright = "{}, Jan Březina, Martin Špetlík".format(curr_year)
+author = "Jan Březina, Martin Špetlík"
 
 # The full version, including alpha/beta/rc tags
-release = 'daf'
+release = '1.0.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -44,6 +47,15 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
     ]
+
+# autosummaries from source-files
+autosummary_generate = True
+# dont show __init__ docstring
+autoclass_content = 'class'
+# sort class members
+autodoc_member_order = "groupwise"
+# autodoc_member_order = 'bysource'
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -81,8 +93,6 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 #html_static_path = ['_static']
 
-autosummary_generate = True
-
 # autodoc_default_options = {
 #     'members': True,
 #     # The ones below should be optional but work nicely together with
@@ -93,10 +103,3 @@ autosummary_generate = True
 #     'no-special-members': True,
 # }
 master_doc = "contents"
-
-
-# General information about the project.
-curr_year = datetime.datetime.now().year
-project = "mlmc"
-copyright = "{}, Jan Březina, Martin Špetlík".format(curr_year)
-author = "Jan Březina, Martin Špetlík"

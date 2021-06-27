@@ -7,6 +7,9 @@ from mlmc.quantity.quantity_spec import QuantitySpec, ChunkSpec
 
 
 class SampleStorage(metaclass=ABCMeta):
+    """
+    Provides methods to store and retrieve sample's data
+    """
 
     @abstractmethod
     def save_samples(self, successful_samples, failed_samples):
@@ -130,6 +133,9 @@ class SampleStorage(metaclass=ABCMeta):
 
 
 class Memory(SampleStorage):
+    """
+    Sample's data are stored in the main memory
+    """
 
     def __init__(self):
         self._failed = {}

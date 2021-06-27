@@ -1,6 +1,6 @@
-==================
-MLMC
-==================
+=============
+MLMC Overview
+=============
 
 .. image:: https://github.com/GeoMop/MLMC/workflows/package/badge.svg
     :target: https://github.com/GeoMop/MLMC/actions
@@ -9,7 +9,9 @@ MLMC
 .. image:: https://img.shields.io/pypi/pyversions/mlmc.svg
     :target: https://pypi.org/project/mlmc/
 
-MLMC provides tools for the Multilevel Monte Carlo method:
+MLMC provides tools for the Multilevel Monte Carlo method, which is theoretically described by `M. Giles <https://people.maths.ox.ac.uk/gilesm/files/acta15.pdf>`_.
+
+mlmc package includes:
 
 - samples scheduling
 - moments calculation

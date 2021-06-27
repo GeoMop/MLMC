@@ -5,7 +5,7 @@ from scipy.interpolate import BSpline
 
 class Moments:
     """
-    Class for _moments_fn of random distribution
+    Class for calculating moments of a random variable
     """
     def __init__(self, size, domain, log=False, safe_eval=True):
         assert size > 0
@@ -109,6 +109,9 @@ class Moments:
 
 
 class Monomial(Moments):
+    """
+    Monomials generalized moments
+    """
     def __init__(self, size, domain=(0, 1), ref_domain=None, log=False, safe_eval=True):
         if ref_domain is not None:
             self.ref_domain = ref_domain
@@ -128,6 +131,9 @@ class Monomial(Moments):
 
 
 class Fourier(Moments):
+    """
+    Fourier functions generalized moments
+    """
     def __init__(self, size, domain=(0, 2*np.pi), ref_domain=None, log=False, safe_eval=True):
         if ref_domain is not None:
             self.ref_domain = ref_domain
@@ -166,6 +172,9 @@ class Fourier(Moments):
 
 
 class Legendre(Moments):
+    """
+    Legendre polynomials generalized moments
+    """
 
     def __init__(self, size, domain, ref_domain=None, log=False, safe_eval=True):
         if ref_domain is not None:

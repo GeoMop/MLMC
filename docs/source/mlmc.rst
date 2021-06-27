@@ -1,20 +1,13 @@
+=============
 MLMC package
-================
+=============
 
 .. automodule:: mlmc
 
-.. autosummary::
-    plot
-    quantity
-    random
-    sim
-    tool
-
 .. toctree::
    :hidden:
-
-   mlmc.plot
-   mlmc.quantity
-   mlmc.random
-   mlmc.sim
-   mlmc.tool
+   mlmc.plot.rst
+   mlmc.quantity.rst
+   mlmc.random.rst
+   mlmc.sim.rst
+   mlmc.tool.rst

@@ -1,11 +1,13 @@
-mlmc.sim package
-====================
+mlmc.sim
+================
+
+.. automodule:: mlmc.sim
 
 Submodules
 ----------
 
 mlmc.sim.simulation module
-------------------------------
+--------------------------
 
 .. automodule:: mlmc.sim.simulation
    :members:
@@ -13,7 +15,7 @@ mlmc.sim.simulation module
    :show-inheritance:
 
 mlmc.sim.synth\_simulation module
--------------------------------------
+---------------------------------
 
 .. automodule:: mlmc.sim.synth_simulation
    :members:

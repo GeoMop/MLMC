@@ -1,11 +1,13 @@
-mlmc.random package
-=======================
+mlmc.random
+===================
+
+.. automodule:: mlmc.random
 
 Submodules
 ----------
 
 mlmc.random.correlated\_field module
-----------------------------------------
+------------------------------------
 
 .. automodule:: mlmc.random.correlated_field
    :members:
@@ -13,7 +15,7 @@ mlmc.random.correlated\_field module
    :show-inheritance:
 
 mlmc.random.frac\_geom module
----------------------------------
+-----------------------------
 
 .. automodule:: mlmc.random.frac_geom
    :members:
@@ -21,7 +23,7 @@ mlmc.random.frac\_geom module
    :show-inheritance:
 
 mlmc.random.gstools\_wrapper module
----------------------------------------
+-----------------------------------
 
 .. automodule:: mlmc.random.gstools_wrapper
    :members:
