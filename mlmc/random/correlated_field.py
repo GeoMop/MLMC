@@ -4,7 +4,6 @@ import numpy.linalg as la
 import numpy.random as rand
 import scipy as sp
 from sklearn.utils.extmath import randomized_svd
-import mlmc.random.gstools_wrapper as gs
 import warnings
 warnings.simplefilter('always', DeprecationWarning)
 import gstools
