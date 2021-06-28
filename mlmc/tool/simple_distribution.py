@@ -11,7 +11,7 @@ class SimpleDistribution:
     Calculation of the distribution
     """
 
-    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True)):
+    def __init__(self, moments_obj, moment_data, domain=None, force_decay=(True, True), verbose=False):
         """
         :param moments_obj: Function for calculating moments
         :param moment_data: Array  of moments and their vars; (n_moments, 2)
@@ -27,6 +27,7 @@ class SimpleDistribution:
         self.domain = domain
         # Indicates whether force decay of PDF at domain endpoints.
         self.decay_penalty = force_decay
+        self._verbose = verbose
 
         # Approximation of moment values.
         if moment_data is not None:
@@ -68,8 +69,9 @@ class SimpleDistribution:
                                                'gtol': tol, 'disp': False,  'maxiter': max_it})
         self.multipliers = result.x
         jac_norm = np.linalg.norm(result.jac)
-        print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
-           self.approx_size, result.nit, tol, jac_norm, result.message))
+        if self._verbose:
+            print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
+               self.approx_size, result.nit, tol, jac_norm, result.message))
 
         jac = self._calculate_jacobian_matrix(self.multipliers)
         result.eigvals = np.linalg.eigvalsh(jac)
@@ -79,7 +81,8 @@ class SimpleDistribution:
         # Fix normalization
         moment_0, _ = self._calculate_exact_moment(self.multipliers, m=0, full_output=0)
         m0 = sc.integrate.quad(self.density, self.domain[0], self.domain[1])[0]
-        print("moment[0]: {} m0: {}".format(moment_0, m0))
+        if self._verbose:
+            print("moment[0]: {} m0: {}".format(moment_0, m0))
         self.multipliers[0] -= np.log(moment_0)
 
         if result.success or jac_norm < tol:

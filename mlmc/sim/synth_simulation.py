@@ -16,7 +16,7 @@ class SynthSimulation(Simulation):
     result_dict = {}
 
     # Artificial simulation. Just random parameter + numerical error."""
-    def __init__(self, config):
+    def __init__(self, config=None):
         """
         :param config: Dict:
                 distr= particular distribution,
@@ -25,6 +25,8 @@ class SynthSimulation(Simulation):
                 sim_method=used method for calculating sample result
         """
         super().__init__()
+        if config is None:
+            config = dict(distr=stats.norm(), complexity=2)
         self.config = config
         SynthSimulation.n_nans = 0
         SynthSimulation.nan_fraction = config.get('nan_fraction', 0.0)

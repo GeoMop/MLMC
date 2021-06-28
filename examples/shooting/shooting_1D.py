@@ -202,14 +202,6 @@ class ProcessShooting1D:
         assert value_mean.mean[0] == 1
         self.approx_distribution(estimator, n_levels, tol=1e-8)
 
-        self.process_quantity(root_quantity)
-
-    def process_quantity(self, quantity):
-        """
-        This method provides an overview of possible operations with the Quantity instance
-        :param quantity: mlmc.quantity.Quantity instance
-        """
-
     def approx_distribution(self, estimator, n_levels, tol=1.95):
         """
         Probability density function approximation

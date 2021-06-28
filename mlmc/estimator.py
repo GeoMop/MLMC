@@ -314,7 +314,7 @@ class Estimate:
 
         est_vars = np.ones(moments_obj.size)
         min_var, max_var = np.min(est_vars[1:]), np.max(est_vars[1:])
-        print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
+        #print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
         moments_data = np.stack((est_moments, est_vars), axis=1)
         distr_obj = mlmc.tool.simple_distribution.SimpleDistribution(moments_obj, moments_data,
                                                                      domain=moments_obj.domain)

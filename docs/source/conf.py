@@ -14,16 +14,6 @@ import os
 import sys
 import datetime
 sys.path.insert(0, os.path.abspath("../../"))
-#sys.path.append(os.path.abspath('../..'))
-# sys.path.append(os.path.abspath('../../examples'))
-# sys.path.append(os.path.abspath('../../mlmc/plot'))
-# sys.path.append(os.path.abspath('../../mlmc/quantity'))
-# sys.path.append(os.path.abspath('../../mlmc/tool'))
-# sys.path.append(os.path.abspath('../../mlmc/sim'))
-# sys.path.append(os.path.abspath('../../mlmc/random'))
-
-
-print(sys.path)
 
 # -- Project information -----------------------------------------------------
 # General information about the project.
@@ -46,6 +36,8 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
+    'sphinx.ext.doctest',
+    'sphinx.ext.autosectionlabel'
     ]
 
 # autosummaries from source-files
