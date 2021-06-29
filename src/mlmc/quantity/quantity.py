@@ -335,6 +335,9 @@ class Quantity:
                 :param num_subsample: the number of samples we want to obtain from all samples
                 :param num_collected: total number of samples
                 """
+                self._orig_k = num_subsample
+                self._orig_n = num_collected
+                self._orig_total_n = num_collected
                 self.k = num_subsample
                 self.n = num_collected
                 self.total_n = num_collected
@@ -350,7 +353,11 @@ class Quantity:
             Custom implementation of QuantityConst.adjust_value()
             It allows us to get different parameters for different levels
             """
-            return subsample_level_params[level_id]
+            subsample_l_params_obj = subsample_level_params[level_id]
+            subsample_l_params_obj.k = subsample_l_params_obj._orig_k
+            subsample_l_params_obj.n = subsample_l_params_obj._orig_n
+            subsample_l_params_obj.total_n = subsample_l_params_obj._orig_total_n
+            return subsample_l_params_obj
         quantity_subsample_params._adjust_value = adjust_value
 
         return Quantity(quantity_type=self.qtype.replace_scalar(qt.BoolType()),

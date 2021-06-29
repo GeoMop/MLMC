@@ -100,7 +100,7 @@ class Estimate:
         """
         L, = raw_vars.shape
         L1 = L - 1
-        if L < 3:
+        if L < 3 or np.allclose(raw_vars, 0):
             return raw_vars
 
         # estimate of variances of variances, compute scaling
