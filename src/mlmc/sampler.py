@@ -8,6 +8,8 @@ from mlmc.sim.simulation import Simulation
 
 class Sampler:
 
+    ADDING_SAMPLES_TIMEOUT = 1e-15
+
     def __init__(self, sample_storage: SampleStorage, sampling_pool: SamplingPool, sim_factory: Simulation,
                  level_parameters: List[List[float]], seed=1234):
         """
@@ -29,7 +31,8 @@ class Sampler:
         sample_storage.save_global_data(level_parameters=level_parameters,
                                         result_format=sim_factory.result_format())
 
-        self._n_scheduled_samples = [len(level_scheduled) for level_id, level_scheduled in sample_storage.load_scheduled_samples().items()]
+        self._n_scheduled_samples = [len(level_scheduled) for level_id, level_scheduled in
+                                     sample_storage.load_scheduled_samples().items()]
         # Number of created samples
 
         if not self._n_scheduled_samples:
@@ -113,16 +116,17 @@ class Sampler:
         """
         return "L{:02d}_S{:07d}".format(level_id, int(self._n_scheduled_samples[level_id]))
 
-    def schedule_samples(self):
+    def schedule_samples(self, timeout=None):
         """
         Create simulation samples, loop through "levels" and its samples (given the number of target samples):
             1) generate sample tag (same for fine and coarse simulation)
             2) get LevelSimulation instance by simulation factory
             3) schedule sample via sampling pool
             4) store scheduled samples in sample storage, separately for each level
+        :param timeout: int, get_finished - while break timeout in seconds
         :return: None
         """
-        self.ask_sampling_pool_for_samples()
+        self.ask_sampling_pool_for_samples(timeout=timeout)
         plan_samples = self._n_target_samples - self._n_scheduled_samples
 
         for level_id, n_samples in enumerate(plan_samples):
@@ -166,10 +170,8 @@ class Sampler:
         t0 = time.perf_counter()
         while n_running > 0:
             successful_samples, failed_samples, n_running, n_ops = self._sampling_pool.get_finished()
-
             # Store finished samples
             self._store_samples(successful_samples, failed_samples, n_ops)
-
             time.sleep(sleep)
             if 0 < timeout < (time.perf_counter() - t0):
                 break
@@ -187,16 +189,18 @@ class Sampler:
         self.sample_storage.save_samples(successful_samples, failed_samples)
         self.sample_storage.save_n_ops(n_ops)
 
-    def process_adding_samples(self, n_estimated, sleep=0, add_coef=0.1):
+    def process_adding_samples(self, n_estimated, sleep=0, add_coeff=0.1, timeout=ADDING_SAMPLES_TIMEOUT):
         """
         Process adding samples
         Note: n_estimated are wrong if n_ops is similar through all levels
         :param n_estimated: Number of estimated samples on each level, list
         :param sleep: Sample waiting time
-        :param add_coef: default value 0.1
+        :param add_coeff: default value 0.1, The number of scheduled samples would be 'add_coef' fraction of difference
+         between current number of target samples and new estimated number of target samples
+        :param timeout: ask sampling pool for finished samples timeout
         :return: bool, if True adding samples is complete
         """
-        self.ask_sampling_pool_for_samples()
+        self.ask_sampling_pool_for_samples(timeout=timeout)
 
         # Get default scheduled samples
         n_scheduled = self.l_scheduled_samples()
@@ -205,9 +209,9 @@ class Sampler:
         # between current number of target samples and new estimated one
         # If 10 percent of estimated samples is greater than difference between estimated and scheduled samples,
         # set scheduled samples to estimated samples
-        new_scheduled = np.where((n_estimated * add_coef) > (n_estimated - n_scheduled),
+        new_scheduled = np.where((n_estimated * add_coeff) > (n_estimated - n_scheduled),
                                  n_estimated,
-                                 n_scheduled + (n_estimated - n_scheduled) * add_coef)
+                                 n_scheduled + (n_estimated - n_scheduled) * add_coeff)
 
         n_scheduled = np.ceil(np.where(n_estimated < n_scheduled,
                                        n_scheduled,
@@ -217,11 +221,11 @@ class Sampler:
         greater_items = np.where(np.greater(n_estimated, n_scheduled))[0]
 
         # Scheduled samples and wait until at least half of the samples are done
-        self.set_scheduled_and_wait(n_scheduled, greater_items, sleep)
+        self.set_scheduled_and_wait(n_scheduled, greater_items, sleep, timeout=timeout)
 
         return np.all(n_estimated[greater_items] == n_scheduled[greater_items])
 
-    def set_scheduled_and_wait(self, n_scheduled, greater_items, sleep, fin_sample_coef=0.5):
+    def set_scheduled_and_wait(self, n_scheduled, greater_items, sleep, fin_sample_coef=0.5, timeout=1e-7):
         """
         Scheduled samples on each level and wait until at least half of the samples is done
         :param n_scheduled: ndarray, number of scheduled samples on each level
@@ -232,7 +236,7 @@ class Sampler:
         """
         # Set scheduled samples and run simulations
         self.set_level_target_n_samples(n_scheduled)
-        self.schedule_samples()
+        self.schedule_samples(timeout=timeout)
 
         # Finished level samples
         n_finished = self.n_finished_samples
@@ -241,7 +245,7 @@ class Sampler:
         while np.any(n_finished[greater_items] < fin_sample_coef * n_scheduled[greater_items]):
             # Wait a while
             time.sleep(sleep)
-            self.ask_sampling_pool_for_samples()
+            self.ask_sampling_pool_for_samples(timeout=timeout)
             n_finished = self.n_finished_samples
 
     def set_level_target_n_samples(self, n_samples):
@@ -255,10 +259,10 @@ class Sampler:
 
     def l_scheduled_samples(self):
         """
-        Get all levels target number of samples
+        Get all levels number of scheduled samples
         :return: list
         """
-        return self._n_target_samples
+        return self._n_scheduled_samples
 
     def renew_failed_samples(self):
         """
