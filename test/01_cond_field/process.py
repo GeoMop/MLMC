@@ -3,12 +3,11 @@ import sys
 
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.tool import process_base
 from mlmc.tool.flow_mc import FlowSim
 from mlmc.moments import Legendre
-from mlmc.quantity_estimate import QuantityEstimate
+from mlmc.quantity.quantity_estimate import QuantityEstimate
 
 
 class CondField(process_base.ProcessBase):

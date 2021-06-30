@@ -7,10 +7,10 @@ from scipy import stats
 from mlmc.sim.synth_simulation import SynthSimulation, SynthSimulationWorkspace
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc.sampling_pool import OneProcessPool, ProcessPool
+from mlmc.sampling_pool import OneProcessPool
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.moments import Legendre
-from mlmc.quantity_estimate import QuantityEstimate
+from mlmc.quantity.quantity_estimate import QuantityEstimate
 
 
 class Process:

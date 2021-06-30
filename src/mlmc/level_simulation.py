@@ -1,6 +1,6 @@
 import attr
 from typing import List, Dict, Any
-from mlmc.quantity_spec import QuantitySpec
+from mlmc.quantity.quantity_spec import QuantitySpec
 
 
 @attr.s(auto_attribs=True)

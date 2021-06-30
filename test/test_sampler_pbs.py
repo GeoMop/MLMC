@@ -13,7 +13,7 @@ from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.estimator import Estimate
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
-import mlmc.quantity
+import mlmc.quantity.quantity
 
 
 @pytest.mark.pbs
@@ -97,8 +97,8 @@ def test_sampler_pbs(work_dir, clean=False, debug=False):
     sampler.schedule_samples()
     n_running = sampler.ask_sampling_pool_for_samples()
 
-    quantity = mlmc.quantity.make_root_quantity(storage=sample_storage,
-                                                q_specs=sample_storage.load_result_format())
+    quantity = mlmc.quantity.quantity.make_root_quantity(storage=sample_storage,
+                                                         q_specs=sample_storage.load_result_format())
     length = quantity['length']
     time = length[1]
     location = time['10']

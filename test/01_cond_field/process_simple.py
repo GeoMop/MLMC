@@ -1,19 +1,17 @@
 import os
 import sys
 import numpy as np
-import gstools
 import time
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
+from mlmc.sampling_pool import OneProcessPool
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.tool.flow_mc import FlowSim
-from mlmc.moments import Legendre, Monomial
+from mlmc.moments import Legendre
 from mlmc.tool.process_base import ProcessBase
-from mlmc.random import correlated_field as cf
 #from mlmc.quantity_estimate import QuantityEstimate
-from mlmc.quantity import make_root_quantity
-from mlmc.quantity_estimate import estimate_mean, moment, moments, covariance
+from mlmc.quantity.quantity import make_root_quantity
+from mlmc.quantity.quantity_estimate import estimate_mean, moments
 from mlmc import estimator
 import mlmc.tool.simple_distribution
 
@@ -52,10 +50,10 @@ class ProcessSimple:
         # step_range [simulation step at the coarsest level, simulation step at the finest level]
 
         # Determine level parameters at each level (In this case, simulation step at each level) are set automatically
-        self.level_parameters = ProcessSimple.determine_level_parameters(self.n_levels, step_range)
+        self.level_parameters = estimator.determine_level_parameters(self.n_levels, step_range)
 
         # Determine number of samples at each level
-        self.n_samples = ProcessSimple.determine_n_samples(self.n_levels)
+        self.n_samples = estimator.determine_n_samples(self.n_levels)
 
         if args.command == 'run':
             self.run()
@@ -310,50 +308,6 @@ class ProcessSimple:
             running = 0
             running += sampler.ask_sampling_pool_for_samples(sleep=self.sample_sleep, timeout=1e-5)
             print("N running: ", running)
-
-    @staticmethod
-    def determine_level_parameters(n_levels, step_range):
-        """
-        Determine level parameters,
-        In this case, a step of fine simulation at each level
-        :param n_levels: number of MLMC levels
-        :param step_range: simulation step range
-        :return: List
-        """
-        assert step_range[0] > step_range[1]
-        level_parameters = []
-        for i_level in range(n_levels):
-            if n_levels == 1:
-                level_param = 1
-            else:
-                level_param = i_level / (n_levels - 1)
-            level_parameters.append([step_range[0] ** (1 - level_param) * step_range[1] ** level_param])
-
-        return level_parameters
-
-    @staticmethod
-    def determine_n_samples(n_levels, n_samples=None):
-        """
-        Set target number of samples for each level
-        :param n_levels: number of levels
-        :param n_samples: array of number of samples
-        :return: None
-        """
-        if n_samples is None:
-            n_samples = [100, 3]
-        # Num of samples to ndarray
-        n_samples = np.atleast_1d(n_samples)
-
-        # Just maximal number of samples is set
-        if len(n_samples) == 1:
-            n_samples = np.array([n_samples[0], 3])
-
-        # Create number of samples for all levels
-        if len(n_samples) == 2:
-            n0, nL = n_samples
-            n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), n_levels))).astype(int)
-
-        return n_samples
 
 
 if __name__ == "__main__":

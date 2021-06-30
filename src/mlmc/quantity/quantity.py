@@ -1,12 +1,11 @@
 import operator
 import numpy as np
 import scipy.stats
-import mlmc.quantity_types as qt
 from memoization import cached
 from typing import List
 from mlmc.sample_storage import SampleStorage
-from mlmc.quantity_spec import QuantitySpec, ChunkSpec
-import mlmc.quantity_types as qt
+from mlmc.quantity.quantity_spec import QuantitySpec, ChunkSpec
+import mlmc.quantity.quantity_types as qt
 
 
 RNG = np.random.default_rng()

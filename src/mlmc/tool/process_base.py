@@ -210,7 +210,7 @@ class ProcessBase:
         self.pbs_obj.execute()
         mlmc.wait_for_simulations(sleep=self.sample_sleep, timeout=self.init_sample_timeout)
 
-        self.domain = mlmc.estimate_domain()
+        self.domain = mlmc.estimator.estimate_domain()
         self.set_moments(self.n_moments, log=True)
 
         mlmc.target_var_adding_samples(target_variance, self.moments_fn, pbs=self.pbs_obj)

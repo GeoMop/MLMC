@@ -1,6 +1,6 @@
 import numpy as np
 import h5py
-from mlmc.quantity_spec import ChunkSpec
+from mlmc.quantity.quantity_spec import ChunkSpec
 
 
 class HDF5:
