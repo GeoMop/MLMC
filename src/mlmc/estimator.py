@@ -3,6 +3,7 @@ import scipy.stats as st
 import scipy.integrate as integrate
 import mlmc.quantity.quantity_estimate as qe
 import mlmc.tool.simple_distribution
+from mlmc.quantity.quantity_types import ScalarType
 from mlmc.plot import plots
 from mlmc.quantity.quantity_spec import ChunkSpec
 
@@ -288,11 +289,13 @@ class Estimate:
             fine_samples = np.squeeze(fine_samples)
             ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
 
-
     def construct_density(self, tol=1e-8, reg_param=0.0, orth_moments_tol=1e-4, exact_pdf=None):
         """
         Construct approximation of the density using given moment functions.
         """
+        if self._quantity.qtype is not ScalarType:
+            raise NotImplementedError("Currently, we only support ScalarType quantities")
+
         cov_mean = qe.estimate_mean(qe.covariance(self._quantity, self._moments_fn))
         cov_mat = cov_mean.mean
         moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(self._moments_fn,
