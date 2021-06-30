@@ -164,7 +164,7 @@ class Distribution:
         domain = (np.min(samples), np.max(samples))
         self.adjust_domain(domain)
         N = len(samples)
-        bins = self._grid(0.5 * np.sqrt(N))
+        bins = self._grid(int(0.5 * np.sqrt(N)))
         self.ax_pdf.hist(samples, density=True, bins=bins, alpha=0.3, label='samples', color='red')
 
         # Ecdf
@@ -281,6 +281,7 @@ class Distribution:
         """
         if domain is None:
             domain = self._domain
+
         if self._log_x:
             X = np.geomspace(domain[0], domain[1], size)
         else:

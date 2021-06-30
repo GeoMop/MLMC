@@ -289,11 +289,14 @@ class Estimate:
             fine_samples = np.squeeze(fine_samples)
             ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
 
+        ranges = np.array(ranges)
+        return np.min(ranges[:, 0]), np.max(ranges[:, 1])
+
     def construct_density(self, tol=1e-8, reg_param=0.0, orth_moments_tol=1e-4, exact_pdf=None):
         """
         Construct approximation of the density using given moment functions.
         """
-        if self._quantity.qtype is not ScalarType:
+        if not isinstance(self._quantity.qtype, ScalarType):
             raise NotImplementedError("Currently, we only support ScalarType quantities")
 
         cov_mean = qe.estimate_mean(qe.covariance(self._quantity, self._moments_fn))
@@ -317,6 +320,16 @@ class Estimate:
         result = distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
 
         return distr_obj, info, result, moments_obj
+
+    def get_level_samples(self, level_id, n_samples=None):
+        """
+        Get level samples from storage
+        :param level_id: int, level identifier
+        :param n_samples> int, number of samples to retrieve, if None first chunk of data is retrieved
+        :return: level samples, shape: (M, N, 1) for level 0, (M, N, 2) otherwise
+        """
+        chunk_spec = next(self._sample_storage.chunks(level_id=level_id, n_samples=n_samples))
+        return self._quantity.samples(chunk_spec=chunk_spec)
 
 
 def estimate_domain(quantity, sample_storage, quantile=None):
@@ -427,13 +440,4 @@ def determine_n_samples(n_levels, n_samples=None):
 
     return n_samples
 
-    def get_level_samples(self, level_id, n_samples=None):
-        """
-        Get level samples from storage
-        :param level_id: int, level identifier
-        :param n_samples> int, number of samples to retrieve, if None first chunk of data is retrieved
-        :return: level samples, shape: (M, N, 1) for level 0, (M, N, 2) otherwise
-        """
-        chunk_spec = next(self._sample_storage.chunks(level_id=level_id, n_samples=n_samples))
-        return self._quantity.samples(chunk_spec=chunk_spec)
 
