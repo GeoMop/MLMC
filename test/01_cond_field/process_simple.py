@@ -2,6 +2,7 @@ import os
 import sys
 import numpy as np
 import time
+import mlmc.tool.simple_distribution
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool
@@ -13,7 +14,7 @@ from mlmc.tool.process_base import ProcessBase
 from mlmc.quantity.quantity import make_root_quantity
 from mlmc.quantity.quantity_estimate import estimate_mean, moments
 from mlmc import estimator
-import mlmc.tool.simple_distribution
+
 
 
 class ProcessSimple:
@@ -123,9 +124,7 @@ class ProcessSimple:
         :return: None
         """
         distr_obj, result, _, _ = estimator.construct_density(tol=tol, reg_param=reg_param)
-        #distr_plot = mlmc.tool.plot.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
-        distr_plot = mlmc.tool.plot.ArticleDistribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
-
+        distr_plot = mlmc.plot.plots.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
         distr_plot.add_distribution(distr_obj, label="#{}".format(self.n_moments))
 
         if self.n_levels == 1:
@@ -312,14 +311,3 @@ class ProcessSimple:
 
 if __name__ == "__main__":
     ProcessSimple()
-
-    # import cProfile
-    # import pstats
-    # pr = cProfile.Profile()
-    # pr.enable()
-    #
-    # my_result = ProcessSimple()
-    #
-    # pr.disable()
-    # ps = pstats.Stats(pr).sort_stats('cumtime')
-    # ps.print_stats()
