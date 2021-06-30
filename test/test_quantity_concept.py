@@ -431,7 +431,6 @@ class QuantityTests(unittest.TestCase):
         x = np.ones((108, 5, 2))
         self.assertRaises(ValueError, np.divide, x, root_quantity)
 
-
     def test_quantity_const(self):
         x = QuantityConst(ScalarType(), 5)
         y = QuantityConst(ScalarType(), 10)
@@ -531,7 +530,7 @@ class QuantityTests(unittest.TestCase):
         np.random.seed(1234)
         n_moments = 3
         step_range = [0.5, 0.01]
-        n_levels = 5
+        n_levels = 3
         clean = True
 
         level_parameters = mlmc.estimator.determine_level_parameters(n_levels=n_levels, step_range=step_range)
@@ -542,7 +541,7 @@ class QuantityTests(unittest.TestCase):
         # moments_fn = Legendre(n_moments, true_domain)
         moments_fn = Monomial(n_moments, true_domain)
 
-        sampler.set_initial_n_samples([100, 80, 50, 30, 10])
+        sampler.set_initial_n_samples([100, 60, 15])
         sampler.schedule_samples()
         sampler.ask_sampling_pool_for_samples()
 
@@ -629,7 +628,7 @@ class QuantityTests(unittest.TestCase):
         rm_samples = []
 
         for i in range(iter):
-            sample_vec = [15, 10, 8, 6, 4]
+            sample_vec = [30, 15, 10]
             root_quantity_subsamples = root_quantity.subsample(sample_vec)  # out of [100, 80, 50, 30, 10]
             moments_quantity = moments(root_quantity_subsamples, moments_fn=moments_fn, mom_at_bottom=True)
             mult_chunks_moments_mean = estimate_mean(moments_quantity)
