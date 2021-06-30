@@ -193,14 +193,7 @@ def threads_sampler_test():
         variances, n_ops = q_estimator.estimate_diff_vars_regression(sampler._n_created_samples)
         n_estimated = new_estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                                            n_levels=sampler.n_levels)
-
-        print("n estimated ", n_estimated)
-
-    print("collected samples ", sampler._n_created_samples)
     means, vars = q_estimator.estimate_moments(moments_fn)
-
-    print("means ", means)
-    print("vars ", vars)
     assert means[0] == 1
     assert np.isclose(means[1], 0, atol=1e-2)
     assert vars[0] == 0
@@ -209,6 +202,7 @@ def threads_sampler_test():
 
     storage = sampler.sample_storage
     results = storage.sample_pairs()
+
 
 def one_process_sampler_test():
     """

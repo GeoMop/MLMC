@@ -1,7 +1,6 @@
 import os
 import sys
 import numpy as np
-import time
 import mlmc.tool.simple_distribution
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
@@ -10,7 +9,6 @@ from mlmc.sampling_pool_pbs import SamplingPoolPBS
 from mlmc.tool.flow_mc import FlowSim
 from mlmc.moments import Legendre
 from mlmc.tool.process_base import ProcessBase
-#from mlmc.quantity_estimate import QuantityEstimate
 from mlmc.quantity.quantity import make_root_quantity
 from mlmc.quantity.quantity_estimate import estimate_mean, moments
 from mlmc import estimator

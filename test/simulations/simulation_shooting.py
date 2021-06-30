@@ -1,4 +1,4 @@
-import src.mlmc.simulation as simulation
+import mlmc.simulation as simulation
 import random as rn
 import numpy as np
 import mlmc.sample
@@ -69,32 +69,32 @@ class SimulationShooting(simulation.Simulation):
 
         return mlmc.sample.Sample(sample_id=sample_id, directory=tag)
 
-    def generate_rnd_sample(self):
-        # -1 for shooting simulation
-        # 0 for water simulation
-        F_average = -1
-        F_deviation = 0.5
-        F = [F_average] * 2
-        F[0] = F[0] + (rn.random() - 0.5) * 2 * F_deviation
-        F[1] = F[1] + (rn.random() - 0.5) * 2 * F_deviation
-        scale = F_deviation
-        fraction = 0.2  # 0-1; 0 means perfect correlation
-        new_F = []
-        if self.sim_param > 2:
-            while len(F) < self.sim_param:
-                new_F = []
-                scale *= fraction
-                for i in range(len(F) - 1):
-                    shift = scale * 2 * (rn.random() - 0.5)
-                    new_F.append(F[i])
-                    new_F.append((F[i] + F[i + 1]) / 2 + shift)
-                new_F.append(F[-1])
-                F = new_F
-
-            del new_F[self.sim_param:]  # drop remaining items
-        else:
-            new_F = F
-        return new_F
+    # def generate_rnd_sample(self):
+    #     # -1 for shooting simulation
+    #     # 0 for water simulation
+    #     F_average = -1
+    #     F_deviation = 0.5
+    #     F = [F_average] * 2
+    #     F[0] = F[0] + (rn.random() - 0.5) * 2 * F_deviation
+    #     F[1] = F[1] + (rn.random() - 0.5) * 2 * F_deviation
+    #     scale = F_deviation
+    #     fraction = 0.2  # 0-1; 0 means perfect correlation
+    #     new_F = []
+    #     if self.sim_param > 2:
+    #         while len(F) < self.sim_param:
+    #             new_F = []
+    #             scale *= fraction
+    #             for i in range(len(F) - 1):
+    #                 shift = scale * 2 * (rn.random() - 0.5)
+    #                 new_F.append(F[i])
+    #                 new_F.append((F[i] + F[i + 1]) / 2 + shift)
+    #             new_F.append(F[-1])
+    #             F = new_F
+    #
+    #         del new_F[self.sim_param:]  # drop remaining items
+    #     else:
+    #         new_F = F
+    #     return new_F
 
     def create_points(self):
         if self._coarse_simulation is None:
