@@ -82,6 +82,7 @@ class ProcessSimple:
         estimator = mlmc.estimator.Estimate(quantity=q_value, sample_storage=sample_storage, moments_fn=moments_fn)
         means, vars = estimator.estimate_moments(moments_fn)
 
+
         moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
         moments_mean = estimate_mean(moments_quantity)
         conductivity_mean = moments_mean['conductivity']
@@ -124,7 +125,7 @@ class ProcessSimple:
         """
         distr_obj, result, _, _ = estimator.construct_density(tol=tol, reg_param=reg_param)
         #distr_plot = mlmc.tool.plot.Distribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
-        distr_plot = mlmc.tool.plot.ArticleDistribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
+        distr_plot = mlmc.plot.plots.ArticleDistribution(title="{} levels, {} moments".format(self.n_levels, self.n_moments))
 
         distr_plot.add_distribution(distr_obj, label="#{}".format(self.n_moments))
 
