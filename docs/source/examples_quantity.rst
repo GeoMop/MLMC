@@ -4,8 +4,8 @@ Quantity tutorial
 =================
 
 An overview of basic :any:`mlmc.quantity.quantity.Quantity` operations.
-Quantity related classes and functions allow estimate mean and variance of MLMC samples,
-derive other quantities from original ones and much more
+Quantity related classes and functions allow estimate mean and variance of MLMC samples results,
+derive other quantities from original ones and much more.
 
 .. testcode::
     :hide:
@@ -44,7 +44,7 @@ derive other quantities from original ones and much more
     from examples.synthetic_quantity import create_sampler
 
 
-First, synthetic Quantity with the following :code:`result_format` is created
+First, the synthetic Quantity with the following :code:`result_format` is created
 
 .. testcode::
 
@@ -59,7 +59,7 @@ First, synthetic Quantity with the following :code:`result_format` is created
     root_quantity = mlmc.make_root_quantity(sampler.sample_storage, simulation_factory.result_format())
 
 :code:`root_quantity` is :py:class:`mlmc.quantity.quantity.Quantity` instance and represents the whole result data.
-According to :code:`result_format` it contains two sub-quantities named "length" and "width"
+According to :code:`result_format` it contains two sub-quantities named "length" and "width".
 
 
 Mean estimates
@@ -72,19 +72,25 @@ To get estimated mean of a quantity:
 
 :code:`root_quantity_mean` is an instance of :py:class:`mlmc.quantity.quantity.QuantityMean`
 
-To get overall mean value:
+To get the total mean value:
 
 .. testcode::
 
     root_quantity_mean.mean
 
-To get overall variance value:
+To get the total variance value:
 
 .. testcode::
 
     root_quantity_mean.var
 
-To get level variance value:
+To get means at each level:
+
+.. testcode::
+
+    root_quantity_mean.l_means
+
+To get variances at each level:
 
 .. testcode::
 
@@ -111,7 +117,7 @@ To obtain central moments, use:
     central_moments_mean = mlmc.quantity.quantity_estimate.estimate_mean(central_moments_quantity)
 
 
-Create a quantity representing covariance matrix
+Create a quantity representing a covariance matrix
 
 .. testcode::
 
@@ -140,7 +146,7 @@ To get a quantity at particular time:
 
 :code:`length_locations` represents results for all locations of quantity named "length" at the time 2.5
 
-To get quantity at particular location
+To get quantity at particular location:
 
 .. testcode::
 
@@ -148,7 +154,7 @@ To get quantity at particular location
 
 :code:`length_result` represents results shape=(2, 1) of quantity named "length" at the time 2,5 and location '10'
 
-Now it is possible to slice Quantity length_result the same way as np.ndarray. For example:
+Now it is possible to slice Quantity :code:`length_result` the same way as :code:`np.ndarray`. For example:
 
 .. testcode::
 
@@ -174,7 +180,7 @@ Following operations are supported
         quantity = root_quantity + root_quantity
         quantity = root_quantity + root_quantity + root_quantity
 
- -  Operations with Quantity and constant
+ -  Operations with Quantity and a constant
 
      .. testcode::
 
@@ -209,7 +215,7 @@ Examples of tested NumPy universal functions:
 Quantity selection by conditions
 ---------------------------------
 
-Method select returns :py:class:`mlmc.quantity.quantity.Quantity` instance
+Method :code:`select` returns :py:class:`mlmc.quantity.quantity.Quantity` instance
 
 .. testcode::
 
@@ -221,7 +227,7 @@ Method select returns :py:class:`mlmc.quantity.quantity.Quantity` instance
     quantity_add_select = quantity_add.select(root_quantity < quantity_add)
     root_quantity_selected = root_quantity.select(-1 != root_quantity)
 
-Logical operation for more conditions is AND
+Logical operation among more provided conditions is AND
 
 .. testcode::
 

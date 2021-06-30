@@ -95,13 +95,13 @@ and :py:class:`mlmc.estimator.Estimate` instance are created.
                                            moments_fn=moments_fn)
 
 
-Firstly, the variance of moments and average execution time per sample at each level are estimated from already finished samples.
+At first, the variance of moments and average execution time per sample at each level are estimated from already finished samples.
 
 .. testcode::
 
     variances, n_ops = estimate_obj.estimate_diff_vars_regression(sampler.n_finished_samples)
 
-Then, an initial estimate of number of MLMC samples that should meet prescribed target variance is conducted.
+Then, an initial estimate of the number of MLMC samples that should meet prescribed target variance is conducted.
 
 .. testcode::
 
@@ -131,6 +131,6 @@ Finally, wait until all samples are finished.
         running = 0
         running += sampler.ask_sampling_pool_for_samples()
 
-Since our sampling algorithm determines number of samples according to moment variances,
-type of moment functions (Legendre by default) might affect total number of MLMC samples
+Since our sampling algorithm determines the number of samples according to moment variances,
+the type of moment functions (Legendre by default) might affect total number of MLMC samples.
 

@@ -66,7 +66,7 @@ First, schedule samples and estimate moments for a particular quantity
         running += sampler.ask_sampling_pool_for_samples()
 
 
-Density approximation
+Probability density function approximation
 ---------------------
 
 .. testcode::
@@ -78,7 +78,5 @@ Density approximation
 
     if n_levels == 1:
         samples = estimate_obj.get_level_samples(level_id=0)[..., 0]
-        distr_plot.add_raw_samples(np.squeeze(samples))
-    distr_plot.show(None)
-    distr_plot.reset()
-
+        distr_plot.add_raw_samples(np.squeeze(samples)) # add histogram
+    distr_plot.show()

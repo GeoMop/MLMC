@@ -1,9 +1,9 @@
 Sampler creation
 =================
-Sampler controls the execution of MLMC samples
+Sampler controls the execution of MLMC samples.
 
 
-First, import mlmc package and define basic MLMC parameters
+First, import mlmc package and define basic MLMC parameters.
 
 .. testcode::
 
@@ -15,13 +15,13 @@ First, import mlmc package and define basic MLMC parameters
     # level_parameters can be manually prescribed as a list of lists
 
 
-Prepare a simulation, it must be instance of class that inherits from :any:`mlmc.sim.simulation.Simulation`
+Prepare a simulation, it must be instance of class that inherits from :any:`mlmc.sim.simulation.Simulation`.
 
 .. testcode::
 
     simulation_factory = mlmc.SynthSimulation()
 
-Create a sampling pool
+Create a sampling pool.
 
 .. testcode::
 
@@ -29,20 +29,20 @@ Create a sampling pool
 
 
 You can also use :any:`mlmc.sampling_pool.ProcessPool` which supports parallel execution of MLMC samples.
-In order to use PBS (portable batch system), employ :any:`mlmc.sampling_pool_pbs.SamplingPoolPBS`
+In order to use PBS (portable batch system), employ :any:`mlmc.sampling_pool_pbs.SamplingPoolPBS`.
 
 
-Create a sample storage
+Create a sample storage. It contains sample's related data e.g. simulation result.
 
 .. testcode::
 
     # Memory() storage keeps samples in the computer main memory
     sample_storage = mlmc.Memory()
 
-We support also HDF5 file storage :any:`mlmc.sample_storage_hdf.SampleStorageHDF`
+We support also HDF5 file storage :any:`mlmc.sample_storage_hdf.SampleStorageHDF`.
 
 
-Finally, create a sampler that manages scheduling MLMC samples and also saves the results
+Finally, create a sampler that manages scheduling MLMC samples and also saves the results.
 
 .. testcode::
 
