@@ -3,6 +3,7 @@ import scipy.stats as st
 import scipy.integrate as integrate
 import mlmc.quantity.quantity_estimate as qe
 import mlmc.tool.simple_distribution
+from mlmc.quantity.quantity_types import ScalarType
 from mlmc.plot import plots
 from mlmc.quantity.quantity_spec import ChunkSpec
 
@@ -293,13 +294,15 @@ class Estimate:
             ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
 
         ranges = np.array(ranges)
-
         return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
     def construct_density(self, tol=1e-8, reg_param=0.0, orth_moments_tol=1e-4, exact_pdf=None):
         """
         Construct approximation of the density using given moment functions.
         """
+        if not isinstance(self._quantity.qtype, ScalarType):
+            raise NotImplementedError("Currently, we only support ScalarType quantities")
+
         cov_mean = qe.estimate_mean(qe.covariance(self._quantity, self._moments_fn))
         cov_mat = cov_mean.mean
         moments_obj, info = mlmc.tool.simple_distribution.construct_ortogonal_moments(self._moments_fn,
@@ -331,6 +334,28 @@ class Estimate:
         """
         chunk_spec = next(self._sample_storage.chunks(level_id=level_id, n_samples=n_samples))
         return self._quantity.samples(chunk_spec=chunk_spec)
+
+
+def estimate_domain(quantity, sample_storage, quantile=None):
+    """
+    Estimate moments domain from MLMC samples.
+    :param quantity: mlmc.quantity.Quantity instance, represents the real quantity
+    :param sample_storage: mlmc.sample_storage.SampleStorage instance, provides all the samples
+    :param quantile: float in interval (0, 1), None means whole sample range
+    :return: lower_bound, upper_bound
+    """
+    ranges = []
+    if quantile is None:
+        quantile = 0.01
+
+    for level_id in range(sample_storage.get_n_levels()):
+        fine_samples = quantity.samples(ChunkSpec(level_id=level_id, n_samples=sample_storage.get_n_collected()[0]))[..., 0]
+
+        fine_samples = np.squeeze(fine_samples)
+        ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
+
+    ranges = np.array(ranges)
+    return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
 
 def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_ops, n_levels):

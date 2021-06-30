@@ -281,6 +281,7 @@ class Distribution:
         """
         if domain is None:
             domain = self._domain
+
         if self._log_x:
             X = np.geomspace(domain[0], domain[1], size)
         else:
