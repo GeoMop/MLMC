@@ -7,7 +7,7 @@ import mlmc.tool.hdf5
 
 
 """
-test src/mlmc/hdf5.py methods
+test mlmc/tool/hdf5.py methods
 """
 
 

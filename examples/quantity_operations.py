@@ -14,7 +14,7 @@ from examples.synthetic_quantity import create_sampler
 #     mlmc.quantity.quantity_spec.QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=['10', '20']),
 #     mlmc.quantity.quantity_spec.QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40']),
 # ]
-# Meaning: sample results contain data on three quantities in three time steps [1, 2, 3] and in two locations,
+# Meaning: sample results contain data on two quantities in three time steps [1, 2, 3] and in two locations,
 #          each quantity can have different shape
 
 sampler, simulation_factory, moments_fn = create_sampler()
