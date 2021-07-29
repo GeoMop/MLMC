@@ -2,7 +2,7 @@ import os
 import sys
 import time
 import warnings
-import numpy as np
+import json
 import ruamel.yaml as yaml
 import pickle
 from mlmc.sampling_pool import SamplingPool
@@ -24,8 +24,9 @@ class PbsJob:
     # File which name assign our job id to pbs jobs id 'JobID_Pbs_ID'
     CLASS_FILE = "pbs_process_serialized.txt"
     # Serialized data which are "passed" from sampling pool to pbs process
-    PERMANENT_SAMPLE = "permanent_jobID_{}"
-    # Indicates that sample is stored in _successful_results.yaml or _failed_results.yaml
+    SAMPLE_ID_JOB_ID = "sample_id_job_id.json"
+    # Sample id with corresponding job id,
+    # used to indicate that sample is stored in _successful_results.yaml or _failed_results.yaml
 
     def __init__(self, output_dir, jobs_dir, job_id, level_sim_file, debug):
         """
@@ -146,7 +147,7 @@ class PbsJob:
         # Successful samples - Tuple(level_id, sample_id, (fine result, coarse result))
         current_level = 0
         current_samples = []
-        # Currently saved samples, permanent sample file is created for them
+        # Currently saved samples
         start_time = time.time()
         times = []
         # Sample calculation time - Tuple(level_id, [n samples, cumul time for n sample])
@@ -228,14 +229,36 @@ class PbsJob:
     #         with open(path, "a") as f:
     #             yaml.dump("end", f)
 
-    def _save_sample_id_job_id_map(self, current_samples):
-        for sample_id in current_samples:
-            sample_dir = SamplingPool.change_to_sample_directory(self._output_dir, sample_id)
+    def save_sample_id_job_id(self, job_id, sample_ids):
+        """
+        Store the sample ID associated with the job ID
+        :param job_id: str
+        :param sample_ids: list of str
+        """
+        sample_id_job_id_file = os.path.join(self._jobs_dir, PbsJob.SAMPLE_ID_JOB_ID)
 
-            if os.path.exists(sample_dir):
-                file_name = os.path.join(sample_dir, PbsJob.PERMANENT_SAMPLE.format(self._job_id))
-                with open(file_name, 'w') as w:
-                    pass
+        job_id = [job_id] * len(sample_ids)
+        new_ids = dict(zip(sample_ids, job_id))
+
+        saved_ids = {}
+        if os.path.exists(sample_id_job_id_file):
+            with open(sample_id_job_id_file, "r") as file:
+                saved_ids = json.load(file)
+
+        with open(sample_id_job_id_file, "w") as file:
+            saved_ids.update(new_ids)
+            json.dump(saved_ids, file)
+
+    def job_id_from_sample_id(self, sample_id):
+        """
+        Get job ID for given sample ID
+        :param sample_id: str
+        :return: str, job id
+        """
+        sample_id_job_id_file = os.path.join(self._jobs_dir, PbsJob.SAMPLE_ID_JOB_ID)
+        with open(sample_id_job_id_file, "r") as file:
+            saved_ids = json.load(file)
+        return saved_ids[sample_id]
 
     def _append_file(self, data, path):
         """
