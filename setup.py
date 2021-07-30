@@ -12,7 +12,6 @@ from os.path import splitext
 from setuptools import find_packages
 from setuptools import setup
 
-
 # For long description:
 def read(*names, **kwargs):
     return io.open(
@@ -56,16 +55,8 @@ setup(
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
 
-    packages=find_packages('mlmc'),
-    package_dir={'': 'mlmc'},
-    py_modules=[splitext(basename(path))[0] for path in glob.glob('mlmc/*.py')],
-    package_data={
-        # If any package contains *.txt or *.rst files, include them:
-        '': ['*.txt', '*.rst'],
-        # And include any *.msg files found in the 'hello' package, too:
-        'hello': ['*.msg'],
-    },
-
+    packages=find_packages(where='.',
+        exclude=['examples*', 'test*', 'docs']),
     # include automatically all files in the template MANIFEST.in
     include_package_data=True,
     zip_safe=False,
