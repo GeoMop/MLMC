@@ -174,7 +174,7 @@ class PbsJob:
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))
                 # Increment number of successful samples for measured time
-                if self._debug:
+                if not self._debug:
                     SamplingPool.move_successful_rm(sample_id, level_sim,
                                                     output_dir=self._output_dir,
                                                     dest_dir=SamplingPool.SEVERAL_SUCCESSFUL_DIR)
@@ -238,7 +238,7 @@ class PbsJob:
         sample_id_job_id_file = os.path.join(self._jobs_dir, PbsJob.SAMPLE_ID_JOB_ID)
 
         job_id = [job_id] * len(sample_ids)
-        new_ids = dict(zip(sample_ids, job_id))
+        new_ids = dict(zip([sid[1] for sid in sample_ids], job_id))
 
         saved_ids = {}
         if os.path.exists(sample_id_job_id_file):
