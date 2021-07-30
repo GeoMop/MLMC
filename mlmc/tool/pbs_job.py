@@ -217,8 +217,6 @@ class PbsJob:
         if times:
             self._append_file(times, self._times_file)
 
-        self._save_sample_id_job_id_map(current_samples)
-
     # def _write_end_mark(self, path):
     #     """
     #     Write end mark to the file
@@ -249,13 +247,15 @@ class PbsJob:
             saved_ids.update(new_ids)
             json.dump(saved_ids, file)
 
-    def job_id_from_sample_id(self, sample_id):
+    @staticmethod
+    def job_id_from_sample_id(sample_id, jobs_dir):
         """
         Get job ID for given sample ID
         :param sample_id: str
+        :param jobs_dir: jobs directory with results
         :return: str, job id
         """
-        sample_id_job_id_file = os.path.join(self._jobs_dir, PbsJob.SAMPLE_ID_JOB_ID)
+        sample_id_job_id_file = os.path.join(jobs_dir, PbsJob.SAMPLE_ID_JOB_ID)
         with open(sample_id_job_id_file, "r") as file:
             saved_ids = json.load(file)
         return saved_ids[sample_id]

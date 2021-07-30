@@ -384,13 +384,11 @@ class SamplingPoolPBS(SamplingPool):
         :return: all input dictionaries
         """
         already_collected = set()
-
         for sample_id in self._unfinished_sample_ids:
             if sample_id in already_collected:
                 continue
 
-            job_id = PbsJob.job_id_from_sample_id(sample_id)
-
+            job_id = PbsJob.job_id_from_sample_id(sample_id, self._jobs_dir)
             successful, failed, time = PbsJob.read_results(job_id, self._jobs_dir)
 
             # Split results to levels
