@@ -205,6 +205,8 @@ class SamplingPoolPBS(SamplingPool):
             # Create pbs job
             pbs_process = PbsJob.create_job(self._output_dir, self._jobs_dir, job_id,
                                             SamplingPoolPBS.LEVEL_SIM_CONFIG, self._debug)
+
+            pbs_process.save_sample_id_job_id(job_id, self._scheduled)
             # Write scheduled samples to file
             pbs_process.save_scheduled(self._scheduled)
 
@@ -373,17 +375,6 @@ class SamplingPoolPBS(SamplingPool):
 
         return successful_results, failed_results, n_running, list(times.items())
 
-    def _load_sample_id_job_id_map(self, sample_dir):
-        """
-        :param sample_dir: path to sample directory
-        :return: str, job id
-        """
-        file_name = os.path.join(sample_dir, PbsJob.PERMANENT_SAMPLE.format("*"))
-        file = glob.glob(file_name)[0]
-        job_id = re.findall(r'.jobID_(\d+)', file)[0]
-
-        return job_id
-
     def _collect_unfinished(self, successful_results, failed_results, times):
         """
         Collect samples which had finished after main process crashed, append them to new collected samples
@@ -393,14 +384,11 @@ class SamplingPoolPBS(SamplingPool):
         :return: all input dictionaries
         """
         already_collected = set()
-
         for sample_id in self._unfinished_sample_ids:
             if sample_id in already_collected:
                 continue
 
-            sample_dir = os.path.join(self._output_dir, sample_id)
-            job_id = self._load_sample_id_job_id_map(sample_dir)
-
+            job_id = PbsJob.job_id_from_sample_id(sample_id, self._jobs_dir)
             successful, failed, time = PbsJob.read_results(job_id, self._jobs_dir)
 
             # Split results to levels
