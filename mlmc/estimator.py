@@ -286,6 +286,11 @@ class Estimate:
             quantile = 0.01
 
         for level_id in range(sample_storage.get_n_levels()):
+            try:
+                sample_storage.get_n_collected()[level_id]
+            except AttributeError:
+                print("No collected values for level {}".format(level_id))
+                break
             chunk_spec = next(sample_storage.chunks(n_samples=sample_storage.get_n_collected()[level_id]))
             fine_samples = quantity.samples(chunk_spec)[..., 0]  # Fine samples at level 0
 
