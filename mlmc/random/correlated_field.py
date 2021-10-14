@@ -62,7 +62,7 @@ class Field:
         if type(field) in [float, int]:
             self.const = field
             assert len(param_fields) == 0
-        elif isinstance(field, RandomFieldBase):
+        elif isinstance(field, RandomFieldBase) or isinstance(field, gstools.covmodel.models.CovModel):
             self.correlated_field = field
             assert len(param_fields) == 0
         else:
@@ -372,7 +372,6 @@ class SpatialCorrelatedField(RandomFieldBase):
         """
         Called after initialization in common constructor.
         """
-
         ### Attributes computed in precalculation.
         self.cov_mat = None
         # Covariance matrix (dense).

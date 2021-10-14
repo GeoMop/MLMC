@@ -26,8 +26,12 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
     #     sigma=1.0,
     #     log=True
     # )
+    #
+    # print("por top ", por_top)
 
     por_top = gstools.Gaussian(dim=dim,  len_scale=0.2, mu=-1.0, sigma=1.0, log=True)
+
+    #print("por top gstools ", por_top_gstools)
 
     # por_bot = cf.SpatialCorrelatedField(
     #     corr_exp='gauss',
@@ -110,10 +114,10 @@ class FlowSimProcConc(Simulation):
     TIMESTEP_H2_VAR = 'timestep_h2'
 
     # files
-    GEO_FILE = 'mesh.geo'
-    MESH_FILE = 'mesh.msh'
-    YAML_TEMPLATE = 'flow_input.yaml.tmpl'
-    YAML_FILE = 'flow_input.yaml'
+    GEO_FILE = 'repo.geo'
+    MESH_FILE = 'repo.msh'
+    YAML_TEMPLATE = '02_conc_tmpl.yaml'
+    YAML_FILE = '02_conc.yaml'
     FIELDS_FILE = 'fields_sample.msh'
 
     """
@@ -194,8 +198,6 @@ class FlowSimProcConc(Simulation):
             yaml_template = os.path.join(common_files_dir, self.YAML_TEMPLATE)
             shutil.copyfile(self.base_yaml_file, yaml_template)
             yaml_file = os.path.join(common_files_dir, self.YAML_FILE)
-            print("yaml file ", yaml_file)
-
             self._substitute_yaml(yaml_template, yaml_file)
 
         # Mesh is extracted because we need number of mesh points to determine task_size parameter (see return value)
