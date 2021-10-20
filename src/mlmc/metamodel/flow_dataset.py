@@ -1,5 +1,6 @@
 import os
 import re
+import copy
 import random
 import numpy as np
 import pandas as pd
@@ -33,6 +34,13 @@ class FlowDataset(Dataset):
         super().__init__(**kwargs)
         #self.a = self.adjacency_matrix
         self.dataset = pd.DataFrame(self.data)
+
+    def get_test_data(self, index, length):
+        new_dataset = self.dataset[0:index * length] + self.dataset[index * length + length:]
+        new_obj = copy.deepcopy(self)
+        new_obj.dataset = new_dataset
+
+        return new_obj
 
     def shuffle(self, seed=None):
         if seed is not None:

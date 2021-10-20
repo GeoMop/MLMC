@@ -228,10 +228,63 @@ class SampleStorageHDF(SampleStorage):
         Get number of estimated operations on each level
         :return: List
         """
+        # n_ops = list(np.zeros(len(self._level_groups)))
+        # for level in self._level_groups:
+        #     if level.running_times[1] > 0:
+        #         n_ops[int(level.level_id)] = level.running_times[0] / level.running_times[1]
+        #     else:
+        #         n_ops[int(level.level_id)] = 0
+        # return n_ops
+
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            if level.n_ops_estimate[1] > 0:
+                n_ops[int(level.level_id)] = level.n_ops_estimate[0] / level.n_ops_estimate[1]
+            else:
+                n_ops[int(level.level_id)] = 0
+        return n_ops
+
+    def get_original_n_ops(self):
         n_ops = list(np.zeros(len(self._level_groups)))
         for level in self._level_groups:
             n_ops[int(level.level_id)] = level.n_ops_estimate
 
+        return n_ops
+
+    def get_running_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.running_times
+        return n_ops
+
+    def get_extract_mesh_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.extract_mesh_times
+        return n_ops
+
+    def get_make_field_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.make_field_times
+        return n_ops
+
+    def get_generate_rnd_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.generate_rnd_times
+        return n_ops
+
+    def get_fine_flow_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.fine_flow_times
+        return n_ops
+
+    def get_coarse_flow_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.coarse_flow_times
         return n_ops
 
     def get_level_ids(self):
@@ -239,17 +292,6 @@ class SampleStorageHDF(SampleStorage):
 
     def get_level_parameters(self):
         return self._hdf_object.load_level_parameters()
-
-    def level_chunk_n_samples(self, level_id):
-        return self._level_groups[level_id].n_items_in_chunk
-
-    def get_chunks_info(self, chunk_spec):
-        """
-        The start and end index of a chunk from a whole dataset point of view
-        :param chunk_spec: ChunkSpec instance
-        :return: List[int, int]
-        """
-        return self._level_groups[chunk_spec.level_id].get_chunks_info(chunk_spec)
 
     def get_n_collected(self):
         """
@@ -267,3 +309,4 @@ class SampleStorageHDF(SampleStorage):
         :return: int
         """
         return len(self._level_groups)
+

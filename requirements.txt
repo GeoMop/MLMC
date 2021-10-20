@@ -6,3 +6,4 @@ ruamel.yaml
 attrs
 gstools
 memoization
+tensorflow

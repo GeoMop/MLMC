@@ -345,11 +345,15 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
 
 
 def statistics(config):
-    n_subsamples = 2
+    n_subsamples = 5
 
     model_title, mch_l_model, log = config['machine_learning_model']
     model_data = {}
     model_data["log"] = log
+
+    # seeds = []
+    # for i in range(n_subsamples):
+    #     seeds.append(i * 125)
 
     if not os.path.isdir(config['save_path']):
         os.makedirs(config['save_path'])
@@ -364,7 +368,7 @@ def statistics(config):
 
             model, targets, predictions, learning_time, train_targets, train_predictions, \
             val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps = \
-                mch_l_model(config, stats=True, train=True, log=log)
+                mch_l_model(config, stats=True, train=True, log=log, seed=i)
 
             if config['save_model']:
                 model_data["model"] = model
@@ -554,7 +558,8 @@ def analyze_statistics(config):
 
     plt_var = plot.Variance()
     l_vars = np.mean(mlmc_l_vars, axis=0)
-    plt_var.add_level_variances(np.squeeze(orig_level_params), l_vars)
+    orig_level_params = orig_level_params  # np.squeeze(orig_level_params)
+    plt_var.add_level_variances(orig_level_params, l_vars)
     plt_var.show("mlmc_vars")
 
     plt_var = plot.Variance()
@@ -635,7 +640,8 @@ def analyze_statistics(config):
     print("######################################")
 
 
-def run_GNN(config, stats=True, train=True, log=False):
+def run_GNN(config, stats=True, train=True, log=False, seed=0):
+    print("seed ", seed)
 
     loss = MeanSquaredError()  # var_loss_function#
     accuracy_func = MSE_moments
@@ -662,11 +668,11 @@ def run_GNN(config, stats=True, train=True, log=False):
     data = data#[:10000]
 
     #print("len data ", len(data))
-    data.shuffle()
+    #data.shuffle(seed=seed)
     preprocess_time = time.process_time() - preprocess_start_time
     #print("preproces time ", preprocess_time)
     preprocess_time = preprocess_time + graph_creation_time
-    print("total preprocess time ", preprocess_time)
+    #print("total preprocess time ", preprocess_time)
 
     learning_time_start = time.process_time()
     data.a = config['conv_layer'].preprocess(data.a)
@@ -674,18 +680,24 @@ def run_GNN(config, stats=True, train=True, log=False):
     #train_data_len = int(len(data) * 0.8)
     train_data_len = config['n_train_samples']
     # Train/valid/test split
-    data_tr, data_te = data[:train_data_len], data[train_data_len:]
 
-    gnn = config['gnn']
+    data_tr = data[seed*train_data_len: seed*train_data_len + train_data_len]
+    data_te = data.get_test_data(seed, train_data_len)
+    #data_tr, data_te = data[:train_data_len], data[train_data_len:]
 
-    if hasattr(gnn._loss,'__name__') and gnn._loss.__name__ == "MSE_moments":
-        tr_output = [g.y for g in data_tr]
-        n_moments = 3
-        quantile = 0.001
-        domain = np.percentile(tr_output, [100 * quantile, 100 * (1 - quantile)])
-        moments_fn = Legendre_tf(n_moments, domain)
-        #accuracy_func = MSE_moments(moments_fn=moments_fn)
-        gnn._loss = MSE_moments(moments_fn=moments_fn)
+
+    print("config['model_config'] ", config['model_config'])
+
+    gnn = config['gnn'](**config['model_config'])
+
+    # if hasattr(gnn._loss,'__name__') and gnn._loss.__name__ == "MSE_moments":
+    #     tr_output = [g.y for g in data_tr]
+    #     n_moments = 3
+    #     quantile = 0.001
+    #     domain = np.percentile(tr_output, [100 * quantile, 100 * (1 - quantile)])
+    #     moments_fn = Legendre_tf(n_moments, domain)
+    #     #accuracy_func = MSE_moments(moments_fn=moments_fn)
+    #     gnn._loss = MSE_moments(moments_fn=moments_fn)
 
     np.random.shuffle(data_tr)
     val_data_len = int(len(data_tr) * config['val_samples_ratio'])
@@ -708,8 +720,11 @@ def run_GNN(config, stats=True, train=True, log=False):
         # batch_size 500, ideally 500 epochs, patience 35
 
     if train:
+        print("gnn ", gnn)
         # gnn.run_eagerly = True
         train_targets = gnn.fit(loader_tr, loader_va, loader_te)
+
+    learning_time = time.process_time() - learning_time_start
 
     # states = gnn._states
     # if len(states) > 0:
@@ -727,7 +742,7 @@ def run_GNN(config, stats=True, train=True, log=False):
 
     targets, predictions = gnn.predict(loader_te)
     predictions = np.squeeze(predictions)
-    learning_time = time.process_time() - learning_time_start
+
     #print("learning time ", learning_time)
 
     targets = np.array(targets)
@@ -760,7 +775,8 @@ def run_GNN(config, stats=True, train=True, log=False):
                                                                         config['l_0_hdf_path'], config['mesh'],
                                                                         config['conv_layer'], batch_size, log,
                                                                         stats=stats,
-                                                                        corr_field_config=config['corr_field_config'])
+                                                                        corr_field_config=config['corr_field_config'],
+                                                                        seed=seed)
     #predict_l_0_time = time.process_time() - predict_l_0_start_time
 
     if stats:
@@ -784,16 +800,22 @@ def run_GNN(config, stats=True, train=True, log=False):
                    l_0_predictions)
 
 
-def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=1000, log=False, stats=False, corr_field_config=None):
-    graph_creator(output_dir, hdf_path, mesh, level=0)
+def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=1000, log=False, stats=False,
+                       corr_field_config=None, seed=1234):
+    # graph_creator(output_dir, hdf_path, mesh, level=0)
     # Load data
 
     sample_time = 0
     if corr_field_config:
         sample_time = corr_field_sample_time(mesh, corr_field_config)
 
-    data = FlowDataset(output_dir=output_dir, log=log)#, mesh=mesh, corr_field_config=corr_field_config)
-    #data = data  # [:10000]
+    data = FlowDataset(output_dir=output_dir, log=log)  # , mesh=mesh, corr_field_config=corr_field_config)
+    # data = data  # [:10000]
+    data.shuffle(seed=seed)
+
+    print("output_dir ", output_dir)
+    print("len(data) ", len(data))
+    print("data[0] ", data[0])
 
     predict_time_start = time.process_time()
     data.a = conv_layer.preprocess(data.a)
@@ -815,7 +837,7 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
 
     predict_time = time.process_time() - predict_time_start
 
-    return targets, predictions, predict_time + sample_time*len(data)
+    return targets, predictions, predict_time + sample_time * len(data)
 
 
 def save_times(path, load=False, preprocess=None, learning_time=None, predict_l_0=None):
