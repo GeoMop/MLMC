@@ -26,7 +26,7 @@ from mlmc.metamodel.flow_task_CNN import CNN
 from mlmc.metamodel.flow_task_GNN_2 import GNN
 from tensorflow.keras.losses import MeanSquaredError
 from spektral.data import MixedLoader
-from spektral.layers.ops import sp_matrix_to_sp_tensor
+from spektral.utils.sparse  import sp_matrix_to_sp_tensor
 
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 epochs = 100
