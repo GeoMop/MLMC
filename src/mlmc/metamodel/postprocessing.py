@@ -454,6 +454,15 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
         print("nn_level ", nn_level)
         print("replace level ", replace_level)
 
+    if not stats:
+        # print("nn_level ", nn_level)
+        # print("replace level ", replace_level)
+
+        # targets = np.exp(targets)
+        # predictions = np.exp(predictions)
+        # l_0_predictions = np.exp(l_0_predictions)
+        # l_0_targets = np.exp(l_0_targets)
+
         # print("targets ", targets)
         # print("predictions ", predictions)
         plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
@@ -574,6 +583,7 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
                     #print("level id ", level_id)
                     level_samples = estimator.get_level_samples(level_id=level_id)
                     n_ops_predict.append(n_ops[level_id])
+
         data_nn.append(level_samples)
 
     print("level params ", level_params)
@@ -708,7 +718,8 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
 
     orig_moments_mean, predict_moments_mean, ref_moments_mean = compare_moments(original_q_estimator, predict_q_estimator, ref_estimator)
 
-    # compare_densities(original_q_estimator, predict_q_estimator, ref_estimator,
+    kl_mlmc, kl_nn = -1, -1
+    # kl_mlmc, kl_nn = compare_densities(original_q_estimator, predict_q_estimator, ref_estimator,
     #                   label_1="orig N: {}".format(sample_storage.get_n_collected()),
     #                   label_2="gnn N: {}".format(sample_storage_predict.get_n_collected()))
 
