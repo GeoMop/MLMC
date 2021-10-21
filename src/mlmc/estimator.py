@@ -18,13 +18,29 @@ def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_op
     :param n_levels: number of levels
     :return: np.array with number of optimal samples for individual levels and moments_fn, array (LxR)
     """
+    # print("vars ", prescribe_vars)
+    # print("n ops ", n_ops)
+
     vars = prescribe_vars
+    #print("vars.T * n_ops ", vars.T * n_ops)
+
     sqrt_var_n = np.sqrt(vars.T * n_ops)  # moments_fn in rows, levels in cols
     total = np.sum(sqrt_var_n, axis=1)  # sum over levels
+    #print("total ", total)
+
     n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)  # moments_fn in cols
     # Limit maximal number of samples per level
     n_samples_estimate_safe = np.maximum(
         np.minimum(n_samples_estimate, vars * n_levels / target_variance), 2)
+
+    #print("vars ", vars)
+
+
+    # return np.max(n_samples_estimate, axis=1).astype(int)
+    #
+    # print("n samples estimate ", n_samples_estimate)
+    # print("n samples estaimte safe ", n_samples_estimate_safe)
+    #print("N: ", np.max(n_samples_estimate_safe, axis=1).astype(int))
     return np.max(n_samples_estimate_safe, axis=1).astype(int)
 
 

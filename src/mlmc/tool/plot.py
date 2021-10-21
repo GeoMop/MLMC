@@ -8,7 +8,7 @@ from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 
 
-def create_color_bar(range, label, ax = None):
+def create_color_bar(range, label, ax=None, colormap=None):
     """
     Create colorbar for a variable with given range and add it to given axes.
     :param range: single value as high bound or tuple (low bound, high bound)
@@ -16,8 +16,10 @@ def create_color_bar(range, label, ax = None):
     :param ax:
     :return: Function to map values to colors. (normalize + cmap)
     """
+
     # Create colorbar
-    colormap = plt.cm.gist_ncar
+    if colormap is None:
+        colormap = plt.cm.gist_ncar
     try:
         min_r, max_r = range
     except TypeError:
@@ -35,6 +37,7 @@ def create_color_bar(range, label, ax = None):
     clb = plt.colorbar(scalar_mappable, ticks=ticks, aspect=50, pad=0.01, ax=ax)
     clb.set_label(label)
     return lambda v: colormap(normalize(v))
+
 
 def moments_subset(n_moments, moments=None):
     """
@@ -630,6 +633,86 @@ class VarianceBreakdown:
         _show_and_save(self.fig, file, self.title)
 
 
+class CorrLength:
+    """
+    Plot level variances, i.e. Var X^l as a function of the mesh step.
+    Selected moments are plotted.
+    """
+    def __init__(self, moments=None):
+        """
+        :param moments: Size or type of moments subset, see moments_subset function.
+        """
+        matplotlib.rcParams.update({'font.size': 26})
+        matplotlib.rcParams.update({'lines.markersize': 8})
+        self.fig = plt.figure(figsize=(15, 8))
+        self.title = ""
+        self.fig.suptitle(self.title)
+
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.ax.set_xlabel("$\lambda$ - correlation length")
+        self.ax.set_ylabel("$MSE$")
+        self.ax.set_xscale('log')
+        self.ax.set_yscale('log')
+
+        self.n_moments = None
+        self.subset_type = moments
+        self.min_step = 1e300
+        self.max_step = 0
+        self.data = {}
+
+        self.nn_min_step = 1e300
+        self.nn_max_step = 0
+        self.nn_data = {}
+
+        self._mse_train = {}
+        self._mse_test = {}
+
+        #self._colormap = plt.cm.tab20
+
+    def add_mse_train(self, mse):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        self._mse_train = mse
+
+    def add_mse_test(self, mse):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        self._mse_test = mse
+
+    def show(self, file=""):
+        #self._colormap = create_color_bar(range=[1, self.n_moments], label=r'$M_i$', ax=self.ax, colormap=plt.cm.tab20)
+        res = 5
+        step_range = self.max_step / self.min_step
+        log_scale = step_range ** 0.001 - 1
+        #rv = st.lognorm(scale=1, s=log_scale)
+
+        # if m == 5:
+        #     break
+        col = "blue"
+        label = "MSE train"
+
+        print("mse train ", self._mse_train)
+        print("mse test ", self._mse_test)
+
+        print("list(self._mse_train.keys()) ", list(self._mse_train.keys()))
+        print("self._mse_train.items() ", self._mse_train.items())
+
+        self.ax.scatter(list(self._mse_train.keys()), list(self._mse_train.values()), color=col, label=label)
+
+        col = "red"
+        label = "MSE test"
+        self.ax.scatter(list(self._mse_test.keys()), list(self._mse_test.values()), color=col, label=label)
+
+        self.fig.legend()
+        _show_and_save(self.fig, file, self.title)
+
+
 class Variance:
     """
     Plot level variances, i.e. Var X^l as a function of the mesh step.
@@ -639,6 +722,8 @@ class Variance:
         """
         :param moments: Size or type of moments subset, see moments_subset function.
         """
+        matplotlib.rcParams.update({'font.size': 26})
+        matplotlib.rcParams.update({'lines.markersize': 8})
         self.fig = plt.figure(figsize=(15, 8))
         self.title = "Level variances"
         self.fig.suptitle(self.title)
@@ -655,6 +740,8 @@ class Variance:
         self.max_step = 0
         self.data = {}
 
+
+        self._colormap = plt.cm.tab20
 
     def add_level_variances(self, steps, variances):
         """
@@ -678,34 +765,43 @@ class Variance:
             Y.extend(vars.tolist())
             self.data[m] = (X, Y)
 
-
-
-
     # def add_diff_variances(self, step, variances):
     #     pass
 
     def show(self, file=""):
+        self._colormap = create_color_bar(range=[1, self.n_moments], label=r'$M_i$', ax=self.ax, colormap=plt.cm.tab20)
+        res = 5
         step_range = self.max_step / self.min_step
         log_scale = step_range ** 0.001 - 1
         rv = st.lognorm(scale=1, s=log_scale)
         for m, (X, Y) in self.data.items():
-            col = plt.cm.tab20(m)
+            # if m == 5:
+            #     break
+            col = self._colormap(m)
             label = "M{}".format(self.moments_subset[m])
             XX = np.array(X) * rv.rvs(size=len(X))
             self.ax.scatter(XX, Y, color=col, label=label)
-            #f = interpolate.interp1d(X, Y, kind='cubic')
 
             XX, YY = make_monotone(X, Y)
 
-            #f = interpolate.PchipInterpolator(XX[1:], YY[1:])
-            m = len(XX)-1
-            spl = interpolate.splrep(XX[1:], YY[1:], k=3, s=m - np.sqrt(2*m))
-            xf = np.geomspace(self.min_step, self.max_step, 100)
-            yf = interpolate.splev(xf, spl)
-            self.ax.plot(xf, yf, color=col)
-        self.fig.legend()
-        _show_and_save(self.fig, file, self.title)
+        # step_range = self.nn_max_step / self.nn_min_step
+        # log_scale = step_range ** 0.01 - 1
+        # rv = st.lognorm(scale=1, s=log_scale)
+        for m, (X, Y) in self.nn_data.items():
+            # if m == 5:
+            #     break
+            col = self._colormap(m)
+            label = "M{}".format(self.moments_subset[m])
+            XX = np.array(X) * 0.9#rv.rvs(size=len(X))
 
+            # print("XX ", XX)
+            # print("Y ", Y)
+
+            self.ax.scatter(XX, Y, color=col, label=label, marker='v')
+            XX, YY = make_monotone(X, Y)
+
+        #self.fig.legend()
+        _show_and_save(self.fig, file, self.title)
 
 class BSplots:
     def __init__(self, n_samples, bs_n_samples, n_moments, ref_level_var):

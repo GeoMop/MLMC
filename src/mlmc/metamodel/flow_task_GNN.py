@@ -3,17 +3,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 #os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
 import tensorflow as tf
-from tensorflow.keras import Model
-from tensorflow.keras.layers import Dense
+from tensorflow.keras.regularizers import l2
+
 from tensorflow.keras.losses import MeanSquaredError, SparseCategoricalCrossentropy, KLDivergence
 from tensorflow.keras.metrics import mean_squared_error, kl_divergence
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.regularizers import l2
 
+from mlmc.metamodel.postprocessing import analyze_results, plot_loss
+from mlmc.metamodel.custom_methods import abs_activation
 from spektral.data import MixedLoader
 from mlmc.metamodel.flow_dataset import FlowDataset
 from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv
 from spektral.utils.sparse import sp_matrix_to_sp_tensor
+
 
 
 
@@ -31,15 +33,23 @@ loss_fn = MeanSquaredError()
 #loss_fn = KLDivergence()
 
 acc_fn = mean_squared_error
-acc_fn = kl_divergence
+#acc_fn = kl_divergence
 
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 
 # Parameters
-batch_size = 1000  # Batch size
+batch_size = 10000  # Batch size
 epochs = 1000  # Number of training epochs
-patience = 30 # Patience for early stopping
+patience = 10 # Patience for early stopping
 l2_reg = 0#5e-4  # Regularization rate for l2
+
+
+kernel_regularization = l2(l2_reg)
+
+# Create model
+model = Net1(conv_layer=conv_layer, hidden_activation='relu', output_activation=abs_activation,
+             kernel_regularization=kernel_regularization)
+#model = GeneralGNN(output=1, activation=abs_activation)
 
 
 # Load data
@@ -60,29 +70,9 @@ loader_tr = MixedLoader(data_tr, batch_size=batch_size, epochs=epochs)
 loader_va = MixedLoader(data_va, batch_size=batch_size)
 loader_te = MixedLoader(data_te, batch_size=batch_size)
 
-# Build model
-class Net(Model):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.conv1 = conv_layer(32, activation=act_func, kernel_regularizer=l2(l2_reg))
-        self.conv2 = conv_layer(32, activation=act_func, kernel_regularizer=l2(l2_reg))
-        self.flatten = GlobalSumPool()
-        self.fc1 = Dense(512, activation="relu")
-        self.fc2 = Dense(1, activation="linear")  # linear activation for output neuron
-
-    def call(self, inputs):
-        x, a = inputs
-        x = self.conv1([x, a])
-        x = self.conv2([x, a])
-        output = self.flatten(x)
-        output = self.fc1(output)
-        output = self.fc2(output)
-
-        return output
 
 
-# Create model
-model = Net()
+
 
 
 
@@ -119,24 +109,10 @@ def evaluate(loader):
         results.append((loss, acc, len(target)))  # Keep track of batch size
         if step == loader.steps_per_epoch:
             results = np.array(results)
+            print("np.average(results[:, :-1], axis=0, weights=results[:, -1]) ",
+                  np.average(results[:, :-1], axis=0, weights=results[:, -1]))
+            exit()
             return np.average(results[:, :-1], axis=0, weights=results[:, -1]), target, predictions
-
-
-
-def analyze_results(target, predictions):
-    from scipy.stats import ks_2samp
-    statistics, pvalue = ks_2samp(target, predictions)
-    print("KS statistics: {}, pvalue: {}".format(statistics, pvalue))
-    # The closer KS statistic is to 0 the more likely it is that the two samples were drawn from the same distribution
-
-    print("len(target) ", len(target))
-    print("len(predictions) ", len(predictions))
-
-    plt.hist(target, bins=10, alpha=0.5, label='target', density=True)
-    plt.hist(predictions, bins=10, alpha=0.5, label='predictions', density=True)
-    plt.legend(loc='upper right')
-    plt.show()
-
 
 
 # Setup training
@@ -159,6 +135,9 @@ for batch in loader_tr:
 
     if step == loader_tr.steps_per_epoch:
         results_va, target, predictions = evaluate(loader_va)
+
+        print("results_va[0] ", results_va[0])
+        exit()
         if results_va[0] < best_val_loss:
             best_val_loss = results_va[0]
             current_patience = patience
@@ -170,7 +149,6 @@ for batch in loader_tr:
             print("len(predictions) ", len(np.squeeze(predictions.numpy())))
 
             analyze_results(target, np.squeeze(predictions.numpy()))
-
 
         else:
             current_patience -= 1
@@ -193,7 +171,6 @@ for batch in loader_tr:
         results_tr = []
         step = 0
 
-analyze_results(target, np.squeeze(predictions.numpy()))
 
 
 
