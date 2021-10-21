@@ -2,7 +2,7 @@ import os
 import os.path
 import numpy as np
 import networkx as nx
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from mlmc.tool import gmsh_io
 from mlmc.tool.hdf5 import HDF5
 from spektral.data import Graph

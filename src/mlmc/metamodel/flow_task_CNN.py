@@ -23,7 +23,7 @@ from mlmc.metamodel.postprocessing import analyze_results, plot_loss
 from spektral.data import MixedLoader
 from mlmc.metamodel.flow_dataset import FlowDataset
 from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv
-from spektral.layers.ops import sp_matrix_to_sp_tensor
+from spektral.utils.sparse import sp_matrix_to_sp_tensor
 from tensorflow.keras.layers.experimental import preprocessing
 from mlmc.metamodel.custom_methods import abs_activation
 

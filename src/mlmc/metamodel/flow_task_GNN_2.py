@@ -11,7 +11,7 @@ from mlmc.metamodel.postprocessing import analyze_results, plot_loss, estimate_d
 from spektral.data import MixedLoader
 from mlmc.metamodel.flow_dataset import FlowDataset
 from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv
-from spektral.layers.ops import sp_matrix_to_sp_tensor
+from spektral.utils.sparse import sp_matrix_to_sp_tensor
 from tensorflow.keras.layers.experimental import preprocessing
 from mlmc.metamodel.custom_methods import abs_activation, var_loss_function
 
@@ -32,7 +32,7 @@ class GNN:
         #self._n_hidden_layers = kwargs.get('n_hidden_layers', 1)
         #self._n_hidden_neurons = kwargs.get('n_hidden_neurons', [64])  # Number of hidden neurons for each hidden layer
 
-        self._loss = kwargs.get('loss', mean_squared_error)
+        self._loss = kwargs.get('loss', MeanSquaredError)
         self._accuracy_func = kwargs.get('accuracy_func', mean_squared_error)
         self._optimizer = kwargs.get('optimizer', tf.optimizers.Adam(learning_rate=0.001))
         self._normalizer = kwargs.get('normalizer', preprocessing.Normalization())
@@ -47,7 +47,13 @@ class GNN:
         self._states = {}
         self._total_n_steps = 0
 
-        model = kwargs.get('model')
+        if 'model_class' in kwargs:
+            model_class = kwargs.get('model_class')
+            net_model_config = kwargs.get('net_model_config')
+            model = model_class(**net_model_config)
+            print("model class model ", model)
+        else:
+            model = kwargs.get('model')
 
         if model is None:
             self._model = Net1(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
