@@ -9,8 +9,8 @@ from mlmc.metamodel.flow_dataset import FlowDataset
 from mlmc.metamodel.create_graph import graph_creator
 from mlmc.moments import Legendre_tf, Monomial
 from mlmc.metamodel.random_field_time import corr_field_sample_time
-#from mlmc.tool import plot
-#import matplotlib.pyplot as plt
+from mlmc.tool import plot
+import matplotlib.pyplot as plt
 # Make numpy printouts easier to read.
 
 # np.set_printoptions(precision=9, suppress=True)
@@ -19,7 +19,7 @@ from tensorflow import keras
 from scipy.stats import ks_2samp
 import sklearn.model_selection
 from mlmc.metamodel.custom_methods import abs_activation, MSE_moments
-from mlmc.metamodel.postprocessing import analyze_results, plot_loss, estimate_density, process_mlmc
+from mlmc.metamodel.postprocessing import analyze_results, plot_loss, estimate_density, process_mlmc, plot_progress
 from mlmc.metamodel.flow_task_NN import DNN
 from mlmc.metamodel.flow_task_CNN import CNN
 
@@ -309,7 +309,7 @@ def run_SVR(config, stats=True, train=True, log=False, seed=1234):
         #                                                stats=stats)
 
         return svr_rbf, targets, predictions, learning_time, train_targets, train_predictions, \
-               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps
+               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps, None, None, None
 
     save_times(config['save_path'], False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
     save_load_data(config['save_path'], False, targets, predictions, train_targets, train_predictions, val_targets, l_0_targets,
@@ -370,7 +370,8 @@ def statistics(config):
             os.makedirs(iter_dir)
 
             model, targets, predictions, learning_time, train_targets, train_predictions, \
-            val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps = \
+            val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps,\
+            conv_layers, flatten_output, dense_layers = \
                 mch_l_model(config, stats=True, train=True, log=log, seed=i)
 
             if config['save_model']:
@@ -387,6 +388,19 @@ def statistics(config):
             model_data["l0_sample_time"] = l0_sample_time
             model_data["total_steps"] = total_steps
             model_data["learning_times"] = learning_time
+
+            model_data["conv_layers"] = []
+            model_data["dense_layers"] = []
+
+            if conv_layers is not None:
+                for index, c_layer in enumerate(conv_layers):
+                    model_data["conv_layers"].append([c_layer._inputs, c_layer._weights, c_layer._outputs])
+
+                model_data["flatten_output"] = flatten_output
+
+                for index, (d_layer, (inputs, outputs)) in enumerate(dense_layers.items()):
+                    model_data["dense_layers"].append([inputs, d_layer.get_weights(), outputs])
+
             save_statistics(iter_dir, model_data)
 
             # save_times(save_path, False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
@@ -434,6 +448,9 @@ def load_statistics(dir_path):
     models_data["total_steps"] = []
     models_data["learning_times"] = []
     models_data["log"] = []
+    models_data["conv_layers"] = []
+    models_data["flatten_output"] = []
+    models_data["dense_layers"] = []
 
     #dirs = (os.path.split(dir_path)[-1]).split("_")
     n_iters = 25
@@ -447,7 +464,13 @@ def load_statistics(dir_path):
         for file in glob.glob(os.path.join(data_dir_path, "*.npy")):
             file_name = os.path.split(file)[-1]
             file_name = file_name.split(".")[0]
-            models_data[file_name].append(np.load(file))
+            # if file_name not in models_data:
+            #     print("file name ", file_name)
+            #     models_data[file_name] = []
+            #     print("np.load(file, allow_pickle=True) ", np.load(file, allow_pickle=True))
+            #     exit()
+
+            models_data[file_name].append(np.load(file, allow_pickle=True))
 
     return models_data
 
@@ -498,8 +521,6 @@ def analyze_statistics(config):
     nn_means_mse = []
 
     for i in range(len(data_dict["test_targets"])):
-        if i == 2:
-            break
         predictions = data_dict["test_predictions"][i]
         targets = data_dict["test_targets"][i]
         train_predictions = data_dict["train_predictions"][i]
@@ -522,6 +543,9 @@ def analyze_statistics(config):
                        nn_level=config['level'],
                        replace_level=config['replace_level'],
                        stats=True)
+
+        plot_progress(data_dict["conv_layers"][i], data_dict["flatten_output"][i], data_dict["dense_layers"][i])
+
 
         mlmc_n_collected_all.append(mlmc_n_collected)
         nn_n_collected_all.append(nn_mlmc_n_collected)
@@ -740,6 +764,8 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     #val_targets = gnn.val_targets
     total_steps = gnn._total_n_steps
 
+    gnn._model.clear_progress()
+
     targets, predictions = gnn.predict(loader_te)
     predictions = np.squeeze(predictions)
 
@@ -792,8 +818,14 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
         #              l_0_predictions, l1_sample_time, l0_sample_time, nn_level=level, replace_level=replace_level,
         #                                                stats=stats)
 
+        conv_layers, flatten_output, dense_layers = gnn._model.plot_progress(stats)
+        #gnn._model.plot_progress(stats)
+
         return gnn._model, targets, predictions, learning_time, train_targets, train_predictions,\
-               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps
+               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps,\
+               conv_layers, flatten_output, dense_layers
+
+    gnn._model.plot_progress(stats)
 
     save_times(config['save_path'], False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
     save_load_data(config['save_path'], False, targets, predictions, train_targets, train_predictions, val_targets, l_0_targets,

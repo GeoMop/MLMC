@@ -14,6 +14,7 @@ from mlmc.metamodel.own_cheb_conv import OwnChebConv
 from tensorflow.keras.losses import MeanSquaredError, KLDivergence, MeanAbsoluteError
 from mlmc.metamodel.custom_methods import abs_activation, MSE_moments
 from tensorflow.keras import Model
+from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 from spektral.layers import GlobalSumPool, GlobalMaxPool, GlobalAvgPool
 import tensorflow as tf
@@ -26,7 +27,7 @@ def get_gnn():
     # Parameters
     # conv_layer = GCNConv
     conv_layer = ChebConv  # Seems better than GCNConv, good distribution of predictions
-    # conv_layer = OwnChebConv
+    conv_layer = OwnChebConv
     # conv_layer = GraphSageConv  # Seems better than ChebConv, good loss but very narrow distribution of predictions
     # # conv_layer = ARMAConv  # Seems worse than GraphSageConv
     # conv_layer = GATConv  # Slow and not better than GraphSageConv
@@ -53,7 +54,7 @@ def get_gnn():
                  "normalizer": preprocessing.Normalization()
                  }
 
-    model = Net(**net_model_config)
+    #model = Net(**net_model_config)
 
     model_config = {"loss": loss,
                     "optimizer": optimizer,
@@ -71,10 +72,11 @@ class Net(Model):
     def __init__(self, conv_layer, hidden_activation, output_activation, kernel_regularization, normalizer,
                  **kwargs):
         super().__init__(**kwargs)
+
         # self.normalizer = normalizer
         # self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
-        self.conv1 = conv_layer(8, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        # self.conv2 = conv_layer(64, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
+        self._conv_layers = [conv_layer(8, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)]#,
+                             #conv_layer(64, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)]
         # self.conv3 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv4 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         #self.conv2 = conv_layer(32, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
@@ -83,26 +85,84 @@ class Net(Model):
         # self.conv4 = conv_layer(4, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv3 = conv_layer(64, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         self.flatten = GlobalSumPool()
+
+        #self._submodel = Sequential()
+
+        self._dense_layers = {Dense(1): ([], [])}
+
+        # for d_layer in self._dense_layers:
+        #     self._submodel.add(d_layer)
         # self.fc1 = Dense(32, activation=hidden_activation)
-        self.fc2 = Dense(1)#, activation=output_activation)  # linear activation for output neuron
+       #, activation=output_activation)  # linear activation for output neuron
 
     def call(self, inputs):
         x, a = inputs
-        # print("x ", x)
-        # x = self.normalizer(x)
-        # x = self.norm_layer(x)
-        # print("normalized x ", x)
-        # print("x[0,0,:] ", x[0, 0, :])
-        x = self.conv1([x, a])
-        # print("x.shape ", x.shape)
-        # x = self.conv2([x, a])
-        # # # print("conv2 x shape", x.shape)
-        # x = self.conv3([x, a])
-        # x = self.conv4([x, a])
-        output1 = self.flatten(x)
-        # output2 = self.fc1(output1)
-        output = self.fc2(output1)
+
+        for c_layer in self._conv_layers:
+            x = c_layer([x, a])
+
+        output = self.flatten(x)
+        self._output_flatten = output
+        input = output
+
+        for d_layer, (inputs, outputs) in self._dense_layers.items():
+            inputs.append(input)
+            output = d_layer(input)
+            outputs.append(output)
+
         return output
+
+    def clear_progress(self):
+        for c_layer in self._conv_layers:
+            c_layer.clear_progress()
+
+        new_dense_layers = {}
+        for d_layer, _ in self._dense_layers.items():
+            new_dense_layers = {d_layer: ([], [])}
+
+        self._dense_layers = new_dense_layers
+
+    def plot_progress(self, stats=False):
+        if not stats:
+            import matplotlib.pyplot as plt
+
+        if not stats:
+
+            for c_layer in self._conv_layers:
+                plt.matshow(c_layer._weights[-1][0])
+                plt.show()
+
+                for index, input in enumerate(c_layer._inputs[::10]):
+                    plt.matshow(input[0])
+                    plt.show()
+                    plt.matshow(c_layer._outputs[index][0])
+                    plt.show()
+
+                    #print("shape ", c_layer._outputs[index][0].shape)
+                    plt.matshow(np.sum(c_layer._outputs[index][0], axis=0, keepdims=True))
+                    plt.show()
+
+                    # plt.matshow(self._inputs[-1][0])
+                    # plt.show()
+                    # plt.matshow(self._outputs[-1][0])
+                    # plt.show()
+
+                    #print("output flatten ", self._output_flatten)
+                    #print("final output ", final_output)
+
+                    plt.matshow([self._output_flatten[-1]])
+                    plt.show()
+                    # plt.matshow(final_output[-1])
+                    # plt.show()
+
+            for dense_layer, (input, output) in self._dense_layers.items():
+                plt.matshow(input[-1])
+                plt.show()
+                plt.matshow(output[-1])
+                plt.show()
+
+        else:
+            return self._conv_layers, self._output_flatten, self._dense_layers
 
 
 def get_config(data_dir, case=0):

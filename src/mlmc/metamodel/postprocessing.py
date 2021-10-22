@@ -1,11 +1,11 @@
 import os
 import random
 import copy
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from scipy.stats import ks_2samp
 #from mlmc.tool import plot
 #import mlmc.tool.simple_distribution
-#import mlmc.estimator
+import mlmc.estimator
 import mlmc.quantity_estimate as qe
 from mlmc.sample_storage import Memory
 from mlmc.quantity_spec import QuantitySpec, ChunkSpec
@@ -445,6 +445,42 @@ def cut_samples(data, sample_storage, new_n_collected, new_l_0=0):
     return sample_storage
 
 
+def plot_progress(conv_layers, flatten_output, dense_layers):
+
+    for inputs, weights, outputs in conv_layers:
+        plt.matshow(weights[-1][0])
+        plt.show()
+
+        for index, input in enumerate(inputs[::10]):
+            plt.matshow(input[0])
+            plt.show()
+            plt.matshow(outputs[index][0])
+            plt.show()
+
+            # print("shape ", c_layer._outputs[index][0].shape)
+            plt.matshow(np.sum(outputs[index][0], axis=0, keepdims=True))
+            plt.show()
+
+            # plt.matshow(self._inputs[-1][0])
+            # plt.show()
+            # plt.matshow(self._outputs[-1][0])
+            # plt.show()
+
+            # print("output flatten ", self._output_flatten)
+            # print("final output ", final_output)
+
+            plt.matshow([flatten_output[-1]])
+            plt.show()
+            # plt.matshow(final_output[-1])
+            # plt.show()
+
+    for inputs, weights, outputs in dense_layers:
+        plt.matshow(inputs[-1])
+        plt.show()
+        plt.matshow(outputs[-1])
+        plt.show()
+
+
 def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predictions, train_targets, train_predictions,
                  val_targets, l_0_targets=None, l_0_predictions=None,
                  l1_sample_time=None, l0_sample_time=None, nn_level=0, replace_level=False, stats=False):
@@ -507,9 +543,9 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
     ######
     ### Get n ops
     ######
-    #n_ops, field_times, coarse_flow, fine_flow = get_sample_times_mlmc(mlmc_file)
-    n_ops, _, _ = get_sample_times(sampling_info_path)
-    n_ops = n_ops[n_levels-1:]
+    n_ops, field_times, coarse_flow, fine_flow = get_sample_times_mlmc(mlmc_file)
+    # n_ops, _, _ = get_sample_times(sampling_info_path)
+    # n_ops = n_ops[n_levels-1:]
 
     if n_ops is None:
         n_ops = sample_storage.get_n_ops()
@@ -521,7 +557,7 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
         level_samples = estimator.get_level_samples(level_id=l_id)
         data_mlmc.append(level_samples)
 
-    print("original level params" , sample_storage.get_level_parameters())
+    print("original level params", sample_storage.get_level_parameters())
     sample_storage = create_quantity_mlmc(data_mlmc, level_parameters=sample_storage.get_level_parameters())
     print("Original storage")
     orig_storage_n_collected, orig_storage_max_vars = get_storage_info(sample_storage)
