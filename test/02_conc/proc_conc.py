@@ -6,7 +6,7 @@ from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampling_pool import OneProcessPool
 from mlmc.sampling_pool_pbs import SamplingPoolPBS
-from mlmc.tool.flow_mc import FlowSim
+from mlmc.tool.flow_mc_02 import FlowSimProcConc
 from mlmc.moments import Legendre
 from mlmc.tool.process_base import ProcessBase
 from mlmc.quantity.quantity import make_root_quantity
@@ -28,12 +28,12 @@ class ProcConc:
         self.use_pbs = True
         # Use PBS sampling pool
         self.n_levels = 1
-        self.n_moments = 25
+        self.n_moments = 5
         # Number of MLMC levels
 
         # step_range = [0.055, 0.0035]
         step_range = [1, 0.02]
-        # step_range = [0.1, 0.055]
+        #step_range = [0.1, 0.055] # 5LMC - 53, 115, 474, 2714, 18397
         # step   - elements
         # 0.1    - 262
         # 0.08   - 478
@@ -89,6 +89,18 @@ class ProcConc:
         value_mean = values_mean[0]
         assert value_mean.mean == 1
 
+        # target_var = 1e-5
+        # estimate_obj = mlmc.estimator.Estimate(root_quantity, sample_storage=sample_storage, moments_fn=moments_fn)
+        # variances, n_ops = estimate_obj.estimate_diff_vars_regression(sample_storage.get_n_collected())
+        # print("variances ", variances)
+        # n_estimated = mlmc.estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+        #                                                                n_levels=self.n_levels)
+        # print("n estimated ", n_estimated)
+
+
+        # print("means ", means)
+        # print("vars ", vars)
+
         # true_domain = [-10, 10]  # keep all values on the original domain
         # central_moments = Monomial(self.n_moments, true_domain, ref_domain=true_domain, mean=means())
         # central_moments_quantity = moments(root_quantity, moments_fn=central_moments, mom_at_bottom=True)
@@ -97,7 +109,7 @@ class ProcConc:
         #estimator.sub_subselect(sample_vector=[10000])
 
         #self.process_target_var(estimator)
-        self.construct_density(estimator, tol=1e-8)
+        self.construct_density(estimator, tol=1e-7)
         #self.data_plots(estimator)
 
     def data_plots(self, estimator):
@@ -180,11 +192,12 @@ class ProcConc:
             'time_factor': 1e7,  # max velocity about 1e-8
             'yaml_file': os.path.join(self.work_dir, '02_conc_tmpl.yaml'),
             'geo_file': os.path.join(self.work_dir, 'repo.geo'),
+            'fields_params': dict(model='exp', sigma=1, corr_length=0.1),
             'field_template': "!FieldElementwise {mesh_data_file: \"$INPUT_DIR$/%s\", field_name: %s}"
         }
 
         # Create simulation factory
-        simulation_factory = FlowSim(config=simulation_config, clean=clean)
+        simulation_factory = FlowSimProcConc(config=simulation_config, clean=clean)
 
         # Create HDF sample storage
         sample_storage = SampleStorageHDF(
