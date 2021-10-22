@@ -220,6 +220,102 @@ class SampleStorageHDF(SampleStorage):
         for level in self._level_groups:
             level.clear_failed_dataset()
 
+    def save_extract_mesh_times(self, n_ops):
+        """
+        Save number of operations (time) of samples
+        :param n_ops: Dict[level_id, List[overall time, number of successful samples]]
+        :return: None
+        """
+        for level_id, (time, n_samples) in n_ops:
+            if self._level_groups[level_id].extract_mesh_times is None:
+                self._level_groups[level_id].extract_mesh_times = [0., 0.]
+
+            if n_samples > 0:
+                n_ops_saved = self._level_groups[level_id].extract_mesh_times
+                n_ops_saved[0] += time
+                n_ops_saved[1] += n_samples
+                self._level_groups[level_id].extract_mesh_times = n_ops_saved
+
+    def save_make_field_times(self, n_ops):
+        """
+        Save number of operations (time) of samples
+        :param n_ops: Dict[level_id, List[overall time, number of successful samples]]
+        :return: None
+        """
+        for level_id, (time, n_samples) in n_ops:
+            if self._level_groups[level_id].make_field_times is None:
+                self._level_groups[level_id].make_field_times = [0., 0.]
+
+            if n_samples > 0:
+                n_ops_saved = self._level_groups[level_id].make_field_times
+                n_ops_saved[0] += time
+                n_ops_saved[1] += n_samples
+                self._level_groups[level_id].make_field_times = n_ops_saved
+
+    def save_generate_rnd_times(self, n_ops):
+        """
+        Save number of operations (time) of samples
+        :param n_ops: Dict[level_id, List[overall time, number of successful samples]]
+        :return: None
+        """
+        for level_id, (time, n_samples) in n_ops:
+            if self._level_groups[level_id].generate_rnd_times is None:
+                self._level_groups[level_id].generate_rnd_times = [0., 0.]
+
+            if n_samples > 0:
+                n_ops_saved = self._level_groups[level_id].generate_rnd_times
+                n_ops_saved[0] += time
+                n_ops_saved[1] += n_samples
+                self._level_groups[level_id].generate_rnd_times = n_ops_saved
+
+    def save_fine_flow_times(self, n_ops):
+        """
+        Save number of operations (time) of samples
+        :param n_ops: Dict[level_id, List[overall time, number of successful samples]]
+        :return: None
+        """
+        for level_id, (time, n_samples) in n_ops:
+            if self._level_groups[level_id].fine_flow_times is None:
+                self._level_groups[level_id].fine_flow_times = [0., 0.]
+
+            if n_samples > 0:
+                n_ops_saved = self._level_groups[level_id].fine_flow_times
+                n_ops_saved[0] += time
+                n_ops_saved[1] += n_samples
+                self._level_groups[level_id].fine_flow_times = n_ops_saved
+
+    def save_coarse_flow_times(self, n_ops):
+        """
+        Save number of operations (time) of samples
+        :param n_ops: Dict[level_id, List[overall time, number of successful samples]]
+        :return: None
+        """
+        for level_id, (time, n_samples) in n_ops:
+            if self._level_groups[level_id].coarse_flow_times is None:
+                self._level_groups[level_id].coarse_flow_times = [0., 0.]
+
+            if n_samples > 0:
+                n_ops_saved = self._level_groups[level_id].coarse_flow_times
+                n_ops_saved[0] += time
+                n_ops_saved[1] += n_samples
+                self._level_groups[level_id].coarse_flow_times = n_ops_saved
+
+    def save_running_times(self, n_ops):
+        """
+        Save number of operations (time) of samples
+        :param n_ops: Dict[level_id, List[overall time, number of successful samples]]
+        :return: None
+        """
+        for level_id, (time, n_samples) in n_ops:
+            if self._level_groups[level_id].running_times is None:
+                self._level_groups[level_id].running_times = [0., 0.]
+
+            if n_samples > 0:
+                n_ops_saved = self._level_groups[level_id].running_times
+                n_ops_saved[0] += time
+                n_ops_saved[1] += n_samples
+                self._level_groups[level_id].running_times = n_ops_saved
+
     def save_n_ops(self, n_ops):
         """
         Save number of operations (time) of samples
@@ -241,6 +337,14 @@ class SampleStorageHDF(SampleStorage):
         Get number of estimated operations on each level
         :return: List
         """
+        # n_ops = list(np.zeros(len(self._level_groups)))
+        # for level in self._level_groups:
+        #     if level.running_times[1] > 0:
+        #         n_ops[int(level.level_id)] = level.running_times[0] / level.running_times[1]
+        #     else:
+        #         n_ops[int(level.level_id)] = 0
+        # return n_ops
+
         n_ops = list(np.zeros(len(self._level_groups)))
         for level in self._level_groups:
             if level.n_ops_estimate[1] > 0:
@@ -249,11 +353,66 @@ class SampleStorageHDF(SampleStorage):
                 n_ops[int(level.level_id)] = 0
         return n_ops
 
+    def get_original_n_ops(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.n_ops_estimate
+
+        return n_ops
+
+    def get_running_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.running_times
+        return n_ops
+
+    def get_extract_mesh_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.extract_mesh_times
+        return n_ops
+
+    def get_make_field_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.make_field_times
+        return n_ops
+
+    def get_generate_rnd_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.generate_rnd_times
+        return n_ops
+
+    def get_fine_flow_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.fine_flow_times
+        return n_ops
+
+    def get_coarse_flow_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.coarse_flow_times
+        return n_ops
+
     def get_level_ids(self):
         return [int(level.level_id) for level in self._level_groups]
 
     def get_level_parameters(self):
         return self._hdf_object.load_level_parameters()
+
+    def get_items_in_chunk(self, level_id):
+        return self._level_groups[level_id].n_items_in_chunk
+
+    def get_chunks_info(self, level_id, i_chunk):
+        """
+        The start and end index of a chunk from a whole dataset point of view
+        :param level_id: level id
+        :param i_chunk: chunk id
+        :return: List[int, int]
+        """
+        return self._level_groups[level_id].get_chunks_info(i_chunk)
 
     def get_n_collected(self):
         """

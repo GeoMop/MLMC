@@ -1,6 +1,7 @@
 import os
 import os.path
 import subprocess
+import time
 import numpy as np
 import shutil
 import ruamel.yaml as yaml
@@ -260,6 +261,7 @@ class FlowSimProcConc(Simulation):
         :param seed: random seed, int
         :return: List[fine result, coarse result], both flatten arrays (see mlmc.sim.synth_simulation.calculate())
         """
+        times = {}
         # Init correlation field objects
         fields = create_corr_field(**config['fields_params'])  # correlated_field.Fields instance
         fields.set_outer_fields(config["fields_used_params"])
@@ -267,9 +269,10 @@ class FlowSimProcConc(Simulation):
         coarse_step = config["coarse"]["step"]  # Coarse simulation step, zero if one level MC
         flow123d = config["flow123d"]  # Flow123d command
 
+        extract_mesh_start = time.time()
         # Extract fine mesh
         fine_common_files_dir = config["fine"]["common_files_dir"]  # Directory with fine simulation common files
-        fine_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(fine_common_files_dir, FlowSimProcConc.MESH_FILE))
+        fine_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(fine_common_files_dir, FlowSim.MESH_FILE))
 
         # Extract coarse mesh
         coarse_mesh_data = None
@@ -277,22 +280,34 @@ class FlowSimProcConc(Simulation):
         if coarse_step != 0:
             coarse_common_files_dir = config["coarse"][
                 "common_files_dir"]  # Directory with coarse simulation common files
-            coarse_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(coarse_common_files_dir, FlowSimProcConc.MESH_FILE))
+            coarse_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(coarse_common_files_dir, FlowSim.MESH_FILE))
 
+        extract_mesh_time = time.time() - extract_mesh_start
+        times['extract_mesh'] = extract_mesh_time
+
+        make_fields_start = time.time()
         # Create fields both fine and coarse
         fields = FlowSimProcConc.make_fields(fields, fine_mesh_data, coarse_mesh_data)
+        make_fields_time = time.time() - make_fields_start
+        times['make_field'] = make_fields_time
 
         # Set random seed, seed is calculated from sample id, so it is not user defined
         np.random.seed(seed)
         # Generate random samples
+        generate_rnd_samples_start = time.time()
         fine_input_sample, coarse_input_sample = FlowSimProcConc.generate_random_sample(fields, coarse_step=coarse_step,
                                                                                 n_fine_elements=len(
                                                                                     fine_mesh_data['points']))
+        generate_rnd_samples_time = time.time() - generate_rnd_samples_start
+        times['generate_rnd'] = generate_rnd_samples_time
 
         # Run fine sample
         fields_file = os.path.join(os.getcwd(), FlowSimProcConc.FIELDS_FILE)
-        fine_res = FlowSimProcConc._run_sample(fields_file, fine_mesh_data['ele_ids'], fine_input_sample, flow123d,
-                                       fine_common_files_dir)
+        fine_res, fine_flow_run_time = FlowSimProcConc._run_sample(fields_file, fine_mesh_data['ele_ids'], fine_input_sample,
+                                                           flow123d,
+                                                           fine_common_files_dir)
+
+        times['fine_flow'] = fine_flow_run_time
 
         # Rename fields_sample.msh to fine_fields_sample.msh, we might remove it
         for filename in os.listdir(os.getcwd()):
@@ -301,11 +316,19 @@ class FlowSimProcConc(Simulation):
 
         # Run coarse sample
         coarse_res = np.zeros(len(fine_res))
+        coarse_flow_run_time = 0
         if coarse_input_sample:
-            coarse_res = FlowSimProcConc._run_sample(fields_file, coarse_mesh_data['ele_ids'], coarse_input_sample, flow123d,
-                                             coarse_common_files_dir)
+            coarse_res, coarse_flow_run_time = FlowSimProcConc._run_sample(fields_file, coarse_mesh_data['ele_ids'],
+                                                                   coarse_input_sample, flow123d,
+                                                                   coarse_common_files_dir)
+        times['coarse_flow'] = coarse_flow_run_time
 
-        return fine_res, coarse_res
+        # print("extract mesh time ", extract_mesh_time)
+        # print("make field time ", make_fields_time)
+        # print("generate rnd time ", generate_rnd_samples_time)
+        # print("fine flow time ", fine_flow_run_time)
+
+        return fine_res, coarse_res, times
 
     @staticmethod
     def make_fields(fields, fine_mesh_data, coarse_mesh_data):

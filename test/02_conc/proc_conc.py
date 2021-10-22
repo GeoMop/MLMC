@@ -32,8 +32,7 @@ class ProcConc:
         # Number of MLMC levels
 
         # step_range = [0.055, 0.0035]
-        step_range = [1, 0.02]
-        #step_range = [0.1, 0.055] # 5LMC - 53, 115, 474, 2714, 18397
+        step_range = [1, 0.02] # 5LMC - 53, 115, 474, 2714, 18397
         # step   - elements
         # 0.1    - 262
         # 0.08   - 478

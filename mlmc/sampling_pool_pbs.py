@@ -5,6 +5,7 @@ import re
 import pickle
 import json
 import glob
+import numpy as np
 from mlmc.level_simulation import LevelSimulation
 from mlmc.sampling_pool import SamplingPool
 from mlmc.tool.pbs_job import PbsJob
@@ -327,7 +328,7 @@ class SamplingPoolPBS(SamplingPool):
         :return: successful_results: Dict[level_id, List[Tuple[sample_id: str, Tuple[fine_result: np.ndarray, coarse_result: n.ndarray]]]]
                  failed_results: Dict[level_id, List[Tuple[sample_id: str, err_msg: str]]]
                  n_running: int, number of running samples
-                 times:
+             times:
         """
         os.chdir(self._jobs_dir)
 
@@ -343,6 +344,13 @@ class SamplingPoolPBS(SamplingPool):
         successful_results = {}
         failed_results = {}
         times = {}
+        running_times = {}
+        extract_mesh_times = {}
+        make_field_times = {}
+        generate_rnd_times = {}
+        fine_flow_times = {}
+        coarse_flow_times = {}
+
         for pbs_id in finished_pbs_jobs:
             reg = "*_{}".format(pbs_id)  # JobID_PbsId file
             file = glob.glob(reg)
@@ -352,7 +360,8 @@ class SamplingPoolPBS(SamplingPool):
                 file = file[0]
                 job_id = re.findall(r'(\d+)_\d+', file)[0]
                 # Get sample results
-                successful, failed, time = PbsJob.read_results(job_id, self._jobs_dir)
+                successful, failed, time, running_time, extract_mesh, make_field, generate_rnd, fine_flow, coarse_flow = \
+                    PbsJob.read_results(job_id, self._jobs_dir)
 
                 # Split results to levels
                 for level_id, results in successful.items():
@@ -365,17 +374,47 @@ class SamplingPoolPBS(SamplingPool):
                         times[level_id][1] += results[-1][1]
                     else:
                         times[level_id] = list(results[-1])
+                for level_id, results in running_time.items():
+                    running_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
 
+                for level_id, results in extract_mesh.items():
+                    extract_mesh_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+
+                for level_id, results in make_field.items():
+                    make_field_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+
+                for level_id, results in generate_rnd.items():
+                    generate_rnd_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+
+                for level_id, results in fine_flow.items():
+                    fine_flow_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+
+                for level_id, results in coarse_flow.items():
+                    coarse_flow_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
                 # Delete pbsID file - it means job is finished
                 SamplingPoolPBS.delete_pbs_id_file(file)
 
         if self._unfinished_sample_ids:
-            successful_results, failed_results, times = self._collect_unfinished(successful_results,
-                                                                                 failed_results, times)
+            successful_results, failed_results, times, running_times, extract_mesh_times, make_field_times, \
+            generate_rnd_times, fine_flow_times, coarse_flow_times = self._collect_unfinished(successful_results,
+                                                                                              failed_results, times,
+                                                                                              running_times,
+                                                                                              extract_mesh_times,
+                                                                                              make_field_times,
+                                                                                              generate_rnd_times,
+                                                                                              fine_flow_times,
+                                                                                              coarse_flow_times)
 
-        return successful_results, failed_results, n_running, list(times.items())
+        return successful_results, failed_results, n_running, list(times.items()), list(running_times.items()), \
+               list(extract_mesh_times.items()), list(make_field_times.items()), list(generate_rnd_times.items()), \
+               list(fine_flow_times.items()), \
+               list(coarse_flow_times.items())
 
-    def _collect_unfinished(self, successful_results, failed_results, times):
+    def _collect_unfinished(self, successful_results, failed_results, times, running_times, extract_mesh_times,
+                                                                                              make_field_times,
+                                                                                              generate_rnd_times,
+                                                                                              fine_flow_times,
+                                                                                              coarse_flow_times):
         """
         Collect samples which had finished after main process crashed, append them to new collected samples
         :param successful_results: dict
@@ -384,38 +423,49 @@ class SamplingPoolPBS(SamplingPool):
         :return: all input dictionaries
         """
         already_collected = set()
+
         for sample_id in self._unfinished_sample_ids:
             if sample_id in already_collected:
                 continue
 
             job_id = PbsJob.job_id_from_sample_id(sample_id, self._jobs_dir)
-            successful, failed, time = PbsJob.read_results(job_id, self._jobs_dir)
+
+            successful, failed, time, running_time, extract_mesh, make_field, generate_rnd, fine_flow, coarse_flow = \
+                PbsJob.read_results(job_id, self._jobs_dir)
 
             # Split results to levels
             for level_id, results in successful.items():
-                for res in results:
-                    if res[0] in self._unfinished_sample_ids:
-                        already_collected.add(res[0])
-                        successful_results.setdefault(level_id, []).append(res)
+                successful_results.setdefault(level_id, []).extend(results)
+            for level_id, results in failed.items():
+                failed_results.setdefault(level_id, []).extend(results)
+            for level_id, results in time.items():
+                times[level_id] = results[-1]
 
-            for level_id, results in failed_results.items():
-                for res in results:
-                    if res[0] in self._unfinished_sample_ids:
-                        already_collected.add(res[0])
-                        failed_results.setdefault(level_id, []).append(res)
+            for level_id, results in running_time.items():
+                running_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
 
-            for level_id, results in times.items():
-                for res in results:
-                    if res[0] in self._unfinished_sample_ids:
-                        times.setdefault(level_id, []).append(res)
-                times[level_id] = results
+            for level_id, results in extract_mesh.items():
+                extract_mesh_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+
+            for level_id, results in make_field.items():
+                make_field_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+
+            for level_id, results in generate_rnd.items():
+                generate_rnd_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+
+            for level_id, results in fine_flow.items():
+                fine_flow_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+
+            for level_id, results in coarse_flow.items():
+                coarse_flow_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
 
             # Delete pbsID file - it means job is finished
             # SamplingPoolPBS.delete_pbs_id_file(file)
 
         self._unfinished_sample_ids = set()
 
-        return successful_results, failed_results, times
+        return successful_results, failed_results, times, running_times, extract_mesh_times, make_field_times, \
+               generate_rnd_times, fine_flow_times, coarse_flow_times
 
     def have_permanent_samples(self, sample_ids):
         """
