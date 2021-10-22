@@ -7,3 +7,4 @@ attrs
 gstools
 memoization
 tensorflow
+pandas
