@@ -9,8 +9,8 @@ from mlmc.metamodel.flow_dataset import FlowDataset
 from mlmc.metamodel.create_graph import graph_creator
 from mlmc.moments import Legendre_tf, Monomial
 from mlmc.metamodel.random_field_time import corr_field_sample_time
-from mlmc.tool import plot
-import matplotlib.pyplot as plt
+#from mlmc.tool import plot
+#import matplotlib.pyplot as plt
 # Make numpy printouts easier to read.
 
 # np.set_printoptions(precision=9, suppress=True)
@@ -26,7 +26,7 @@ from mlmc.metamodel.flow_task_CNN import CNN
 from mlmc.metamodel.flow_task_GNN_2 import GNN
 from tensorflow.keras.losses import MeanSquaredError
 from spektral.data import MixedLoader
-from spektral.utils.sparse  import sp_matrix_to_sp_tensor
+from spektral.utils.sparse import sp_matrix_to_sp_tensor
 
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 epochs = 100
@@ -173,8 +173,9 @@ def bootstrap():
     # estimate_density(np.mean(all_predictions, axis=0), title="Predictions")
 
 
-def run_SVR(config, stats=True, train=True, log=False):
+def run_SVR(config, stats=True, train=True, log=False, seed=1234):
     from sklearn.svm import SVR
+    print("seed ", seed)
 
     batch_size = 200
     epochs = 1000
@@ -190,7 +191,7 @@ def run_SVR(config, stats=True, train=True, log=False):
     preprocess_start_time = time.process_time()
     # Load data
     data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log)
-    data.shuffle()
+    data.shuffle(seed=seed)
 
     dataset = data.dataset
     dataset = dataset.sample(frac=1)
@@ -289,7 +290,8 @@ def run_SVR(config, stats=True, train=True, log=False):
                                                                             config['l_0_hdf_path'],
                                                                             config['mesh'], batch_size, log,
                                                                             stats=stats,
-                                                                            corr_field_config=config['corr_field_config'])
+                                                                            corr_field_config=config['corr_field_config'],
+                                                                            seed=seed)
 
     val_predictions = []
 
@@ -314,7 +316,7 @@ def run_SVR(config, stats=True, train=True, log=False):
                    l_0_predictions)
 
 
-def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=False, stats=False, corr_field_config=None):
+def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=False, stats=False, corr_field_config=None, seed=1234):
     #graph_creator(output_dir, hdf_path, mesh, level=0)
     sample_time = 0
     if corr_field_config:
@@ -322,6 +324,7 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
 
     # Load data
     data = FlowDataset(output_dir=output_dir, log=log)
+    data.shuffle(seed=seed)
     dataset = data.dataset[:]
 
     predict_time_start = time.process_time()
@@ -345,7 +348,7 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
 
 
 def statistics(config):
-    n_subsamples = 5
+    n_subsamples = 25
 
     model_title, mch_l_model, log = config['machine_learning_model']
     model_data = {}
@@ -636,7 +639,6 @@ def analyze_statistics(config):
 
     print("mean learning time ", np.mean(learning_times))
     print("max learning time ", np.max(learning_times))
-
     print("######################################")
 
 
@@ -685,8 +687,6 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     data_te = data.get_test_data(seed, train_data_len)
     #data_tr, data_te = data[:train_data_len], data[train_data_len:]
 
-
-    print("config['model_config'] ", config['model_config'])
 
     gnn = config['gnn'](**config['model_config'])
 
@@ -804,19 +804,18 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
                        corr_field_config=None, seed=1234):
     # graph_creator(output_dir, hdf_path, mesh, level=0)
     # Load data
-
     sample_time = 0
     if corr_field_config:
         sample_time = corr_field_sample_time(mesh, corr_field_config)
 
-    data = FlowDataset(output_dir=output_dir, log=log)  # , mesh=mesh, corr_field_config=corr_field_config)
-    # data = data  # [:10000]
+    data = FlowDataset(output_dir=output_dir, log=log)#, mesh=mesh, corr_field_config=corr_field_config)
+    #data = data  # [:10000]
     data.shuffle(seed=seed)
-
+    
     print("output_dir ", output_dir)
     print("len(data) ", len(data))
     print("data[0] ", data[0])
-
+    
     predict_time_start = time.process_time()
     data.a = conv_layer.preprocess(data.a)
     data.a = sp_matrix_to_sp_tensor(data.a)

@@ -7,6 +7,26 @@ config = tf.compat.v1.ConfigProto()
 config.gpu_options.allow_growth = True
 session = tf.compat.v1.InteractiveSession(config=config)
 
+import os
+import numpy as np
+#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
+import tensorflow as tf
+from tensorflow.keras.losses import MeanSquaredError, SparseCategoricalCrossentropy, KLDivergence
+from tensorflow.keras.metrics import mean_squared_error, kl_divergence
+from tensorflow.keras.callbacks import History
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.regularizers import l2
+from mlmc.metamodel.postprocessing import analyze_results, plot_loss
+from spektral.data import MixedLoader
+from mlmc.metamodel.flow_dataset import FlowDataset
+from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv
+from spektral.utils.sparse import sp_matrix_to_sp_tensor
+from tensorflow.keras.layers.experimental import preprocessing
+from mlmc.metamodel.custom_methods import abs_activation
+
+from mlmc.metamodel.graph_models import Net1
+
+
 
 ##################################
 # Convolutional neural network   #

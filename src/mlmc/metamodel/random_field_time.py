@@ -5,8 +5,8 @@ from mlmc.tool.flow_mc import FlowSim, create_corr_field
 
 
 def corr_field_sample_time(mesh_file=None, corr_length_config=None):
-    import matplotlib
-    from matplotlib import ticker, cm
+    # import matplotlib
+    # from matplotlib import ticker, cm
     #matplotlib.rcParams.update({'font.size': 22})
     dim = 2
     log = True

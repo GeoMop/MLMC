@@ -1,11 +1,11 @@
 import os
 import random
 import copy
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from scipy.stats import ks_2samp
-from mlmc.tool import plot
-import mlmc.tool.simple_distribution
-import mlmc.estimator
+#from mlmc.tool import plot
+#import mlmc.tool.simple_distribution
+#import mlmc.estimator
 import mlmc.quantity_estimate as qe
 from mlmc.sample_storage import Memory
 from mlmc.quantity_spec import QuantitySpec, ChunkSpec
@@ -13,7 +13,7 @@ import numpy as np
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.moments import Legendre, Monomial
 from mlmc.quantity import make_root_quantity
-import mlmc.tool.simple_distribution
+#import mlmc.tool.simple_distribution
 
 QUANTILE = 0.01
 
@@ -507,8 +507,9 @@ def process_mlmc(mlmc_file, sampling_info_path, ref_mlmc_file, targets, predicti
     ######
     ### Get n ops
     ######
-    n_ops, field_times, coarse_flow, fine_flow = get_sample_times_mlmc(mlmc_file)
-    #n_ops_2, _, _ = get_sample_times(sampling_info_path)
+    #n_ops, field_times, coarse_flow, fine_flow = get_sample_times_mlmc(mlmc_file)
+    n_ops, _, _ = get_sample_times(sampling_info_path)
+    n_ops = n_ops[n_levels-1:]
 
     if n_ops is None:
         n_ops = sample_storage.get_n_ops()
