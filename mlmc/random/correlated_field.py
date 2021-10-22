@@ -499,14 +499,14 @@ class SpatialCorrelatedField(RandomFieldBase):
 
 class GSToolsSpatialCorrelatedField(RandomFieldBase):
 
-    def __init__(self, model, mode_no=1000, log=False, sigma=1):
+    def __init__(self, model, mode_no=1000, log=False, sigma=1, mean=0):
         """
         :param model: instance of covariance model class, which parent is gstools.covmodel.CovModel
         :param mode_no: number of Fourier modes, default: 1000 as in gstools package
         """
         self.model = model
         self.mode_no = mode_no
-        self.srf = gstools.SRF(model, mode_no=mode_no)
+        self.srf = gstools.SRF(model, mean=mean, mode_no=mode_no)
         self.mu = self.srf.mean
         self.sigma = sigma
         self.dim = model.dim

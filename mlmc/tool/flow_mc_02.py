@@ -29,7 +29,8 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
     #
     # print("por top ", por_top)
 
-    por_top = gstools.Gaussian(dim=dim,  len_scale=0.2, mu=-1.0, sigma=1.0, log=True)
+    por_top = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2,  len_scale=0.2),
+                                               log=log, mean=-1.0, sigma=1.0, mode_no=mode_no)
 
     #print("por top gstools ", por_top_gstools)
 
@@ -42,9 +43,15 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
     #     log=True
     # )
 
-    por_bot = gstools.Gaussian(dim=dim,  len_scale=0.2, mu=-1.0, sigma=1.0, log=True)
+    por_bot = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2, len_scale=0.2),
+                                               log=log, mean=-1.0, sigma=1.0, mode_no=mode_no)
+
+    #por_bot = gstools.Gaussian(dim=dim,  len_scale=0.2, mu=-1.0, sigma=1.0, log=True)
 
     water_viscosity = 8.90e-4
+
+    factor_top_model = gstools.Gaussian(dim=dim,  len_scale=1)
+    factor_bot_model = gstools.Gaussian(dim=dim, len_scale=1)
 
     fields = cf.Fields([
         cf.Field('por_top', por_top, regions='ground_0'),
@@ -53,10 +60,18 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
         cf.Field('porosity_bot', cf.positive_to_range, ['por_bot', 0.01, 0.05], regions='ground_1'),
         cf.Field('porosity_repo', 0.5, regions='repo'),
         #cf.Field('factor_top', cf.SpatialCorrelatedField('gauss', mu=1e-8, sigma=1, log=True), regions='ground_0'),
-        cf.Field('factor_top', gstools.Gaussian(len_scale=1, mu=1e-8, sigma=1.0, log=True), regions='ground_0'),
+
+        cf.Field('factor_top', cf.GSToolsSpatialCorrelatedField(factor_top_model, log=log, mean=1e-8, sigma=1.0, mode_no=mode_no),
+                 regions='ground_0'),
+
+        #cf.Field('factor_top', gstools.Gaussian(len_scale=1, mu=1e-8, sigma=1.0, log=True), regions='ground_0'),
         # conductivity about
         #cf.Field('factor_bot', cf.SpatialCorrelatedField('gauss', mu=1e-8, sigma=1, log=True), regions='ground_1'),
-        cf.Field('factor_bot', gstools.Gaussian(len_scale=1, mu=1e-8, sigma=1, log=True), regions='ground_1'),
+        #cf.Field('factor_bot', gstools.Gaussian(len_scale=1, mu=1e-8, sigma=1, log=True), regions='ground_1'),
+        cf.Field('factor_bot',
+                 cf.GSToolsSpatialCorrelatedField(factor_bot_model, log=log, mean=1e-8, sigma=1.0, mode_no=mode_no),
+                 regions='ground_1'),
+
         # cf.Field('factor_repo', cf.SpatialCorrelatedField('gauss', mu=1e-10, sigma=1, log=True), regions='repo'),
         cf.Field('conductivity_top', cf.kozeny_carman, ['porosity_top', 1, 'factor_top', water_viscosity],
                  regions='ground_0'),
@@ -331,13 +346,13 @@ class FlowSimProcConc(Simulation):
         # x = [*flow123d, "--yaml_balance", '-i', os.getcwd(), '-s', "{}/flow_input.yaml".format(common_files_dir),
         #          "-o", os.getcwd(), ">{}/flow.out".format(os.getcwd())]
 
-        try:
-            subprocess.call(
-                [*flow123d, "--yaml_balance", '-i', os.getcwd(), '-s', "{}/flow_input.yaml".format(common_files_dir),
-                 "-o", os.getcwd(), ">{}/flow.out".format(os.getcwd())])
-        except:
-            import sys
-            print(sys.exc_info())
+        #try:
+        subprocess.call(
+            [flow123d, "--yaml_balance", '-i', os.getcwd(), '-s', "{}/02_conc.yaml".format(common_files_dir),
+             "-o", os.getcwd(), ">{}/flow.out".format(os.getcwd())])
+        # except:
+        #     import sys
+        #     print(sys.exc_info())
 
         return FlowSimProcConc._extract_result(os.getcwd())
 
