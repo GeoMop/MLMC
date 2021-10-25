@@ -21,7 +21,7 @@ class FlowDataset(Dataset):
     GRAPHS_FILE = "graphs"
     DATA_FILE = "data"
 
-    def __init__(self, output_dir=None, level=0, log=False, mesh=None, corr_field_config=None, **kwargs):
+    def __init__(self, output_dir=None, level=0, log=False, mesh=None, corr_field_config=None, joint_nodes=2, **kwargs):
         self._output_dir = output_dir
         # if self._output_dir is None:
         #     self._output_dir = OUTPUT_DIR
@@ -29,7 +29,12 @@ class FlowDataset(Dataset):
         self.level = level
         self._mesh = mesh
         self._corr_field_config = corr_field_config
-        self.adjacency_matrix = np.load(os.path.join(self._output_dir, "adjacency_matrix.npy"), allow_pickle=True)  # adjacency matrix
+        if os.path.exists(os.path.join(self._output_dir, "adjacency_matrix_{}.npy".format(joint_nodes))):
+            self.adjacency_matrix = np.load(
+                os.path.join(self._output_dir, "adjacency_matrix_{}.npy".format(joint_nodes)), allow_pickle=True)  # adjacency matrix
+        else:
+            self.adjacency_matrix = np.load(
+                os.path.join(self._output_dir, "adjacency_matrix.npy"), allow_pickle=True)  # adjacency matrix
         self.data = []
         super().__init__(**kwargs)
         #self.a = self.adjacency_matrix

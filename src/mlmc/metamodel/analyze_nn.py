@@ -659,7 +659,8 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     graph_creation_time = config['graph_creation_time']
     if graph_creation_time == 0:
         graph_creator_preproces_time = time.process_time()
-        graph_creator(config['output_dir'], config['hdf_path'], config['mesh'], level=config['level'])
+
+        graph_creator(config['output_dir'], config['hdf_path'], config['mesh'], level=config['level'], joint_nodes=config.get('joint_nodes', 2))
         graph_creation_time = time.process_time() - graph_creator_preproces_time
         print("graph creation time ", graph_creation_time)
         exit()

@@ -2,7 +2,6 @@ import os
 import os.path
 import numpy as np
 import networkx as nx
-#import matplotlib.pyplot as plt
 from mlmc.tool import gmsh_io
 from mlmc.tool.hdf5 import HDF5
 from spektral.data import Graph
@@ -71,8 +70,12 @@ def get_node_features(fields_mesh):
     return features
 
 
-def create_adjacency_matrix(ele_nodes):
-
+def create_adjacency_matrix(ele_nodes, joint_nodes=2):
+    """
+    Create adjacency matrix
+    :param ele_nodes: Mesh file path
+    :param joint_nodes: number of joint nodes that determines the adjacent vertices
+    """
     adjacency_matrix = np.zeros((len(ele_nodes), len(ele_nodes)))
     #adjacency_matrix = sparse.csr_matrix((len(ele_nodes), len(ele_nodes)))  #
 
@@ -85,7 +88,7 @@ def create_adjacency_matrix(ele_nodes):
                 continue
             ele_n = nodes[j]
 
-            if len(list(set(ele_nodes).intersection(ele_n))) == 2:
+            if len(list(set(ele_nodes).intersection(ele_n))) >= joint_nodes:
                 adjacency_matrix[j][i] = adjacency_matrix[i][j] = 1
 
     print(np.count_nonzero(adjacency_matrix))
@@ -94,6 +97,7 @@ def create_adjacency_matrix(ele_nodes):
 
 
 def plot_graph(adjacency_matrix):
+    import matplotlib.pyplot as plt
     #G = nx.from_scipy_sparse_matrix(adjacency_matrix)
     G = nx.from_numpy_matrix(adjacency_matrix)
     nx.draw_kamada_kawai(G, with_labels=True, node_size=1, font_size=6)
@@ -107,12 +111,12 @@ def reject_outliers(data, m=2):
     return abs(data - np.mean(data)) < m * np.std(data)
 
 
-def graph_creator(output_dir, hdf_path, mesh, level=0):
-    adjacency_matrix = create_adjacency_matrix(extract_mesh_gmsh_io(mesh))
-    np.save(os.path.join(output_dir, "adjacency_matrix"), adjacency_matrix, allow_pickle=True)
-    loaded_adjacency_matrix = np.load(os.path.join(output_dir, "adjacency_matrix.npy"), allow_pickle=True)
+def graph_creator(output_dir, hdf_path, mesh, level=0, joint_nodes=2):
+    adjacency_matrix = create_adjacency_matrix(extract_mesh_gmsh_io(mesh), joint_nodes=joint_nodes)
+    np.save(os.path.join(output_dir, "adjacency_matrix_{}".format(joint_nodes)), adjacency_matrix, allow_pickle=True)
+    loaded_adjacency_matrix = np.load(os.path.join(output_dir, "adjacency_matrix_{}.npy".format(joint_nodes)), allow_pickle=True)
 
-    #plot_graph(loaded_adjacency_matrix)
+    plot_graph(loaded_adjacency_matrix)
 
     hdf = HDF5(file_path=hdf_path, load_from_file=True)
     level_group = hdf.add_level_group(level_id=str(level))
