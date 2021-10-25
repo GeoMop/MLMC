@@ -25,7 +25,7 @@ FIELDS_SAMPLE = "fine_fields_sample.msh"
 # HDF_PATH = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L5/mlmc_5.hdf5"
 
 
-def extract_mesh_gmsh_io(mesh_file):
+def extract_mesh_gmsh_io(mesh_file, get_points=False):
     """
     Extract mesh from file
     :param mesh_file: Mesh file path
@@ -60,6 +60,20 @@ def extract_mesh_gmsh_io(mesh_file):
         point_region_ids[i] = region_id
         ele_ids[i] = id_bulk
         ele_nodes[id_bulk] = i_nodes
+
+    if get_points:
+
+        min_pt = np.min(centers, axis=0)
+        max_pt = np.max(centers, axis=0)
+        diff = max_pt - min_pt
+        min_axis = np.argmin(diff)
+        non_zero_axes = [0, 1, 2]
+        # TODO: be able to use this mesh_dimension in fields
+        if diff[min_axis] < 1e-10:
+            non_zero_axes.pop(min_axis)
+        points = centers[:, non_zero_axes]
+
+        return {'points': points, 'point_region_ids': point_region_ids, 'ele_ids': ele_ids, 'region_map': region_map}
 
     return ele_nodes
 

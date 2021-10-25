@@ -6,6 +6,7 @@ from scipy.stats import ks_2samp
 #from mlmc.tool import plot
 #import mlmc.tool.simple_distribution
 import mlmc.estimator
+from mlmc.tool import gmsh_io
 import mlmc.quantity_estimate as qe
 from mlmc.sample_storage import Memory
 from mlmc.quantity_spec import QuantitySpec, ChunkSpec
@@ -13,6 +14,7 @@ import numpy as np
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.moments import Legendre, Monomial
 from mlmc.quantity import make_root_quantity
+from mlmc.metamodel.create_graph import extract_mesh_gmsh_io
 #import mlmc.tool.simple_distribution
 
 QUANTILE = 0.01
@@ -445,17 +447,45 @@ def cut_samples(data, sample_storage, new_n_collected, new_l_0=0):
     return sample_storage
 
 
-def plot_progress(conv_layers, flatten_output, dense_layers):
+def plot_progress(conv_layers, flatten_output, dense_layers, mesh_file=None):
+
+    if mesh_file is not None:
+        #mesh = gmsh_io.GmshIO(fields_mesh)
+        mesh_data = extract_mesh_gmsh_io(mesh_file, get_points=True)
+        points = mesh_data['points']
+        X = points[:, 0]
+        Y = points[:, 1]
 
     for inputs, weights, outputs in conv_layers:
+
         plt.matshow(weights[-1][0])
         plt.show()
+        # Note: weights have different shape than the mesh
 
         for index, input in enumerate(inputs[::10]):
-            plt.matshow(input[0])
-            plt.show()
-            plt.matshow(outputs[index][0])
-            plt.show()
+            if mesh_file:
+                fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+
+                cont = ax.tricontourf(X, Y, input[0].ravel(), levels=16)
+                fig.colorbar(cont)
+                plt.title("input")
+                plt.show()
+
+                print("range(outputs[index][0].shape[1]) ", range(outputs[index][0].shape[1]))
+                for i in range(outputs[index][0].shape[1]):
+                    channel_output = outputs[index][0][:, i]
+                    fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+                    cont = ax.tricontourf(X, Y, channel_output, levels=16)
+                    fig.colorbar(cont)
+                    plt.title("channel {}".format(i))
+
+                    plt.show()
+
+            else:
+                plt.matshow(input[0])
+                plt.show()
+                plt.matshow(outputs[index][0])
+                plt.show()
 
             # print("shape ", c_layer._outputs[index][0].shape)
             plt.matshow(np.sum(outputs[index][0], axis=0, keepdims=True))

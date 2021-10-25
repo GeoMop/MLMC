@@ -544,8 +544,7 @@ def analyze_statistics(config):
                        replace_level=config['replace_level'],
                        stats=True)
 
-        plot_progress(data_dict["conv_layers"][i], data_dict["flatten_output"][i], data_dict["dense_layers"][i])
-
+        plot_progress(data_dict["conv_layers"][i], data_dict["flatten_output"][i], data_dict["dense_layers"][i], mesh_file=config["mesh"])
 
         mlmc_n_collected_all.append(mlmc_n_collected)
         nn_n_collected_all.append(nn_mlmc_n_collected)
