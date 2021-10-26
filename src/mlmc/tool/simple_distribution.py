@@ -750,3 +750,34 @@ def construct_orthogonal_moments(moments, cov, tol=None, orth_method=2, exact_co
     return ortogonal_moments, info, cov_center
 
 
+def total_variation_distr_diff(distr_1, distr_2):
+    def distr_diff(x):
+        return distr_1.density_derivation(x) - distr_2.density_derivation(x)
+
+    def integrand(x):
+        return huber_l1_norm(distr_diff, x)
+    return np.sum(distr_1._quad_weights * integrand(distr_1._quad_points))
+
+
+def TV_distr_diff(distr_1, distr_2):
+    def distr_diff(x):
+        return distr_1.density(x) - distr_2.density(x)
+
+    def integrand(x):
+        return huber_l1_norm(distr_diff, x)
+    return 0.5 * np.sum(distr_1._quad_weights * integrand(distr_1._quad_points))
+
+
+def reg_term_distr_diff(distr_1, distr_2):
+    """
+    L2 norm
+    :param prior_density:
+    :param posterior_density:
+    :param a:
+    :param b:
+    :return:
+    """
+
+    return np.sum(distr_1._quad_weights * (np.dot(distr_1._quad_moments_2nd_der - distr_2._quad_moments_2nd_der,
+                                                  distr_1.multipliers - distr_2.multipliers) ** 2))
+

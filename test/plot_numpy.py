@@ -97,11 +97,11 @@ def plot_KL_div_exact_iter(data_dir=None):
                 #iter_plot.add_ininity_norm(constraint_values)
                 iter_plot.add_values(iter_res_mom, label=name)
 
-            kl_div_mom_err_plot.add_ininity_norm(constraint_values)
-
-            kl_div_mom_err_plot.add_values(kl_div=kl_plot._y, mom_err=moment_sizes, density=distr_title)
-            kl_div_mom_err_plot.add_iters(kl_plot._iter_x, kl_plot._iterations, kl_plot._failed_iter_x,
-                                          kl_plot._failed_iterations)
+            # kl_div_mom_err_plot.add_ininity_norm(constraint_values)
+            #
+            # kl_div_mom_err_plot.add_values(kl_div=kl_plot._y, mom_err=moment_sizes, density=distr_title)
+            # kl_div_mom_err_plot.add_iters(kl_plot._iter_x, kl_plot._iterations, kl_plot._failed_iter_x,
+            #                               kl_plot._failed_iterations)
 
             try:
                 Y_exact_pdf = np.load('{}/{}_{}.npy'.format(work_dir, n_mom, "Y_pdf_exact"))
@@ -1031,8 +1031,6 @@ def new_plot_sampling_data():
         plot_overall_times_sim_times(sampling_info_path, estimated_times, scheduled_times, finished_times,
                                      sim_estimated_times, sim_scheduled_times, sim_collected_times)
         plot_overall_times_flow_times(sampling_info_path, estimated_times, scheduled_times, finished_times, flow_estimated, flow_scheduled, flow_collected)
-
-
 
 
 def analyze_n_ops():
