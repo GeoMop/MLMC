@@ -98,13 +98,7 @@ class OwnChebConv(Conv):
         self.channels = channels
         self.K = K
 
-        self._inputs = []
-        self._weights = []
-        self._outputs = []
         # self.use_bias = use_bias
-        #
-        # print("use bias ", use_bias)
-        # print("self use bias ", self.use_bias)
 
     def build(self, input_shape):
         assert len(input_shape) >= 2
@@ -132,29 +126,8 @@ class OwnChebConv(Conv):
     def call(self, inputs):
         x, a = inputs
 
-        # print("self. kernel shape ", self.kernel.shape)
-        # print("x shape ", x.shape)
-        # print("type x ", type(x).__name__)
-
-        if 'EagerTensor' in type(x).__name__:
-            self._inputs.append(x.numpy())
-
-        #print("a.shape ", a.shape)
-
         T_0 = x
-        # print("T_0 ", T_0[0, 0])
-        # print("self.kernel ", self.kernel[0].shape)
         output = K.dot(T_0, self.kernel[0])
-
-        # print("type(seklf.kernel) ", type(self.kernel))
-        # print("kernel ", self.kernel)
-
-        if 'UnliftedInitializerVariable' in type(self.kernel).__name__:
-            try:
-                #print("self.kernel shape ", self.kernel.shape)
-                self._weights.append(self.kernel.numpy())
-            except:
-                pass
 
         if self.K > 1:
             T_1 = ops.modal_dot(a, x)
@@ -174,18 +147,7 @@ class OwnChebConv(Conv):
             output = K.bias_add(output, self.bias)
         output = self.activation(output)
 
-        # print("output shape ", output.shape)
-        # exit()
-
-        if 'EagerTensor' in type(output).__name__:
-            self._outputs.append(output.numpy())
-
         return output
-
-    def clear_progress(self):
-        self._inputs = []
-        self._outputs = []
-        #self._weights = []
 
     @property
     def config(self):

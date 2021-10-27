@@ -51,7 +51,6 @@ class GNN:
             model_class = kwargs.get('model_class')
             net_model_config = kwargs.get('net_model_config')
             model = model_class(**net_model_config)
-            print("model class model ", model)
         else:
             model = kwargs.get('model')
 

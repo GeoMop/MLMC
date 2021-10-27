@@ -88,7 +88,7 @@ class Net(Model):
 
         #self._submodel = Sequential()
 
-        self._dense_layers = {Dense(1): ([], [])}
+        self._dense_layers = [Dense(1)]
 
         # for d_layer in self._dense_layers:
         #     self._submodel.add(d_layer)
@@ -102,67 +102,63 @@ class Net(Model):
             x = c_layer([x, a])
 
         output = self.flatten(x)
-        self._output_flatten = output
-        input = output
 
-        for d_layer, (inputs, outputs) in self._dense_layers.items():
-            inputs.append(input)
-            output = d_layer(input)
-            outputs.append(output)
+        for d_layer in self._dense_layers:
+            output = d_layer(output)
 
         return output
 
-    def clear_progress(self):
-        for c_layer in self._conv_layers:
-            c_layer.clear_progress()
+    # def clear_progress(self):
+    #     for c_layer in self._conv_layers:
+    #         c_layer.clear_progress()
+    #
+    #     new_dense_layers = []
+    #     for d_layer in self._dense_layers:
+    #         new_dense_layers.append(d_layer)
+    #
+    #     self._dense_layers = new_dense_layers
 
-        new_dense_layers = {}
-        for d_layer, _ in self._dense_layers.items():
-            new_dense_layers = {d_layer: ([], [])}
-
-        self._dense_layers = new_dense_layers
-
-    def plot_progress(self, stats=False):
-        if not stats:
-            import matplotlib.pyplot as plt
-
-        if not stats:
-
-            for c_layer in self._conv_layers:
-                plt.matshow(c_layer._weights[-1][0])
-                plt.show()
-
-                for index, input in enumerate(c_layer._inputs[::10]):
-                    plt.matshow(input[0])
-                    plt.show()
-                    plt.matshow(c_layer._outputs[index][0])
-                    plt.show()
-
-                    #print("shape ", c_layer._outputs[index][0].shape)
-                    plt.matshow(np.sum(c_layer._outputs[index][0], axis=0, keepdims=True))
-                    plt.show()
-
-                    # plt.matshow(self._inputs[-1][0])
-                    # plt.show()
-                    # plt.matshow(self._outputs[-1][0])
-                    # plt.show()
-
-                    #print("output flatten ", self._output_flatten)
-                    #print("final output ", final_output)
-
-                    plt.matshow([self._output_flatten[-1]])
-                    plt.show()
-                    # plt.matshow(final_output[-1])
-                    # plt.show()
-
-            for dense_layer, (input, output) in self._dense_layers.items():
-                plt.matshow(input[-1])
-                plt.show()
-                plt.matshow(output[-1])
-                plt.show()
-
-        else:
-            return self._conv_layers, self._output_flatten, self._dense_layers
+    # def plot_progress(self, conv_layers, dense_layers, output_flatten, stats=False):
+    #     if not stats:
+    #         import matplotlib.pyplot as plt
+    #
+    #     if not stats:
+    #
+    #         for inputs, weights, outputs in conv_layers:
+    #             plt.matshow(weights[-1][0])
+    #             plt.show()
+    #
+    #             for index, input in enumerate(inputs[::10]):
+    #                 plt.matshow(input[0])
+    #                 plt.show()
+    #                 plt.matshow(outputs[index][0])
+    #                 plt.show()
+    #
+    #                 #print("shape ", c_layer._outputs[index][0].shape)
+    #                 plt.matshow(np.sum(outputs[index][0], axis=0, keepdims=True))
+    #                 plt.show()
+    #
+    #                 # plt.matshow(self._inputs[-1][0])
+    #                 # plt.show()
+    #                 # plt.matshow(self._outputs[-1][0])
+    #                 # plt.show()
+    #
+    #                 #print("output flatten ", self._output_flatten)
+    #                 #print("final output ", final_output)
+    #
+    #                 plt.matshow([output_flatten[-1]])
+    #                 plt.show()
+    #                 # plt.matshow(final_output[-1])
+    #                 # plt.show()
+    #
+    #         for inputs, weights, outputs in dense_layers:
+    #             plt.matshow(inputs[-1])
+    #             plt.show()
+    #             plt.matshow(outputs[-1])
+    #             plt.show()
+    #
+    #     else:
+    #         return self._conv_layers, self._output_flatten, self._dense_layers
 
 
 def get_config(data_dir, case=0):
@@ -626,7 +622,7 @@ if __name__ == "__main__":
     #
     #machine_learning_model = ("DNN_mesh_L3_6", run_DNN, True)
     machine_learning_model = ("GCN_mesh_L3_log_16", run_GNN, True)
-    machine_learning_model = ("mesh_L3_log_test", run_GNN, True)
+    machine_learning_model = ("mesh_L3_log_test_saved_model", run_GNN, True)
 
     #machine_learning_model = ("mesh_L3_seed", run_GNN, False)
 
@@ -661,7 +657,7 @@ if __name__ == "__main__":
               'epochs': 5,
               'learning_rate': 0.001,
               'graph_creation_time': graph_creation_time,
-              'save_model': False
+              'save_model': True
               }
 
     #statistics(config)

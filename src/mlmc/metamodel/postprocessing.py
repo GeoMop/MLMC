@@ -447,7 +447,7 @@ def cut_samples(data, sample_storage, new_n_collected, new_l_0=0):
     return sample_storage
 
 
-def plot_progress(conv_layers, flatten_output, dense_layers, mesh_file=None):
+def plot_progress(conv_layers, dense_layers, output_flatten, mesh_file=None):
 
     if mesh_file is not None:
         #mesh = gmsh_io.GmshIO(fields_mesh)
@@ -456,9 +456,9 @@ def plot_progress(conv_layers, flatten_output, dense_layers, mesh_file=None):
         X = points[:, 0]
         Y = points[:, 1]
 
-    for inputs, weights, outputs in conv_layers:
-
-        plt.matshow(weights[-1][0])
+    for idx, conv_layer in conv_layers.items():
+        inputs, weights, outputs = conv_layer[0], conv_layer[1], conv_layer[2]
+        plt.matshow(weights[-1])
         plt.show()
         # Note: weights have different shape than the mesh
 
@@ -466,14 +466,13 @@ def plot_progress(conv_layers, flatten_output, dense_layers, mesh_file=None):
             if mesh_file:
                 fig, ax = plt.subplots(1, 1, figsize=(15, 10))
 
-                cont = ax.tricontourf(X, Y, input[0].ravel(), levels=16)
+                cont = ax.tricontourf(X, Y, input.ravel(), levels=16)
                 fig.colorbar(cont)
                 plt.title("input")
                 plt.show()
 
-                print("range(outputs[index][0].shape[1]) ", range(outputs[index][0].shape[1]))
-                for i in range(outputs[index][0].shape[1]):
-                    channel_output = outputs[index][0][:, i]
+                for i in range(outputs[index].shape[1]):
+                    channel_output = outputs[index][:, i]
                     fig, ax = plt.subplots(1, 1, figsize=(15, 10))
                     cont = ax.tricontourf(X, Y, channel_output, levels=16)
                     fig.colorbar(cont)
@@ -488,7 +487,7 @@ def plot_progress(conv_layers, flatten_output, dense_layers, mesh_file=None):
                 plt.show()
 
             # print("shape ", c_layer._outputs[index][0].shape)
-            plt.matshow(np.sum(outputs[index][0], axis=0, keepdims=True))
+            plt.matshow(np.sum(outputs[index], axis=0, keepdims=True))
             plt.show()
 
             # plt.matshow(self._inputs[-1][0])
@@ -499,15 +498,14 @@ def plot_progress(conv_layers, flatten_output, dense_layers, mesh_file=None):
             # print("output flatten ", self._output_flatten)
             # print("final output ", final_output)
 
-            plt.matshow([flatten_output[-1]])
+            plt.matshow([output_flatten[-1]])
             plt.show()
-            # plt.matshow(final_output[-1])
-            # plt.show()
 
-    for inputs, weights, outputs in dense_layers:
-        plt.matshow(inputs[-1])
+    for idx, dense_layer in dense_layers.items():
+        inputs, weights, outputs = dense_layer[0], dense_layer[1], dense_layer[2]
+        plt.matshow([inputs[-1]])
         plt.show()
-        plt.matshow(outputs[-1])
+        plt.matshow([outputs[-1]])
         plt.show()
 
 

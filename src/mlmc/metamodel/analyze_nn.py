@@ -348,7 +348,7 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
 
 
 def statistics(config):
-    n_subsamples = 25
+    n_subsamples = 2
 
     model_title, mch_l_model, log = config['machine_learning_model']
     model_data = {}
@@ -370,8 +370,7 @@ def statistics(config):
             os.makedirs(iter_dir)
 
             model, targets, predictions, learning_time, train_targets, train_predictions, \
-            val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps,\
-            conv_layers, flatten_output, dense_layers = \
+            val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps = \
                 mch_l_model(config, stats=True, train=True, log=log, seed=i)
 
             if config['save_model']:
@@ -388,18 +387,6 @@ def statistics(config):
             model_data["l0_sample_time"] = l0_sample_time
             model_data["total_steps"] = total_steps
             model_data["learning_times"] = learning_time
-
-            model_data["conv_layers"] = []
-            model_data["dense_layers"] = []
-
-            if conv_layers is not None:
-                for index, c_layer in enumerate(conv_layers):
-                    model_data["conv_layers"].append([c_layer._inputs, c_layer._weights, c_layer._outputs])
-
-                model_data["flatten_output"] = flatten_output
-
-                for index, (d_layer, (inputs, outputs)) in enumerate(dense_layers.items()):
-                    model_data["dense_layers"].append([inputs, d_layer.get_weights(), outputs])
 
             save_statistics(iter_dir, model_data)
 
@@ -448,9 +435,6 @@ def load_statistics(dir_path):
     models_data["total_steps"] = []
     models_data["learning_times"] = []
     models_data["log"] = []
-    models_data["conv_layers"] = []
-    models_data["flatten_output"] = []
-    models_data["dense_layers"] = []
 
     #dirs = (os.path.split(dir_path)[-1]).split("_")
     n_iters = 25
@@ -490,6 +474,60 @@ def plot_sse(data_nn, data_mlmc, x_label="ith moment", y_label="MSE", title=""):
     fig.legend()
     fig.savefig("{}.pdf".format(title))
     fig.show()
+
+
+def predict_data(config, model, mesh_file, log=True):
+    batch_size = config['batch_size']
+    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log)
+    data = data  # [:10000]
+
+    data.a = config['conv_layer'].preprocess(data.a)
+    data.a = sp_matrix_to_sp_tensor(data.a)
+
+    # idx = 0
+    # data_te = data.get_test_data(idx, train_data_len)
+    data_te = data[:1]
+
+    print("len(datate) ", len(data_te))
+    print("batch size ", batch_size)
+
+    # We use a MixedLoader since the dataset is in mixed mode
+    loader = MixedLoader(data_te, batch_size=batch_size)
+
+    conv_layers = {}
+    dense_layers = {}
+    flatten_input = []
+    flatten_output = []
+
+    step = 0
+    for batch in loader:
+        if step == loader.steps_per_epoch:
+            break
+        inputs, target = batch
+        x, a = inputs
+
+        for conv_index, conv_layer in enumerate(model._conv_layers):
+            if conv_index not in conv_layers:
+                conv_layers[conv_index] = [[], [], []]
+            conv_layers[conv_index][0].extend(x)  # inputs
+            conv_layers[conv_index][1].extend(conv_layer.kernel.numpy())  # weights (kernel)
+            conv_out = conv_layer([x, a])
+            conv_layers[conv_index][2].extend(conv_out)  # outputs
+
+        flatten_input = conv_layers[conv_index][2][-1]
+        flatten_output = model.flatten(conv_out)
+
+        for index, dense_layer in enumerate(model._dense_layers):
+            if index not in dense_layers:
+                dense_layers[index] = [[], [], []]
+
+            dense_layers[index][0].extend(flatten_output)  # inputs
+            dense_layers[index][1].extend(dense_layer.weights)  # weights (kernel)
+            dense_layers[index][2].extend(dense_layer(model.flatten(conv_out)))  # outputs
+
+        step += 1
+
+    plot_progress(conv_layers, dense_layers, flatten_output, mesh_file=mesh_file)
 
 
 def analyze_statistics(config):
@@ -532,6 +570,10 @@ def analyze_statistics(config):
         l1_sample_time = data_dict["l1_sample_time"][i]
         l0_sample_time = data_dict["l0_sample_time"][i]
 
+        model = data_dict["model"][i]
+
+        predict_data(config, model, mesh_file=config["mesh"])
+
         mlmc_n_collected, nn_mlmc_n_collected, n_ops, n_ops_predict, orig_moments_mean, predict_moments_mean,\
         ref_moments_mean, orig_level_params, nn_level_params = process_mlmc(config['hdf_path'],
                                                                             config['sampling_info_path'],
@@ -543,8 +585,6 @@ def analyze_statistics(config):
                        nn_level=config['level'],
                        replace_level=config['replace_level'],
                        stats=True)
-
-        plot_progress(data_dict["conv_layers"][i], data_dict["flatten_output"][i], data_dict["dense_layers"][i], mesh_file=config["mesh"])
 
         mlmc_n_collected_all.append(mlmc_n_collected)
         nn_n_collected_all.append(nn_mlmc_n_collected)
@@ -710,7 +750,6 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     data_te = data.get_test_data(seed, train_data_len)
     #data_tr, data_te = data[:train_data_len], data[train_data_len:]
 
-
     gnn = config['gnn'](**config['model_config'])
 
     # if hasattr(gnn._loss,'__name__') and gnn._loss.__name__ == "MSE_moments":
@@ -762,8 +801,6 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
 
     #val_targets = gnn.val_targets
     total_steps = gnn._total_n_steps
-
-    gnn._model.clear_progress()
 
     targets, predictions = gnn.predict(loader_te)
     predictions = np.squeeze(predictions)
@@ -817,14 +854,8 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
         #              l_0_predictions, l1_sample_time, l0_sample_time, nn_level=level, replace_level=replace_level,
         #                                                stats=stats)
 
-        conv_layers, flatten_output, dense_layers = gnn._model.plot_progress(stats)
-        #gnn._model.plot_progress(stats)
-
         return gnn._model, targets, predictions, learning_time, train_targets, train_predictions,\
-               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps,\
-               conv_layers, flatten_output, dense_layers
-
-    gnn._model.plot_progress(stats)
+               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps
 
     save_times(config['save_path'], False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
     save_load_data(config['save_path'], False, targets, predictions, train_targets, train_predictions, val_targets, l_0_targets,
