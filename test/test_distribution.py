@@ -414,12 +414,12 @@ class DistributionDomainCase:
                                                  tol=tol_density)
 
             iter_res_mom = []
-            for it_mom in distr_obj._iter_moments:
+            for iteration in distr_obj._monitor.iterations:
                 # print("exact moments ", self.exact_moments[:n_moments])
                 # print("it mom ", it_mom)
                 # print("self it mom shape ", it_mom.shape)
                 # print("(self.exact_moments[:n_moments] - it_mom) ", (self.exact_moments[:n_moments] - it_mom))
-                iter_res_mom.append(np.sum((self.exact_moments[:n_moments] - it_mom) ** 2))
+                iter_res_mom.append(np.sum((self.exact_moments[:n_moments] - iteration.moments_by_quad) ** 2))
 
             # print("iter res mom ", iter_res_mom)
 
@@ -502,14 +502,14 @@ class DistributionDomainCase:
         distr_plot = plot.Distribution(exact_distr=self.restrict_distr, title=self.title + "_inexact", cdf_plot=False,
                                        log_x=self.log_flag, error_plot=False)
 
-        dir_name = "KL_div_inexact_{}_L".format(orth_method)
+        dir_name = "KL_div_inexact_{}".format(orth_method)
         if not os.path.exists(dir_name):
             os.mkdir(dir_name)
         # else:
         #     shutil.rmtree(dir_name)
         #     os.mkdir(dir_name)
 
-        work_dir = os.path.join(dir_name, self.d_name)
+        work_dir = os.path.join(dir_name, self.distr_name)
         if os.path.exists(work_dir):
             raise FileExistsError
         else:
@@ -614,13 +614,13 @@ class DistributionDomainCase:
             results.append(result)
 
             iter_res_mom = []
-            for it_mom in distr_obj._iter_moments:
+            for iteration in distr_obj._monitor.iterations:
                 # print("exact moments ", self.exact_moments[:n_moments])
                 # print("it mom ", it_mom)
                 # print("self it mom shape ", it_mom.shape)
                 # print("(self.exact_moments[:n_moments] - it_mom) ", (self.exact_moments[:n_moments] - it_mom))
 
-                aux_m = moments_data[:, 0] - it_mom
+                aux_m = moments_data[:, 0] - iteration.moments_by_quad
                 L_inv = np.linalg.pinv(L)
                 # print("moments data ", moments_data)
                 # print("it mom ", it_mom)
@@ -800,7 +800,8 @@ def run_distr():
         (benchmark.Cauchy(), quantile, False),  # pass, check exact
         (stats.lognorm(scale=np.exp(1), s=1), quantile, False),
         (benchmark.Abyss(), quantile, False),
-        (benchmark.ZeroValue(), quantile, False)]
+        (benchmark.ZeroValue(), quantile, False)
+    ]
 
     # @pytest.mark.skip
     mom = [
@@ -847,8 +848,8 @@ def test_pdf_approx_exact_moments(moments, distribution):
     np.random.seed(1234)
     case = DistributionDomainCase(moments, distribution)
 
-    tests = [case.plot_KL_div_exact]
-    #tests = [case.plot_KL_div_inexact]
+    #tests = [case.plot_KL_div_exact]
+    tests = [case.plot_KL_div_inexact]
 
     for test_fn in tests:
         name = test_fn.__name__

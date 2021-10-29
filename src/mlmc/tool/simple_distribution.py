@@ -3,6 +3,8 @@ import scipy as sc
 import scipy.integrate as integrate
 import mlmc.moments
 import mlmc.tool.plot
+from dataclasses import dataclass, field
+import itertools
 
 EXACT_QUAD_LIMIT = 1000
 GAUSS_DEGREE = 70
@@ -25,6 +27,9 @@ class SimpleDistribution:
         self.moments_basis = moments_obj
         # Moment evaluation function with bounded number of moments and their domain.
         self.moments_fn = None
+
+        self._monitor = Monitor()
+
 
         # Domain of the density approximation (and moment functions).
         if domain is None:
@@ -49,6 +54,10 @@ class SimpleDistribution:
 
         assert moments_obj.size >= self.approx_size
         self.moments_fn = moments_obj
+
+        self._monitor.moments_data = moment_data
+        self._monitor.moments_obj = moments_obj
+
 
         # Degree of Gauss quad to use on every subinterval determined by adaptive quad.
         self._gauss_degree = GAUSS_DEGREE
@@ -172,7 +181,6 @@ class SimpleDistribution:
         return (np.exp(power) * np.sum(-self.multipliers * self.eval_moments_der(value, degree=2))) +\
                (np.exp(power) * np.sum(self.multipliers * moms)**2)
 
-
     def cdf(self, values):
         values = np.atleast_1d(values)
         np.sort(values)
@@ -239,11 +247,6 @@ class SimpleDistribution:
             moms = self.eval_moments(x)
             power = -np.sum(moms * multipliers / self._moment_errs, axis=1)
             power = np.minimum(np.maximum(power, -200), 200)
-
-            if type(power).__name__ == 'ArrayBox':
-                power = power._value
-                if type(power).__name__ == 'ArrayBox':
-                    power = power._value
 
             return np.exp(power) * moms[:, m]
 
@@ -328,7 +331,15 @@ class SimpleDistribution:
         self.multipliers = multipliers
         self._update_quadrature(multipliers, True)
 
-        self._iter_moments.append(self.moments_by_quadrature())
+        # Create new Iteration dataclass instance
+        iteration = Iteration()
+        iteration.multipliers = multipliers
+        iteration.quad_points = self._quad_points
+        iteration.quad_weights = self._quad_weights
+        iteration.moments_by_quad = self.moments_by_quadrature()
+        self._monitor.add_iteration(iteration)
+
+        #self._iter_moments.append(iteration.moments_by_quad)
 
         q_density = self._density_in_quads(multipliers)
         integral = np.dot(q_density, self._quad_weights)
@@ -341,6 +352,7 @@ class SimpleDistribution:
             fun = fun + np.abs(fun) * self._penalty_coef * penalty
 
         self.functional_value = fun
+
         return fun
 
     def moments_by_quadrature(self, der=1):
@@ -372,6 +384,8 @@ class SimpleDistribution:
             gradient = self.moment_means / self._moment_errs - integral# + np.abs(fun) * self._penalty_coef * penalty
         self.gradients.append(gradient)
 
+        self._monitor.iterations[-1].gradient = gradient
+
         return gradient
 
     def _calc_jac(self):
@@ -396,6 +410,8 @@ class SimpleDistribution:
                 if end_diff[side] > 0:
                     penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
                     jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
+
+        self._monitor.iterations[-1].jacobian_matrix = jacobian_matrix
 
         return jacobian_matrix
 
@@ -676,6 +692,7 @@ def detect_treshold_slope_change(values, log=True):
         mod_vals = np.exp(mod_vals)
     return i_treshold, mod_vals
 
+
 def _add_to_eigenvalues(cov_center, tol, moments):
     eval, evec = np.linalg.eigh(cov_center)
 
@@ -780,4 +797,27 @@ def reg_term_distr_diff(distr_1, distr_2):
 
     return np.sum(distr_1._quad_weights * (np.dot(distr_1._quad_moments_2nd_der - distr_2._quad_moments_2nd_der,
                                                   distr_1.multipliers - distr_2.multipliers) ** 2))
+
+
+
+@dataclass
+class Monitor:
+    iterations: [] = field(default_factory=lambda: [])
+    moments_data: np.ndarray = None
+    moments_obj = None
+
+    def add_iteration(self, iteration):
+        self.iterations.append(iteration)
+
+
+@dataclass
+class Iteration:
+
+    multipliers: np.ndarray = None
+    moments_by_quad: np.ndarray = None
+    quad_points: np.ndarray = None
+    quad_weights: np.ndarray = None
+    gradient: np.ndarray = None
+    jacobian_matrix: np.ndarray = None
+    id: int = field(default_factory=itertools.count().__next__, init=False)
 
