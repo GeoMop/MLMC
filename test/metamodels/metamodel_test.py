@@ -108,58 +108,6 @@ class Net(Model):
 
         return output
 
-    # def clear_progress(self):
-    #     for c_layer in self._conv_layers:
-    #         c_layer.clear_progress()
-    #
-    #     new_dense_layers = []
-    #     for d_layer in self._dense_layers:
-    #         new_dense_layers.append(d_layer)
-    #
-    #     self._dense_layers = new_dense_layers
-
-    # def plot_progress(self, conv_layers, dense_layers, output_flatten, stats=False):
-    #     if not stats:
-    #         import matplotlib.pyplot as plt
-    #
-    #     if not stats:
-    #
-    #         for inputs, weights, outputs in conv_layers:
-    #             plt.matshow(weights[-1][0])
-    #             plt.show()
-    #
-    #             for index, input in enumerate(inputs[::10]):
-    #                 plt.matshow(input[0])
-    #                 plt.show()
-    #                 plt.matshow(outputs[index][0])
-    #                 plt.show()
-    #
-    #                 #print("shape ", c_layer._outputs[index][0].shape)
-    #                 plt.matshow(np.sum(outputs[index][0], axis=0, keepdims=True))
-    #                 plt.show()
-    #
-    #                 # plt.matshow(self._inputs[-1][0])
-    #                 # plt.show()
-    #                 # plt.matshow(self._outputs[-1][0])
-    #                 # plt.show()
-    #
-    #                 #print("output flatten ", self._output_flatten)
-    #                 #print("final output ", final_output)
-    #
-    #                 plt.matshow([output_flatten[-1]])
-    #                 plt.show()
-    #                 # plt.matshow(final_output[-1])
-    #                 # plt.show()
-    #
-    #         for inputs, weights, outputs in dense_layers:
-    #             plt.matshow(inputs[-1])
-    #             plt.show()
-    #             plt.matshow(outputs[-1])
-    #             plt.show()
-    #
-    #     else:
-    #         return self._conv_layers, self._output_flatten, self._dense_layers
-
 
 def get_config(data_dir, case=0):
     if case == 0:
@@ -249,12 +197,12 @@ def get_config(data_dir, case=0):
     elif case == 7: # mesh size comparison
         data_dir = "/home/martin/Documents/metamodels/data/mesh_size/"
         cl = "cl_0_1_s_1"
-        level = 2
+        level = 3
         nn_level = 0
         replace_level = False
         #mesh = os.path.join(data_dir, "l_step_1.0_common_files/mesh.msh".format(cl)) #L1, 7s
         mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/mesh.msh".format(cl)) #L2 10.5 s
-        #mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl)) #L3 12s
+        mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl)) #L3 12s
         #mesh = os.path.join(data_dir, "l_step_0.020196309484414757_common_files/mesh.msh".format(cl)) #L4  22s
         #mesh = os.path.join(data_dir, "l_step_0.0055_common_files/mesh.msh".format(cl)) #L5
         output_dir = os.path.join(data_dir, "{}/L1_{}/test/01_cond_field/output/".format(cl, level))
@@ -315,7 +263,7 @@ def get_config(data_dir, case=0):
     #     sampling_info_path = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/"
     #     ref_mlmc_file = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1_benchmark/mlmc_1.hdf5"
 
-    return output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level,
+    return output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level, mlmc_hdf_path
 
 
 def plot_results_corr_length():
@@ -516,8 +464,8 @@ if __name__ == "__main__":
     work_dir = args.work_dir
     case = 7
     #data_dir = "/home/martin/Documents/metamodels/data/1000_ele/"
-    output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level = get_config(
-        data_dir, case)
+    output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file,\
+    replace_level, nn_level, mlmc_hdf_path = get_config(data_dir, case)
 
     # plot_results_corr_length()
     # exit()
@@ -623,6 +571,7 @@ if __name__ == "__main__":
     #machine_learning_model = ("DNN_mesh_L3_6", run_DNN, True)
     machine_learning_model = ("GCN_mesh_L3_log_16", run_GNN, True)
     machine_learning_model = ("mesh_L3_log_test_saved_model", run_GNN, True)
+    machine_learning_model = ("mesh_L3_log_50k_weights_2_K2", run_GNN, True)
 
     #machine_learning_model = ("mesh_L3_seed", run_GNN, False)
 
@@ -640,6 +589,7 @@ if __name__ == "__main__":
               'save_path': save_path,
               'output_dir': output_dir,
               'hdf_path': hdf_path,
+              'mlmc_hdf_path': mlmc_hdf_path,
               'mesh': mesh,
               'l_0_output_dir': l_0_output_dir,
               'l_0_hdf_path': l_0_hdf_path,
