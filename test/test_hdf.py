@@ -7,7 +7,7 @@ import mlmc.tool.hdf5
 
 
 """
-test src/mlmc/hdf5.py methods
+test mlmc/tool/hdf5.py methods
 """
 
 
@@ -198,7 +198,7 @@ def collected(hdf_level_group):
     """
     hdf_level_group.append_successful(COLLECTED_SAMPLES)
 
-    results = hdf_level_group.collected()
+    results = hdf_level_group.collected(slice(None, None, None)) # all samples
     for col, res in zip(COLLECTED_SAMPLES, results):
         assert (res == np.array(col[1])).all()
 

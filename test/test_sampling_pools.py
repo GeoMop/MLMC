@@ -1,14 +1,15 @@
 import os
 import shutil
+import time as t
 import numpy as np
 from scipy import stats
 import pytest
 import ruamel.yaml as yaml
-import mlmc.quantity
+import mlmc.quantity.quantity
 from test.synth_sim_for_tests import SynthSimulationWorkspaceForTests
 from mlmc.sampler import Sampler
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
+from mlmc.sampling_pool import OneProcessPool, ProcessPool
 from mlmc.moments import Legendre
 from mlmc.estimator import Estimate
 
@@ -48,6 +49,7 @@ sim_config_workspace = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.
 def test_sampling_pools(sampling_pool, simulation_factory):
     n_moments = 5
     np.random.seed(123)
+    t.sleep(5)
 
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
     if os.path.exists(work_dir):
@@ -70,8 +72,8 @@ def test_sampling_pools(sampling_pool, simulation_factory):
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    quantity = mlmc.quantity.make_root_quantity(storage=sample_storage,
-                                                q_specs=sample_storage.load_result_format())
+    quantity = mlmc.quantity.quantity.make_root_quantity(storage=sample_storage,
+                                                         q_specs=sample_storage.load_result_format())
     length = quantity['length']
     time = length[1]
     location = time['10']
@@ -87,4 +89,3 @@ def test_sampling_pools(sampling_pool, simulation_factory):
 
     if sampling_pool._debug:
         assert 'output' in next(os.walk(work_dir))[1]
-

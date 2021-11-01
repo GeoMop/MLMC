@@ -3,15 +3,14 @@ import shutil
 import numpy as np
 from scipy import stats
 import pytest
-import copy
 from mlmc.sim.synth_simulation import SynthSimulationWorkspace
 from test.synth_sim_for_tests import SynthSimulationForTests
 from mlmc.sampler import Sampler
 from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
-from mlmc.sampling_pool import OneProcessPool, ProcessPool, ThreadPool
+from mlmc.sampling_pool import OneProcessPool, ProcessPool
 from mlmc.moments import Legendre
-from mlmc.quantity import make_root_quantity
+from mlmc.quantity.quantity import make_root_quantity
 import mlmc.estimator
 
 # Set work dir
@@ -78,7 +77,7 @@ def test_mlmc(test_case):
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    target_var = 1e-4
+    target_var = 1e-3
     sleep = 0
     add_coef = 0.1
 

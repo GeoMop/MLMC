@@ -10,7 +10,7 @@ from random import randint
 import numpy as np
 
 src_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, src_path + '/../src/')
+sys.path.insert(0, src_path + '/../mlmc/')
 import mlmc.simulation
 import mlmc.sample
 
