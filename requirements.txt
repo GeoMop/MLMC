@@ -8,3 +8,4 @@ gstools
 memoization
 tensorflow
 pandas
+spektral

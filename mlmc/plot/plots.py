@@ -967,6 +967,62 @@ class VarianceNN:
 
         _show_and_save(self.fig, file, self.title)
 
+class MomentsPlots(Distribution):
+    def __init__(self, title="", quantity_name="i-th moment", legend_title="", log_mean_y=False, log_var_y=False):
+        """
+        """
+        self._domain = None
+        self._title = title
+        self._legend_title = legend_title
+        self.plot_matrix = []
+        self.i_plot = 0
+
+        self.cmap = plt.cm.tab20
+        self.ax_var = None
+        self.ax_log_density = None
+        self.x_lim = None
+
+        # mean_colors = ["brown", "salmon", "orange", "goldenrod", "red"]
+        # var_colors = ["blue", "slateblue", "indigo", "darkseagreen", "green"]
+        #
+        # self.mean_color = iter(mean_colors)
+        # self.cdf_color = iter(var_colors)
+
+        self.fig, axes = plt.subplots(1, 2, figsize=(22, 10))
+        self.ax_mean = axes[0]
+        self.ax_var = axes[1]
+
+        #self.fig.suptitle(title, y=0.99)
+        x_axis_label = quantity_name
+
+        self.ax_mean.set_ylabel("Mean")
+        self.ax_mean.set_xlabel(x_axis_label)
+        self.ax_mean.tick_params(axis='y')
+
+        self.ax_var.set_ylabel("Var")
+        #self.ax_var.tick_params(axis='y')
+        self.ax_var.set_xlabel(x_axis_label)
+
+        if log_mean_y:
+            self.ax_mean.set_yscale('log')
+
+        if log_var_y:
+            self.ax_var.set_yscale('log')
+
+    def add_moments(self, moments, label=None):
+        means, vars = moments
+        X = range(0, len(means))
+        print("vars ", vars)
+        self.ax_var.scatter(X, vars, color=self.cmap(self.i_plot), label=label)
+        self.ax_mean.scatter(X, means, color=self.cmap(self.i_plot), label=label)
+        #self._plot_borders(self.ax_cdf, self.cdf_color, domain)
+        self.i_plot += 1
+
+    def show(self, file=""):
+        self.ax_mean.legend()
+        self.ax_var.legend()
+
+        _show_and_save(self.fig, file, self._title)
 
 
 class BSplots:

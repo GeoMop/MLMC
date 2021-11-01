@@ -18,7 +18,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 from spektral.layers import GlobalSumPool, GlobalMaxPool, GlobalAvgPool
 import tensorflow as tf
-from mlmc.tool import plot
+from mlmc.plot import plots
 from tensorflow.keras.layers.experimental import preprocessing
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -340,14 +340,14 @@ def plot_results_corr_length():
         te_RSE[cl] = np.mean(test_RSE)
 
 
-    plt_cl = plot.CorrLength()
+    plt_cl = plots.CorrLength()
     plt_cl.add_mse_test(te_MSE)
     plt_cl.add_mse_train(tr_MSE)
 
     plt_cl.show(None)
     plt_cl.show("corr_length_mse")
 
-    plt_cl = plot.CorrLength()
+    plt_cl = plots.CorrLength()
     plt_cl.add_mse_test(te_RSE)
     plt_cl.add_mse_train(tr_RSE)
 
@@ -429,14 +429,14 @@ def plot_results_corr_length():
         te_RSE[cl] = np.mean(test_RSE)
 
 
-    plt_cl = plot.CorrLength()
+    plt_cl = plots.CorrLength()
     plt_cl.add_mse_test(te_MSE)
     plt_cl.add_mse_train(tr_MSE)
 
     plt_cl.show(None)
     plt_cl.show("corr_length_mse")
 
-    plt_cl = plot.CorrLength()
+    plt_cl = plots.CorrLength()
     plt_cl.add_mse_test(te_RSE)
     plt_cl.add_mse_train(tr_RSE)
 
@@ -571,7 +571,9 @@ if __name__ == "__main__":
     #machine_learning_model = ("DNN_mesh_L3_6", run_DNN, True)
     machine_learning_model = ("GCN_mesh_L3_log_16", run_GNN, True)
     machine_learning_model = ("mesh_L3_log_test_saved_model", run_GNN, True)
-    machine_learning_model = ("mesh_L3_log_50k_weights_2_K2", run_GNN, True)
+    machine_learning_model = ("mesh_L3_log_50k_weights_2", run_GNN, True)
+
+    machine_learning_model = ("mesh_L3_log_50k", run_GNN, True)
 
     #machine_learning_model = ("mesh_L3_seed", run_GNN, False)
 
