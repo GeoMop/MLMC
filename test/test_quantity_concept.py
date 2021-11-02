@@ -464,9 +464,6 @@ class QuantityTests(unittest.TestCase):
                 fine_result = np.random.randint(5 + 5*sample_id, high=5+5*(1+sample_id),
                                                 size=(np.sum(sizes),))
 
-                print("fine results shape ", fine_result.shape)
-                exit()
-
                 if l_id == 0:
                     coarse_result = (np.zeros((np.sum(sizes),)))
                 else:
