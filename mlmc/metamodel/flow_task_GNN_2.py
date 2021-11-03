@@ -99,7 +99,7 @@ class GNN:
             results_va = self.evaluate(loader_va)
             self._val_loss.append(results_va[0])
 
-            if step == loader_tr.steps_per_epoch: # step_per_epoch = int(np.ceil(len(self.dataset) / self.batch_size))
+            if step == loader_tr.steps_per_epoch:  # step_per_epoch = int(np.ceil(len(self.dataset) / self.batch_size))
                 train_targets = False
                 # results_va = self.evaluate(loader_va)
                 # self._val_loss.append(results_va[0])
@@ -125,12 +125,13 @@ class GNN:
                 results_tr = np.average(results_tr[:, :-1], 0, weights=results_tr[:, -1])
                 if self._verbose:
                     print(
-                        "Train loss: {:.4f}, acc: {:.4f} | "
-                        "Valid loss: {:.4f}, acc: {:.4f} | "
-                        "Test loss: {:.4f}, acc: {:.4f}".format(
+                        "Train loss: {:.12f}, acc: {:.12f} | "
+                        "Valid loss: {:.12f}, acc: {:.12f} | "
+                        "Test loss: {:.12f}, acc: {:.12f}".format(
                             *results_tr, *results_va, *results_te
                         )
                     )
+
                 # Reset epoch
                 results_tr = []
                 step = 0

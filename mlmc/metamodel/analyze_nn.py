@@ -1202,7 +1202,8 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     graph_creation_time = config['graph_creation_time']
     if graph_creation_time == 0:
         graph_creator_preproces_time = time.process_time()
-        graph_creator(config['output_dir'], config['hdf_path'], config['mesh'], level=config['level'])
+        graph_creator(config['output_dir'], config['hdf_path'], config['mesh'], level=config['level'],
+                      feature_names=config['feature_names'])
         graph_creation_time = time.process_time() - graph_creator_preproces_time
         print("graph creation time ", graph_creation_time)
         exit()
@@ -1318,7 +1319,9 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
                                                                         config['conv_layer'], batch_size, log,
                                                                         stats=stats,
                                                                         corr_field_config=config['corr_field_config'],
-                                                                        seed=seed)
+                                                                        seed=seed,
+                                                                        feature_names=config['feature_names']
+                                                                        )
     #predict_l_0_time = time.process_time() - predict_l_0_start_time
 
     if stats:
@@ -1343,8 +1346,8 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
 
 
 def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=1000, log=False, stats=False,
-                       corr_field_config=None, seed=1234):
-    # graph_creator(output_dir, hdf_path, mesh, level=0)
+                       corr_field_config=None, seed=1234, feature_names=[]):
+    graph_creator(output_dir, hdf_path, mesh, level=0, feature_names=feature_names)
     # Load data
     sample_time = 0
     if corr_field_config:

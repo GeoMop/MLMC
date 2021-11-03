@@ -84,11 +84,13 @@ class Net(Model):
         # self.conv3 = conv_layer(8, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv4 = conv_layer(4, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv3 = conv_layer(64, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        self.flatten = GlobalSumPool()
+        #self.flatten = GlobalSumPool()
+
+        self.flatten = GlobalAvgPool()
 
         #self._submodel = Sequential()
 
-        self._dense_layers = [Dense(1)]
+        self._dense_layers = [Dense(32, activation=hidden_activation), Dense(1)]
 
         # for d_layer in self._dense_layers:
         #     self._submodel.add(d_layer)
@@ -110,6 +112,8 @@ class Net(Model):
 
 
 def get_config(data_dir, case=0):
+    feature_names = [['conductivity']]
+
     if case == 0:
         cl = "cl_0_3_s_4"
         nn_level = 0
@@ -250,198 +254,251 @@ def get_config(data_dir, case=0):
         sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl))
         ref_mlmc_file = os.path.join(data_dir, "{}/L1_benchmark/mlmc_1.hdf5".format(cl))
 
-    # elif case == 6:
-    #     nn_level = 0
-    #     replace_level = True
-    #     mesh = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/l_step_0.055_common_files/mesh.msh"
-    #     output_dir = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/output"
-    #     hdf_path = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/mlmc_1.hdf5"
-    #
-    #     save_path = "/home/martin/Documents/metamodels/data/L1/"
-    #     l_0_output_dir = output_dir
-    #     l_0_hdf_path = hdf_path
-    #     sampling_info_path = "/home/martin/Documents/metamodels/data/L1/test/01_cond_field/"
-    #     ref_mlmc_file = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L1_benchmark/mlmc_1.hdf5"
-
-    return output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level, mlmc_hdf_path
-
-
-def plot_results_corr_length():
-    cl_all = {"cl_0_001_s_1": 0.001, "cl_0_01_s_1": 0.01, "cl_0_1_s_1": 0.1, "cl_1_s_1": 1, "cl_10_s_1": 10}
-
-    # cl_all = {"cl_0_001_s_1": 0.001, "cl_10_s_1": 1}
-    #
-    cl_all = {"cl_0_001_s_1": 0.001}
-
-    tr_MSE = {}
-    te_MSE = {}
-    tr_RSE = {}
-    te_RSE = {}
-
-    for cl_dir, cl in cl_all.items():
-        data_dir = "/home/martin/Documents/metamodels/data/mesh_size/"
-        level = 3
+    elif case == 12:  # mesh size comparison
+        data_dir = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/"
+        # cl = "cl_0_1_s_1"
+        level = 1
         nn_level = 0
         replace_level = False
-        # mesh = os.path.join(data_dir, "l_step_1.0_common_files/mesh.msh".format(cl)) #L1, 7s
-        # mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/mesh.msh".format(cl)) #L2 10.5 s
-        mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl_dir))  # L3 12s
+        mesh = os.path.join(data_dir, "l_step_1.0_common_files/repo.msh")  # L1, 7s
+        # mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/repo.msh".format(cl)) #L2 10.5 s
+        # mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl)) #L3 12s
         # mesh = os.path.join(data_dir, "l_step_0.020196309484414757_common_files/mesh.msh".format(cl)) #L4  22s
         # mesh = os.path.join(data_dir, "l_step_0.0055_common_files/mesh.msh".format(cl)) #L5
-        output_dir = os.path.join(data_dir, "{}/L1_{}/test/01_cond_field/output/".format(cl_dir, level))
-        hdf_path = os.path.join(data_dir, "{}/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
-        mlmc_hdf_path = os.path.join(data_dir, "{}/mlmc_hdf/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
-        save_path = os.path.join(data_dir, "{}".format(cl_dir))
-        l_0_output_dir = os.path.join(data_dir, "{}/L0_MC/L1_{}/test/01_cond_field/output/".format(cl_dir, level))
-        l_0_hdf_path = os.path.join(data_dir, "{}/L0_MC/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
-        sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl_dir))
-        ref_mlmc_file = os.path.join(data_dir, "{}/L1_benchmark/mlmc_1.hdf5".format(cl_dir))
+        output_dir = os.path.join(data_dir, "L1_{}/test/02_conc/output/".format(level))
+        hdf_path = os.path.join(data_dir, "L1_{}/mlmc_1.hdf5".format(level))
+        mlmc_hdf_path = os.path.join(data_dir, "/mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
+        save_path = data_dir
+        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}/test/02_conc/output/".format(level))
+        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}/mlmc_1.hdf5".format(level))
+        sampling_info_path = os.path.join(data_dir, "sampling_info")
+        ref_mlmc_file = os.path.join(data_dir, "L1_benchmark/mlmc_1.hdf5")
+        feature_names = [['conductivity_top', 'conductivity_bot', 'conductivity_repo']]
 
-        machine_learning_model = ("mesh_L3_log_15k", run_GNN, False)
-
-        gnn, conv_layer, corr_field_config, model_config = get_gnn()
-
-        save_path = os.path.join(save_path, machine_learning_model[0])
-
-        print("save path ", save_path)
-        graph_creation_time = 28  # 22#159#0#159#66
-
-        config = {'machine_learning_model': machine_learning_model,
-                  'save_path': save_path,
-                  'sampling_info_path': sampling_info_path,
-                  'output_dir': output_dir,
-                  'nn_hdf_path': hdf_path,
-                  'mlmc_hdf_path': mlmc_hdf_path,
-                  'mesh': mesh,
-                  'l_0_output_dir': l_0_output_dir,
-                  'l_0_hdf_path': l_0_hdf_path,
-                  'ref_mlmc_file': ref_mlmc_file,
-                  'level': nn_level,
-                  'conv_layer': conv_layer,
-                  'gnn': gnn,
-                  'model_config': model_config,
-                  'replace_level': replace_level,
-                  'corr_field_config': corr_field_config,
-                  'n_train_samples': 2000,
-                  'val_samples_ratio': 0.3,
-                  'batch_size': 200,
-                  'epochs': 2000,
-                  'learning_rate': 0.01,
-                  'graph_creation_time': graph_creation_time,
-                  'save_model': False,
-                  'loss_params': {'moments_class': Legendre_tf, "max_moments": 20, 'loss_max': 0.5, 'quantile': 1e-3}
-                  }
-
-        train_MSE, test_MSE, train_RSE, test_RSE = analyze_statistics(config)
-
-        tr_MSE[cl] = np.mean(train_MSE)
-        te_MSE[cl] = np.mean(test_MSE)
-        tr_RSE[cl] = np.mean(train_RSE)
-        te_RSE[cl] = np.mean(test_RSE)
-
-
-    plt_cl = plots.CorrLength()
-    plt_cl.add_mse_test(te_MSE)
-    plt_cl.add_mse_train(tr_MSE)
-
-    plt_cl.show(None)
-    plt_cl.show("corr_length_mse")
-
-    plt_cl = plots.CorrLength()
-    plt_cl.add_mse_test(te_RSE)
-    plt_cl.add_mse_train(tr_RSE)
-
-    plt_cl.show(None)
-    plt_cl.show("corr_length_mse")
-
-
-def plot_results_corr_length():
-    cl_all = {"cl_0_001_s_1": 0.001, "cl_0_01_s_1": 0.01, "cl_0_1_s_1": 0.1, "cl_1_s_1": 1, "cl_10_s_1": 10}
-
-    # cl_all = {"cl_0_001_s_1": 0.001, "cl_10_s_1": 1}
-    #
-    cl_all = {"cl_0_001_s_1": 0.001}
-
-    tr_MSE = {}
-    te_MSE = {}
-    tr_RSE = {}
-    te_RSE = {}
-
-    for cl_dir, cl in cl_all.items():
-        data_dir = "/home/martin/Documents/metamodels/data/mesh_size/"
-        level = 3
+    elif case == 13:  # mesh size comparison
+        data_dir = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_por/"
+        # cl = "cl_0_1_s_1"
+        level = 1
         nn_level = 0
         replace_level = False
-        # mesh = os.path.join(data_dir, "l_step_1.0_common_files/mesh.msh".format(cl)) #L1, 7s
-        # mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/mesh.msh".format(cl)) #L2 10.5 s
-        mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl_dir))  # L3 12s
+        mesh = os.path.join(data_dir, "l_step_1.0_common_files/repo.msh")  # L1, 7s
+        # mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/repo.msh".format(cl)) #L2 10.5 s
+        # mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl)) #L3 12s
         # mesh = os.path.join(data_dir, "l_step_0.020196309484414757_common_files/mesh.msh".format(cl)) #L4  22s
         # mesh = os.path.join(data_dir, "l_step_0.0055_common_files/mesh.msh".format(cl)) #L5
-        output_dir = os.path.join(data_dir, "{}/L1_{}/test/01_cond_field/output/".format(cl_dir, level))
-        hdf_path = os.path.join(data_dir, "{}/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
-        mlmc_hdf_path = os.path.join(data_dir, "{}/mlmc_hdf/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
-        save_path = os.path.join(data_dir, "{}".format(cl_dir))
-        l_0_output_dir = os.path.join(data_dir, "{}/L0_MC/L1_{}/test/01_cond_field/output/".format(cl_dir, level))
-        l_0_hdf_path = os.path.join(data_dir, "{}/L0_MC/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
-        sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl_dir))
-        ref_mlmc_file = os.path.join(data_dir, "{}/L1_benchmark/mlmc_1.hdf5".format(cl_dir))
+        output_dir = os.path.join(data_dir, "L1_{}/test/02_conc/output/".format(level))
+        hdf_path = os.path.join(data_dir, "L1_{}/mlmc_1.hdf5".format(level))
+        mlmc_hdf_path = os.path.join(data_dir, "/mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
+        save_path = data_dir
+        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}/test/02_conc/output/".format(level))
+        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}/mlmc_1.hdf5".format(level))
+        sampling_info_path = os.path.join(data_dir, "sampling_info")
+        ref_mlmc_file = os.path.join(data_dir, "L1_benchmark/mlmc_1.hdf5")
+        feature_names = [['porosity_top', 'porosity_bot', 'porosity_repo']]
 
-        machine_learning_model = ("mesh_L3_log_15k", run_GNN, False)
-
-        gnn, conv_layer, corr_field_config, model_config = get_gnn()
-
-        save_path = os.path.join(save_path, machine_learning_model[0])
-
-        print("save path ", save_path)
-        graph_creation_time = 25 # 22#159#0#159#66
-
-        config = {'machine_learning_model': machine_learning_model,
-                  'save_path': save_path,
-                  'sampling_info_path': sampling_info_path,
-                  'output_dir': output_dir,
-                  'nn_hdf_path': hdf_path,
-                  'mlmc_hdf_path': mlmc_hdf_path,
-                  'mesh': mesh,
-                  'l_0_output_dir': l_0_output_dir,
-                  'l_0_hdf_path': l_0_hdf_path,
-                  'ref_mlmc_file': ref_mlmc_file,
-                  'level': nn_level,
-                  'conv_layer': conv_layer,
-                  'gnn': gnn,
-                  'model_config': model_config,
-                  'replace_level': replace_level,
-                  'corr_field_config': corr_field_config,
-                  'n_train_samples': 2000,
-                  'val_samples_ratio': 0.3,
-                  'batch_size': 200,
-                  'epochs': 2000,
-                  'learning_rate': 0.01,
-                  'graph_creation_time': graph_creation_time,
-                  'save_model': False,
-                  'loss_params': {'moments_class': Legendre_tf, "max_moments": 20, 'loss_max': 0.5, 'quantile': 1e-3}
-                  }
-
-        train_MSE, test_MSE, train_RSE, test_RSE = analyze_statistics(config)
-
-        tr_MSE[cl] = np.mean(train_MSE)
-        te_MSE[cl] = np.mean(test_MSE)
-        tr_RSE[cl] = np.mean(train_RSE)
-        te_RSE[cl] = np.mean(test_RSE)
+    elif case == 14:  # mesh size comparison
+        data_dir = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_2_features/"
+        # cl = "cl_0_1_s_1"
+        level = 1
+        nn_level = 0
+        replace_level = False
+        mesh = os.path.join(data_dir, "l_step_1.0_common_files/repo.msh")  # L1, 7s
+        # mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/repo.msh".format(cl)) #L2 10.5 s
+        # mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl)) #L3 12s
+        # mesh = os.path.join(data_dir, "l_step_0.020196309484414757_common_files/mesh.msh".format(cl)) #L4  22s
+        # mesh = os.path.join(data_dir, "l_step_0.0055_common_files/mesh.msh".format(cl)) #L5
+        output_dir = os.path.join(data_dir, "L1_{}/test/02_conc/output/".format(level))
+        hdf_path = os.path.join(data_dir, "L1_{}/mlmc_1.hdf5".format(level))
+        mlmc_hdf_path = os.path.join(data_dir, "/mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
+        save_path = data_dir
+        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}/test/02_conc/output/".format(level))
+        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}/mlmc_1.hdf5".format(level))
+        sampling_info_path = os.path.join(data_dir, "sampling_info")
+        ref_mlmc_file = os.path.join(data_dir, "L1_benchmark/mlmc_1.hdf5")
 
 
-    plt_cl = plots.CorrLength()
-    plt_cl.add_mse_test(te_MSE)
-    plt_cl.add_mse_train(tr_MSE)
+        feature_names = [['conductivity_top', 'conductivity_bot', 'conductivity_repo'],
+                         ['porosity_top', 'porosity_bot', 'porosity_repo']]
 
-    plt_cl.show(None)
-    plt_cl.show("corr_length_mse")
+    return output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level, mlmc_hdf_path, feature_names
 
-    plt_cl = plots.CorrLength()
-    plt_cl.add_mse_test(te_RSE)
-    plt_cl.add_mse_train(tr_RSE)
 
-    plt_cl.show(None)
-    plt_cl.show("corr_length_mse")
+# def plot_results_corr_length():
+#     cl_all = {"cl_0_001_s_1": 0.001, "cl_0_01_s_1": 0.01, "cl_0_1_s_1": 0.1, "cl_1_s_1": 1, "cl_10_s_1": 10}
+#
+#     # cl_all = {"cl_0_001_s_1": 0.001, "cl_10_s_1": 1}
+#     #
+#     cl_all = {"cl_0_001_s_1": 0.001}
+#
+#     tr_MSE = {}
+#     te_MSE = {}
+#     tr_RSE = {}
+#     te_RSE = {}
+#
+#     for cl_dir, cl in cl_all.items():
+#         data_dir = "/home/martin/Documents/metamodels/data/mesh_size/"
+#         level = 3
+#         nn_level = 0
+#         replace_level = False
+#         # mesh = os.path.join(data_dir, "l_step_1.0_common_files/mesh.msh".format(cl)) #L1, 7s
+#         # mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/mesh.msh".format(cl)) #L2 10.5 s
+#         mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl_dir))  # L3 12s
+#         # mesh = os.path.join(data_dir, "l_step_0.020196309484414757_common_files/mesh.msh".format(cl)) #L4  22s
+#         # mesh = os.path.join(data_dir, "l_step_0.0055_common_files/mesh.msh".format(cl)) #L5
+#         output_dir = os.path.join(data_dir, "{}/L1_{}/test/01_cond_field/output/".format(cl_dir, level))
+#         hdf_path = os.path.join(data_dir, "{}/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
+#         mlmc_hdf_path = os.path.join(data_dir, "{}/mlmc_hdf/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
+#         save_path = os.path.join(data_dir, "{}".format(cl_dir))
+#         l_0_output_dir = os.path.join(data_dir, "{}/L0_MC/L1_{}/test/01_cond_field/output/".format(cl_dir, level))
+#         l_0_hdf_path = os.path.join(data_dir, "{}/L0_MC/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
+#         sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl_dir))
+#         ref_mlmc_file = os.path.join(data_dir, "{}/L1_benchmark/mlmc_1.hdf5".format(cl_dir))
+#
+#         machine_learning_model = ("mesh_L3_log_15k", run_GNN, False)
+#
+#         gnn, conv_layer, corr_field_config, model_config = get_gnn()
+#
+#         save_path = os.path.join(save_path, machine_learning_model[0])
+#
+#         print("save path ", save_path)
+#         graph_creation_time = 28  # 22#159#0#159#66
+#
+#         config = {'machine_learning_model': machine_learning_model,
+#                   'save_path': save_path,
+#                   'sampling_info_path': sampling_info_path,
+#                   'output_dir': output_dir,
+#                   'nn_hdf_path': hdf_path,
+#                   'mlmc_hdf_path': mlmc_hdf_path,
+#                   'mesh': mesh,
+#                   'l_0_output_dir': l_0_output_dir,
+#                   'l_0_hdf_path': l_0_hdf_path,
+#                   'ref_mlmc_file': ref_mlmc_file,
+#                   'level': nn_level,
+#                   'conv_layer': conv_layer,
+#                   'gnn': gnn,
+#                   'model_config': model_config,
+#                   'replace_level': replace_level,
+#                   'corr_field_config': corr_field_config,
+#                   'n_train_samples': 2000,
+#                   'val_samples_ratio': 0.3,
+#                   'batch_size': 200,
+#                   'epochs': 2000,
+#                   'learning_rate': 0.01,
+#                   'graph_creation_time': graph_creation_time,
+#                   'save_model': False,
+#                   'loss_params': {'moments_class': Legendre_tf, "max_moments": 20, 'loss_max': 0.5, 'quantile': 1e-3}
+#                   }
+#
+#         train_MSE, test_MSE, train_RSE, test_RSE = analyze_statistics(config)
+#
+#         tr_MSE[cl] = np.mean(train_MSE)
+#         te_MSE[cl] = np.mean(test_MSE)
+#         tr_RSE[cl] = np.mean(train_RSE)
+#         te_RSE[cl] = np.mean(test_RSE)
+#
+#
+#     plt_cl = plots.CorrLength()
+#     plt_cl.add_mse_test(te_MSE)
+#     plt_cl.add_mse_train(tr_MSE)
+#
+#     plt_cl.show(None)
+#     plt_cl.show("corr_length_mse")
+#
+#     plt_cl = plots.CorrLength()
+#     plt_cl.add_mse_test(te_RSE)
+#     plt_cl.add_mse_train(tr_RSE)
+#
+#     plt_cl.show(None)
+#     plt_cl.show("corr_length_mse")
+
+
+# def plot_results_corr_length():
+#     cl_all = {"cl_0_001_s_1": 0.001, "cl_0_01_s_1": 0.01, "cl_0_1_s_1": 0.1, "cl_1_s_1": 1, "cl_10_s_1": 10}
+#
+#     # cl_all = {"cl_0_001_s_1": 0.001, "cl_10_s_1": 1}
+#     #
+#     cl_all = {"cl_0_001_s_1": 0.001}
+#
+#     tr_MSE = {}
+#     te_MSE = {}
+#     tr_RSE = {}
+#     te_RSE = {}
+#
+#     for cl_dir, cl in cl_all.items():
+#         data_dir = "/home/martin/Documents/metamodels/data/mesh_size/"
+#         level = 3
+#         nn_level = 0
+#         replace_level = False
+#         # mesh = os.path.join(data_dir, "l_step_1.0_common_files/mesh.msh".format(cl)) #L1, 7s
+#         # mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/mesh.msh".format(cl)) #L2 10.5 s
+#         mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl_dir))  # L3 12s
+#         # mesh = os.path.join(data_dir, "l_step_0.020196309484414757_common_files/mesh.msh".format(cl)) #L4  22s
+#         # mesh = os.path.join(data_dir, "l_step_0.0055_common_files/mesh.msh".format(cl)) #L5
+#         output_dir = os.path.join(data_dir, "{}/L1_{}/test/01_cond_field/output/".format(cl_dir, level))
+#         hdf_path = os.path.join(data_dir, "{}/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
+#         mlmc_hdf_path = os.path.join(data_dir, "{}/mlmc_hdf/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
+#         save_path = os.path.join(data_dir, "{}".format(cl_dir))
+#         l_0_output_dir = os.path.join(data_dir, "{}/L0_MC/L1_{}/test/01_cond_field/output/".format(cl_dir, level))
+#         l_0_hdf_path = os.path.join(data_dir, "{}/L0_MC/L1_{}/mlmc_1.hdf5".format(cl_dir, level))
+#         sampling_info_path = os.path.join(data_dir, "{}/sampling_info".format(cl_dir))
+#         ref_mlmc_file = os.path.join(data_dir, "{}/L1_benchmark/mlmc_1.hdf5".format(cl_dir))
+#
+#         machine_learning_model = ("mesh_L3_log_15k", run_GNN, False)
+#
+#         gnn, conv_layer, corr_field_config, model_config = get_gnn()
+#
+#         save_path = os.path.join(save_path, machine_learning_model[0])
+#
+#         print("save path ", save_path)
+#         graph_creation_time = 25 # 22#159#0#159#66
+#
+#         config = {'machine_learning_model': machine_learning_model,
+#                   'save_path': save_path,
+#                   'sampling_info_path': sampling_info_path,
+#                   'output_dir': output_dir,
+#                   'nn_hdf_path': hdf_path,
+#                   'mlmc_hdf_path': mlmc_hdf_path,
+#                   'mesh': mesh,
+#                   'l_0_output_dir': l_0_output_dir,
+#                   'l_0_hdf_path': l_0_hdf_path,
+#                   'ref_mlmc_file': ref_mlmc_file,
+#                   'level': nn_level,
+#                   'conv_layer': conv_layer,
+#                   'gnn': gnn,
+#                   'model_config': model_config,
+#                   'replace_level': replace_level,
+#                   'corr_field_config': corr_field_config,
+#                   'n_train_samples': 2000,
+#                   'val_samples_ratio': 0.3,
+#                   'batch_size': 200,
+#                   'epochs': 2000,
+#                   'learning_rate': 0.01,
+#                   'graph_creation_time': graph_creation_time,
+#                   'save_model': False,
+#                   'loss_params': {'moments_class': Legendre_tf, "max_moments": 20, 'loss_max': 0.5, 'quantile': 1e-3}
+#                   }
+#
+#         train_MSE, test_MSE, train_RSE, test_RSE = analyze_statistics(config)
+#
+#         tr_MSE[cl] = np.mean(train_MSE)
+#         te_MSE[cl] = np.mean(test_MSE)
+#         tr_RSE[cl] = np.mean(train_RSE)
+#         te_RSE[cl] = np.mean(test_RSE)
+#
+#
+#     plt_cl = plots.CorrLength()
+#     plt_cl.add_mse_test(te_MSE)
+#     plt_cl.add_mse_train(tr_MSE)
+#
+#     plt_cl.show(None)
+#     plt_cl.show("corr_length_mse")
+#
+#     plt_cl = plots.CorrLength()
+#     plt_cl.add_mse_test(te_RSE)
+#     plt_cl.add_mse_train(tr_RSE)
+#
+#     plt_cl.show(None)
+#     plt_cl.show("corr_length_mse")
 
 
 def get_arguments(arguments):
@@ -462,10 +519,10 @@ if __name__ == "__main__":
     args = get_arguments(sys.argv[1:])
     data_dir = args.data_dir
     work_dir = args.work_dir
-    case = 7
+    case = 12
     #data_dir = "/home/martin/Documents/metamodels/data/1000_ele/"
     output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file,\
-    replace_level, nn_level, mlmc_hdf_path = get_config(data_dir, case)
+    replace_level, nn_level, mlmc_hdf_path, feature_names = get_config(data_dir, case)
 
     # plot_results_corr_length()
     # exit()
@@ -571,21 +628,26 @@ if __name__ == "__main__":
     #machine_learning_model = ("DNN_mesh_L3_6", run_DNN, True)
     machine_learning_model = ("GCN_mesh_L3_log_16", run_GNN, True)
     machine_learning_model = ("mesh_L3_log_test_saved_model", run_GNN, True)
-    machine_learning_model = ("mesh_L3_log_50k_weights_2", run_GNN, True)
+    machine_learning_model = ("mesh_L3_log_50k_weights_5", run_GNN, True)
 
-    machine_learning_model = ("mesh_L3_log_50k", run_GNN, True)
+    machine_learning_model = ("test_02_conc", run_GNN, False)
 
-    #machine_learning_model = ("mesh_L3_seed", run_GNN, False)
+    #machine_learning_model = ("mesh_L3_log_50k_weights_test_dense", run_GNN, False)
 
     #machine_learning_model = ("mesh_L3_log_sigmoid", run_GNN, False) # ReLU is much better
 
     save_path = os.path.join(save_path, machine_learning_model[0])
 
-    # if os.path.exists(save_path):
-    #     shutil.rmtree(save_path)
+    if os.path.exists(save_path):
+        shutil.rmtree(save_path)
 
     print("save path ", save_path)
-    graph_creation_time = 25#11#22#159#0#159#66
+
+
+    # graph creation time: 2 features: 61 sec
+    #                       conductivity: 43 sec
+    #                       porosity: 40 sec
+    graph_creation_time = 43#25#11#22#159#0#159#66
 
     config = {'machine_learning_model': machine_learning_model,
               'save_path': save_path,
@@ -605,14 +667,15 @@ if __name__ == "__main__":
               'corr_field_config': corr_field_config,
               'n_train_samples': 2000,
               'val_samples_ratio': 0.2,
-              'batch_size': 200,
-              'epochs': 5,
+              'batch_size': 20,
+              'epochs': 2,
               'learning_rate': 0.001,
               'graph_creation_time': graph_creation_time,
-              'save_model': True
+              'save_model': True,
+              'feature_names': feature_names
               }
 
-    #statistics(config)
+    statistics(config)
 
     analyze_statistics(config)
 

@@ -4,6 +4,8 @@ import numpy as np
 import networkx as nx
 from mlmc.tool import gmsh_io
 from mlmc.tool.hdf5 import HDF5
+from mlmc.sample_storage_hdf import SampleStorageHDF
+from mlmc.quantity.quantity import make_root_quantity
 from spektral.data import Graph
 from mlmc.metamodel.flow_dataset import FlowDataset
 
@@ -77,11 +79,44 @@ def extract_mesh_gmsh_io(mesh_file, get_points=False):
     return ele_nodes
 
 
-def get_node_features(fields_mesh):
+def get_node_features(fields_mesh, feature_names):
+    """
+    Extract mesh from file
+    :param fields_mesh: Mesh file
+    :param feature_names: [[], []] - fields in each sublist are joint to one feature, each sublist corresponds to one vertex feature
+    :return: list
+    """
     mesh = gmsh_io.GmshIO(fields_mesh)
-    element_data = mesh.current_elem_data
-    features = list(element_data.values())
+
+    features = []
+    for f_names in feature_names:
+        joint_features = join_fields(mesh._fields, f_names)
+
+        features.append(list(joint_features.values()))
+
     return features
+
+
+def join_fields(fields, f_names):
+    if len(f_names) > 0:
+        x_name = len(set([*fields[f_names[0]]]))
+    assert all(x_name == len(set([*fields[f_n]])) for f_n in f_names)
+
+    # # Using defaultdict
+    # c = [collections.Counter(fields[f_n]) for f_n in f_names]
+    # Cdict = collections.defaultdict(int)
+
+    joint_dict = {}
+    for f_n in f_names:
+        for key, item in fields[f_n].items():
+            #print("key: {}, item: {}".format(key, np.squeeze(item)))
+            joint_dict.setdefault(key, 0)
+
+            if joint_dict[key] != 0 and np.squeeze(item) != 0:
+                raise ValueError("Just one field value should be non zero for each element")
+            joint_dict[key] += np.squeeze(item)
+
+    return joint_dict
 
 
 def create_adjacency_matrix(ele_nodes):
@@ -101,7 +136,7 @@ def create_adjacency_matrix(ele_nodes):
             if len(list(set(ele_nodes).intersection(ele_n))) == 2:
                 adjacency_matrix[j][i] = adjacency_matrix[i][j] = 1
 
-    print(np.count_nonzero(adjacency_matrix))
+    #print(np.count_nonzero(adjacency_matrix))
     assert np.allclose(adjacency_matrix, adjacency_matrix.T)  # symmetry
     return adjacency_matrix
 
@@ -121,22 +156,34 @@ def reject_outliers(data, m=2):
     return abs(data - np.mean(data)) < m * np.std(data)
 
 
-def graph_creator(output_dir, hdf_path, mesh, level=0):
+def graph_creator(output_dir, hdf_path, mesh, level=0, feature_names=[['conductivity']], quantity_name="conductivity"):
     adjacency_matrix = create_adjacency_matrix(extract_mesh_gmsh_io(mesh))
     np.save(os.path.join(output_dir, "adjacency_matrix"), adjacency_matrix, allow_pickle=True)
     loaded_adjacency_matrix = np.load(os.path.join(output_dir, "adjacency_matrix.npy"), allow_pickle=True)
 
     #plot_graph(loaded_adjacency_matrix)
 
+    sample_storage = SampleStorageHDF(file_path=hdf_path)
+    sample_storage.chunk_size = 1e8
+    result_format = sample_storage.load_result_format()
+    root_quantity = make_root_quantity(sample_storage, result_format)
+
+    #@TODO:
+    conductivity = root_quantity[quantity_name]
+    time = conductivity[1]  # times: [1]
+    location = time['0']  # locations: ['0']
+    q_value = location[0, 0]
+
     hdf = HDF5(file_path=hdf_path, load_from_file=True)
     level_group = hdf.add_level_group(level_id=str(level))
 
-    # print("collected ", level_group.collected()[:, 0, :])
-    # indices = reject_outliers(np.squeeze(level_group.collected()[:, 0, :]), m=6)
-    # print("removed outliers ", np.count_nonzero(~indices))
-    indices = np.ones(len(level_group.collected()))
+    chunk_spec = next(sample_storage.chunks(level_id=level, n_samples=sample_storage.get_n_collected()[int(level)]))
+    collected_values = q_value.samples(chunk_spec=chunk_spec)[0]
 
-    collected = zip(level_group.get_collected_ids(), level_group.collected())
+    collected_ids = sample_storage.collected_ids(level_id=level)
+
+    indices = np.ones(len(collected_values))
+    collected = zip(collected_ids, collected_values)
 
     graphs = []
     data = []
@@ -144,7 +191,8 @@ def graph_creator(output_dir, hdf_path, mesh, level=0):
     for keep, (sample_id, col_values) in zip(indices, collected):
         if not keep:
             continue
-        output_value = col_values[0, 0]
+
+        output_value = col_values[0]
 
         sample_dir = os.path.join(output_dir, sample_id)
         field_mesh = os.path.join(sample_dir, FIELDS_SAMPLE)
@@ -153,7 +201,7 @@ def graph_creator(output_dir, hdf_path, mesh, level=0):
             # if i > 150:
             #     break
 
-            features = get_node_features(field_mesh)
+            features = get_node_features(field_mesh, feature_names)
             np.save(os.path.join(sample_dir, "nodes_features"), features)
             np.save(os.path.join(sample_dir, "output"), output_value)
 

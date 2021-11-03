@@ -206,6 +206,21 @@ class SampleStorageHDF(SampleStorage):
 
         return unfinished
 
+    def collected_ids(self, level_id=None):
+        """
+        List of colected ids
+        :param level_id: int
+        :return: list
+        """
+        if level_id is not None:
+            return self._level_groups[level_id].get_collected_ids()
+
+        unfinished = []
+        for level in self._level_groups:
+            unfinished.extend(level.get_collected_ids())
+
+        return unfinished
+
     def failed_samples(self):
         """
         Dictionary of failed samples

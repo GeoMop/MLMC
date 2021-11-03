@@ -44,6 +44,8 @@ class GmshIO:
         self.elements = {}
         self.physical = {}
         self.element_data = {}
+        self._fields = {}
+        self._field = None
 
     def read_element_data_head(self, mshfile):
 
@@ -68,7 +70,6 @@ class GmshIO:
         columns = mshfile.readline().strip().split()
         n_elem = float(columns[0])
         return field, time, t_idx, n_comp, n_elem
-
 
     def read(self, mshfile=None):
         """Read a Gmsh .msh file.
@@ -100,6 +101,10 @@ class GmshIO:
                     readmode = 5
                 elif line == '$ElementData':
                     field, time, t_idx, n_comp, n_ele = self.read_element_data_head(mshfile)
+
+                    self._fields.setdefault(field, {})
+                    self._field = field
+
                     field_times = self.element_data.setdefault(field, {})
                     assert t_idx not in field_times
                     self.current_elem_data = {}
@@ -115,6 +120,7 @@ class GmshIO:
                     comp_values = [float(col) for col in columns[1:]]
                     assert len(comp_values) == self.current_n_components
                     self.current_elem_data[ele_idx] = comp_values
+                    self._fields[self._field] = self.current_elem_data
 
                 if readmode == 5:
                     if len(columns) == 3:
