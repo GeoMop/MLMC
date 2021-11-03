@@ -12,11 +12,13 @@ from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.moments import Legendre, Monomial
 from mlmc.quantity.quantity import make_root_quantity
 from mlmc.metamodel.create_graph import extract_mesh_gmsh_io
+from mlmc.plot import plots
 
 
 QUANTILE = 1e-6
 N_MOMENTS = 25
 TARGET_VAR = 1e-5
+
 
 def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predictions, train_targets, train_predictions,
                  val_targets, l_0_targets=None, l_0_predictions=None,
@@ -463,9 +465,9 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
 
     kl_mlmc, kl_nn = -1, -1
     orig_orth_moments, predict_orth_moments, ref_orth_moments = None, None, None
-    # kl_mlmc, kl_nn, orig_orth_moments, predict_orth_moments, ref_orth_moments = compare_densities(original_q_estimator, predict_q_estimator, ref_estimator,
-    #                   label_1="orig N: {}".format(n_estimated_orig),
-    #                   label_2="gnn N: {}".format(n_estimated_nn))
+    kl_mlmc, kl_nn, orig_orth_moments, predict_orth_moments, ref_orth_moments = compare_densities(original_q_estimator, predict_q_estimator, ref_estimator,
+                      label_1="orig N: {}".format(n_estimated_orig),
+                      label_2="gnn N: {}".format(n_estimated_nn))
 
     if stats:
         return n_estimated_orig, n_estimated_nn, n_ops, n_ops_predict, orig_moments_mean, \
@@ -515,7 +517,7 @@ def analyze_results(target, predictions):
 def estimate_density(values, title="Density"):
     sample_storage = Memory()
     n_levels = 1
-    n_moments = 25
+    n_moments = N_MOMENTS
     distr_accuracy = 1e-7
 
     distr_plot = plots.Distribution(title=title,
@@ -696,7 +698,7 @@ def create_quantity_mlmc(data, level_parameters, num_ops=None):
 
 
 def estimate_moments(sample_storage, true_domain=None):
-    n_moments = 15
+    n_moments = N_MOMENTS
     result_format = sample_storage.load_result_format()
     root_quantity = make_root_quantity(sample_storage, result_format)
 
@@ -807,25 +809,26 @@ def compare_moments(original_q_estimator, predict_q_estimator, ref_estimator):
 
 def compare_densities(estimator_1, estimator_2, ref_estimator, label_1="", label_2=""):
 
-    distr_plot = plot.ArticleDistributionPDF(title="densities", log_density=True)
+    distr_plot = plots.ArticleDistributionPDF(title="densities", log_density=True)
     tol = 1e-7
     reg_param = 0
 
     print("orig estimator")
-    distr_obj_1, result, _, _, orig_orth_moments = estimator_1.construct_density(tol=tol, reg_param=reg_param,
+    distr_obj_1, _, result, _, orig_orth_moments = estimator_1.construct_density(tol=tol, reg_param=reg_param,
                                                               orth_moments_tol=TARGET_VAR)
     #distr_plot.add_distribution(distr_obj_1, label=label_1, color="blue")
 
     print("predict estimator")
-    distr_obj_2, result, _, _, predict_orth_moments = estimator_2.construct_density(tol=tol, reg_param=reg_param,  orth_moments_tol=TARGET_VAR)
+
+    distr_obj_2, _, result, _, predict_orth_moments = estimator_2.construct_density(tol=tol, reg_param=reg_param,  orth_moments_tol=TARGET_VAR)
     #distr_plot.add_distribution(distr_obj_2, label=label_2, color="red", line_style="--")
 
     print("Ref estimator")
-    ref_distr_obj, result, _, _, ref_orth_moments = ref_estimator.construct_density(tol=tol, reg_param=reg_param,  orth_moments_tol=TARGET_VAR)
+    ref_distr_obj, _, result, _, ref_orth_moments = ref_estimator.construct_density(tol=tol, reg_param=reg_param,  orth_moments_tol=TARGET_VAR)
     #distr_plot.add_distribution(ref_distr_obj, label="MC reference", color="black", line_style=":")
 
-    ref_estimator_pdf = get_quantity_estimator(ref_estimator._sample_storage, true_domain=None, n_moments=25)
-    ref_distr_obj, result, _, _, ref_orth_moments_pdf = ref_estimator_pdf.construct_density(tol=tol,
+    ref_estimator_pdf = get_quantity_estimator(ref_estimator._sample_storage, true_domain=None, n_moments=N_MOMENTS)
+    ref_distr_obj, _, result, _, ref_orth_moments_pdf = ref_estimator_pdf.construct_density(tol=tol,
                                                                                             reg_param=reg_param,
                                                                                             orth_moments_tol=TARGET_VAR)
 
@@ -854,14 +857,16 @@ def compare_densities(estimator_1, estimator_2, ref_estimator, label_1="", label
     return kl_div_ref_mlmc, kl_div_ref_gnn, orig_orth_moments, predict_orth_moments, ref_orth_moments
 
 
-def get_quantity_estimator(sample_storage, true_domain=None):
-    n_moments = 25
+def get_quantity_estimator(sample_storage, true_domain=None, quantity=None, n_moments=None):
+    if n_moments is None:
+        n_moments = N_MOMENTS
     result_format = sample_storage.load_result_format()
-    root_quantity = make_root_quantity(sample_storage, result_format)
-    conductivity = root_quantity['conductivity']
-    time = conductivity[1]  # times: [1]
-    location = time['0']  # locations: ['0']
-    quantity = location[0, 0]
+    if quantity is None:
+        root_quantity = make_root_quantity(sample_storage, result_format)
+        conductivity = root_quantity['conductivity']
+        time = conductivity[1]  # times: [1]
+        location = time['0']  # locations: ['0']
+        quantity = location[0, 0]
 
     if true_domain is None:
         quantile = QUANTILE
@@ -870,6 +875,7 @@ def get_quantity_estimator(sample_storage, true_domain=None):
     moments_fn = Legendre(n_moments, true_domain)
 
     return mlmc.estimator.Estimate(quantity=quantity, sample_storage=sample_storage, moments_fn=moments_fn)
+
 
 
 def get_n_estimated(sample_storage, estimator, n_ops=None):
@@ -978,20 +984,24 @@ def plot_progress(conv_layers, dense_layers, output_flatten, mesh_file=None):
             # print("output flatten ", self._output_flatten)
             # print("final output ", final_output)
 
-            plt.matshow([output_flatten[-1]])
-            plt.show()
+            if len(output_flatten) > 0:
+                plt.matshow([output_flatten[-1]])
+                plt.show()
 
     for idx, dense_layer in dense_layers.items():
         inputs, weights, outputs = dense_layer[0], dense_layer[1], dense_layer[2]
+
         plt.matshow([inputs[-1]])
         plt.show()
         plt.matshow([outputs[-1]])
         plt.show()
 
 
+    #exit()
+
 
 def plot_moments(mlmc_estimators):
-    n_moments = 25
+    n_moments = N_MOMENTS
     moments_plot = mlmc.tool.plot.MomentsPlots(
         title="Legendre {} moments".format(n_moments))
 

@@ -1781,3 +1781,163 @@ def plot_pbs_flow_job_time():
     #ax.set_yscale('log')
     ax.plot(1/(level_params**2), n_ops)
     _show_and_save(fig, "flow_time", "flow_time")
+
+
+class ArticleDistributionPDF(Distribution):
+    """
+    mlmc.plot.Distribution
+
+    Class for plotting distribution approximation: PDF and CDF (optional)
+    Provides methods to: add more plots, add exact PDF, add ECDF/histogram from single level MC
+    """
+    def __init__(self, exact_distr=None, title="", quantity_name="Y", legend_title="",
+                 log_density=False, cdf_plot=False, log_x=False, error_plot='l2', reg_plot=False, multipliers_plot=True):
+        """
+        Plot configuration
+        :param exact_distr:  Optional exact domain (for adding to plot and computing error)
+        :param title: Figure title.
+        :param quantity_name: Quantity for X axis label.
+        :param log_density: Plot logarithm of density value.
+        :param cdf_plot: Plot CDF as well (default)
+        :param log_x: Use logarithmic scale for X axis.
+        :param error_plot: None, 'diff', 'kl. Plot error of pdf using either difference or
+        integrand of KL divergence: exact_pdf * log(exact_pdf / approx_pdf).
+        Simple difference is used for CDF for both options.
+        """
+        matplotlib.rcParams.update({'font.size': 16})
+        #matplotlib.rcParams.update({'lines.markersize': 8})
+        self._exact_distr = exact_distr
+        self._log_density = log_density
+        self._log_x = log_x
+        self._error_plot = error_plot
+        self._domain = None
+        self._title = title
+        self._legend_title = legend_title
+        self.plot_matrix = []
+        self.i_plot = 0
+
+        self.ax_cdf = None
+        self.ax_log_density = None
+        self.x_lim = None
+
+        self.pdf_color = "brown"
+        self.cdf_color = "blue"
+
+        self.reg_plot = reg_plot
+
+        #self.fig, self.ax_cdf = plt.subplots(1, 1, figsize=(22, 10))
+        self.fig, self.ax_pdf = plt.subplots(1, 1, figsize=(8, 5))
+        self.fig_cdf = None
+        #self.ax_pdf = self.ax_cdf.twinx()
+
+        #self.fig.suptitle(title, y=0.99)
+        x_axis_label = quantity_name
+
+        # PDF axes
+        self.ax_pdf.set_ylabel("PDF")#, color=self.pdf_color)
+        #self.ax_pdf.set_ylabel("probability density")
+        self.ax_pdf.set_xlabel(x_axis_label)
+        #self.ax_pdf.tick_params(axis='y', labelcolor=self.pdf_color)
+        if self._log_x:
+            self.ax_pdf.set_xscale('log')
+            x_axis_label = "log " + x_axis_label
+        # if self._log_density:
+        #     self.ax_pdf.set_yscale('log')
+
+        # if cdf_plot:
+        #     # CDF axes
+        #     #self.ax_cdf.set_title("CDF approximations")
+        #     self.ax_cdf.set_ylabel("CDF", color=self.cdf_color)
+        #     self.ax_cdf.tick_params(axis='y', labelcolor=self.cdf_color)
+        #     self.ax_cdf.set_xlabel(x_axis_label)
+        #     if self._log_x:
+        #         self.ax_cdf.set_xscale('log')
+
+        self.x_lim = [0, 2.6]
+
+        #self.x_lim = [0, 5]
+        self.x_lim = [0, 2.5]
+
+        self.ax_pdf.set_xlim(*self.x_lim)
+        #self.ax_cdf.set_xlim(*self.x_lim)
+
+        # """adjust ax2 ylimit so that v2 in ax2 is aligned to v1 in ax1"""
+        # _, y1 = self.ax_pdf.transData.transform((0, 0))
+        # _, y2 = self.ax_cdf.transData.transform((0, 0))
+        # inv = self.ax_cdf.transData.inverted()
+        # _, dy = inv.transform((0, 0)) - inv.transform((0, y1 - y2))
+        # miny, maxy = self.ax_cdf.get_ylim()
+        # self.ax_cdf.set_ylim(miny + dy, maxy + dy)
+
+    def add_raw_samples(self, samples):
+        """
+        Add histogram and ecdf for raw samples.
+        :param samples:
+        """
+        # Histogram
+        domain = (np.min(samples), np.max(samples))
+        self.adjust_domain(domain)
+        if self.x_lim is not None:
+            self._domain = self.x_lim
+        N = len(samples)
+        print("N samples ", N)
+        bins = self._grid(int(0.5 * np.sqrt(N)))
+        self.ax_pdf.hist(samples, density=True, color='red', bins=bins, alpha=0.3)
+
+        # Ecdf
+        # X = np.sort(samples)
+        # Y = (np.arange(len(X)) + 0.5) / float(len(X))
+        # X, Y = make_monotone(X, Y)
+        # if self.ax_cdf is not None:
+        #     self.ax_cdf.plot(X, Y, ':', color='midnightblue', label="ecdf")
+
+        # PDF approx as derivative of Bspline CDF approx
+        # size_8 = int(N / 8)
+        # w = np.ones_like(X)
+        # w[:size_8] = 1 / (Y[:size_8])
+        # w[N - size_8:] = 1 / (1 - Y[N - size_8:])
+        # spl = interpolate.UnivariateSpline(X, Y, w, k=3, s=1)
+        # sX = np.linspace(domain[0], domain[1], 1000)
+        # if self._reg_param == 0:
+        #     self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4, label="derivative of Bspline CDF")
+
+    def add_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0, color=None, line_style=None):
+        """
+        Add plot for distribution 'distr_object' with given label.
+        :param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain
+        :param label: string label for legend
+        :return:
+        """
+        self._reg_param = reg_param
+
+        # if label is None:
+        #     label = "size {}".format(distr_object.moments_fn.size)
+        domain = distr_object.domain
+        self.adjust_domain(domain)
+        d_size = domain[1] - domain[0]
+        slack = 0  # 0.05
+        extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
+        X = self._grid(10000, domain=domain)
+
+        line_styles = ['-', ':', '-.', '--']
+        plots = []
+
+        Y_pdf = distr_object.density(X)
+
+        if line_style is None:
+            line_style = "-"
+
+        if color is None:
+            color = self.pdf_color
+
+        self.ax_pdf.plot(X, Y_pdf, color=color, label=label, linestyle=line_style)
+        Y_cdf = distr_object.cdf(X)
+
+        # if self.ax_cdf is not None:
+        #     if line_style is None:
+        #         line_style = "-"
+        #     if color is None:
+        #         color = self.cdf_color
+        #     self.ax_cdf.plot(X, Y_cdf, color=color, linestyle=line_style)
+        #     #self._plot_borders(self.ax_cdf, self.cdf_color, domain)
+        self.i_plot += 1

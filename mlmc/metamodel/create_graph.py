@@ -2,7 +2,6 @@ import os
 import os.path
 import numpy as np
 import networkx as nx
-#import matplotlib.pyplot as plt
 from mlmc.tool import gmsh_io
 from mlmc.tool.hdf5 import HDF5
 from spektral.data import Graph
@@ -108,6 +107,7 @@ def create_adjacency_matrix(ele_nodes):
 
 
 def plot_graph(adjacency_matrix):
+    import matplotlib.pyplot as plt
     #G = nx.from_scipy_sparse_matrix(adjacency_matrix)
     G = nx.from_numpy_matrix(adjacency_matrix)
     nx.draw_kamada_kawai(G, with_labels=True, node_size=1, font_size=6)

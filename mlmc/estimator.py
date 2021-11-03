@@ -330,7 +330,7 @@ class Estimate:
                                                                      domain=moments_obj.domain)
         result = distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
 
-        return distr_obj, info, result, moments_obj
+        return distr_obj, info, result, moments_obj, moments_mean
 
     def get_level_samples(self, level_id, n_samples=None):
         """

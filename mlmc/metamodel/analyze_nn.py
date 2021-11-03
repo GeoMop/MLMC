@@ -477,6 +477,62 @@ def plot_sse(data_nn, data_mlmc, x_label="ith moment", y_label="MSE", title=""):
     fig.show()
 
 
+def check_loss(config, model, log=True):
+    if model is None:
+        return
+    batch_size = config['batch_size']
+    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log)
+    data = data  # [:10000]
+
+    data.a = config['conv_layer'].preprocess(data.a)
+    data.a = sp_matrix_to_sp_tensor(data.a)
+
+    train_data_len = config["n_train_samples"]
+
+    idx = 1
+    data_tr = data[idx * train_data_len: idx * train_data_len + train_data_len]
+    data_te = data.get_test_data(idx, train_data_len)
+
+    print("len(datate) ", len(data_te))
+    print("batch size ", batch_size)
+
+    loader_tr = MixedLoader(data_tr, batch_size=batch_size)
+    loader_te = MixedLoader(data_te, batch_size=batch_size)
+
+
+    train_targets, train_predictions = model_predict(model, loader_tr)
+    train_predictions = np.squeeze(train_predictions)
+
+    test_targets, test_predictions = model_predict(model, loader_te)
+    test_predictions = np.squeeze(test_predictions)
+
+    train_MSE = np.mean((train_predictions - train_targets) ** 2)
+    test_MSE = np.mean((test_predictions - test_targets) ** 2)
+
+    print("train MSE: {}, test MSE: {}".format(train_MSE, test_MSE))
+
+    conv_layers = {}
+    dense_layers = {}
+    flatten_input = []
+    flatten_output = []
+
+
+def model_predict(model, loader):
+    targets = []
+    predictions = []
+    step = 0
+    for batch in loader:
+        step += 1
+        inputs, target = batch
+        targets.extend(target)
+        predictions.extend(model(inputs, training=False))
+
+        if step == loader.steps_per_epoch:
+            return targets, predictions
+
+    return targets, predictions
+
+
 def predict_data(config, model, mesh_file, log=True):
     if model is None:
         return
@@ -489,7 +545,7 @@ def predict_data(config, model, mesh_file, log=True):
 
     # idx = 0
     # data_te = data.get_test_data(idx, train_data_len)
-    data_te = data[:1]
+    data_te = data[-1:]
 
     print("len(datate) ", len(data_te))
     print("batch size ", batch_size)
@@ -518,15 +574,46 @@ def predict_data(config, model, mesh_file, log=True):
             conv_layers[conv_index][2].extend(conv_out)  # outputs
 
         flatten_input = conv_layers[conv_index][2][-1]
-        flatten_output = model.flatten(conv_out)
+        # flatten_output = model.flatten(conv_out)
+        #
+        # print("flatten output ", flatten_output)
+
+        prev_layer_input = conv_out
+        prev_layer = model.flatten
+
+        print("flatten output ", flatten_output)
+        print("model._dense_layers ", model._dense_layers)
 
         for index, dense_layer in enumerate(model._dense_layers):
+            # if index == 1:
+            #     break
+
             if index not in dense_layers:
                 dense_layers[index] = [[], [], []]
 
-            dense_layers[index][0].extend(flatten_output)  # inputs
+            if prev_layer is None:
+                prev_layer = model._dense_layers[index - 1]
+
+            print("dense layer ", dense_layer)
+            print("dense layer ", dense_layer.weights)
+            print("prev layer ", prev_layer)
+            print("prev layer ", prev_layer.weights)
+
+            #
+            # print("prev layer ", prev_layer.weights)
+
+            #print("dense layer kernel", dense_layer.kernel)
+            #print("model.flatten(conv_out) ", model.flatten(conv_out))
+
+            print("prev layer input ", prev_layer_input)
+
+            dense_layers[index][0].extend(prev_layer(prev_layer_input))  # inputs
             dense_layers[index][1].extend(dense_layer.weights)  # weights (kernel)
-            dense_layers[index][2].extend(dense_layer(model.flatten(conv_out)))  # outputs
+            dense_layers[index][2].extend(dense_layer(prev_layer(prev_layer_input)))  # outputs
+
+            prev_layer_input = prev_layer(prev_layer_input)
+
+            prev_layer = None
 
         step += 1
 
@@ -674,7 +761,8 @@ def analyze_statistics(config):
         except:
             model = None
 
-        predict_data(config, model, mesh_file=config["mesh"])
+        #check_loss(config, model)
+        #predict_data(config, model, mesh_file=config["mesh"])
 
         iter_test_MSE = np.mean((predictions - targets) ** 2)
         iter_train_MSE = np.mean((train_predictions - train_targets) ** 2)
@@ -1095,7 +1183,6 @@ def display_vars(mlmc_vars, nn_vars, target_variance, title=""):
     fig.legend()
     fig.savefig("{}.pdf".format(title))
     fig.show()
-
 
 
 def run_GNN(config, stats=True, train=True, log=False, seed=0):
