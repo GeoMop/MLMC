@@ -34,7 +34,7 @@ def corr_field_sample_time(mesh_file=None, corr_length_config=None):
     # from matplotlib import ticker, cm
     #matplotlib.rcParams.update({'font.size': 22})
 
-    if corr_length_config['02_conc']:
+    if corr_length_config.get('02_conc', False):
         return conc_rnd_sample_time(mesh_file, corr_length_config)
 
     dim = 2
