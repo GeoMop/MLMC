@@ -565,13 +565,20 @@ def predict_data(config, model, mesh_file, log=True):
         inputs, target = batch
         x, a = inputs
 
+        print("x ", x)
+
         for conv_index, conv_layer in enumerate(model._conv_layers):
             if conv_index not in conv_layers:
                 conv_layers[conv_index] = [[], [], []]
             conv_layers[conv_index][0].extend(x)  # inputs
+            print("conv_layer.kernel.numpy().shape", conv_layer.kernel.numpy().shape)
             conv_layers[conv_index][1].extend(conv_layer.kernel.numpy())  # weights (kernel)
             conv_out = conv_layer([x, a])
+
+            print("conv out ", conv_out)
             conv_layers[conv_index][2].extend(conv_out)  # outputs
+
+        exit()
 
         flatten_input = conv_layers[conv_index][2][-1]
         # flatten_output = model.flatten(conv_out)
@@ -679,9 +686,9 @@ def analyze_statistics(config):
 
     data_dict = process_data(data_dict)
 
-    print("train predictions type ", type(data_dict["train_predictions"]))
-    print("train predictions type ", type(data_dict["train_predictions"][0]))
-    print("train predictions shape ", np.array(data_dict["train_predictions"]).shape)
+    # print("train predictions type ", type(data_dict["train_predictions"]))
+    # print("train predictions type ", type(data_dict["train_predictions"][0]))
+    # print("train predictions shape ", np.array(data_dict["train_predictions"]).shape)
     # print("train predictions ", data_dict["train_predictions"])
     # print("train predictions as matrix shape", np.asmatrix(np.array(data_dict["train_predictions"])).shape)
 
@@ -728,7 +735,7 @@ def analyze_statistics(config):
         # if i == 3:
         #     break
 
-        print("index ", i)
+        #print("index ", i)
 
         # if i not in [2, 5, 7]:
         #     continue
@@ -1203,7 +1210,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     if graph_creation_time == 0:
         graph_creator_preproces_time = time.process_time()
         graph_creator(config['output_dir'], config['hdf_path'], config['mesh'], level=config['level'],
-                      feature_names=config['feature_names'])
+                      feature_names=config.get('feature_names', [['conductivity']]))
         graph_creation_time = time.process_time() - graph_creator_preproces_time
         print("graph creation time ", graph_creation_time)
         exit()
@@ -1212,6 +1219,11 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     # Load data
     data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log)
     data = data#[:10000]
+
+    # print("n node features ", data.graphs[0].n_node_features)
+    # print("graph x", data.graphs[0].x)
+    # print("graphs[0] ", repr(data.graphs[0]))
+    # exit()
 
     #print("len data ", len(data))
     #data.shuffle(seed=seed)
@@ -1320,7 +1332,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
                                                                         stats=stats,
                                                                         corr_field_config=config['corr_field_config'],
                                                                         seed=seed,
-                                                                        feature_names=config['feature_names']
+                                                                        feature_names=config.get('feature_names', [['conductivity']])
                                                                         )
     #predict_l_0_time = time.process_time() - predict_l_0_start_time
 
@@ -1347,7 +1359,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
 
 def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=1000, log=False, stats=False,
                        corr_field_config=None, seed=1234, feature_names=[]):
-    graph_creator(output_dir, hdf_path, mesh, level=0, feature_names=feature_names)
+    #graph_creator(output_dir, hdf_path, mesh, level=0, feature_names=feature_names)
     # Load data
     sample_time = 0
     if corr_field_config:
@@ -1357,9 +1369,9 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
     #data = data  # [:10000]
     data.shuffle(seed=seed)
     
-    print("output_dir ", output_dir)
-    print("len(data) ", len(data))
-    print("data[0] ", data[0])
+    # print("output_dir ", output_dir)
+    # print("len(data) ", len(data))
+    # print("data[0] ", data[0])
     
     predict_time_start = time.process_time()
     data.a = conv_layer.preprocess(data.a)

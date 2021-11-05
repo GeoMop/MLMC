@@ -63,7 +63,7 @@ def get_gnn():
                     "net_model_config": net_model_config,
                     "verbose": True}
 
-    corr_field_config = {'corr_length': 0.1, 'sigma': 1, 'log': True}
+    corr_field_config = {'02_conc': True, 'corr_length': 0.1, 'sigma': 1, 'log': True}
 
     return GNN, conv_layer, corr_field_config, model_config
 
@@ -519,7 +519,7 @@ if __name__ == "__main__":
     args = get_arguments(sys.argv[1:])
     data_dir = args.data_dir
     work_dir = args.work_dir
-    case = 12
+    case = 14
     #data_dir = "/home/martin/Documents/metamodels/data/1000_ele/"
     output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file,\
     replace_level, nn_level, mlmc_hdf_path, feature_names = get_config(data_dir, case)
@@ -632,6 +632,8 @@ if __name__ == "__main__":
 
     machine_learning_model = ("test_02_conc", run_GNN, False)
 
+    #machine_learning_model = ("L1_1_02_conc_cond", run_GNN, False)
+
     #machine_learning_model = ("mesh_L3_log_50k_weights_test_dense", run_GNN, False)
 
     #machine_learning_model = ("mesh_L3_log_sigmoid", run_GNN, False) # ReLU is much better
@@ -643,11 +645,11 @@ if __name__ == "__main__":
 
     print("save path ", save_path)
 
-
+    # 02 proc times
     # graph creation time: 2 features: 61 sec
     #                       conductivity: 43 sec
     #                       porosity: 40 sec
-    graph_creation_time = 43#25#11#22#159#0#159#66
+    graph_creation_time = 60#25#11#22#159#0#159#66
 
     config = {'machine_learning_model': machine_learning_model,
               'save_path': save_path,

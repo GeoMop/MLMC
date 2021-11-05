@@ -2,12 +2,41 @@ import time
 import numpy as np
 from mlmc.tool import gmsh_io
 from mlmc.tool.flow_mc import FlowSim, create_corr_field
+from mlmc.tool.flow_mc_2 import FlowSimProcConc
+from mlmc.tool.flow_mc_2 import create_corr_field as conc_create_corr_fields
+import gstools
+from mlmc.random import correlated_field as cf
+
+
+def conc_rnd_sample_time(mesh_file, corr_field_config):
+
+    start_time = time.process_time()
+    mesh_data = FlowSim.extract_mesh(mesh_file)
+
+    fields = conc_create_corr_fields(dim=2, log=corr_field_config["log"], mode_no=10000)
+
+    n_samples = 200
+    for i in range(n_samples):
+        fields.set_points(mesh_data['points'], mesh_data['point_region_ids'],
+                          mesh_data['region_map'])
+
+        fine_input_sample, coarse_input_sample = FlowSimProcConc.generate_random_sample(fields, coarse_step=0,
+                                                                                n_fine_elements=len(
+                                                                                    mesh_data['points']))
+
+    rnd_time = time.process_time() - start_time
+    print("rnd_time / n_samples ", rnd_time / n_samples)
+    return rnd_time / n_samples
 
 
 def corr_field_sample_time(mesh_file=None, corr_length_config=None):
     # import matplotlib
     # from matplotlib import ticker, cm
     #matplotlib.rcParams.update({'font.size': 22})
+
+    if corr_length_config['02_conc']:
+        return conc_rnd_sample_time(mesh_file, corr_length_config)
+
     dim = 2
     log = True
     cl = 0.1

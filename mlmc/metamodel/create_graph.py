@@ -94,7 +94,7 @@ def get_node_features(fields_mesh, feature_names):
 
         features.append(list(joint_features.values()))
 
-    return features
+    return np.array(features).T
 
 
 def join_fields(fields, f_names):

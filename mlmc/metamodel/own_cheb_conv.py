@@ -204,9 +204,9 @@ def normalized_adjacency(A, symmetric=True):
     :return: the normalized adjacency matrix.
     """
     if symmetric:
-        print("symmetric")
+        #print("symmetric")
         normalized_D = degree_power(A, -0.5)
-        print("normalized D")
+        #print("normalized D")
         return normalized_D.dot(A).dot(normalized_D)
     else:
         normalized_D = degree_power(A, -1.0)
