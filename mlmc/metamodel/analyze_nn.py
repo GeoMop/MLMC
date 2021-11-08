@@ -349,7 +349,7 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
 
 
 def statistics(config):
-    n_subsamples = 2
+    n_subsamples = 15
 
     model_title, mch_l_model, log = config['machine_learning_model']
     model_data = {}
