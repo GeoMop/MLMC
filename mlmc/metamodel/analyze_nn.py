@@ -4,8 +4,7 @@ import time
 import glob
 import copy
 import pickle
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
+#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
 from mlmc.metamodel.flow_dataset import FlowDataset
 from mlmc.metamodel.create_graph import graph_creator
 from mlmc.moments import Legendre_tf, Monomial
@@ -31,6 +30,7 @@ from spektral.utils.sparse import sp_matrix_to_sp_tensor
 
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 epochs = 100
+
 
 def prepare_data(data):
     data = np.squeeze(np.stack(data.to_numpy(), axis=0))
