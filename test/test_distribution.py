@@ -490,7 +490,7 @@ class DistributionDomainCase:
 
         # noise_levels = [1e-4, 1e-5, 1e-6, 1e-8, 1e-10, 1e-12]
 
-        noise_levels = [1e-3]
+        noise_levels = [1e-5]
         noise_level = 0
         tol_exact_moments = 1e-15
         tol_exact_cov = 1e-15
@@ -502,7 +502,7 @@ class DistributionDomainCase:
         distr_plot = plot.Distribution(exact_distr=self.restrict_distr, title=self.title + "_inexact", cdf_plot=False,
                                        log_x=self.log_flag, error_plot=False)
 
-        dir_name = "KL_div_inexact_{}".format(orth_method)
+        dir_name = "KL_div_inexact_{}_{}".format(orth_method, noise_levels[0])
         if not os.path.exists(dir_name):
             os.mkdir(dir_name)
         # else:
@@ -570,12 +570,11 @@ class DistributionDomainCase:
             L = None
 
             # # Change base
-            tol = noise_level ** 2
-            # tol = None
+            tol = noise_level
+            #tol = None
             self.moments_fn, info, _ = mlmc.tool.simple_distribution.construct_orthogonal_moments(base_moments, cov,
                                                                                                   tol,
                                                                                                   orth_method=orth_method)
-
             # Tests
             original_evals, evals, threshold, L = info
             # eye_approx = L @ exact_cov @ L.T
@@ -620,13 +619,10 @@ class DistributionDomainCase:
                 # print("self it mom shape ", it_mom.shape)
                 # print("(self.exact_moments[:n_moments] - it_mom) ", (self.exact_moments[:n_moments] - it_mom))
 
-                aux_m = moments_data[:, 0] - iteration.moments_by_quad
-                L_inv = np.linalg.pinv(L)
-                # print("moments data ", moments_data)
-                # print("it mom ", it_mom)
-                # print("moments_data[:, 0] - it_mom shape ", aux_m.shape)
-                # print("L_inv shape ", L_inv.shape)
-                res = np.matmul(L_inv, aux_m)
+                res = moments_data[:, 0] - iteration.moments_by_quad
+                if L is not None:
+                    L_inv = np.linalg.pinv(L)
+                    res = np.matmul(L_inv, res)
                 # print("res ", res)
                 # print("sum res**2 ", np.sum(res**2))
                 # print("np.sum((moments_data[:, 0] - it_mom) ** 2 ", np.sum((moments_data[:, 0] - it_mom) ** 2))
@@ -859,6 +855,7 @@ def test_pdf_approx_exact_moments(moments, distribution):
         values[1].append(test_results)
 
     return name, dir_name
+
 
 @pytest.mark.skip
 def test_gauss_degree(moments, distr, plot_requirements, degrees=[100]):

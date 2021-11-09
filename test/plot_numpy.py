@@ -216,11 +216,11 @@ def plot_KL_div_inexact_precond_no_precond(precond_dir_name=None, no_precond_dir
                    "abyss": "Abyss",
                    'zero-value': "ZeroValue",
                    }
-
-    dir_name = "/home/martin/Documents/MLMC_article/test/inexact_precond_data_L/KL_div_inexact_2"
+    noise = 1e-5
+    dir_name = "/home/martin/Documents/MLMC_article/test/inexact_precond_data_L_{}/KL_div_inexact_2".format(noise)
 
     if no_precond_dir_name is None:
-        no_precond_dir_name = "/home/martin/Documents/MLMC_article/test/inexact_precond_data_L/KL_div_inexact_6"
+        no_precond_dir_name = "/home/martin/Documents/MLMC_article/test/inexact_precond_data_L_{}/KL_div_inexact_6".format(noise)
 
     if precond_dir_name is not None:
         dir_name = precond_dir_name
@@ -231,7 +231,7 @@ def plot_KL_div_inexact_precond_no_precond(precond_dir_name=None, no_precond_dir
     kl_div_mom_err_plot = plot.KL_div_mom_err(title="densities", x_label=r'$|\mu - \hat{\mu}|^2$',
                                               y_label=r'$D(\rho_{35} \Vert \hat{\rho}_{35})$')
 
-    iter_plot = plot.Iterations(title="mu_err_iterations", x_label="iteration step m",
+    iter_plot = plot.IterationsComparison(title="mu_err_iterations", x_label="iteration step m",
                                 y_label=r'$\sum_{k=1}^{M}(\mu_k - \mu_k^{m})^2$', x_log=False)
 
     max_values = []
@@ -313,5 +313,6 @@ def plot_KL_div_inexact_precond_no_precond(precond_dir_name=None, no_precond_dir
 
 
 if __name__ == "__main__":
-    plot_KL_div_exact_iter()
+    # plot_KL_div_exact_iter()
     plot_KL_div_inexact_iter()
+    plot_KL_div_inexact_precond_no_precond()

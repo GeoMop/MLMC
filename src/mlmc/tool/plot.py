@@ -6,6 +6,7 @@ matplotlib.rcParams.update({'font.size': 22})
 from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, FixedLocator
+from matplotlib.patches import Rectangle, RegularPolygon, FancyBboxPatch
 
 
 def create_color_bar(range, label, ax=None):
@@ -3103,6 +3104,202 @@ class Iterations:
         legend._init_legend_box(handles, labels)
         legend._set_loc(legend._loc)
         legend.set_title(legend.get_title().get_text())
+
+class IterationsComparison():
+
+    def __init__(self, title, x_label, y_label, x_log=True):
+        label_fontsize = 20
+        marker_size = 75
+
+        matplotlib.rcParams.update({'font.size': label_fontsize})
+
+        self.kl_divs = []
+        self.mom_errs = []
+        self.densities = []
+        self.data = []
+        self.data_2 = []
+        self.iter_data = []
+        self.title = title
+        self.colormap = ["b", "g", "r", "c", "m", "y"]#plt.cm.tab20
+        self.i_plot = 0
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(12, 10))
+        self.fig_iter, self.ax_iter = plt.subplots(1, 1, figsize=(12, 10))
+
+        self.markers = ["o", "v", "s", "p", "X", "D"]
+        self.markers = ["o", "o", "o", "o", "o", "o"]
+        self.markers_2 = ["v", "v", "v", "v", "v", "v"]
+
+        if x_log:
+            self.ax.set_xscale('log')
+
+        self.ax.set_yscale('log')
+
+        self.ax.set_ylim(bottom=1e-16)
+
+        self.ax.set_xlabel(x_label, size=label_fontsize)
+        self.ax.set_ylabel(y_label, size=label_fontsize)
+
+        self.ax_iter.set_xscale('log')
+
+        self.ax_iter.set_xlabel(r'$\sigma$', size=label_fontsize)
+        self.ax_iter.set_ylabel('počet iterací', size=label_fontsize)
+
+        self.constants = []
+        self.const_plot = False
+        self.inexact_constr = []
+        self.truncation_errors = []
+
+    def add_truncation_error(self, trunc_err):
+        self.truncation_errors.append(trunc_err)
+
+    def add_ininity_norm(self, constants):
+        self.constants = constants
+
+    def add_inexact_constr(self, constants):
+        self.inexact_constr.append(constants)
+
+    def add_values(self, mom_err, mom_err_2, label):
+        self.data.append((mom_err, label))
+        self.data_2.append((mom_err_2, label))
+
+    def add_iters(self, iter_x, iterations, failed_iter_x, failed_iterations):
+        self.iter_data.append((iter_x, iterations, failed_iter_x, failed_iterations))
+
+    def plot_values(self):
+
+        for index, (mom_err, label) in enumerate(self.data):
+            col = self.colormap[index]
+            x = range(1, len(mom_err)+1)
+            self.ax.plot(x, mom_err, color=col, marker=self.markers[index], label=label)
+
+            if self.data_2[index][0] is not None:
+                x_2 = range(1, len(self.data_2[index][0]) + 1)
+                self.ax.plot(x_2, self.data_2[index][0], color=col, marker=self.markers_2[index], linestyle=":", label=label)
+
+#             print("self truncation errors ", self.truncation_errors)
+#
+#             if len(self.truncation_errors) > 0:
+#                 self.ax.axhline(y=self.truncation_errors[index], color=col)
+#
+#             print("kl div ", kl_div)
+#             print("mom erro ", mom_err)
+#
+#             print("self iter data ", self.iter_data)
+#
+#             iter_x, iterations, failed_iter_x, failed_iterations = self.iter_data[index]
+#
+#             # print("len iter_x ", len(iter_x))
+#             # print("len mom err ", len(mom_err))
+#             #
+#             # print("mom err ", mom_err)
+#             # print("iter x ", iter_x)
+#             # print("failed_iter_x ", failed_iter_x)
+#             #print("iter x ", np.array(iter_x)**2)
+#             #print("failed_iter_x ", np.array(failed_iter_x)**2)
+#
+#             self.ax_iter.scatter(np.array(iter_x), iterations, color=col, marker=self.markers[index], label=density,
+#                                  s=marker_size)
+#
+#             print("failed iter x ", failed_iter_x)
+#             if len(failed_iterations) > 0:
+#                 self.ax_iter.scatter(np.array(failed_iter_x), failed_iterations, color="black", marker=self.markers[index],
+#                                      s=marker_size)
+#
+#             if len(self.constants) > 0 and not self.const_plot:
+#                 print("self.constants[index] ", self.constants)
+#
+#                 self.ax.plot(mom_err, self.constants, color="black", marker=self.markers[index], label="C_R",
+# )
+#                 self.const_plot =True
+#
+#             if len(self.inexact_constr) > 0:
+#                 print("self.constants[index] ", self.constants)
+#                 self.ax.plot(mom_err, self.inexact_constr[index], color="black", marker=self.markers[index], label="C_R",
+#               )
+
+    def show(self):
+        self.plot_values()
+        legend = self.ax.legend()
+
+        self.custom_legend(legend)
+
+        if len(self.truncation_errors) > 0:
+            self.add_patch_trun_err(legend)
+
+        leg = self.ax_iter.legend()
+        self.add_patch(leg)
+        print("self title ", self.title)
+
+        file = self.title + ".pdf"
+        self.fig.show()
+        self.fig.savefig(file)
+
+        file = self.title + "_iter.pdf"
+        self.fig_iter.show()
+        self.fig_iter.savefig(file)
+
+    def custom_legend(self, legend):
+        ax = legend.axes
+        from matplotlib.lines import Line2D
+
+        handles, labels = ax.get_legend_handles_labels()
+
+        print("handles ", handles)
+        print("labels ", labels)
+
+
+        new_handles = []
+        new_labels = []
+
+        for handle, label in zip(handles[0::2], labels[0::2]):
+            new_handles.append(RegularPolygon([0, 1], numVertices=2, radius=0.25, color=handle.get_color()))
+            new_labels.append(label)
+
+            print("handle ", handle)
+            print("type handle ", type(handle))
+            print("color handle ", handle.get_color())
+            print("label ", label)
+
+
+        handles = [Line2D([0, 1], [0, 1], color="black", marker=self.markers[0]),
+                   Line2D([0, 1], [0, 1], color="black", marker=self.markers_2[0], linestyle=":")] + new_handles
+        labels = ['precond', 'no precond'] + new_labels
+
+
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
+
+
+    def add_patch_trun_err(self, legend):
+        from matplotlib.patches import Patch
+        ax = legend.axes
+        from matplotlib.lines import Line2D
+
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(Line2D([0, 1], [0, 1], color="black"))
+        labels.append(r'$D(\rho \Vert \rho_{35})$')
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
+
+    def add_patch(self, legend):
+        from matplotlib.patches import Patch
+        ax = legend.axes
+
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(Patch(facecolor='black'))
+        labels.append("selhání řešiče")
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
+
 
 
 class KL_divergence:
