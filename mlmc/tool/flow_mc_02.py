@@ -14,7 +14,7 @@ from mlmc.quantity.quantity_spec import QuantitySpec
 from mlmc.random import correlated_field as cf
 
 
-def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1, mode_no=1000):
+def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, por_sigma=1, mode_no=1000):
     """
     Create random fields
     :return:
@@ -31,7 +31,7 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
     # print("por top ", por_top)
 
     por_top = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2,  len_scale=0.2),
-                                               log=log, mean=-1.0, sigma=1.0, mode_no=mode_no)
+                                               log=log, mean=-1.0, sigma=por_sigma, mode_no=mode_no)
 
     #print("por top gstools ", por_top_gstools)
 
@@ -45,7 +45,7 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
     # )
 
     por_bot = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2, len_scale=0.2),
-                                               log=log, mean=-1.0, sigma=1.0, mode_no=mode_no)
+                                               log=log, mean=-1.0, sigma=por_sigma, mode_no=mode_no)
 
     #por_bot = gstools.Gaussian(dim=dim,  len_scale=0.2, mu=-1.0, sigma=1.0, log=True)
 
@@ -243,7 +243,7 @@ class FlowSimProcConc(Simulation):
         config['fields_params'] = self._fields_params
 
         # Auxiliary parameter which I use to determine task_size (should be from 0 to 1, if task_size is above 1 then pbs job is scheduled)
-        job_weight = 17000000  # 4000000 - 20 min, 2000000 - cca 10 min
+        job_weight = 170000  # 4000000 - 20 min, 2000000 - cca 10 min
 
         return LevelSimulation(config_dict=config,
                                task_size=len(fine_mesh_data['points']) / job_weight,
@@ -272,7 +272,7 @@ class FlowSimProcConc(Simulation):
         extract_mesh_start = time.time()
         # Extract fine mesh
         fine_common_files_dir = config["fine"]["common_files_dir"]  # Directory with fine simulation common files
-        fine_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(fine_common_files_dir, FlowSim.MESH_FILE))
+        fine_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(fine_common_files_dir, FlowSimProcConc.MESH_FILE))
 
         # Extract coarse mesh
         coarse_mesh_data = None
@@ -280,7 +280,7 @@ class FlowSimProcConc(Simulation):
         if coarse_step != 0:
             coarse_common_files_dir = config["coarse"][
                 "common_files_dir"]  # Directory with coarse simulation common files
-            coarse_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(coarse_common_files_dir, FlowSim.MESH_FILE))
+            coarse_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(coarse_common_files_dir, FlowSimProcConc.MESH_FILE))
 
         extract_mesh_time = time.time() - extract_mesh_start
         times['extract_mesh'] = extract_mesh_time
@@ -370,14 +370,16 @@ class FlowSimProcConc(Simulation):
         #          "-o", os.getcwd(), ">{}/flow.out".format(os.getcwd())]
 
         #try:
+        st = time.time()
         subprocess.call(
             [flow123d, "--yaml_balance", '-i', os.getcwd(), '-s', "{}/02_conc.yaml".format(common_files_dir),
              "-o", os.getcwd(), ">{}/flow.out".format(os.getcwd())])
+        end = time.time() - st
         # except:
         #     import sys
         #     print(sys.exc_info())
 
-        return FlowSimProcConc._extract_result(os.getcwd())
+        return FlowSimProcConc._extract_result(os.getcwd()), end
 
     @staticmethod
     def generate_random_sample(fields, coarse_step, n_fine_elements):
