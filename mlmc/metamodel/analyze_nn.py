@@ -1249,7 +1249,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
 
     preprocess_start_time = time.process_time()
     # Load data
-    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log)
+    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config)
     data = data#[:10000]
 
     # print("n node features ", data.graphs[0].n_node_features)
@@ -1364,7 +1364,8 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
                                                                         stats=stats,
                                                                         corr_field_config=config['corr_field_config'],
                                                                         seed=seed,
-                                                                        feature_names=config.get('feature_names', [['conductivity']])
+                                                                        feature_names=config.get('feature_names', [['conductivity']]),
+                                                                        config=config
                                                                         )
     #predict_l_0_time = time.process_time() - predict_l_0_start_time
 
@@ -1390,14 +1391,14 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
 
 
 def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=1000, log=False, stats=False,
-                       corr_field_config=None, seed=1234, feature_names=[]):
+                       corr_field_config=None, seed=1234, feature_names=[], config=None):
     #graph_creator(output_dir, hdf_path, mesh, level=0, feature_names=feature_names)
     # Load data
     sample_time = 0
     if corr_field_config:
         sample_time = corr_field_sample_time(mesh, corr_field_config)
 
-    data = FlowDataset(output_dir=output_dir, log=log)#, mesh=mesh, corr_field_config=corr_field_config)
+    data = FlowDataset(output_dir=output_dir, log=log, config=config)#, mesh=mesh, corr_field_config=corr_field_config)
     #data = data  # [:10000]
     data.shuffle(seed=seed)
     
