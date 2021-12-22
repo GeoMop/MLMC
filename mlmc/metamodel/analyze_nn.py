@@ -698,6 +698,7 @@ def analyze_statistics(config):
 
     data_dict = process_data(data_dict)
 
+
     # print("train predictions type ", type(data_dict["train_predictions"]))
     # print("train predictions type ", type(data_dict["train_predictions"][0]))
     # print("train predictions shape ", np.array(data_dict["train_predictions"]).shape)
@@ -815,9 +816,10 @@ def analyze_statistics(config):
                                                                                  mlmc_hdf_file=config['mlmc_hdf_path'],
                                                                                  stats=True,
                                                                                  learning_time=learning_time,
-                                                                                 dataset_config=config.get("dataset_config", {}))
+                                                                                 dataset_config=data_dict.get("dataset_config", {}))
         # except:
         #      continue
+
 
         mlmc_n_collected_all.append(mlmc_n_collected)
         nn_n_collected_all.append(nn_mlmc_n_collected)

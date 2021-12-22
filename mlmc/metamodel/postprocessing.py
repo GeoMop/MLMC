@@ -70,17 +70,12 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
     # cut_original_test(nn_hdf_file)
     # exit()
 
-    output_mult_factor = 1
-    output_mult_factor = 1
-    #output_mult_factor = 1437603411 # 02_conc_cond
-    output_mult_factor = 1521839229.4794111 # rascale log (case_1)
-    #output_mult_factor = -15.580288536 # cl_0_1_s_1
-    #output_mult_factor = 1.0386  # cl_0_1_s_1 rescale log (case_1)
-
-    targets = np.exp(targets)
-    predictions = np.exp(predictions)
-    l_0_predictions = np.exp(l_0_predictions)
-    l_0_targets = np.exp(l_0_targets)
+    output_mult_factor = dataset_config.get('output_mult_factor', 1)
+    if dataset_config.get('output_log', False):
+        targets = np.exp(targets)
+        predictions = np.exp(predictions)
+        l_0_predictions = np.exp(l_0_predictions)
+        l_0_targets = np.exp(l_0_targets)
 
     if mlmc_hdf_file is None:
         mlmc_hdf_file = nn_hdf_file
