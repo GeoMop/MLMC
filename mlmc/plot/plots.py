@@ -1791,7 +1791,8 @@ class ArticleDistributionPDF(Distribution):
     Provides methods to: add more plots, add exact PDF, add ECDF/histogram from single level MC
     """
     def __init__(self, exact_distr=None, title="", quantity_name="Y", legend_title="",
-                 log_density=False, cdf_plot=False, log_x=False, error_plot='l2', reg_plot=False, multipliers_plot=True):
+                 log_density=False, cdf_plot=False, log_x=False, error_plot='l2', reg_plot=False, multipliers_plot=True,
+                 set_x_lim=True):
         """
         Plot configuration
         :param exact_distr:  Optional exact domain (for adding to plot and computing error)
@@ -1853,12 +1854,12 @@ class ArticleDistributionPDF(Distribution):
         #     if self._log_x:
         #         self.ax_cdf.set_xscale('log')
 
-        self.x_lim = [0, 2.6]
+        if set_x_lim:
+            self.x_lim = [0, 2.6]
+            #self.x_lim = [0, 5]
+            self.x_lim = [0, 2.5]
 
-        #self.x_lim = [0, 5]
-        self.x_lim = [0, 2.5]
-
-        self.ax_pdf.set_xlim(*self.x_lim)
+            self.ax_pdf.set_xlim(*self.x_lim)
         #self.ax_cdf.set_xlim(*self.x_lim)
 
         # """adjust ax2 ylimit so that v2 in ax2 is aligned to v1 in ax1"""

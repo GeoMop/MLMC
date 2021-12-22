@@ -349,7 +349,7 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
 
 
 def statistics(config):
-    n_subsamples = 2
+    n_subsamples = 1
 
     model_title, mch_l_model, log = config['machine_learning_model']
     model_data = {}
@@ -361,6 +361,12 @@ def statistics(config):
 
     if not os.path.isdir(config['save_path']):
         os.makedirs(config['save_path'])
+
+        # Save config to Pickle
+        import pickle
+        # create a binary pickle file
+        with open(os.path.join(config['save_path'], "dataset_config.pkl"), "wb") as writer:
+            pickle.dump(config.get("dataset_config", {}), writer)
     else:
         print("dir exists {}".format(config['save_path']))
         exit()
@@ -456,6 +462,14 @@ def load_statistics(dir_path):
             #     exit()
 
             models_data[file_name].append(np.load(file, allow_pickle=True))
+
+    if os.path.exists(os.path.join(dir_path, "dataset_config.pkl")):
+        # Save config to Pickle
+        import pickle
+        # create a binary pickle file
+        with open(os.path.join(dir_path, "dataset_config.pkl"), "rb") as reader:
+            dataset_config = pickle.load(reader)
+            models_data["dataset_config"] = dataset_config
 
     return models_data
 
@@ -577,8 +591,6 @@ def predict_data(config, model, mesh_file, log=True):
 
             print("conv out ", conv_out)
             conv_layers[conv_index][2].extend(conv_out)  # outputs
-
-        exit()
 
         flatten_input = conv_layers[conv_index][2][-1]
         # flatten_output = model.flatten(conv_out)
@@ -730,14 +742,16 @@ def analyze_statistics(config):
     orth_nn_means_mse = []
 
     limit = 100  # 0.008#0.01#0.0009
+    #limit = 0.37
 
     for i in range(len(data_dict["test_targets"])):
-        # if i == 3:
+        print("index i ", i)
+        # if i == 1:
         #     break
 
         #print("index ", i)
 
-        # if i not in [2, 5, 7]:
+        # if i not in [2, 3, 4]:
         #     continue
 
         # if i in [2, 11, 12]:
@@ -800,7 +814,8 @@ def analyze_statistics(config):
                                                                                  replace_level=config['replace_level'],
                                                                                  mlmc_hdf_file=config['mlmc_hdf_path'],
                                                                                  stats=True,
-                                                                                 learning_time=learning_time)
+                                                                                 learning_time=learning_time,
+                                                                                 dataset_config=config.get("dataset_config", {}))
         # except:
         #      continue
 
@@ -862,6 +877,9 @@ def analyze_statistics(config):
     moments_plot.show(None)
 
     display_vars(mlmc_vars, nn_vars, target_variance=target_variance)
+
+
+    print("mlmc l vars list ", mlmc_l_vars)
 
     print("mlmc l vars ", np.mean(mlmc_l_vars, axis=0))
     print("nn l vars ", np.mean(nn_l_vars, axis=0))
@@ -1107,6 +1125,13 @@ def analyze_statistics(config):
     print("train MSE ", np.mean(train_MSE))
     # print("train MSE sqrt var", np.sqrt(np.var(train_MSE)))
     # print("train MSE std", np.std(train_MSE))
+
+    # output_mult_factor = 1437603411
+    # print("orig train MSE ", train_MSE)
+    # train_MSE = np.array(train_MSE) * output_mult_factor
+    # print("train MSE ", train_MSE)
+    # test_MSE = np.array(test_MSE) * output_mult_factor
+
     print("train MSE ", train_MSE)
     print("stats.sem(train_MSE) ", stats.sem(train_MSE))
     print("test MSE ", np.mean(test_MSE))
@@ -1119,8 +1144,15 @@ def analyze_statistics(config):
     print("nn total time ", nn_total_time)
     print("mlmc total time ", mlmc_total_time)
 
+    print("KL mlmc ", np.mean(kl_mlmc_all))
+    print("KL nn ", np.mean(kl_nn_all))
+
+    print("mean learning time ", np.mean(learning_times))
+    print("max learning time ", np.max(learning_times))
+
     print("######################################")
     return train_MSE, test_MSE, np.mean(all_train_RSE), np.mean(all_test_RSE)
+
 
 def plot_sse(data_nn, data_mlmc, x_label="ith moment", y_label="MSE", title=""):
     import matplotlib

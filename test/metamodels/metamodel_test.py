@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import warnings
-#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
 import sys
 import shutil
 import subprocess
@@ -16,6 +16,7 @@ from mlmc.metamodel.custom_methods import abs_activation, MSE_moments
 from tensorflow.keras import Model
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
+from tensorflow.keras import regularizers
 from spektral.layers import GlobalSumPool, GlobalMaxPool, GlobalAvgPool
 import tensorflow as tf
 from mlmc.plot import plots
@@ -75,7 +76,7 @@ class Net(Model):
 
         # self.normalizer = normalizer
         # self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
-        self._conv_layers = [conv_layer(8, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)]#,
+        self._conv_layers = [conv_layer(8, K=4, activation=hidden_activation, kernel_regularizer=kernel_regularization)]#,
                              #conv_layer(64, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)]
         # self.conv3 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv4 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
@@ -257,38 +258,39 @@ def get_config(data_dir, case=0):
     elif case == 12:  # mesh size comparison
         data_dir = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/"
         # cl = "cl_0_1_s_1"
-        level = 1
+        level = 3
         nn_level = 0
         replace_level = False
         mesh = os.path.join(data_dir, "l_step_1.0_common_files/repo.msh")  # L1, 7s
-        # mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/repo.msh".format(cl)) #L2 10.5 s
-        # mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl)) #L3 12s
-        # mesh = os.path.join(data_dir, "l_step_0.020196309484414757_common_files/mesh.msh".format(cl)) #L4  22s
-        # mesh = os.path.join(data_dir, "l_step_0.0055_common_files/mesh.msh".format(cl)) #L5
+        #mesh = os.path.join(data_dir, "l_step_0.3760603093086394_common_files/repo.msh") #L2 10.5 s
+        mesh = os.path.join(data_dir, "l_step_0.1414213562373095_common_files/repo.msh") #L3 12s
+        #mesh = os.path.join(data_dir, "l_step_0.053182958969449884_common_files/repo.msh")  # L4
         output_dir = os.path.join(data_dir, "L1_{}/test/02_conc/output/".format(level))
         hdf_path = os.path.join(data_dir, "L1_{}/mlmc_1.hdf5".format(level))
-        mlmc_hdf_path = os.path.join(data_dir, "/mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
+        mlmc_hdf_path = os.path.join(data_dir, "mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
         save_path = data_dir
         l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}/test/02_conc/output/".format(level))
         l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}/mlmc_1.hdf5".format(level))
         sampling_info_path = os.path.join(data_dir, "sampling_info")
+
+        #ref_mlmc_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/L1_3/mlmc_1.hdf5"
+        #ref_mlmc_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/L1_1/mlmc_1.hdf5"
         ref_mlmc_file = os.path.join(data_dir, "L1_benchmark/mlmc_1.hdf5")
+
         feature_names = [['conductivity_top', 'conductivity_bot', 'conductivity_repo']]
 
     elif case == 13:  # mesh size comparison
         data_dir = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_por/"
         # cl = "cl_0_1_s_1"
-        level = 1
+        level = 3
         nn_level = 0
         replace_level = False
         mesh = os.path.join(data_dir, "l_step_1.0_common_files/repo.msh")  # L1, 7s
-        # mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/repo.msh".format(cl)) #L2 10.5 s
-        # mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl)) #L3 12s
-        # mesh = os.path.join(data_dir, "l_step_0.020196309484414757_common_files/mesh.msh".format(cl)) #L4  22s
-        # mesh = os.path.join(data_dir, "l_step_0.0055_common_files/mesh.msh".format(cl)) #L5
+        #mesh = os.path.join(data_dir, "l_step_0.3760603093086394_common_files/repo.msh")  # L2 10.5 s
+        mesh = os.path.join(data_dir, "l_step_0.1414213562373095_common_files/repo.msh") #L3 12s
         output_dir = os.path.join(data_dir, "L1_{}/test/02_conc/output/".format(level))
         hdf_path = os.path.join(data_dir, "L1_{}/mlmc_1.hdf5".format(level))
-        mlmc_hdf_path = os.path.join(data_dir, "/mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
+        mlmc_hdf_path = os.path.join(data_dir, "mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
         save_path = data_dir
         l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}/test/02_conc/output/".format(level))
         l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}/mlmc_1.hdf5".format(level))
@@ -299,28 +301,27 @@ def get_config(data_dir, case=0):
     elif case == 14:  # mesh size comparison
         data_dir = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_2_features/"
         # cl = "cl_0_1_s_1"
-        level = 1
+        level = 3
         nn_level = 0
         replace_level = False
         mesh = os.path.join(data_dir, "l_step_1.0_common_files/repo.msh")  # L1, 7s
-        # mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/repo.msh".format(cl)) #L2 10.5 s
-        # mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl)) #L3 12s
-        # mesh = os.path.join(data_dir, "l_step_0.020196309484414757_common_files/mesh.msh".format(cl)) #L4  22s
-        # mesh = os.path.join(data_dir, "l_step_0.0055_common_files/mesh.msh".format(cl)) #L5
+        #mesh = os.path.join(data_dir, "l_step_0.3760603093086394_common_files/repo.msh")  # L2 10.5 s
+        #mesh = os.path.join(data_dir, "l_step_0.1414213562373095_common_files/repo.msh") #L3 12s
+        mesh = os.path.join(data_dir, "l_step_0.053182958969449884_common_files/repo.msh")  # L3 12s
         output_dir = os.path.join(data_dir, "L1_{}/test/02_conc/output/".format(level))
         hdf_path = os.path.join(data_dir, "L1_{}/mlmc_1.hdf5".format(level))
-        mlmc_hdf_path = os.path.join(data_dir, "/mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
+        mlmc_hdf_path = os.path.join(data_dir, "mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
         save_path = data_dir
         l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}/test/02_conc/output/".format(level))
         l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}/mlmc_1.hdf5".format(level))
         sampling_info_path = os.path.join(data_dir, "sampling_info")
         ref_mlmc_file = os.path.join(data_dir, "L1_benchmark/mlmc_1.hdf5")
 
-
         feature_names = [['conductivity_top', 'conductivity_bot', 'conductivity_repo'],
                          ['porosity_top', 'porosity_bot', 'porosity_repo']]
 
-    return output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file, replace_level, nn_level, mlmc_hdf_path, feature_names
+    return output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file,\
+           replace_level, nn_level, mlmc_hdf_path, feature_names
 
 
 # def plot_results_corr_length():
@@ -519,7 +520,7 @@ if __name__ == "__main__":
     args = get_arguments(sys.argv[1:])
     data_dir = args.data_dir
     work_dir = args.work_dir
-    case = 14
+    case = 12
     #data_dir = "/home/martin/Documents/metamodels/data/1000_ele/"
     output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file,\
     replace_level, nn_level, mlmc_hdf_path, feature_names = get_config(data_dir, case)
@@ -628,28 +629,112 @@ if __name__ == "__main__":
     #machine_learning_model = ("DNN_mesh_L3_6", run_DNN, True)
     machine_learning_model = ("GCN_mesh_L3_log_16", run_GNN, True)
     machine_learning_model = ("mesh_L3_log_test_saved_model", run_GNN, True)
-    machine_learning_model = ("mesh_L3_log_50k_weights_5", run_GNN, True)
+    if case == 7:
+        #machine_learning_model = ("mesh_L3_log_50k_weights", run_GNN, True)
+        machine_learning_model = ("mesh_L3_log_50k", run_GNN, True)
+        machine_learning_model = ("L1_3_cl_0_1_s_1_all_log_output_mult", run_GNN, False)
+        #machine_learning_model = ("L1_3_cl_0_1_s_1_all_log_output_mult_case_1", run_GNN, False)
 
-    machine_learning_model = ("test_02_conc", run_GNN, False)
+    # machine_learning_model = ("test_02_conc", run_GNN, False)
+    #
+    # machine_learning_model = ("L1_1_02_conc_cond_5", run_GNN, False)
+    # # #
+    # machine_learning_model = ("L1_1_02_conc_cond", run_GNN, False)
+    # machine_learning_model = ("L1_1_02_conc_cond_norm", run_GNN, False)
+    # machine_learning_model = ("L1_1_02_conc_cond_norm_output_mult", run_GNN, False)
+    if case == 12:
+        machine_learning_model = ("L1_1_02_conc_cond_norm_output_mult", run_GNN, False)
+        machine_learning_model = ("L1_1_02_conc_cond_output_mult", run_GNN, False)
+        machine_learning_model = ("L1_1_02_conc_cond_norm", run_GNN, False)
 
-    #machine_learning_model = ("L1_1_02_conc_cond", run_GNN, False)
 
-    #machine_learning_model = ("mesh_L3_log_50k_weights_test_dense", run_GNN, False)
+        #machine_learning_model = ("L1_1_02_conc_cond", run_GNN, False)
+        #
+        # #machine_learning_model = ("L1_1_02_conc_cond_all_log_output_mult", run_GNN, False)
+        # #machine_learning_model = ("L1_1_02_conc_cond_features_log_output_mult", run_GNN, False)
+        # machine_learning_model = ("L1_1_02_conc_cond_output_log_output_mult", run_GNN, False)
+        #
+        # #machine_learning_model = ("L1_3_02_conc_cond_test", run_GNN, False)
+        # machine_learning_model = ("L1_3_02_conc_cond_all_log_output_mult", run_GNN, False)
+        machine_learning_model = ("L1_3_02_conc_cond_all_log_output_mult_case_1", run_GNN, False)
+
+
+        #### CASE 1 ####
+        machine_learning_model = ("L1_3_02_conc_cond_features_norm_case_1", run_GNN, False)
+        machine_learning_model = ("L1_3_02_conc_cond_features_norm_mult_output_case_1", run_GNN, False)
+
+        machine_learning_model = ("L1_3_02_conc_cond_output_mult_case_1", run_GNN, False)
+        ### log
+        machine_learning_model = ("L1_3_02_conc_cond_log_features_norm_case_1", run_GNN, False)
+        #machine_learning_model = ("L1_3_02_conc_cond_true_features_norm_mult_output_case_1", run_GNN, False)
+        #machine_learning_model = ("L1_3_02_conc_cond_log_output_mult_case_1", run_GNN, False)
+
+        #machine_learning_model = ("L1_3_02_conc_cond_all_log_output_mult_T1_case_1", run_GNN, False)
+
+        machine_learning_model = ("L1_3_02_conc_cond_log_output_mult_T28_case_1", run_GNN, False)
+
+        #machine_learning_model = ("L1_3_02_conc_cond_log_output_mult_T34_AOF6_case_1", run_GNN, False)
+
+        #machine_learning_model = ("L1_3_test", run_GNN, False)
+
+    if case == 13:
+        machine_learning_model = ("L1_1_02_conc_por_all_log_output_mult", run_GNN, False)
+        machine_learning_model = ("L1_1_02_conc_por_features_log_output_mult", run_GNN, False)
+        machine_learning_model = ("L1_1_02_conc_por_output_log_output_mult", run_GNN, False)
+
+        machine_learning_model = ("L1_1_02_conc_por_test", run_GNN, False)
+
+        machine_learning_model = ("L1_3_02_conc_por_all_log_output_mult", run_GNN, False)
+
+    if case == 14:
+        machine_learning_model = ("L1_1_02_conc_2_features", run_GNN, False)
+        #machine_learning_model = ("L1_1_02_conc_2_features_log", run_GNN, True)
+
+        #machine_learning_model = ("L1_1_02_conc_2_features_log_output_mult", run_GNN, False)
+        machine_learning_model = ("L1_1_02_conc_2_features_all_log_mult_output", run_GNN, False)
+        #machine_learning_model = ("L1_1_02_conc_2_features_output_log_mult_output", run_GNN, False)
+        #machine_learning_model = ("L1_1_02_conc_2_features_features_log_mult_output", run_GNN, False)
+
+        machine_learning_model = ("L1_1_02_conc_2_features_test", run_GNN, False)
+
+        machine_learning_model = ("L1_3_02_conc_2_features_all_log_output_mult", run_GNN, False)
+
+        machine_learning_model = ("L1_3_02_conc_2_features_log_output_mult_T19_case_1", run_GNN, False)
+
+
+    #machine_learning_model = ("L1_1_02_conc_2_features_test", run_GNN, False)
+
+    #machine_learning_model = ("mesh_L3_log_50k_weights_5", run_GNN, False)
 
     #machine_learning_model = ("mesh_L3_log_sigmoid", run_GNN, False) # ReLU is much better
 
     save_path = os.path.join(save_path, machine_learning_model[0])
 
-    if os.path.exists(save_path):
-        shutil.rmtree(save_path)
+    # if os.path.exists(save_path):
+    #     shutil.rmtree(save_path)
 
     print("save path ", save_path)
 
     # 02 proc times
-    # graph creation time: 2 features: 61 sec
-    #                       conductivity: 43 sec
-    #                       porosity: 40 sec
-    graph_creation_time = 60#25#11#22#159#0#159#66
+    # graph creation time: 2 features: 53 sec
+    #                       conductivity: 35 sec
+    #                       porosity: 35 sec
+
+    # L2
+    # graph creation time: 2 features: 104 sec
+    #                       conductivity: 68 sec
+    #                       porosity: 66 sec
+
+    # L3
+    # graph creation time: 2 features: 396 sec
+    #                       conductivity: 251 sec
+    #                       porosity: 250 sec
+
+    # L4
+    # graph creation time: 2 features:
+    #                       conductivity: 1670
+    #                       porosity:
+    graph_creation_time = 250#25#11#22#159#0#159#66
 
     config = {'machine_learning_model': machine_learning_model,
               'save_path': save_path,
@@ -677,7 +762,7 @@ if __name__ == "__main__":
               'feature_names': feature_names
               }
 
-    statistics(config)
+    #statistics(config)
 
     analyze_statistics(config)
 
