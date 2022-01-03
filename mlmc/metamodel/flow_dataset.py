@@ -31,7 +31,7 @@ class FlowDataset(Dataset):
         self._corr_field_config = corr_field_config
         self.adjacency_matrix = np.load(os.path.join(self._output_dir, "adjacency_matrix.npy"), allow_pickle=True)  # adjacency matrix
         self.data = []
-        self._config = config
+        self._save_path = config['save_path']
         self._dataset_config = config.get('dataset_config', {})
         self._min_feature = None
         self._max_feature = None
@@ -211,11 +211,11 @@ class FlowDataset(Dataset):
         import pickle
         import shutil
 
-        if os.path.exists(os.path.join(self._config['save_path'], "dataset_config.pkl")):
-            os.remove(os.path.join(self._config['save_path'], "dataset_config.pkl"))
+        if os.path.exists(os.path.join(self._save_path, "dataset_config.pkl")):
+            os.remove(os.path.join(self._save_path, "dataset_config.pkl"))
 
         # create a binary pickle file
-        with open(os.path.join(self._config['save_path'], "dataset_config.pkl"), "wb") as writer:
+        with open(os.path.join(self._save_path, "dataset_config.pkl"), "wb") as writer:
             pickle.dump(self._dataset_config, writer)
 
     @staticmethod
