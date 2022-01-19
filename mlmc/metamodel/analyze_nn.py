@@ -442,6 +442,7 @@ def load_statistics(dir_path):
     models_data["total_steps"] = []
     models_data["learning_times"] = []
     models_data["log"] = []
+    models_data["dataset_config"] = []
 
     #dirs = (os.path.split(dir_path)[-1]).split("_")
     n_iters = 25
@@ -450,7 +451,7 @@ def load_statistics(dir_path):
         if not os.path.isdir(data_dir_path):
             print("data dir not exists {}".format(data_dir_path))
             break
-        if os.path.exists(os.path.join(data_dir_path,'model')):
+        if os.path.exists(os.path.join(data_dir_path, 'model')):
             models_data['model'].append(keras.models.load_model(os.path.join(data_dir_path, 'model')))
         for file in glob.glob(os.path.join(data_dir_path, "*.npy")):
             file_name = os.path.split(file)[-1]
@@ -460,16 +461,15 @@ def load_statistics(dir_path):
             #     models_data[file_name] = []
             #     print("np.load(file, allow_pickle=True) ", np.load(file, allow_pickle=True))
             #     exit()
-
             models_data[file_name].append(np.load(file, allow_pickle=True))
 
-    if os.path.exists(os.path.join(dir_path, "dataset_config.pkl")):
-        # Save config to Pickle
-        import pickle
-        # create a binary pickle file
-        with open(os.path.join(dir_path, "dataset_config.pkl"), "rb") as reader:
-            dataset_config = pickle.load(reader)
-            models_data["dataset_config"] = dataset_config
+        if os.path.exists(os.path.join(data_dir_path, "dataset_config.pkl")):
+            # Save config to Pickle
+            import pickle
+            # create a binary pickle file
+            with open(os.path.join(data_dir_path, "dataset_config.pkl"), "rb") as reader:
+                dataset_config = pickle.load(reader)
+                models_data["dataset_config"].append(dataset_config)
 
     return models_data
 
@@ -755,17 +755,17 @@ def analyze_statistics(config, get_model=True):
     orth_mlmc_means_mse = []
     orth_nn_means_mse = []
 
-    limit = 100  # 0.008#0.01#0.0009
+    limit = 1e10  # 0.008#0.01#0.0009
     #limit = 0.37
 
     for i in range(len(data_dict["test_targets"])):
         print("index i ", i)
-        if i == 1:
-            break
+        # if i == 4:
+        #     break
 
         #print("index ", i)
 
-        # if i not in [2, 3, 4]:
+        # if i not in [0,2]:
         #     continue
 
         # if i in [2, 11, 12]:
@@ -796,7 +796,7 @@ def analyze_statistics(config, get_model=True):
         except:
             model = None
 
-        check_loss(config, model, dataset_config=data_dict.get("dataset_config", {}))
+        #check_loss(config, model, dataset_config=data_dict.get("dataset_config", {}))
         #predict_data(config, model, mesh_file=config["mesh"])
 
         iter_test_MSE = np.mean((predictions - targets) ** 2)
@@ -811,6 +811,11 @@ def analyze_statistics(config, get_model=True):
         # if "current_patience" in data_dict:
         #     current_patience = data_dict["current_patience"][i]
         #     print("current patience ", current_patience)
+
+        if 'dataset_config' in data_dict:
+            dataset_config = data_dict.get("dataset_config")[i]
+        else:
+            dataset_config = {}
 
         print("total steps ", total_steps)
         # try:
@@ -829,7 +834,7 @@ def analyze_statistics(config, get_model=True):
                                                                                  mlmc_hdf_file=config['mlmc_hdf_path'],
                                                                                  stats=True,
                                                                                  learning_time=learning_time,
-                                                                                 dataset_config=data_dict.get("dataset_config", {}))
+                                                                                 dataset_config=dataset_config)
         # except:
         #      continue
 
@@ -1130,6 +1135,7 @@ def analyze_statistics(config, get_model=True):
     # print("max train RMSE ", np.max(train_RMSE))
     # print("max train MAE ", np.max(train_MAE))
 
+    print("learning time ", learning_times)
     print("mean learning time ", np.mean(learning_times))
     print("max learning time ", np.max(learning_times))
 
@@ -1423,7 +1429,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     #     min_key = np.min(list(states.keys()))
     #     gnn = states[min_key]
 
-    train_targets, train_predictions = gnn.predict(loader_tr)
+    train_targets, train_predictions = gnn.predict(MixedLoader(data_tr, batch_size=batch_size, epochs=1))
     train_predictions = np.squeeze(train_predictions)
 
     val_targets, val_predictions = gnn.predict(loader_va)
@@ -1502,6 +1508,8 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
     sample_time = 0
     if corr_field_config:
         sample_time = corr_field_sample_time(mesh, corr_field_config)
+    else:
+        raise Exception("No corr field config passed")
 
     data = FlowDataset(output_dir=output_dir, log=log, config=config)#, mesh=mesh, corr_field_config=corr_field_config)
     #data = data  # [:10000]

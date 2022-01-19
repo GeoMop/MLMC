@@ -57,13 +57,124 @@ def cut_original_test(mlmc_hdf_file):
     sample_storage_for_estimated = cut_samples(data_mlmc, sample_storage_for_estimated, n_estimated_orig,
                                                bootstrap=True)
 
+def analyze_output(targets, mult_coef=1,dataset_config=None):
+
+    if dataset_config.get('output_scale', False):
+        print("targets[:10] ", targets[:10])
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        ax.hist(targets, bins=50, alpha=0.5, label='target', density=True)
+        # fig.colorbar(cont)
+        plt.title("training targets")
+        plt.show()
+
+        mean_targets = dataset_config.get('mean_output', False)
+        var_targets = dataset_config.get('var_output', False)
+
+        # mean_targets = np.mean(targets)
+        print("mean targets ", mean_targets)
+        # print("mean targets axis=0 " , np.mean(targets, axis=0))
+        # var_targets = np.var(targets)
+
+        targets = var_targets * targets + mean_targets
+
+        targets_orig = np.exp(targets)
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+
+        ax.hist(targets_orig, bins=50, alpha=0.5, label='targets orig', density=True)
+        # fig.colorbar(cont)
+        plt.title("targets orig")
+        plt.show()
+
+        new_mult_coef = 1 / np.mean(targets_orig)
+        print("np.log(targets_orig * new_mult_coef)[:10] ", np.log(targets_orig * new_mult_coef)[:10])
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        ax.hist(np.log(targets_orig * new_mult_coef), bins=50, alpha=0.5, label='targets orig', density=True)
+        # fig.colorbar(cont)
+        plt.title("log(targets orig * mult coef)")
+        plt.show()
+
+        new_mult_coef = 1 / np.mean(np.log(targets_orig))
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        ax.hist(np.log(targets_orig) * new_mult_coef, bins=50, alpha=0.5, label='targets orig', density=True)
+        # fig.colorbar(cont)
+        plt.title("log(targets orig) * mult coef")
+        plt.show()
+
+        print("mean log targets orig ", np.mean(np.log(targets_orig)))
+
+        log_scaled_targets_orig = (np.log(targets_orig) - np.mean(np.log(targets_orig))) / np.var(np.log(targets_orig))
+        print("log scaled targets orig[:10] ", log_scaled_targets_orig[:10])
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        ax.hist(log_scaled_targets_orig, bins=50, alpha=0.5, label='targets orig', density=True)
+        # fig.colorbar(cont)
+        plt.title("log scaled target orig")
+        plt.show()
+
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        ax.hist(np.log(targets_orig), bins=50, alpha=0.5, label='target orig log', density=True)
+        # fig.colorbar(cont)
+        plt.title("log targets orig")
+        plt.show()
+
+
+    else:
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        ax.hist(targets, bins=50, alpha=0.5, label='target', density=True)
+        #fig.colorbar(cont)
+        plt.title("training targets")
+        plt.show()
+
+        targets_orig = np.exp(targets) / mult_coef
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+
+        ax.hist(targets_orig, bins=50, alpha=0.5, label='targets orig', density=True)
+        # fig.colorbar(cont)
+        plt.title("targets orig")
+        plt.show()
+
+        new_mult_coef = 1/np.mean(targets_orig)
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        ax.hist(np.log(targets_orig*new_mult_coef), bins=50, alpha=0.5, label='targets orig', density=True)
+        # fig.colorbar(cont)
+        plt.title("log(targets orig * mult coef)")
+        plt.show()
+
+        new_mult_coef = 1 / np.mean(np.log(targets_orig))
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        ax.hist(np.log(targets_orig) * new_mult_coef, bins=50, alpha=0.5, label='targets orig', density=True)
+        # fig.colorbar(cont)
+        plt.title("log(targets orig) * mult coef")
+        plt.show()
+
+        log_scaled_targets_orig = (np.log(targets_orig) - np.mean(np.log(targets_orig))) / np.var(np.log(targets_orig))
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        ax.hist(log_scaled_targets_orig, bins=50, alpha=0.5, label='targets orig', density=True)
+        # fig.colorbar(cont)
+        plt.title("log scaled target orig")
+        plt.show()
+
+
+
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        ax.hist(np.log(targets_orig), bins=50, alpha=0.5, label='target orig log', density=True)
+        # fig.colorbar(cont)
+        plt.title("log targets orig")
+        plt.show()
+
+    exit()
 
 def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predictions, train_targets, train_predictions,
                  val_targets, l_0_targets=None, l_0_predictions=None,
                  l1_sample_time=None, l0_sample_time=None, nn_level=0, replace_level=False, stats=False, mlmc_hdf_file=None,
                  learning_time=0, dataset_config={}):
+    """
+    :param l1_sample_time: preprocess_time / len(data) + learning_time / len(data),
+                           preprocess_time includes graph creation time and FlowDataset creation time
+    """
     # level_zero = False
     cut_est = True
+    all_samples = False
+    n0, nL = 2000, 100
     domain_largest = False  # If False than domain=None - domain is determined given the simulation samples
     distr_domain_largest = False
 
@@ -71,7 +182,42 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
     # exit()
 
     output_mult_factor = dataset_config.get('output_mult_factor', 1)
+    #print("output mult factor ", output_mult_factor)
+
+    analyze_output(targets, output_mult_factor, dataset_config=dataset_config)
+
+    if dataset_config.get('output_normalization', False):
+        min_out = dataset_config.get('min_output')
+        max_out = dataset_config.get('max_output')
+
+        targets = targets * (max_out - min_out) + min_out
+        predictions = predictions * (max_out - min_out) + min_out
+        l_0_targets = l_0_targets * (max_out - min_out) + min_out
+        l_0_predictions = l_0_predictions * (max_out - min_out) + min_out
+
+    if dataset_config.get('output_scale', False):
+        # mean_targets = np.mean(targets)
+        # var_targets = np.var(targets)
+
+        mean_targets = dataset_config.get('mean_output', False)
+        var_targets = dataset_config.get('var_output', False)
+
+        targets = var_targets * targets + mean_targets
+        predictions = var_targets * predictions + mean_targets
+
+        # mean_l_0_targets = mean_targets
+        # var_l_0_targets = var_targets
+
+        l_0_targets = var_targets * l_0_targets + mean_targets
+        l_0_predictions = var_targets * l_0_predictions + mean_targets
+
     if dataset_config.get('output_log', False):
+        targets = np.exp(targets)
+        predictions = np.exp(predictions)
+        l_0_predictions = np.exp(l_0_predictions)
+        l_0_targets = np.exp(l_0_targets)
+
+    if dataset_config.get('first_log_output', False):
         targets = np.exp(targets)
         predictions = np.exp(predictions)
         l_0_predictions = np.exp(l_0_predictions)
@@ -80,49 +226,54 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
     if mlmc_hdf_file is None:
         mlmc_hdf_file = nn_hdf_file
 
-    if not stats:
-        # print("nn_level ", nn_level)
-        # print("replace level ", replace_level)
+    print("targets ", targets)
+    print("len targets ", len(targets))
 
-        # targets = np.exp(targets)
-        # predictions = np.exp(predictions)
-        # l_0_predictions = np.exp(l_0_predictions)
-        # l_0_targets = np.exp(l_0_targets)
+    #if not stats:
+    # print("nn_level ", nn_level)
+    # print("replace level ", replace_level)
 
-        # print("targets ", targets)
-        # print("predictions ", predictions)
-        print("targets ", targets)
-        plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
-        #plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
+    # targets = np.exp(targets)
+    # predictions = np.exp(predictions)
+    # l_0_predictions = np.exp(l_0_predictions)
+    # l_0_targets = np.exp(l_0_targets)
 
-        # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
-        plt.legend(loc='upper right')
-        # plt.xlim(-0.5, 1000)
-        plt.yscale('log')
-        plt.show()
+    # print("targets ", targets)
+    # print("predictions ", predictions)
+    print("targets ", targets)
+    print("predictions ", predictions)
+    plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
+    plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
 
-        plt.hist(l_0_targets, bins=50, alpha=0.5, label='l_0_target', density=True)
-        plt.hist(l_0_predictions, bins=50, alpha=0.5, label='l_0_predictions', density=True)
+    # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+    plt.legend(loc='upper right')
+    # plt.xlim(-0.5, 1000)
+    plt.yscale('log')
+    plt.show()
 
-        # print("lo targets ", l_0_targets)
-        # print("l0 predictions ", l_0_predictions)
-        # exit()
+    plt.hist(l_0_targets, bins=50, alpha=0.5, label='l_0_target', density=True)
+    plt.hist(l_0_predictions, bins=50, alpha=0.5, label='l_0_predictions', density=True)
 
-        # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
-        plt.legend(loc='upper right')
-        # plt.xlim(-0.5, 1000)
-        plt.yscale('log')
-        plt.show()
+    # print("lo targets ", l_0_targets)
+    # print("l0 predictions ", l_0_predictions)
+    # exit()
 
-        # targets = np.exp(targets)
-        # predictions = np.exp(predictions)
+    # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
+    plt.legend(loc='upper right')
+    # plt.xlim(-0.5, 1000)
+    plt.yscale('log')
+    plt.show()
 
-        # # Creating plot
-        # plt.boxplot(targets)
-        # plt.boxplot(predictions)
-        # # show plot
-        # plt.show()
-        #exit()
+
+    # targets = np.exp(targets)
+    # predictions = np.exp(predictions)
+
+    # # Creating plot
+    # plt.boxplot(targets)
+    # plt.boxplot(predictions)
+    # # show plot
+    # plt.show()
+    #exit()
 
     #######
     ### Create storage fromm original MLMC data
@@ -139,7 +290,6 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
 
     sample_storage_nn = SampleStorageHDF(file_path=nn_hdf_file)
     original_moments_nn, estimator_nn, original_true_domain_nn, _ = estimate_moments(sample_storage_nn)
-
     print("nn moments.mean ", original_moments_nn.mean)
     print("nn moments.var ", original_moments_nn.var)
 
@@ -167,10 +317,15 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
     print("original level params", sample_storage.get_level_parameters())
     sample_storage = create_quantity_mlmc(data_mlmc, level_parameters=sample_storage.get_level_parameters())
     if cut_est:
-        n0 = 2000
-        nL = 100
+        # n0 = 2000
+        # nL = 100
         n_levels = sample_storage.get_n_levels()
-        n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), n_levels))).astype(int)
+
+        if all_samples:
+            n_samples = sample_storage.get_n_collected()
+        else:
+            n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), n_levels))).astype(int)
+
         print('n samples ', n_samples)
         sample_storage_for_estimated = cut_samples(data_mlmc, sample_storage, n_samples)  # [2300])
 
@@ -195,7 +350,7 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
     print("l1_sample_time ", l1_sample_time)
 
     ############################
-    ### calculate level 1 n ops
+    ### Calculate First level (follows meta-level) n_ops
     ############################
     len_data = 20000  # 50000#80000
     len_train_data = 2000
@@ -203,10 +358,20 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
     preprocess_time = l1_sample_time * len_data - learning_time
     preprocess_time_per_sample = preprocess_time / len_data
     n_ops_train = preprocess_time_per_sample + (learning_time / len_train_data) + l0_predict_time
-    # n_ops_test = (preprocess_time / len_test_data)
+    ####
+    # Notes:
+    #  l1_sample_time = preprocess_time / len(data) + learning_time / len(data)
+    #
+    #  n_ops_train includes:
+    #                       preprocess time per sample
+    #                       learning time per training sample
+    #                       l0_prediction_time - the time necessary to predict neural network outcome for given already preprocessed data
+    l1_sample_time = n_ops_train
+    # New l1_sample_time corresponds to the time necessary for Level 1 samples (fine + coarse)
+    #
+    #################################
 
     print("L1 sample time ", l1_sample_time)
-    l1_sample_time = n_ops_train
 
     print("learning time ", learning_time)
     print("preprocess time ", preprocess_time)
@@ -235,6 +400,9 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
             # level_samples = np.ones((1, len(l_0_predictions), 1))
             ft_index = nn_level
 
+            if output_mult_factor != 1:
+                level_samples /= output_mult_factor
+
             if nn_level > 0:
                 ft_index = nn_level - 1
             n_ops_predict.append(l0_sample_time)  # + field_times[ft_index] / 2)
@@ -246,6 +414,7 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
             if replace_level:
                 level_id = l_id
                 level_samples = estimator_nn.get_level_samples(level_id=level_id, n_samples=nn_n_collected[level_id])
+
                 n_ops_predict.append(n_ops[level_id])
             else:
                 if l_id < mlmc_nn_diff_level:
@@ -268,6 +437,9 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
                     # fine_level_samples = fine_level_samples[:, :len(predictions)//2, :]
                     level_samples = np.concatenate((fine_level_samples, coarse_level_samples), axis=2)
                     print("nn level ", nn_level)
+
+                    if output_mult_factor != 1:
+                        level_samples /= output_mult_factor
 
                     print("level sampels ", level_samples)
                     print("fine - coarse ", fine_level_samples - coarse_level_samples)
@@ -293,8 +465,7 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
                     # if output_mult_factor != 1:
                     #     level_samples /= output_mult_factor
 
-        if output_mult_factor != 1:
-            level_samples /= output_mult_factor
+
 
         print("level samples rescaled ", level_samples)
 
@@ -316,10 +487,17 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
     print("level params ", level_params)
     sample_storage_predict = create_quantity_mlmc(data_nn, level_parameters=level_params)
     if cut_est:
-        n0 = 2000
-        nL = 100
+        # n0 = 2000
+        # nL = 100
         n_levels = sample_storage_predict.get_n_levels()
-        n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), n_levels))).astype(int)
+
+        #n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), n_levels))).astype(int)
+
+        if all_samples:
+            n_samples = sample_storage.get_n_collected()
+        else:
+            n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), n_levels))).astype(int)
+
         print('n samples predict', n_samples)
         sample_storage_predict_for_estimate = cut_samples(data_nn, sample_storage_predict, n_samples)  # [4500, 1500])
         # print("n ops predict ", n_ops_predict)
@@ -372,7 +550,7 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
 
     print("n estimated orig ", n_estimated_orig)
     print("n ops est ", n_ops_est)
-    print("sample storage for estimated n collected ", sample_storage_for_estimated.get_n_collected())
+    #print("sample storage for estimated n collected ", sample_storage_for_estimated.get_n_collected())
 
     ######
     ## initial N geuss
@@ -442,6 +620,10 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
 
     # predict_q_estimator.quantity = predict_q_estimator.quantity.subsample(sample_vec=n_estimated_nn)
 
+
+    ###############
+    ## Recalculate first level (level of metamodel and simulation difference) n ops
+    ###############
     n_ops_test = (preprocess_time_per_sample + l0_predict_time)  # * (n_estimated_nn[1] - len_train_data)
     if n_estimated_nn[1] > len_train_data:
         orig_n_ops = n_ops_predict[1] - l1_sample_time
@@ -456,6 +638,8 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
         print("orig n ops ", orig_n_ops)
         print("cost_tr ", cost_tr)
         print("cost te ", cost_te)
+
+        n_ops_predict_orig = n_ops_predict
 
     n_estimated_nn, l_var_nn, n_samples_nn = get_n_estimated(sample_storage_predict, predict_q_estimator,
                                                              n_ops=n_ops_predict)
