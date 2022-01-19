@@ -362,11 +362,13 @@ def statistics(config):
     if not os.path.isdir(config['save_path']):
         os.makedirs(config['save_path'])
 
-        # Save config to Pickle
-        import pickle
-        # create a binary pickle file
+        if os.path.exists(os.path.join(config['save_path'], "dataset_config.pkl")):
+            os.remove(os.path.join(config['save_path'], "dataset_config.pkl"))
+
+            # create a binary pickle file
         with open(os.path.join(config['save_path'], "dataset_config.pkl"), "wb") as writer:
-            pickle.dump(config.get("dataset_config", {}), writer)
+            pickle.dump(config["dataset_config"], writer)
+
     else:
         print("dir exists {}".format(config['save_path']))
         exit()
@@ -375,6 +377,8 @@ def statistics(config):
         iter_dir = os.path.join(config['save_path'], "{}".format(i))
         if not os.path.isdir(iter_dir):
             os.makedirs(iter_dir)
+
+            config['iter_dir'] = iter_dir
 
             model, targets, predictions, learning_time, train_targets, train_predictions, \
             val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps = \
@@ -1344,8 +1348,11 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
 
     preprocess_start_time = time.process_time()
     # Load data
-    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config)
+    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=seed)
     data = data#[:10000]
+
+    # Dataset preprocess config
+    config['dataset_config'] = data._dataset_config
 
     # print("n node features ", data.graphs[0].n_node_features)
     # print("graph x", data.graphs[0].x)
@@ -1511,7 +1518,7 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
     else:
         raise Exception("No corr field config passed")
 
-    data = FlowDataset(output_dir=output_dir, log=log, config=config)#, mesh=mesh, corr_field_config=corr_field_config)
+    data = FlowDataset(output_dir=output_dir, log=log, config=config, predict=True)#, mesh=mesh, corr_field_config=corr_field_config)
     #data = data  # [:10000]
     data.shuffle(seed=seed)
     

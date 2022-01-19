@@ -21,7 +21,8 @@ class FlowDataset(Dataset):
     GRAPHS_FILE = "graphs"
     DATA_FILE = "data"
 
-    def __init__(self, output_dir=None, level=0, log=False, mesh=None, corr_field_config=None, config={}, **kwargs):
+    def __init__(self, output_dir=None, level=0, log=False, mesh=None, corr_field_config=None, config={},
+                 index=None, predict=False, **kwargs):
         self._output_dir = output_dir
         # if self._output_dir is None:
         #     self._output_dir = OUTPUT_DIR
@@ -31,10 +32,32 @@ class FlowDataset(Dataset):
         self._corr_field_config = corr_field_config
         self.adjacency_matrix = np.load(os.path.join(self._output_dir, "adjacency_matrix.npy"), allow_pickle=True)  # adjacency matrix
         self.data = []
-        self._save_path = config['save_path']
+        self._config = config
+        self._index = index
+        self._predict = predict
         self._dataset_config = config.get('dataset_config', {})
-        self._min_feature = None
-        self._max_feature = None
+
+        if predict:
+            self._min_features = self._dataset_config.get('min_features', None)
+            self._max_features = self._dataset_config.get('max_features', None)
+            self._mean_features = self._dataset_config.get('mean_features', None)
+            self._var_features = self._dataset_config.get('var_features', None)
+            self._min_output = self._dataset_config.get('min_output', None)
+            self._max_output = self._dataset_config.get('max_output', None)
+            self._mean_output = self._dataset_config.get('mean_output', None)
+            self._var_output = self._dataset_config.get('var_output', None)
+            self._output_mult_factor = self._dataset_config.get('output_mult_factor', 1)
+        else:
+            self._min_features = None
+            self._max_features = None
+            self._mean_features = None
+            self._var_features = None
+            self._min_output = None
+            self._max_output = None
+            self._mean_output = None
+            self._var_output = None
+            self._output_mult_factor = 1
+
         super().__init__(**kwargs)
 
         #self.a = self.adjacency_matrix
@@ -94,128 +117,134 @@ class FlowDataset(Dataset):
     #     return graphs
 
     def read(self):
-        # if self._mesh is not None:
-        #     return self.generate_data()
+        all_outputs = []
+        all_features = []
 
-        # with open(os.path.join(OUTPUT_DIR, FlowDataset.GRAPHS_FILE), 'rb') as reader:
-        #     graphs = pickle.loads(reader)
-        #
-        # if os.path.exists(os.path.join(OUTPUT_DIR, FlowDataset.DATA_FILE)):
-        #     with open(os.path.join(OUTPUT_DIR, FlowDataset.DATA_FILE), 'rb') as reader:
-        #         self.data = pickle.loads(reader)
-        #
-        # return graphs
-
-        if self._dataset_config.get("features_normalization", False) or self._dataset_config.get("calc_output_mult_factor", False):
-            # i = 0
-            all_outputs = []
-            all_features = []
-
-            for s_dir in os.listdir(self._output_dir):
-                try:
-                    l = re.findall(r'L(\d+)_S', s_dir)[0]
-                    if int(l) != self.level:
-                        continue
-                except IndexError:
-                        continue
-                if os.path.isdir(os.path.join(self._output_dir, s_dir)):
-                    sample_dir = os.path.join(self._output_dir, s_dir)
-                    if os.path.exists(os.path.join(sample_dir, "nodes_features.npy")):
-                        features = np.load(os.path.join(sample_dir, "nodes_features.npy"))
-                        all_features.extend(features)
-
-                        if self._dataset_config.get("calc_output_mult_factor", False) is True:
-                            output = np.load(os.path.join(sample_dir, "output.npy"))
-                            all_outputs.append(output)
-
-            #print("all outputs ", np.array(all_outputs).shape)
-            # min_output = np.min(all_outputs)
-            # max_output = np.max(all_outputs)
-
-            if self._dataset_config.get("calc_output_mult_factor", False) is True:
-                self._dataset_config["output_mult_factor"] = 1/np.mean(all_outputs)
-                self._save_output_mult_factor()
-                print("output mult factor ", self._dataset_config["output_mult_factor"])
-
-            if self._dataset_config.get("features_normalization", False):
-                self._min_feature = np.min(all_features)
-                self._max_feature = np.max(all_features)
-
-            # if self._log and self._dataset_config.get("features_log", False) is False and self._dataset_config.get("output_log",
-            #                                                                                        False) is False:
-            #     all_features = np.log(all_features)
-            #     all_outputs = np.log(all_outputs)
-            #
-            # if self._dataset_config.get("features_log", False):
-            #     all_features = np.log(all_features)
-            #
-            # if self._dataset_config.get("output_log", False):
-            #     all_outputs = np.log(all_outputs)
-
-
-            # self.min_output = min_output
-            # self.max_output = max_output
-
-        graphs = []
         for s_dir in os.listdir(self._output_dir):
             try:
                 l = re.findall(r'L(\d+)_S', s_dir)[0]
                 if int(l) != self.level:
                     continue
             except IndexError:
-                continue
-
+                    continue
             if os.path.isdir(os.path.join(self._output_dir, s_dir)):
                 sample_dir = os.path.join(self._output_dir, s_dir)
                 if os.path.exists(os.path.join(sample_dir, "nodes_features.npy")):
                     features = np.load(os.path.join(sample_dir, "nodes_features.npy"))
+                    all_features.append(features)
+
                     output = np.load(os.path.join(sample_dir, "output.npy"))
+                    all_outputs.append(output)
 
-                    if self._min_feature is not None and self._max_feature is not None:
-                        features = (features - self._min_feature) / (self._max_feature - self._min_feature)
+        if self._dataset_config.get("first_log_features", False):
+            all_features = np.log(all_features)
 
-                        # output = (output - min_output) / (max_output - min_output)
-                        # print("max ", maximum)
-                        # print("max ", minimum)
-                        #
-                        # print("new featuers max ", np.max(new_features))
-                        # print("new featuers min ", np.min(new_features))
-                        # exit()
+        if self._dataset_config.get("first_log_output", False):
+            all_outputs = np.log(all_outputs)
 
-                    output_mult_factor = self._dataset_config.get("output_mult_factor", 1)
-                    features_mult_factor = self._dataset_config.get("features_mult_factor", 1)
+        #print("all outputs ", np.array(all_outputs).shape)
+        # min_output = np.min(all_outputs)
+        # max_output = np.max(all_outputs)
 
-                    features *= features_mult_factor
-                    output *= output_mult_factor
+        if not self._predict:
+            train_outputs = all_outputs[self._index * self._config['n_train_samples']:
+                                        self._index * self._config['n_train_samples'] + self._config['n_train_samples']]
+            train_features = all_features[self._index * self._config['n_train_samples']:
+                                          self._index * self._config['n_train_samples'] + self._config['n_train_samples']]
 
-                    if self._log and self._dataset_config.get("features_log", False) is False and self._dataset_config.get("output_log", False) is False:
-                        features = np.log(features)
-                        output = np.log(output)
+            if self._dataset_config.get("calc_output_mult_factor", False) is True:
+                self._output_mult_factor = 1/np.mean(train_outputs)
+                self._dataset_config["output_mult_factor"] = self._output_mult_factor
+                self._save_data_config()
+                print("output mult factor ", self._dataset_config["output_mult_factor"])
 
-                    if self._dataset_config.get("features_log", False):
-                        features = np.log(features)
+            if self._dataset_config.get("features_normalization", False):
+                self._min_features = np.min(train_features, axis=0)
+                self._max_features = np.max(train_features, axis=0)
+                self._dataset_config["min_features"] = self._min_features
+                self._dataset_config["max_features"] = self._max_features
 
-                    if self._dataset_config.get("output_log", False):
-                        output = np.log(output)
+            if self._dataset_config.get("features_scale", False):
+                self._mean_features = np.mean(train_features, axis=0)
+                self._var_features = np.var(train_features, axis=0)
+                self._dataset_config["mean_features"] = self._mean_features
+                self._dataset_config["var_features"] = self._var_features
 
-                    graphs.append(Graph(x=features, y=output))#, a=self.adjacency_matrix))
+            if self._dataset_config.get("output_normalization", False):
+                self._min_output = np.min(train_outputs, axis=0)
+                self._max_output = np.max(train_outputs, axis=0)
+                self._dataset_config["min_output"] = self._min_output
+                self._dataset_config["max_output"] = self._max_output
 
-                    # Save data for pandas dataframe creation, not used with Graph neural network
-                    self.data.append({'x': features, 'y': output})
+            if self._dataset_config.get("output_scale", False):
+                self._mean_output = np.mean(train_outputs, axis=0)
+                self._var_output = np.var(train_outputs, axis=0)
+                self._dataset_config["mean_output"] = self._mean_output
+                self._dataset_config["var_output"] = self._var_output
+
+            self._save_data_config()
+
+        graphs = []
+        for features, output in zip(all_features, all_outputs):
+            if self._dataset_config.get("features_normalization", False):
+                features = (features - self._min_features) / (self._max_features - self._min_features)
+                features = np.nan_to_num(features)
+
+            if self._dataset_config.get("output_normalization", False):
+                output = (output - self._min_output) / (self._max_output - self._min_output)
+                output = np.nan_to_num(output)
+
+            if self._dataset_config.get("features_scale", False):
+                features -= self._mean_features
+                features /= self._var_features
+
+            if self._dataset_config.get("output_scale", False):
+                output -= self._mean_output
+                output /= self._var_output
+
+                # output = (output - min_output) / (max_output - min_output)
+                # print("max ", maximum)
+                # print("max ", minimum)
+                #
+                # print("new featuers max ", np.max(new_features))
+                # print("new featuers min ", np.min(new_features))
+                # exit()
+
+            output_mult_factor = self._output_mult_factor
+            features_mult_factor = self._dataset_config.get("features_mult_factor", 1)
+
+            features *= features_mult_factor
+            output *= output_mult_factor
+
+            if self._log and self._dataset_config.get("features_log", False) is False and self._dataset_config.get("output_log", False) is False:
+                features = np.log(features)
+                output = np.log(output)
+                print("self._log SET")
+
+            if self._dataset_config.get("last_log_features", False):
+                features = np.log(features)
+
+            if self._dataset_config.get("last_log_output", False):
+                output = np.log(output)
+
+            graphs.append(Graph(x=features, y=output))#, a=self.adjacency_matrix))
+
+            # Save data for pandas dataframe creation, not used with Graph neural network
+            self.data.append({'x': features, 'y': output})
 
         self.a = self.adjacency_matrix
         return graphs
 
-    def _save_output_mult_factor(self):
+    def _save_data_config(self):
         # Save config to Pickle
         import pickle
         import shutil
 
-        if os.path.exists(os.path.join(self._save_path, "dataset_config.pkl")):
-            os.remove(os.path.join(self._save_path, "dataset_config.pkl"))
+        if os.path.exists(os.path.join(self._config['iter_dir'], "dataset_config.pkl")):
+            os.remove(os.path.join(self._config['iter_dir'], "dataset_config.pkl"))
 
         # create a binary pickle file
-        with open(os.path.join(self._save_path, "dataset_config.pkl"), "wb") as writer:
+        with open(os.path.join(self._config['iter_dir'], "dataset_config.pkl"), "wb") as writer:
             pickle.dump(self._dataset_config, writer)
 
     @staticmethod
