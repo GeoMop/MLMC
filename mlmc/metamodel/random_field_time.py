@@ -23,9 +23,12 @@ def conc_rnd_sample_time(mesh_file, corr_field_config):
         fine_input_sample, coarse_input_sample = FlowSimProcConc.generate_random_sample(fields, coarse_step=0,
                                                                                 n_fine_elements=len(
                                                                                     mesh_data['points']))
+        #print("fine input sample ", fine_input_sample)
+
 
     rnd_time = time.process_time() - start_time
     print("rnd_time / n_samples ", rnd_time / n_samples)
+
     return rnd_time / n_samples
 
 
@@ -72,6 +75,9 @@ def corr_field_sample_time(mesh_file=None, corr_length_config=None):
 
         len(fine_input_sample["conductivity"])
         features_log = np.log(fine_input_sample["conductivity"])
+
+        # print("conductivity mean ", np.mean(fine_input_sample["conductivity"]))
+        # print("conductivity var ", np.var(fine_input_sample["conductivity"]))
         output = 1
         #
         # print("fine input sample ", fine_input_sample["conductivity"].shape)
@@ -114,7 +120,13 @@ if __name__ == "__main__":
     pr = cProfile.Profile()
     pr.enable()
 
-    my_result = corr_field_sample_time()
+    corr_file_config = {"02_conc": True, 'log': True}
+    mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_por/l_step_1.0_common_files/repo.msh"
+
+    # corr_file_config = {"02_conc": False, 'log': True, 'corr_length':0.1, 'sigma':1}
+    # mesh_file = "/home/martin/Documents/metamodels/data/1000_ele/l_step_0.055_common_files/mesh.msh"
+
+    my_result = corr_field_sample_time(mesh_file, corr_file_config)
 
     pr.disable()
     ps = pstats.Stats(pr).sort_stats('cumtime')

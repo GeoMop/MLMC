@@ -13,11 +13,11 @@ from mlmc.quantity.quantity_spec import QuantitySpec
 from mlmc.random import correlated_field as cf
 
 
-def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1, mode_no=1000):
+def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, por_sigma=1, mode_no=1000):
     """
     Create random fields
     :return:
-    """
+    # """
     # por_top = cf.SpatialCorrelatedField(
     #     corr_exp='gauss',
     #     dim=2,
@@ -30,7 +30,7 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
     # print("por top ", por_top)
 
     por_top = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2,  len_scale=0.2),
-                                               log=log, mean=-1.0, sigma=1.0, mode_no=mode_no)
+                                               log=log, mean=-1.0, sigma=por_sigma, mode_no=mode_no)
 
     #print("por top gstools ", por_top_gstools)
 
@@ -44,14 +44,15 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
     # )
 
     por_bot = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2, len_scale=0.2),
-                                               log=log, mean=-1.0, sigma=1.0, mode_no=mode_no)
+                                               log=log, mean=-1.0, sigma=por_sigma, mode_no=mode_no)
+
 
     #por_bot = gstools.Gaussian(dim=dim,  len_scale=0.2, mu=-1.0, sigma=1.0, log=True)
 
     water_viscosity = 8.90e-4
 
-    factor_top_model = gstools.Gaussian(dim=dim,  len_scale=1)
-    factor_bot_model = gstools.Gaussian(dim=dim, len_scale=1)
+    factor_top_model = gstools.Gaussian(dim=dim)
+    factor_bot_model = gstools.Gaussian(dim=dim)
 
     fields = cf.Fields([
         cf.Field('por_top', por_top, regions='ground_0'),

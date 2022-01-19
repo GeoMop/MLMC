@@ -349,7 +349,7 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
 
 
 def statistics(config):
-    n_subsamples = 15
+    n_subsamples = 1
 
     model_title, mch_l_model, log = config['machine_learning_model']
     model_data = {}
@@ -382,7 +382,7 @@ def statistics(config):
 
             model, targets, predictions, learning_time, train_targets, train_predictions, \
             val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps = \
-                mch_l_model(config, stats=True, train=True, log=log, seed=i)
+                mch_l_model(config, stats=True, train=config.get('train_model', True), log=log, seed=i)
 
             if config['save_model']:
                 model_data["model"] = model
@@ -467,6 +467,14 @@ def load_statistics(dir_path):
 
             models_data[file_name].append(np.load(file, allow_pickle=True))
 
+    if os.path.exists(os.path.join(dir_path, "dataset_config.pkl")):
+        # Save config to Pickle
+        import pickle
+        # create a binary pickle file
+        with open(os.path.join(dir_path, "dataset_config.pkl"), "rb") as reader:
+            dataset_config = pickle.load(reader)
+            models_data["dataset_config"] = dataset_config
+
     return models_data
 
 
@@ -487,11 +495,21 @@ def plot_sse(data_nn, data_mlmc, x_label="ith moment", y_label="MSE", title=""):
     fig.show()
 
 
-def check_loss(config, model, log=True):
+def compare_models(model_1, model_2, config):
+    check_loss(config, model_1, dataset_config=config["dataset_config"])
+    check_loss(config, model_2, dataset_config=config["dataset_config"])
+
+    exit()
+
+
+def check_loss(config, model, log=True, dataset_config={}):
     if model is None:
         return
     batch_size = config['batch_size']
-    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log)
+
+    config['dataset_config'] = dataset_config
+
+    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config)
     data = data  # [:10000]
 
     data.a = config['conv_layer'].preprocess(data.a)
@@ -499,7 +517,7 @@ def check_loss(config, model, log=True):
 
     train_data_len = config["n_train_samples"]
 
-    idx = 1
+    idx = 0
     data_tr = data[idx * train_data_len: idx * train_data_len + train_data_len]
     data_te = data.get_test_data(idx, train_data_len)
 
@@ -508,7 +526,6 @@ def check_loss(config, model, log=True):
 
     loader_tr = MixedLoader(data_tr, batch_size=batch_size)
     loader_te = MixedLoader(data_te, batch_size=batch_size)
-
 
     train_targets, train_predictions = model_predict(model, loader_tr)
     train_predictions = np.squeeze(train_predictions)
@@ -519,7 +536,12 @@ def check_loss(config, model, log=True):
     train_MSE = np.mean((train_predictions - train_targets) ** 2)
     test_MSE = np.mean((test_predictions - test_targets) ** 2)
 
+    print("test targets ", np.sort(test_targets)[:10])
+    print("test predictions ", test_predictions)
+
+
     print("train MSE: {}, test MSE: {}".format(train_MSE, test_MSE))
+
 
     conv_layers = {}
     dense_layers = {}
@@ -587,8 +609,6 @@ def predict_data(config, model, mesh_file, log=True):
 
             print("conv out ", conv_out)
             conv_layers[conv_index][2].extend(conv_out)  # outputs
-
-        exit()
 
         flatten_input = conv_layers[conv_index][2][-1]
         # flatten_output = model.flatten(conv_out)
@@ -687,7 +707,7 @@ def process_data(data_dict):
     return new_dict
 
 
-def analyze_statistics(config):
+def analyze_statistics(config, get_model=True):
     if not os.path.isdir(config['save_path']):
         print("dir not exists")
         exit()
@@ -740,14 +760,16 @@ def analyze_statistics(config):
     orth_nn_means_mse = []
 
     limit = 100  # 0.008#0.01#0.0009
+    #limit = 0.37
 
     for i in range(len(data_dict["test_targets"])):
-        # if i == 3:
-        #     break
+        print("index i ", i)
+        if i == 1:
+            break
 
         #print("index ", i)
 
-        # if i not in [2, 5, 7]:
+        # if i not in [2, 3, 4]:
         #     continue
 
         # if i in [2, 11, 12]:
@@ -778,7 +800,7 @@ def analyze_statistics(config):
         except:
             model = None
 
-        #check_loss(config, model)
+        check_loss(config, model, dataset_config=data_dict.get("dataset_config", {}))
         #predict_data(config, model, mesh_file=config["mesh"])
 
         iter_test_MSE = np.mean((predictions - targets) ** 2)
@@ -810,9 +832,11 @@ def analyze_statistics(config):
                                                                                  replace_level=config['replace_level'],
                                                                                  mlmc_hdf_file=config['mlmc_hdf_path'],
                                                                                  stats=True,
-                                                                                 learning_time=learning_time)
+                                                                                 learning_time=learning_time,
+                                                                                 dataset_config=data_dict.get("dataset_config", {}))
         # except:
         #      continue
+
 
         mlmc_n_collected_all.append(mlmc_n_collected)
         nn_n_collected_all.append(nn_mlmc_n_collected)
@@ -872,6 +896,9 @@ def analyze_statistics(config):
     moments_plot.show(None)
 
     display_vars(mlmc_vars, nn_vars, target_variance=target_variance)
+
+
+    print("mlmc l vars list ", mlmc_l_vars)
 
     print("mlmc l vars ", np.mean(mlmc_l_vars, axis=0))
     print("nn l vars ", np.mean(nn_l_vars, axis=0))
@@ -1117,6 +1144,13 @@ def analyze_statistics(config):
     print("train MSE ", np.mean(train_MSE))
     # print("train MSE sqrt var", np.sqrt(np.var(train_MSE)))
     # print("train MSE std", np.std(train_MSE))
+
+    # output_mult_factor = 1437603411
+    # print("orig train MSE ", train_MSE)
+    # train_MSE = np.array(train_MSE) * output_mult_factor
+    # print("train MSE ", train_MSE)
+    # test_MSE = np.array(test_MSE) * output_mult_factor
+
     print("train MSE ", train_MSE)
     print("stats.sem(train_MSE) ", stats.sem(train_MSE))
     print("test MSE ", np.mean(test_MSE))
@@ -1129,8 +1163,15 @@ def analyze_statistics(config):
     print("nn total time ", nn_total_time)
     print("mlmc total time ", mlmc_total_time)
 
+    print("KL mlmc ", np.mean(kl_mlmc_all))
+    print("KL nn ", np.mean(kl_nn_all))
+
+    print("mean learning time ", np.mean(learning_times))
+    print("max learning time ", np.max(learning_times))
+
     print("######################################")
     return train_MSE, test_MSE, np.mean(all_train_RSE), np.mean(all_test_RSE)
+
 
 def plot_sse(data_nn, data_mlmc, x_label="ith moment", y_label="MSE", title=""):
     import matplotlib
@@ -1202,6 +1243,80 @@ def display_vars(mlmc_vars, nn_vars, target_variance, title=""):
     fig.show()
 
 
+def set_model_weights(new_model, old_model):
+    for new_conv_layer, old_conv_layer in zip(new_model._conv_layers, old_model._conv_layers):
+        new_conv_layer.kernel = old_conv_layer.kernel
+        new_conv_layer.bias = old_conv_layer.bias
+
+    # print("input data shape ", input_data.dataset[0].shape)
+    #
+    # print(old_conv_layer.kernel.numpy().shape)
+    # input_imgs = Input(shape=(None, 108, 1))
+    # print("old_model.flatten.weights", old_model.flatten().weights)
+
+    for new_dense_layer, old_dense_layer in zip(new_model._dense_layers, old_model._dense_layers):
+
+        # print("old_dense_layer.get_weights() shape ", old_dense_layer.get_weights()[0].shape)
+        # print("old_dense_layer.get_weights() shape ", old_dense_layer.get_weights()[1].shape)
+        # input_imgs = Input(shape=(None, 108, 1))
+        # new_dense_layer(input_imgs)
+        # # model = Model(inputs=input_imgs, outputs=encoded)
+        # # dense_layer.set_weights(weights)
+        #
+        # print("new dense layer weights ", new_dense_layer.weights)
+        new_dense_layer.set_weights(old_dense_layer.get_weights())
+
+    # print("old_dense_layer.get_weights() ", old_dense_layer.get_weights())
+    # print("new_model._dense_layers[-1].weights ", new_model._dense_layers[-1].weights)
+    # exit()
+
+
+def set_model_layers(new_model, old_model):
+    for new_conv_layer, old_conv_layer in zip(new_model._conv_layers, old_model._conv_layers):
+        new_conv_layer.kernel = old_conv_layer.kernel
+        new_conv_layer.bias = old_conv_layer.bias
+
+        # print("old conv layer get config ", old_conv_layer.get_config())
+        # print("new conv layer get config ", new_conv_layer.get_config())
+
+    #exit()
+
+    # print("input data shape ", input_data.dataset[0].shape)
+    #
+    # print(old_conv_layer.kernel.numpy().shape)
+    # input_imgs = Input(shape=(None, 108, 1))
+    # print("old_model.flatten.weights", old_model.flatten().weights)
+
+    for new_dense_layer, old_dense_layer in zip(new_model._dense_layers, old_model._dense_layers):
+        # config = layer.get_config()
+        # weights = layer.get_weights()
+        # cloned_layer = type(layer).from_config(config)
+        # cloned_layer.build(layer.input_shape)
+        # cloned_layer.set_weights(weights)
+
+        # print("old_dense_layer.get_weights() shape ", old_dense_layer.get_weights()[0].shape)
+        # print("old_dense_layer.get_weights() shape ", old_dense_layer.get_weights()[1].shape)
+        # input_imgs = Input(shape=(None, 108, 1))
+        # new_dense_layer(input_imgs)
+        # # model = Model(inputs=input_imgs, outputs=encoded)
+        # # dense_layer.set_weights(weights)
+        #
+        # print("new dense layer weights ", new_dense_layer.weights)
+        #new_dense_layer.set_weights(old_dense_layer.get_weights())
+
+        new_dense_layer.set_weights(old_dense_layer.get_weights())
+
+    # print("new_model._dense_layers[0].get_config() ", new_model._dense_layers[0].get_config())
+    # print("old_model._dense_layers[0].get_config() ", old_model._dense_layers[0].get_config())
+    # print("new_model._dense_layers[0].get_weights() ", new_model._dense_layers[0].get_weights())
+    # print("old_model._dense_layers[0].get_weights() ", old_model._dense_layers[0].get_weights())
+
+
+    # print("old_dense_layer.get_weights() ", old_dense_layer.get_weights())
+    # print("new_model._dense_layers[-1].weights ", new_model._dense_layers[-1].weights)
+    # exit()
+
+
 def run_GNN(config, stats=True, train=True, log=False, seed=0):
     print("seed ", seed)
 
@@ -1252,8 +1367,13 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     train_data_len = config['n_train_samples']
     # Train/valid/test split
 
-    data_tr = data[seed*train_data_len: seed*train_data_len + train_data_len]
-    data_te = data.get_test_data(seed, train_data_len)
+    if not train:
+        data_tr = data
+        data_te = data
+    else:
+        data_tr = data[seed*train_data_len: seed*train_data_len + train_data_len]
+        print("data tr ", data_tr)
+        data_te = data.get_test_data(seed, train_data_len)
     #data_tr, data_te = data[:train_data_len], data[train_data_len:]
 
     gnn = config['gnn'](**config['model_config'])
@@ -1279,6 +1399,17 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     loader_tr = MixedLoader(data_tr, batch_size=batch_size, epochs=epochs)
     loader_va = MixedLoader(data_va, batch_size=batch_size)
     loader_te = MixedLoader(data_te, batch_size=batch_size)
+
+    if not train:
+        gnn.fit(MixedLoader(data_tr[:10], batch_size=batch_size, epochs=epochs),
+                MixedLoader(data_tr[10:20], batch_size=batch_size), MixedLoader(data_tr[20:30], batch_size=batch_size))
+        set_model_weights(gnn._model, config["set_model"])
+
+        #set_model_layers(gnn._model, config["set_model"])
+
+        #gnn._model = config["set_model"]
+        #compare_models(gnn._model, config["set_model"], config)
+
     #
     if gnn is None:
         gnn = GNN(loss=loss, optimizer=optimizer, conv_layer=config['conv_layer'], output_activation=abs_activation,
