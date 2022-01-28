@@ -5,7 +5,9 @@ MLMC package
 .. automodule:: mlmc
 
 .. toctree::
-   :hidden:
+   :includehidden:
+   :maxdepth: 1
+
    mlmc.plot.rst
    mlmc.quantity.rst
    mlmc.random.rst
