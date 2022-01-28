@@ -1,0 +1,465 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>examples.shooting.shooting_2D &mdash; mlmc 1.0.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">MLMC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../index.html#installation">Installation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_sampler_creation.html">Sampler creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_samples_scheduling.html">Samples scheduling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_samples_scheduling.html#prescribe-the-exact-number-of-samples">1. Prescribe the exact number of samples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_samples_scheduling.html#prescribe-a-target-variance">2. Prescribe a target variance</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_quantity.html">Quantity tutorial</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#mean-estimates">Mean estimates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#estimate-moments-and-covariance-matrix">Estimate moments and covariance matrix</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#quantity-selection">Quantity selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#binary-operations">Binary operations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#numpy-universal-functions">NumPy universal functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#quantity-selection-by-conditions">Quantity selection by conditions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_postprocessing.html">Results postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_postprocessing.html#probability-density-function-approximation">Probability density function approximation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html">MLMC package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../mlmc.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mlmc.html#classes">Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#sampler">Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplingpool">SamplingPool</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplingpoolpbs">SamplingPoolPBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplestorage">SampleStorage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplestoragehdf">SampleStorageHDF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#estimate">Estimate</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#moments">Moments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#levelsimulation">LevelSimulation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>examples.shooting.shooting_2D</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for examples.shooting.shooting_2D</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">mlmc.estimator</span> <span class="kn">import</span> <span class="n">Estimate</span><span class="p">,</span> <span class="n">estimate_n_samples_for_target_variance</span>
+<span class="kn">from</span> <span class="nn">mlmc.sampler</span> <span class="kn">import</span> <span class="n">Sampler</span>
+<span class="kn">from</span> <span class="nn">mlmc.sample_storage</span> <span class="kn">import</span> <span class="n">Memory</span>
+<span class="kn">from</span> <span class="nn">mlmc.sampling_pool</span> <span class="kn">import</span> <span class="n">OneProcessPool</span>
+<span class="kn">from</span> <span class="nn">examples.shooting.simulation_shooting_2D</span> <span class="kn">import</span> <span class="n">ShootingSimulation2D</span>
+<span class="kn">from</span> <span class="nn">mlmc.quantity.quantity</span> <span class="kn">import</span> <span class="n">make_root_quantity</span>
+<span class="kn">from</span> <span class="nn">mlmc.quantity.quantity_estimate</span> <span class="kn">import</span> <span class="n">moments</span><span class="p">,</span> <span class="n">estimate_mean</span>
+<span class="kn">from</span> <span class="nn">mlmc.moments</span> <span class="kn">import</span> <span class="n">Legendre</span>
+<span class="kn">from</span> <span class="nn">mlmc.plot.plots</span> <span class="kn">import</span> <span class="n">Distribution</span>
+
+
+<span class="c1"># Simple example with OneProcessPool, MultiProcessPool, also show usage of different storages - Memory(), HDFStorage()</span>
+
+
+<div class="viewcode-block" id="ProcessShooting2D"><a class="viewcode-back" href="../../../examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D">[docs]</a><span class="k">class</span> <span class="nc">ProcessShooting2D</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">n_levels</span> <span class="o">=</span> <span class="mi">5</span>
+        <span class="c1"># Number of MLMC levels</span>
+        <span class="n">step_range</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.005</span><span class="p">]</span>
+        <span class="c1"># step_range [simulation step at the coarsest level, simulation step at the finest level]</span>
+        <span class="n">level_parameters</span> <span class="o">=</span> <span class="n">ProcessShooting2D</span><span class="o">.</span><span class="n">determine_level_parameters</span><span class="p">(</span><span class="n">n_levels</span><span class="p">,</span> <span class="n">step_range</span><span class="p">)</span>
+        <span class="c1"># Determine each level parameters (in this case, simulation step at each level), level_parameters should be</span>
+        <span class="c1"># simulation dependent</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sample_sleep</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># 30</span>
+        <span class="c1"># Time to do nothing just to make sure the simulations aren&#39;t constantly checked, useful mainly for PBS run</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sample_timeout</span> <span class="o">=</span> <span class="mi">60</span>
+        <span class="c1"># Maximum waiting time for running simulations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_adding_samples_coef</span> <span class="o">=</span> <span class="mf">0.1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_moments</span> <span class="o">=</span> <span class="mi">20</span>
+        <span class="c1"># number of generalized statistical moments used for MLMC number of samples estimation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_quantile</span> <span class="o">=</span> <span class="mf">0.001</span>
+        <span class="c1"># Setting parameters that are utilized when scheduling samples</span>
+        <span class="c1">###</span>
+        <span class="c1"># MLMC run</span>
+        <span class="c1">###</span>
+        <span class="n">sampler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_sampler</span><span class="p">(</span><span class="n">level_parameters</span><span class="o">=</span><span class="n">level_parameters</span><span class="p">)</span>
+        <span class="c1"># Create sampler (mlmc.Sampler instance) - crucial class that controls MLMC run</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generate_samples</span><span class="p">(</span><span class="n">sampler</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">target_var</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
+        <span class="c1"># Generate MLMC samples, there are two ways:</span>
+        <span class="c1"># 1) set exact number of samples at each level,</span>
+        <span class="c1">#    e.g. for 5 levels - self.generate_samples(sampler, n_samples=[1000, 500, 250, 100, 50])</span>
+        <span class="c1"># 2) set target variance of MLMC estimates,</span>
+        <span class="c1">#    e.g. self.generate_samples(sampler, n_samples=None, target_var=1e-6)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_collect</span><span class="p">(</span><span class="n">sampler</span><span class="p">)</span>
+        <span class="c1"># Check if all samples are finished</span>
+        <span class="c1">###</span>
+        <span class="c1"># Postprocessing</span>
+        <span class="c1">###</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">process_results</span><span class="p">(</span><span class="n">sampler</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">)</span>
+        <span class="c1"># Postprocessing, MLMC is finished at this point</span>
+
+<div class="viewcode-block" id="ProcessShooting2D.create_estimator"><a class="viewcode-back" href="../../../examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.create_estimator">[docs]</a>    <span class="k">def</span> <span class="nf">create_estimator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">quantity</span><span class="p">,</span> <span class="n">sample_storage</span><span class="p">):</span>
+        <span class="n">estimated_domain</span> <span class="o">=</span> <span class="n">Estimate</span><span class="o">.</span><span class="n">estimate_domain</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">sample_storage</span><span class="p">,</span> <span class="n">quantile</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_quantile</span><span class="p">)</span>
+        <span class="n">moments_fn</span> <span class="o">=</span> <span class="n">Legendre</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_moments</span><span class="p">,</span> <span class="n">estimated_domain</span><span class="p">)</span>
+        <span class="c1"># Create estimator for your quantity</span>
+        <span class="k">return</span> <span class="n">Estimate</span><span class="p">(</span><span class="n">quantity</span><span class="o">=</span><span class="n">quantity</span><span class="p">,</span> <span class="n">sample_storage</span><span class="o">=</span><span class="n">sample_storage</span><span class="p">,</span>
+                                              <span class="n">moments_fn</span><span class="o">=</span><span class="n">moments_fn</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ProcessShooting2D.process_results"><a class="viewcode-back" href="../../../examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.process_results">[docs]</a>    <span class="k">def</span> <span class="nf">process_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sampler</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">):</span>
+        <span class="n">sample_storage</span> <span class="o">=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">sample_storage</span>
+        <span class="c1"># Load result format from sample storage</span>
+        <span class="n">result_format</span> <span class="o">=</span> <span class="n">sample_storage</span><span class="o">.</span><span class="n">load_result_format</span><span class="p">()</span>
+        <span class="c1"># Create quantity instance representing your real quantity of interest</span>
+        <span class="n">root_quantity</span> <span class="o">=</span> <span class="n">make_root_quantity</span><span class="p">(</span><span class="n">sample_storage</span><span class="p">,</span> <span class="n">result_format</span><span class="p">)</span>
+
+        <span class="c1"># You can access item of quantity according to result format</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">root_quantity</span><span class="p">[</span><span class="s1">&#39;target&#39;</span><span class="p">]</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">target</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span>  <span class="c1"># times: [1]</span>
+        <span class="n">position</span> <span class="o">=</span> <span class="n">time</span><span class="p">[</span><span class="s1">&#39;0&#39;</span><span class="p">]</span>  <span class="c1"># locations: [&#39;0&#39;]</span>
+        <span class="n">x_quantity_value</span> <span class="o">=</span> <span class="n">position</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">y_quantity_value</span> <span class="o">=</span> <span class="n">position</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># Create estimator for quantities</span>
+        <span class="n">x_estimator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_estimator</span><span class="p">(</span><span class="n">x_quantity_value</span><span class="p">,</span> <span class="n">sample_storage</span><span class="p">)</span>
+        <span class="n">y_estimator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_estimator</span><span class="p">(</span><span class="n">y_quantity_value</span><span class="p">,</span> <span class="n">sample_storage</span><span class="p">)</span>
+
+        <span class="n">root_quantity_estimated_domain</span> <span class="o">=</span> <span class="n">Estimate</span><span class="o">.</span><span class="n">estimate_domain</span><span class="p">(</span><span class="n">root_quantity</span><span class="p">,</span> <span class="n">sample_storage</span><span class="p">,</span>
+                                                                  <span class="n">quantile</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_quantile</span><span class="p">)</span>
+        <span class="n">root_quantity_moments_fn</span> <span class="o">=</span> <span class="n">Legendre</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_moments</span><span class="p">,</span> <span class="n">root_quantity_estimated_domain</span><span class="p">)</span>
+
+        <span class="c1"># There is another possible approach to calculating all moments at once and then choose quantity</span>
+        <span class="n">moments_quantity</span> <span class="o">=</span> <span class="n">moments</span><span class="p">(</span><span class="n">root_quantity</span><span class="p">,</span> <span class="n">moments_fn</span><span class="o">=</span><span class="n">root_quantity_moments_fn</span><span class="p">,</span> <span class="n">mom_at_bottom</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">moments_mean</span> <span class="o">=</span> <span class="n">estimate_mean</span><span class="p">(</span><span class="n">moments_quantity</span><span class="p">)</span>
+        <span class="n">target_mean</span> <span class="o">=</span> <span class="n">moments_mean</span><span class="p">[</span><span class="s1">&#39;target&#39;</span><span class="p">]</span>
+        <span class="n">time_mean</span> <span class="o">=</span> <span class="n">target_mean</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span>  <span class="c1"># times: [1]</span>
+        <span class="n">location_mean</span> <span class="o">=</span> <span class="n">time_mean</span><span class="p">[</span><span class="s1">&#39;0&#39;</span><span class="p">]</span>  <span class="c1"># locations: [&#39;0&#39;]</span>
+        <span class="n">value_mean</span> <span class="o">=</span> <span class="n">location_mean</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># result shape: (1,)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">approx_distribution</span><span class="p">(</span><span class="n">x_estimator</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">approx_distribution</span><span class="p">(</span><span class="n">y_estimator</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ProcessShooting2D.approx_distribution"><a class="viewcode-back" href="../../../examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.approx_distribution">[docs]</a>    <span class="k">def</span> <span class="nf">approx_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">estimator</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1.95</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Probability density function approximation</span>
+<span class="sd">        :param estimator: mlmc.estimator.Estimate instance, it contains quantity for which the density is approximated</span>
+<span class="sd">        :param n_levels: int, number of MLMC levels</span>
+<span class="sd">        :param tol: Tolerance of the fitting problem, with account for variances in moments.</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">distr_obj</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">construct_density</span><span class="p">(</span><span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">)</span>
+        <span class="n">distr_plot</span> <span class="o">=</span> <span class="n">Distribution</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;distributions&quot;</span><span class="p">,</span> <span class="n">error_plot</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">distr_plot</span><span class="o">.</span><span class="n">add_distribution</span><span class="p">(</span><span class="n">distr_obj</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">n_levels</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">samples</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">get_level_samples</span><span class="p">(</span><span class="n">level_id</span><span class="o">=</span><span class="mi">0</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">distr_plot</span><span class="o">.</span><span class="n">add_raw_samples</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">samples</span><span class="p">))</span>
+        <span class="n">distr_plot</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">distr_plot</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="ProcessShooting2D.create_sampler"><a class="viewcode-back" href="../../../examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.create_sampler">[docs]</a>    <span class="k">def</span> <span class="nf">create_sampler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level_parameters</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Simulation dependent configuration</span>
+<span class="sd">        :return: mlmc.sampler instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Create Pbs sampling pool</span>
+        <span class="n">sampling_pool</span> <span class="o">=</span> <span class="n">OneProcessPool</span><span class="p">()</span>
+
+        <span class="n">simulation_config</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;start_position&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
+            <span class="s2">&quot;start_velocity&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
+            <span class="s2">&quot;area_borders&quot;</span><span class="p">:</span>  <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="o">-</span><span class="mi">300</span><span class="p">,</span> <span class="mi">400</span><span class="p">]),</span>
+            <span class="s2">&quot;max_time&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="s2">&quot;complexity&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>  <span class="c1"># used for initial estimate of number of operations per sample</span>
+            <span class="s1">&#39;fields_params&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s1">&#39;gauss&#39;</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">corr_length</span><span class="o">=</span><span class="mf">0.1</span><span class="p">),</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Create simulation factory</span>
+        <span class="n">simulation_factory</span> <span class="o">=</span> <span class="n">ShootingSimulation2D</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">simulation_config</span><span class="p">)</span>
+        <span class="c1"># Create HDF sample storage</span>
+        <span class="n">sample_storage</span> <span class="o">=</span> <span class="n">Memory</span><span class="p">()</span>
+        <span class="c1"># Create sampler, it manages sample scheduling and so on</span>
+        <span class="n">sampler</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">(</span><span class="n">sample_storage</span><span class="o">=</span><span class="n">sample_storage</span><span class="p">,</span> <span class="n">sampling_pool</span><span class="o">=</span><span class="n">sampling_pool</span><span class="p">,</span> <span class="n">sim_factory</span><span class="o">=</span><span class="n">simulation_factory</span><span class="p">,</span>
+                          <span class="n">level_parameters</span><span class="o">=</span><span class="n">level_parameters</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sampler</span></div>
+
+<div class="viewcode-block" id="ProcessShooting2D.generate_samples"><a class="viewcode-back" href="../../../examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.generate_samples">[docs]</a>    <span class="k">def</span> <span class="nf">generate_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sampler</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">target_var</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate MLMC samples</span>
+<span class="sd">        :param sampler: mlmc.sampler.Sampler instance</span>
+<span class="sd">        :param n_samples: None or list, number of samples at each level</span>
+<span class="sd">        :param target_var: target variance of MLMC estimates</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># The number of samples is set by user</span>
+        <span class="k">if</span> <span class="n">n_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sampler</span><span class="o">.</span><span class="n">set_initial_n_samples</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
+        <span class="c1"># The number of initial samples is determined automatically</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sampler</span><span class="o">.</span><span class="n">set_initial_n_samples</span><span class="p">()</span>
+        <span class="c1"># Samples are scheduled and the program is waiting for all of them to be completed.</span>
+        <span class="n">sampler</span><span class="o">.</span><span class="n">schedule_samples</span><span class="p">()</span>
+        <span class="n">sampler</span><span class="o">.</span><span class="n">ask_sampling_pool_for_samples</span><span class="p">(</span><span class="n">sleep</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_sample_sleep</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_sample_timeout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_collect</span><span class="p">(</span><span class="n">sampler</span><span class="p">)</span>
+
+        <span class="c1"># MLMC estimates target variance is set</span>
+        <span class="k">if</span> <span class="n">target_var</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># The mlmc.quantity.quantity.Quantity instance is created</span>
+            <span class="c1"># parameters &#39;storage&#39; and &#39;q_specs&#39; are obtained from sample_storage,</span>
+            <span class="c1"># originally &#39;q_specs&#39; is set in the simulation class</span>
+            <span class="n">root_quantity</span> <span class="o">=</span> <span class="n">make_root_quantity</span><span class="p">(</span><span class="n">storage</span><span class="o">=</span><span class="n">sampler</span><span class="o">.</span><span class="n">sample_storage</span><span class="p">,</span>
+                                               <span class="n">q_specs</span><span class="o">=</span><span class="n">sampler</span><span class="o">.</span><span class="n">sample_storage</span><span class="o">.</span><span class="n">load_result_format</span><span class="p">())</span>
+
+            <span class="c1"># Moment functions object is created</span>
+            <span class="c1"># The MLMC algorithm determines number of samples according to the moments variance,</span>
+            <span class="c1"># Type of moment functions (Legendre by default) might affect the total number of MLMC samples</span>
+            <span class="n">moments_fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_moments</span><span class="p">(</span><span class="n">root_quantity</span><span class="p">,</span> <span class="n">sampler</span><span class="o">.</span><span class="n">sample_storage</span><span class="p">,</span> <span class="n">n_moments</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_moments</span><span class="p">)</span>
+            <span class="n">estimate_obj</span> <span class="o">=</span> <span class="n">Estimate</span><span class="p">(</span><span class="n">root_quantity</span><span class="p">,</span> <span class="n">sample_storage</span><span class="o">=</span><span class="n">sampler</span><span class="o">.</span><span class="n">sample_storage</span><span class="p">,</span>
+                                    <span class="n">moments_fn</span><span class="o">=</span><span class="n">moments_fn</span><span class="p">)</span>
+
+            <span class="c1"># Initial estimation of the number of samples at each level</span>
+            <span class="n">variances</span><span class="p">,</span> <span class="n">n_ops</span> <span class="o">=</span> <span class="n">estimate_obj</span><span class="o">.</span><span class="n">estimate_diff_vars_regression</span><span class="p">(</span><span class="n">sampler</span><span class="o">.</span><span class="n">n_finished_samples</span><span class="p">)</span>
+            <span class="c1"># Firstly, the variance of moments and execution time of samples at each level are calculated from already finished samples</span>
+            <span class="n">n_estimated</span> <span class="o">=</span> <span class="n">estimate_n_samples_for_target_variance</span><span class="p">(</span><span class="n">target_var</span><span class="p">,</span> <span class="n">variances</span><span class="p">,</span> <span class="n">n_ops</span><span class="p">,</span>
+                                                                 <span class="n">n_levels</span><span class="o">=</span><span class="n">sampler</span><span class="o">.</span><span class="n">n_levels</span><span class="p">)</span>
+
+            <span class="c1">#####</span>
+            <span class="c1"># MLMC sampling algorithm - gradually schedules samples and refines the total number of samples</span>
+            <span class="c1">#####</span>
+            <span class="c1"># Loop until number of estimated samples is greater than the number of scheduled samples</span>
+            <span class="k">while</span> <span class="ow">not</span> <span class="n">sampler</span><span class="o">.</span><span class="n">process_adding_samples</span><span class="p">(</span><span class="n">n_estimated</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sample_sleep</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adding_samples_coef</span><span class="p">,</span>
+                                                     <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_sample_timeout</span><span class="p">):</span>
+                <span class="c1"># New estimation according to already finished samples</span>
+                <span class="n">variances</span><span class="p">,</span> <span class="n">n_ops</span> <span class="o">=</span> <span class="n">estimate_obj</span><span class="o">.</span><span class="n">estimate_diff_vars_regression</span><span class="p">(</span><span class="n">sampler</span><span class="o">.</span><span class="n">_n_scheduled_samples</span><span class="p">)</span>
+                <span class="n">n_estimated</span> <span class="o">=</span> <span class="n">estimate_n_samples_for_target_variance</span><span class="p">(</span><span class="n">target_var</span><span class="p">,</span> <span class="n">variances</span><span class="p">,</span> <span class="n">n_ops</span><span class="p">,</span>
+                                                                     <span class="n">n_levels</span><span class="o">=</span><span class="n">sampler</span><span class="o">.</span><span class="n">n_levels</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ProcessShooting2D.all_collect"><a class="viewcode-back" href="../../../examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.all_collect">[docs]</a>    <span class="k">def</span> <span class="nf">all_collect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sampler</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Collect samples</span>
+<span class="sd">        :param sampler: mlmc.Sampler object</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">running</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">while</span> <span class="n">running</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">running</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">running</span> <span class="o">+=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">ask_sampling_pool_for_samples</span><span class="p">()</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;N running: &quot;</span><span class="p">,</span> <span class="n">running</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ProcessShooting2D.set_moments"><a class="viewcode-back" href="../../../examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.set_moments">[docs]</a>    <span class="k">def</span> <span class="nf">set_moments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">quantity</span><span class="p">,</span> <span class="n">sample_storage</span><span class="p">,</span> <span class="n">n_moments</span><span class="o">=</span><span class="mi">25</span><span class="p">):</span>
+        <span class="n">true_domain</span> <span class="o">=</span> <span class="n">Estimate</span><span class="o">.</span><span class="n">estimate_domain</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">sample_storage</span><span class="p">,</span> <span class="n">quantile</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_quantile</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Legendre</span><span class="p">(</span><span class="n">n_moments</span><span class="p">,</span> <span class="n">true_domain</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ProcessShooting2D.determine_level_parameters"><a class="viewcode-back" href="../../../examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.determine_level_parameters">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">determine_level_parameters</span><span class="p">(</span><span class="n">n_levels</span><span class="p">,</span> <span class="n">step_range</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Determine level parameters,</span>
+<span class="sd">        In this case, a step of fine simulation at each level</span>
+<span class="sd">        :param n_levels: number of MLMC levels</span>
+<span class="sd">        :param step_range: simulation step range</span>
+<span class="sd">        :return: List of lists</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="n">step_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">step_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">level_parameters</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i_level</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_levels</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">n_levels</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">level_param</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">level_param</span> <span class="o">=</span> <span class="n">i_level</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_levels</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">level_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">step_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">level_param</span><span class="p">)</span> <span class="o">*</span> <span class="n">step_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">**</span> <span class="n">level_param</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">level_parameters</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">ProcessShooting2D</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, Jan Březina, Martin Špetlík.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

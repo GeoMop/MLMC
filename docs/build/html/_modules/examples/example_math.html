@@ -1,0 +1,284 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>examples.example_math &mdash; mlmc 1.0.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">MLMC Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../index.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../index.html#quickstart">Quickstart</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../index.html#create-mlmc-sampler">Create MLMC Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../index.html#schedule-mlmc-samples">Schedule MLMC samples</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../examples.html#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../examples.html#factorial">factorial</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../sampler_example.html">Sampler creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../sampler_exp.html">Sampler creation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../mlmc.html">MLMC package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../mlmc.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../mlmc.html#classes">Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../mlmc.html#sampler">Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mlmc.html#samplingpool">SamplingPool</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mlmc.html#samplingpoolpbs">SamplingPoolPBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mlmc.html#samplestorage">SampleStorage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mlmc.html#samplestoragehdf">SampleStorageHDF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mlmc.html#estimate">Estimate</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mlmc.html#moments">Moments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../mlmc.html#levelsimulation">LevelSimulation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>examples.example_math</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for examples.example_math</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This is the &quot;example&quot; module.</span>
+
+<span class="sd">The example module supplies one function, factorial().  For example,</span>
+
+<span class="sd">&gt;&gt;&gt; factorial(5)</span>
+<span class="sd">120</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="factorial"><a class="viewcode-back" href="../../generated/examples.example_math.factorial.html#examples.example_math.factorial">[docs]</a><span class="k">def</span> <span class="nf">factorial</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the factorial of n, an exact integer &gt;= 0.</span>
+
+<span class="sd">    &gt;&gt;&gt; [factorial(n) for n in range(6)]</span>
+<span class="sd">    [1, 1, 2, 6, 24, 120]</span>
+<span class="sd">    &gt;&gt;&gt; factorial(30)</span>
+<span class="sd">    265252859812191058636308480000000</span>
+<span class="sd">    &gt;&gt;&gt; factorial(-1)</span>
+<span class="sd">    Traceback (most recent call last):</span>
+<span class="sd">        ...</span>
+<span class="sd">    ValueError: n must be &gt;= 0</span>
+
+<span class="sd">    Factorials of floats are OK, but the float must be an exact integer:</span>
+<span class="sd">    &gt;&gt;&gt; factorial(30.1)</span>
+<span class="sd">    Traceback (most recent call last):</span>
+<span class="sd">        ...</span>
+<span class="sd">    ValueError: n must be exact integer</span>
+<span class="sd">    &gt;&gt;&gt; factorial(30.0)</span>
+<span class="sd">    265252859812191058636308480000000</span>
+
+<span class="sd">    It must also not be ridiculously large:</span>
+<span class="sd">    &gt;&gt;&gt; factorial(1e100)</span>
+<span class="sd">    Traceback (most recent call last):</span>
+<span class="sd">        ...</span>
+<span class="sd">    OverflowError: n too large</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="kn">import</span> <span class="nn">math</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">n</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;n must be &gt;= 0&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;n must be exact integer&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n</span><span class="o">+</span><span class="mi">1</span> <span class="o">==</span> <span class="n">n</span><span class="p">:</span>  <span class="c1"># catch a value like 1e300</span>
+        <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span><span class="s2">&quot;n too large&quot;</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">factor</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="k">while</span> <span class="n">factor</span> <span class="o">&lt;=</span> <span class="n">n</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">*=</span> <span class="n">factor</span>
+        <span class="n">factor</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Jan Březina, Martin Špetlík.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

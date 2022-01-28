@@ -1,0 +1,41 @@
+Results of doctest builder run on 2022-01-14 13:20:59
+=====================================================
+
+Document: examples_samples_scheduling
+-------------------------------------
+1 items passed all tests:
+  12 tests in default
+12 tests in 1 items.
+12 passed and 0 failed.
+Test passed.
+
+Document: examples_sampler_creation
+-----------------------------------
+1 items passed all tests:
+   5 tests in default
+5 tests in 1 items.
+5 passed and 0 failed.
+Test passed.
+
+Document: examples_quantity
+---------------------------
+1 items passed all tests:
+  23 tests in default
+23 tests in 1 items.
+23 passed and 0 failed.
+Test passed.
+
+Document: examples_postprocessing
+---------------------------------
+1 items passed all tests:
+   2 tests in default
+2 tests in 1 items.
+2 passed and 0 failed.
+Test passed.
+
+Doctest summary
+===============
+   42 tests
+    0 failures in tests
+    0 failures in setup code
+    0 failures in cleanup code

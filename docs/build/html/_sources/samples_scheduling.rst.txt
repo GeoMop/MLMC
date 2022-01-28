@@ -1,0 +1,94 @@
+Samples scheduling
+==================
+
+Once you create a sampler you can schedule samples.
+
+
+1. Prescribe the exact number of samples to perform
+----------------------------------------------------------------
+
+.. testcode::
+
+    n_samples = [100, 75, 50]
+    sampler.set_initial_n_samples(n_samples)
+
+Schedule set samples
+
+.. testcode::
+
+    sampler.schedule_samples()
+
+Wait until all samples are finished
+
+.. testcode::
+
+        running = 1
+        while running > 0:
+            running = 0
+            running += sampler.ask_sampling_pool_for_samples()
+
+
+2. Prescribe a target variance
+-------------------------------------------------------------
+
+.. testcode::
+
+     target_var = 1e-4
+
+The first phase is the same as the first approach, but the initial samples are automatically determined.
+
+.. testcode::
+
+    sampler.set_initial_n_samples()
+    sampler.schedule_samples()
+    running = 1
+    while running > 0:
+        running = 0
+        running += sampler.ask_sampling_pool_for_samples()
+
+
+
+The mlmc.quantity.quantity.Quantity instance is created
+parameters 'storage' and 'q_specs' are obtained from sample_storage,
+originally 'q_specs' is set in the simulation class
+
+.. testcode::
+
+    root_quantity = make_root_quantity(storage=sampler.sample_storage,
+                                   q_specs=sampler.sample_storage.load_result_format())
+
+Moment functions object is created
+The MLMC algorithm determines number of samples according to the moments variance,
+Type of moment functions (Legendre by default) might affect the total number of MLMC samples
+
+.. testcode::
+
+    moments_fn = self.set_moments(root_quantity, sampler.sample_storage, n_moments=self._n_moments)
+    estimate_obj = Estimate(root_quantity, sample_storage=sampler.sample_storage,
+                                           moments_fn=moments_fn)
+
+Initial estimation of the number of samples at each level
+
+.. testcode::
+
+    variances, n_ops = estimate_obj.estimate_diff_vars_regression(sampler.n_finished_samples)
+
+Firstly, the variance of moments and execution time of samples at each level are calculated from already finished samples
+
+.. testcode::
+
+    n_estimated = estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                                           n_levels=sampler.n_levels)
+
+
+MLMC sampling algorithm - gradually schedules samples and refines the total number of samples
+
+Loop until number of estimated samples is greater than the number of scheduled samples
+
+.. testcode::
+    while not sampler.process_adding_samples(n_estimated, self._sample_sleep, self._adding_samples_coef,
+                                             timeout=self._sample_timeout):
+        # New estimation according to already finished samples
+        variances, n_ops = estimate_obj.estimate_diff_vars_regression(sampler._n_scheduled_samples)
+        n_estimated = estimate_n_samples_for_target_variance(target_var, variances, n_ops,
+                                                             n_levels=sampler.n_levels)

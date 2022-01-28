@@ -1,0 +1,725 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>mlmc.plot &mdash; mlmc 1.0.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="mlmc.quantity" href="mlmc.quantity.html" />
+    <link rel="prev" title="MLMC package" href="mlmc.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">MLMC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="index.html#installation">Installation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples_sampler_creation.html">Sampler creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples_samples_scheduling.html">Samples scheduling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_samples_scheduling.html#prescribe-the-exact-number-of-samples">1. Prescribe the exact number of samples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_samples_scheduling.html#prescribe-a-target-variance">2. Prescribe a target variance</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples_quantity.html">Quantity tutorial</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#mean-estimates">Mean estimates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#estimate-moments-and-covariance-matrix">Estimate moments and covariance matrix</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#quantity-selection">Quantity selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#binary-operations">Binary operations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#numpy-universal-functions">NumPy universal functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#quantity-selection-by-conditions">Quantity selection by conditions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples_postprocessing.html">Results postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_postprocessing.html#probability-density-function-approximation">Probability density function approximation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="mlmc.html">MLMC package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="mlmc.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.html#classes">Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#sampler">Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplingpool">SamplingPool</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplingpoolpbs">SamplingPoolPBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplestorage">SampleStorage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplestoragehdf">SampleStorageHDF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#estimate">Estimate</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#moments">Moments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#levelsimulation">LevelSimulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">mlmc.plot</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-mlmc.plot.plots">mlmc.plot.plots module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-mlmc.plot.violinplot">mlmc.plot.violinplot module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.quantity.html">mlmc.quantity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity">mlmc.quantity.quantity module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_estimate">mlmc.quantity.quantity_estimate module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_spec">mlmc.quantity.quantity_spec module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_types">mlmc.quantity.quantity_types module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.random.html">mlmc.random</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#module-mlmc.random.correlated_field">mlmc.random.correlated_field module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#mlmc-random-frac-geom-module">mlmc.random.frac_geom module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#mlmc-random-gstools-wrapper-module">mlmc.random.gstools_wrapper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.sim.html">mlmc.sim</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim.simulation">mlmc.sim.simulation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim.synth_simulation">mlmc.sim.synth_simulation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.tool.html">mlmc.tool</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#mlmc-tool-context-statprof-module">mlmc.tool.context_statprof module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.distribution">mlmc.tool.distribution module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.flow_mc">mlmc.tool.flow_mc module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.gmsh_io">mlmc.tool.gmsh_io module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.hdf5">mlmc.tool.hdf5 module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.pbs_job">mlmc.tool.pbs_job module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.process_base">mlmc.tool.process_base module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.simple_distribution">mlmc.tool.simple_distribution module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.stats_tests">mlmc.tool.stats_tests module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-0">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="mlmc.html">MLMC package</a> &raquo;</li>
+        
+      <li>mlmc.plot</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/mlmc.plot.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <div class="rst-breadcrumbs-buttons" role="navigation" aria-label="breadcrumb navigation">
+      
+        <a href="mlmc.quantity.html" class="btn btn-neutral float-right" title="mlmc.quantity" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+      
+      
+        <a href="mlmc.html" class="btn btn-neutral float-left" title="MLMC package" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+      
+  </div>
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-mlmc.plot">
+<span id="mlmc-plot"></span><h1>mlmc.plot<a class="headerlink" href="#module-mlmc.plot" title="Permalink to this headline">¶</a></h1>
+<p>Subpackage provides plot functions to display pdf, violinplot, …</p>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-mlmc.plot.plots">
+<span id="mlmc-plot-plots-module"></span><h2>mlmc.plot.plots module<a class="headerlink" href="#module-mlmc.plot.plots" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="mlmc.plot.plots.Aux">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">Aux</span></code><a class="reference internal" href="_modules/mlmc/plot/plots.html#Aux"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Aux" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt id="mlmc.plot.plots.Aux.plot_bootstrap_variance_compare">
+<code class="sig-name descname"><span class="pre">plot_bootstrap_variance_compare</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Aux.plot_bootstrap_variance_compare"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Aux.plot_bootstrap_variance_compare" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot fraction (MLMC var est) / (BS var set) for the total variance and level variances.
+:param moments_fn:
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Aux.plot_bs_level_variances_error">
+<code class="sig-name descname"><span class="pre">plot_bs_level_variances_error</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Aux.plot_bs_level_variances_error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Aux.plot_bs_level_variances_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot error of estimates of V_l. Scaled as V_l^2 / N_l</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Aux.plot_bs_var_error_contributions">
+<code class="sig-name descname"><span class="pre">plot_bs_var_error_contributions</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Aux.plot_bs_var_error_contributions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Aux.plot_bs_var_error_contributions" title="Permalink to this definition">¶</a></dt>
+<dd><p>MSE of total variance and contribution of individual levels.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Aux.plot_bs_var_log_var">
+<code class="sig-name descname"><span class="pre">plot_bs_var_log_var</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Aux.plot_bs_var_log_var"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Aux.plot_bs_var_log_var" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Aux.plot_bs_variances">
+<code class="sig-name descname"><span class="pre">plot_bs_variances</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variances</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_lim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Aux.plot_bs_variances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Aux.plot_bs_variances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot BS estimate of error of variances of other related quantities.
+:param variances: Data, shape: (n_levels + 1, n_moments).
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Aux.plot_means_and_vars">
+<code class="sig-name descname"><span class="pre">plot_means_and_vars</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moments_mean</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moments_var</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exact_moments</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Aux.plot_means_and_vars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Aux.plot_means_and_vars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot means with variance whiskers to given axes.
+:param moments_mean: array, moments mean
+:param moments_var: array, moments variance
+:param n_levels: array, number of levels
+:param exact_moments: array, moments from distribution
+:param ex_moments: array, moments from distribution samples
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Aux.plot_var_regression">
+<code class="sig-name descname"><span class="pre">plot_var_regression</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i_moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Aux.plot_var_regression"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Aux.plot_var_regression" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot total and level variances and their regression and errors of regression.
+:param i_moments: List of moment indices to plot. If it is an int M, the range(M) is used.</p>
+<blockquote>
+<div><p>If None, self.moments.size is used.</p>
+</div></blockquote>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mlmc.plot.plots.BSplots">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">BSplots</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_samples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bs_n_samples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_moments</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_level_var</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#BSplots"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.BSplots" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt id="mlmc.plot.plots.BSplots.plot_bootstrap_variance_compare">
+<code class="sig-name descname"><span class="pre">plot_bootstrap_variance_compare</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#BSplots.plot_bootstrap_variance_compare"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.BSplots.plot_bootstrap_variance_compare" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot fraction (MLMC var est) / (BS var set) for the total variance and level variances.
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.BSplots.plot_bs_level_variances_error">
+<code class="sig-name descname"><span class="pre">plot_bs_level_variances_error</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#BSplots.plot_bs_level_variances_error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.BSplots.plot_bs_level_variances_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot error of estimates of V_l. Scaled as V_l^2 / N_l</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.BSplots.plot_bs_var_error_contributions">
+<code class="sig-name descname"><span class="pre">plot_bs_var_error_contributions</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#BSplots.plot_bs_var_error_contributions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.BSplots.plot_bs_var_error_contributions" title="Permalink to this definition">¶</a></dt>
+<dd><p>MSE of total variance and contribution of individual levels.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.BSplots.plot_bs_var_log_var">
+<code class="sig-name descname"><span class="pre">plot_bs_var_log_var</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#BSplots.plot_bs_var_log_var"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.BSplots.plot_bs_var_log_var" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test that  MSE of log V_l scales as variance of log chi^2_{N-1}, that is approx. 2 / (n_samples-1).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.BSplots.plot_bs_variances">
+<code class="sig-name descname"><span class="pre">plot_bs_variances</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variances</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_lim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#BSplots.plot_bs_variances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.BSplots.plot_bs_variances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot BS estimate of error of variances of other related quantities.
+:param variances: Data, shape: (n_levels + 1, n_moments).
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.BSplots.plot_means_and_vars">
+<code class="sig-name descname"><span class="pre">plot_means_and_vars</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moments_mean</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moments_var</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exact_moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#BSplots.plot_means_and_vars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.BSplots.plot_means_and_vars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot means with variance whiskers to given axes.
+:param moments_mean: array, moments mean
+:param moments_var: array, moments variance
+:param n_levels: array, number of levels
+:param exact_moments: array, moments from distribution
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.BSplots.plot_var_regression">
+<code class="sig-name descname"><span class="pre">plot_var_regression</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">estimator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moments_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">i_moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#BSplots.plot_var_regression"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.BSplots.plot_var_regression" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot total and level variances and their regression and errors of regression.
+:param i_moments: List of moment indices to plot. If it is an int M, the range(M) is used.</p>
+<blockquote>
+<div><p>If None, self.moments_fn.size is used.</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.BSplots.set_moments_color_bar">
+<code class="sig-name descname"><span class="pre">set_moments_color_bar</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">range</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#BSplots.set_moments_color_bar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.BSplots.set_moments_color_bar" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create colorbar for a variable with given range and add it to given axes.
+:param range: single value as high bound or tuple (low bound, high bound)
+:param label: Label of the colorbar.
+:param ax:
+:return: Function to map values to colors. (normalize + cmap)</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mlmc.plot.plots.Distribution">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">Distribution</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">exact_distr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantity_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'X'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">legend_title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_density</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cdf_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'l2'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class for plotting distribution approximation: PDF and CDF (optional)
+Provides methods to: add more plots, add exact PDF, add ECDF/histogram from single level MC</p>
+<dl class="py method">
+<dt id="mlmc.plot.plots.Distribution.add_distribution">
+<code class="sig-name descname"><span class="pre">add_distribution</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">distr_object</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Distribution.add_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Distribution.add_distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add plot for distribution ‘distr_object’ with given label.
+:param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain
+:param label: string label for legend
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Distribution.add_raw_samples">
+<code class="sig-name descname"><span class="pre">add_raw_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Distribution.add_raw_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Distribution.add_raw_samples" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add histogram and ecdf for raw samples.
+:param samples:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Distribution.adjust_domain">
+<code class="sig-name descname"><span class="pre">adjust_domain</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">domain</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Distribution.adjust_domain"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Distribution.adjust_domain" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enlarge common domain by given bounds.
+:param value: [lower_bound, upper_bound]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Distribution.reset">
+<code class="sig-name descname"><span class="pre">reset</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Distribution.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Distribution.reset" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Distribution.show">
+<code class="sig-name descname"><span class="pre">show</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Distribution.show"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Distribution.show" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set colors according to the number of added plots.
+Set domain from all plots.
+Plot exact distribution.
+show, possibly save to file.
+:param file: None, or filename, default name is same as plot title.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mlmc.plot.plots.Eigenvalues">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">Eigenvalues</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">log_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Eigenvalues'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Eigenvalues"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Eigenvalues" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Plot of eigenvalues (of the covariance matrix), several sets of eigenvalues can be added
+together with error bars and cut-tresholds.
+Colors are chosen automatically. Slight X shift is used to avoid point overlapping.
+For log Y scale only positive values are plotted.</p>
+<dl class="py method">
+<dt id="mlmc.plot.plots.Eigenvalues.add_linear_fit">
+<code class="sig-name descname"><span class="pre">add_linear_fit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Eigenvalues.add_linear_fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Eigenvalues.add_linear_fit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Eigenvalues.add_values">
+<code class="sig-name descname"><span class="pre">add_values</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Eigenvalues.add_values"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Eigenvalues.add_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add set of eigenvalues into the plot.
+:param values: array (n,); eigen values in increasing or decreasing ordred, automatically flipped to decreasing.
+:param errors: array (n,); corresponding std errors
+:param threshold: horizontal line marking noise level or cut-off eigen value
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Eigenvalues.adjust_ylim">
+<code class="sig-name descname"><span class="pre">adjust_ylim</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ylim</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Eigenvalues.adjust_ylim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Eigenvalues.adjust_ylim" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enlarge common domain by given bounds.
+:param value: [lower_bound, upper_bound]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Eigenvalues.show">
+<code class="sig-name descname"><span class="pre">show</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Eigenvalues.show"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Eigenvalues.show" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show the plot or save to file.
+:param file: filename base, None for show.
+:return:</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mlmc.plot.plots.Variance">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">Variance</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Variance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Variance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Plot level variances, i.e. Var X^l as a function of the mesh step.
+Selected moments are plotted.</p>
+<dl class="py method">
+<dt id="mlmc.plot.plots.Variance.add_level_variances">
+<code class="sig-name descname"><span class="pre">add_level_variances</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">steps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variances</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Variance.add_level_variances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Variance.add_level_variances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add variances for single MLMC instance.
+:param steps, variances : as returned by Estimate.estimate_level_vars
+:param n_levels:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.Variance.show">
+<code class="sig-name descname"><span class="pre">show</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#Variance.show"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.Variance.show" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="mlmc.plot.plots.VarianceBreakdown">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">VarianceBreakdown</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#VarianceBreakdown"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.VarianceBreakdown" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Plot total variance average over moments and variances of individual moments,
+Brake down to contribution of individual levels and optionally comparison to the reference level variances using
+error bars for the (signed) difference: ref_level_vars - level_vars</p>
+<dl class="py method">
+<dt id="mlmc.plot.plots.VarianceBreakdown.add_variances">
+<code class="sig-name descname"><span class="pre">add_variances</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level_vars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_level_vars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#VarianceBreakdown.add_variances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.VarianceBreakdown.add_variances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add plot of variances for single MLMC instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>level_vars</strong> – Array (n_levels, n_moments) of level variances.</p></li>
+<li><p><strong>n_samples</strong> – Array (n_levels,) of numberf of samples on levels</p></li>
+<li><p><strong>ref_level_vars</strong> – reference level vars (e.g. from bootstrapping)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="mlmc.plot.plots.VarianceBreakdown.show">
+<code class="sig-name descname"><span class="pre">show</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#VarianceBreakdown.show"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.VarianceBreakdown.show" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show the plot or save to file.
+:param filename: filename base, None for show.
+:return:</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.create_color_bar">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">create_color_bar</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">range</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#create_color_bar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.create_color_bar" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create colorbar for a variable with given range and add it to given axes.
+:param range: single value as high bound or tuple (low bound, high bound)
+:param label: Label of the colorbar.
+:param ax:
+:return: Function to map values to colors. (normalize + cmap)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.make_monotone">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">make_monotone</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Y</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#make_monotone"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.make_monotone" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.moments">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">moments</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moments_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.moments" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot moment functions.
+:param moments_fn:
+:param size:
+:param title:
+:param file:
+:return:</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.moments_subset">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">moments_subset</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_moments</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#moments_subset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.moments_subset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return subset of range(n_moments) for ploting.
+:param n_moments: Actual number of moments.
+:param moments: Type of subset:</p>
+<blockquote>
+<div><p>None - all moments
+int - size of subset, formed by geometrical sequence</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.plot_convergence">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">plot_convergence</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quantiles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">conv_val</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#plot_convergence"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.plot_convergence" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot convergence with moment size for various quantiles.
+:param quantiles: iterable with quantiles
+:param conv_val: matrix of ConvResult, n_quantiles x n_moments
+:param title: plot title and filename used to save
+:return:</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.plot_diff_var">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">plot_diff_var</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ref_mc_diff_vars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_moments</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#plot_diff_var"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.plot_diff_var" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot level diff vars</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.plot_diff_var_subsample">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">plot_diff_var_subsample</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level_variance_diff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#plot_diff_var_subsample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.plot_diff_var_subsample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot diff between V* and V
+:param level_variance_diff: array of moments sqrt(V/V*)
+:param n_levels: array, number of levels
+:return: None</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.plot_error">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">plot_error</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#plot_error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.plot_error" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.plot_mlmc_conv">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">plot_mlmc_conv</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_moments</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vars_est</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exact_mean</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">means_est</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_var</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#plot_mlmc_conv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.plot_mlmc_conv" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.plot_n_sample_est_distributions">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">plot_n_sample_est_distributions</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">title</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cost</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_std</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rel_moments</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#plot_n_sample_est_distributions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.plot_n_sample_est_distributions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.plot_pbs_flow_job_time">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">plot_pbs_flow_job_time</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#plot_pbs_flow_job_time"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.plot_pbs_flow_job_time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.plot_regression_diffs">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">plot_regression_diffs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">all_diffs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_moments</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#plot_regression_diffs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.plot_regression_diffs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot level variance difference regression
+:param all_diffs: list, difference between Estimate._variance_regression result and Estimate.estimate_diff_var result
+:param n_moments: number of moments
+:return:</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.plot_var_regression">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">plot_var_regression</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ref_level_vars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reg_vars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_moments</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#plot_var_regression"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.plot_var_regression" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot levels variance regression</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.plots.plot_vars">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.plots.</span></code><code class="sig-name descname"><span class="pre">plot_vars</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moments_mean</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moments_var</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exact_moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ex_moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/plots.html#plot_vars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.plots.plot_vars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot means with variance whiskers
+:param moments_mean: array, moments mean
+:param moments_var: array, moments variance
+:param n_levels: array, number of levels
+:param exact_moments: array, moments from distribution
+:param ex_moments: array, moments from distribution samples
+:return: None</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-mlmc.plot.violinplot">
+<span id="mlmc-plot-violinplot-module"></span><h2>mlmc.plot.violinplot module<a class="headerlink" href="#module-mlmc.plot.violinplot" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="mlmc.plot.violinplot.ViolinPlotter">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">mlmc.plot.violinplot.</span></code><code class="sig-name descname"><span class="pre">ViolinPlotter</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hue</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hue_order</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bw</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_hue</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gridsize</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inner</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dodge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orient</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linewidth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">palette</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">saturation</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/violinplot.html#ViolinPlotter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.violinplot.ViolinPlotter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">seaborn.categorical._ViolinPlotter</span></code></p>
+<dl class="py method">
+<dt id="mlmc.plot.violinplot.ViolinPlotter.draw_quartiles">
+<code class="sig-name descname"><span class="pre">draw_quartiles</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">support</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">center</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/violinplot.html#ViolinPlotter.draw_quartiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.violinplot.ViolinPlotter.draw_quartiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draw the quartiles as lines at width of density.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.violinplot.fine_coarse_violinplot">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.violinplot.</span></code><code class="sig-name descname"><span class="pre">fine_coarse_violinplot</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_frame</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/violinplot.html#fine_coarse_violinplot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.violinplot.fine_coarse_violinplot" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="mlmc.plot.violinplot.violinplot">
+<code class="sig-prename descclassname"><span class="pre">mlmc.plot.violinplot.</span></code><code class="sig-name descname"><span class="pre">violinplot</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hue</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hue_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'scott'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'area'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_hue</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gridsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inner</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'box'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dodge</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orient</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linewidth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">palette</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">saturation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.75</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlmc/plot/violinplot.html#violinplot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlmc.plot.violinplot.violinplot" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-0">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-0" title="Permalink to this headline">¶</a></h2>
+<p>Subpackage provides plot functions to display pdf, violinplot, …</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, Jan Březina, Martin Špetlík.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

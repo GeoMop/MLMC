@@ -1,0 +1,394 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>mlmc.quantity.quantity_estimate &mdash; mlmc 1.0.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">MLMC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../index.html#installation">Installation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_sampler_creation.html">Sampler creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_samples_scheduling.html">Samples scheduling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_samples_scheduling.html#prescribe-the-exact-number-of-samples">1. Prescribe the exact number of samples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_samples_scheduling.html#prescribe-a-target-variance">2. Prescribe a target variance</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_quantity.html">Quantity tutorial</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#mean-estimates">Mean estimates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#estimate-moments-and-covariance-matrix">Estimate moments and covariance matrix</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#quantity-selection">Quantity selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#binary-operations">Binary operations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#numpy-universal-functions">NumPy universal functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#quantity-selection-by-conditions">Quantity selection by conditions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_postprocessing.html">Results postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_postprocessing.html#probability-density-function-approximation">Probability density function approximation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html">MLMC package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../mlmc.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mlmc.html#classes">Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#sampler">Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplingpool">SamplingPool</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplingpoolpbs">SamplingPoolPBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplestorage">SampleStorage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplestoragehdf">SampleStorageHDF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#estimate">Estimate</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#moments">Moments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#levelsimulation">LevelSimulation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>mlmc.quantity.quantity_estimate</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for mlmc.quantity.quantity_estimate</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">mlmc.quantity.quantity</span>
+<span class="kn">import</span> <span class="nn">mlmc.quantity.quantity_types</span> <span class="k">as</span> <span class="nn">qt</span>
+
+
+<div class="viewcode-block" id="mask_nan_samples"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.mask_nan_samples">[docs]</a><span class="k">def</span> <span class="nf">mask_nan_samples</span><span class="p">(</span><span class="n">chunk</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mask out samples that contain NaN in either fine or coarse part of the result</span>
+<span class="sd">    :param chunk: np.ndarray [M, chunk_size, 2]</span>
+<span class="sd">    :return: chunk: np.ndarray, number of masked samples: int</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Fine and coarse moments_fn mask</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">chunk</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">chunk</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="o">~</span><span class="n">mask</span><span class="p">,</span> <span class="p">:],</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="cache_clear"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.cache_clear">[docs]</a><span class="k">def</span> <span class="nf">cache_clear</span><span class="p">():</span>
+    <span class="n">mlmc</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">Quantity</span><span class="o">.</span><span class="n">samples</span><span class="o">.</span><span class="n">cache_clear</span><span class="p">()</span>
+    <span class="n">mlmc</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">QuantityConst</span><span class="o">.</span><span class="n">samples</span><span class="o">.</span><span class="n">cache_clear</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="estimate_mean"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.estimate_mean">[docs]</a><span class="k">def</span> <span class="nf">estimate_mean</span><span class="p">(</span><span class="n">quantity</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    MLMC mean estimator.</span>
+<span class="sd">    The MLMC method is used to compute the mean estimate to the Quantity dependent on the collected samples.</span>
+<span class="sd">    The squared error of the estimate (the estimator variance) is estimated using the central limit theorem.</span>
+<span class="sd">    Data is processed by chunks, so that it also supports big data processing</span>
+<span class="sd">    :param quantity: Quantity</span>
+<span class="sd">    :return: QuantityMean which holds both mean and variance</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cache_clear</span><span class="p">()</span>
+    <span class="n">quantity_vec_size</span> <span class="o">=</span> <span class="n">quantity</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+    <span class="n">sums</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">sums_of_squares</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># initialization</span>
+    <span class="n">quantity_storage</span> <span class="o">=</span> <span class="n">quantity</span><span class="o">.</span><span class="n">get_quantity_storage</span><span class="p">()</span>
+    <span class="n">level_ids</span> <span class="o">=</span> <span class="n">quantity_storage</span><span class="o">.</span><span class="n">level_ids</span><span class="p">()</span>
+    <span class="n">n_levels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">level_ids</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_levels</span>
+    <span class="n">n_rm_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_levels</span>
+
+    <span class="k">for</span> <span class="n">chunk_spec</span> <span class="ow">in</span> <span class="n">quantity_storage</span><span class="o">.</span><span class="n">chunks</span><span class="p">():</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="n">quantity</span><span class="o">.</span><span class="n">samples</span><span class="p">(</span><span class="n">chunk_spec</span><span class="p">)</span>
+        <span class="n">chunk</span><span class="p">,</span> <span class="n">n_mask_samples</span> <span class="o">=</span> <span class="n">mask_nan_samples</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+        <span class="n">n_samples</span><span class="p">[</span><span class="n">chunk_spec</span><span class="o">.</span><span class="n">level_id</span><span class="p">]</span> <span class="o">+=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">n_rm_samples</span><span class="p">[</span><span class="n">chunk_spec</span><span class="o">.</span><span class="n">level_id</span><span class="p">]</span> <span class="o">+=</span> <span class="n">n_mask_samples</span>
+
+        <span class="c1"># No samples in chunk</span>
+        <span class="k">if</span> <span class="n">chunk</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">quantity_vec_size</span><span class="p">)</span>
+
+        <span class="c1"># Set variables for level sums and sums of squares</span>
+        <span class="k">if</span> <span class="n">sums</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sums</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_levels</span><span class="p">)]</span>
+            <span class="n">sums_of_squares</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_levels</span><span class="p">)]</span>
+
+        <span class="k">if</span> <span class="n">chunk_spec</span><span class="o">.</span><span class="n">level_id</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">chunk_diff</span> <span class="o">=</span> <span class="n">chunk</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">chunk_diff</span> <span class="o">=</span> <span class="n">chunk</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">chunk</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">sums</span><span class="p">[</span><span class="n">chunk_spec</span><span class="o">.</span><span class="n">level_id</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">chunk_diff</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">sums_of_squares</span><span class="p">[</span><span class="n">chunk_spec</span><span class="o">.</span><span class="n">level_id</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">chunk_diff</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">sums</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;All samples were masked&quot;</span><span class="p">)</span>
+
+    <span class="n">l_means</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">l_vars</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">sp</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">sums</span><span class="p">,</span> <span class="n">sums_of_squares</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">):</span>
+        <span class="n">l_means</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">l_vars</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sp</span> <span class="o">-</span> <span class="p">(</span><span class="n">s</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">n</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">l_vars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">mlmc</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">QuantityMean</span><span class="p">(</span><span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">l_means</span><span class="o">=</span><span class="n">l_means</span><span class="p">,</span> <span class="n">l_vars</span><span class="o">=</span><span class="n">l_vars</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="n">n_samples</span><span class="p">,</span>
+                                               <span class="n">n_rm_samples</span><span class="o">=</span><span class="n">n_rm_samples</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="moment"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.moment">[docs]</a><span class="k">def</span> <span class="nf">moment</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">moments_fn</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create quantity with operation that evaluates particular moment</span>
+<span class="sd">    :param quantity: Quantity instance</span>
+<span class="sd">    :param moments_fn: mlmc.moments.Moments child</span>
+<span class="sd">    :param i: index of moment</span>
+<span class="sd">    :return: Quantity</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">eval_moment</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">moments_fn</span><span class="o">.</span><span class="n">eval_single_moment</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mlmc</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">Quantity</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="p">[</span><span class="n">quantity</span><span class="p">],</span> <span class="n">operation</span><span class="o">=</span><span class="n">eval_moment</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="moments"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.moments">[docs]</a><span class="k">def</span> <span class="nf">moments</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">moments_fn</span><span class="p">,</span> <span class="n">mom_at_bottom</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create quantity with operation that evaluates moments_fn</span>
+<span class="sd">    :param quantity: Quantity</span>
+<span class="sd">    :param moments_fn: mlmc.moments.Moments child</span>
+<span class="sd">    :param mom_at_bottom: bool, if True moments are underneath,</span>
+<span class="sd">                                a scalar is substituted with an array of moments of that scalar</span>
+<span class="sd">    :return: Quantity</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">eval_moments</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">mom_at_bottom</span><span class="p">:</span>
+            <span class="n">mom</span> <span class="o">=</span> <span class="n">moments_fn</span><span class="o">.</span><span class="n">eval_all</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>  <span class="c1"># [M, R, N, 2]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mom</span> <span class="o">=</span> <span class="n">moments_fn</span><span class="o">.</span><span class="n">eval_all</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>  <span class="c1"># [R, M, N, 2]</span>
+        <span class="k">return</span> <span class="n">mom</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">mom</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">]),</span> <span class="n">mom</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">mom</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>  <span class="c1"># [M, N, 2]</span>
+
+    <span class="c1"># Create quantity type which has moments_fn at the bottom</span>
+    <span class="k">if</span> <span class="n">mom_at_bottom</span><span class="p">:</span>
+        <span class="n">moments_array_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">moments_fn</span><span class="o">.</span><span class="n">size</span><span class="p">,),</span> <span class="n">qtype</span><span class="o">=</span><span class="n">qt</span><span class="o">.</span><span class="n">ScalarType</span><span class="p">())</span>
+        <span class="n">moments_qtype</span> <span class="o">=</span> <span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">replace_scalar</span><span class="p">(</span><span class="n">moments_array_type</span><span class="p">)</span>
+    <span class="c1"># Create quantity type that has moments_fn on the surface</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">moments_qtype</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">moments_fn</span><span class="o">.</span><span class="n">size</span><span class="p">,),</span> <span class="n">qtype</span><span class="o">=</span><span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mlmc</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">Quantity</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">moments_qtype</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="p">[</span><span class="n">quantity</span><span class="p">],</span> <span class="n">operation</span><span class="o">=</span><span class="n">eval_moments</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="covariance"><a class="viewcode-back" href="../../../mlmc.quantity.html#mlmc.quantity.quantity_estimate.covariance">[docs]</a><span class="k">def</span> <span class="nf">covariance</span><span class="p">(</span><span class="n">quantity</span><span class="p">,</span> <span class="n">moments_fn</span><span class="p">,</span> <span class="n">cov_at_bottom</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create quantity with operation that evaluates covariance matrix</span>
+<span class="sd">    :param quantity: Quantity</span>
+<span class="sd">    :param moments_fn: mlmc.moments.Moments child</span>
+<span class="sd">    :param cov_at_bottom: bool, if True cov matrices are underneath,</span>
+<span class="sd">                                a scalar is substituted with a matrix of moments of that scalar</span>
+<span class="sd">    :return: Quantity</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">eval_cov</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="n">moments</span> <span class="o">=</span> <span class="n">moments_fn</span><span class="o">.</span><span class="n">eval_all</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">mom_fine</span> <span class="o">=</span> <span class="n">moments</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">cov_fine</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;...i,...j&#39;</span><span class="p">,</span> <span class="n">mom_fine</span><span class="p">,</span> <span class="n">mom_fine</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">moments</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">cov_fine</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mom_coarse</span> <span class="o">=</span> <span class="n">moments</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">cov_coarse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;...i,...j&#39;</span><span class="p">,</span> <span class="n">mom_coarse</span><span class="p">,</span> <span class="n">mom_coarse</span><span class="p">)</span>
+            <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">cov_fine</span><span class="p">,</span> <span class="n">cov_coarse</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">cov_at_bottom</span><span class="p">:</span>
+            <span class="n">cov</span> <span class="o">=</span> <span class="n">cov</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>   <span class="c1"># [M, R, R, N, 2]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cov</span> <span class="o">=</span> <span class="n">cov</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>   <span class="c1"># [R, R, M, N, 2]</span>
+        <span class="k">return</span> <span class="n">cov</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">cov</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">]),</span> <span class="n">cov</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">cov</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+
+    <span class="c1"># Create quantity type which has covariance matrices at the bottom</span>
+    <span class="k">if</span> <span class="n">cov_at_bottom</span><span class="p">:</span>
+        <span class="n">moments_array_type</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">moments_fn</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">moments_fn</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="p">),</span> <span class="n">qtype</span><span class="o">=</span><span class="n">qt</span><span class="o">.</span><span class="n">ScalarType</span><span class="p">())</span>
+        <span class="n">moments_qtype</span> <span class="o">=</span> <span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="o">.</span><span class="n">replace_scalar</span><span class="p">(</span><span class="n">moments_array_type</span><span class="p">)</span>
+    <span class="c1"># Create quantity type that has covariance matrices on the surface</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">moments_qtype</span> <span class="o">=</span> <span class="n">qt</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">moments_fn</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">moments_fn</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="p">),</span> <span class="n">qtype</span><span class="o">=</span><span class="n">quantity</span><span class="o">.</span><span class="n">qtype</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mlmc</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">quantity</span><span class="o">.</span><span class="n">Quantity</span><span class="p">(</span><span class="n">quantity_type</span><span class="o">=</span><span class="n">moments_qtype</span><span class="p">,</span> <span class="n">input_quantities</span><span class="o">=</span><span class="p">[</span><span class="n">quantity</span><span class="p">],</span> <span class="n">operation</span><span class="o">=</span><span class="n">eval_cov</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, Jan Březina, Martin Špetlík.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

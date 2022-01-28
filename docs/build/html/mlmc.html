@@ -1,0 +1,467 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>MLMC package &mdash; mlmc 1.0.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="mlmc.plot" href="mlmc.plot.html" />
+    <link rel="prev" title="Results postprocessing" href="examples_postprocessing.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">MLMC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="index.html#installation">Installation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples_sampler_creation.html">Sampler creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples_samples_scheduling.html">Samples scheduling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_samples_scheduling.html#prescribe-the-exact-number-of-samples">1. Prescribe the exact number of samples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_samples_scheduling.html#prescribe-a-target-variance">2. Prescribe a target variance</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples_quantity.html">Quantity tutorial</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#mean-estimates">Mean estimates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#estimate-moments-and-covariance-matrix">Estimate moments and covariance matrix</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#quantity-selection">Quantity selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#binary-operations">Binary operations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#numpy-universal-functions">NumPy universal functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#quantity-selection-by-conditions">Quantity selection by conditions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples_postprocessing.html">Results postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_postprocessing.html#probability-density-function-approximation">Probability density function approximation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">MLMC package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#classes">Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sampler">Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#samplingpool">SamplingPool</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#samplingpoolpbs">SamplingPoolPBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#samplestorage">SampleStorage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#samplestoragehdf">SampleStorageHDF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#estimate">Estimate</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#moments">Moments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#levelsimulation">LevelSimulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.plot.html">mlmc.plot</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-mlmc.plot.plots">mlmc.plot.plots module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-mlmc.plot.violinplot">mlmc.plot.violinplot module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.quantity.html">mlmc.quantity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity">mlmc.quantity.quantity module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_estimate">mlmc.quantity.quantity_estimate module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_spec">mlmc.quantity.quantity_spec module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_types">mlmc.quantity.quantity_types module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.random.html">mlmc.random</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#module-mlmc.random.correlated_field">mlmc.random.correlated_field module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#mlmc-random-frac-geom-module">mlmc.random.frac_geom module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#mlmc-random-gstools-wrapper-module">mlmc.random.gstools_wrapper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.sim.html">mlmc.sim</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim.simulation">mlmc.sim.simulation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim.synth_simulation">mlmc.sim.synth_simulation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.tool.html">mlmc.tool</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#mlmc-tool-context-statprof-module">mlmc.tool.context_statprof module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.distribution">mlmc.tool.distribution module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.flow_mc">mlmc.tool.flow_mc module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.gmsh_io">mlmc.tool.gmsh_io module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.hdf5">mlmc.tool.hdf5 module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.pbs_job">mlmc.tool.pbs_job module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.process_base">mlmc.tool.process_base module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.simple_distribution">mlmc.tool.simple_distribution module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.stats_tests">mlmc.tool.stats_tests module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-0">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>MLMC package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/mlmc.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <div class="rst-breadcrumbs-buttons" role="navigation" aria-label="breadcrumb navigation">
+      
+        <a href="mlmc.plot.html" class="btn btn-neutral float-right" title="mlmc.plot" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+      
+      
+        <a href="examples_postprocessing.html" class="btn btn-neutral float-left" title="Results postprocessing" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+      
+  </div>
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-mlmc">
+<span id="mlmc-package"></span><h1>MLMC package<a class="headerlink" href="#module-mlmc" title="Permalink to this headline">¶</a></h1>
+<p>The mlmc package provides tools to realize the Multilevel Monte Carlo method.</p>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="mlmc.plot.html#module-0" title="mlmc.plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot</span></code></a></p></td>
+<td><p>Subpackage provides plot functions to display pdf, violinplot, …</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="mlmc.quantity.html#module-0" title="mlmc.quantity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">quantity</span></code></a></p></td>
+<td><p>Subpackage provides methods to represent and handle a quantity of interest.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="mlmc.random.html#module-0" title="mlmc.random"><code class="xref py py-obj docutils literal notranslate"><span class="pre">random</span></code></a></p></td>
+<td><p>Subpackage provides random field generation and <a class="reference external" href="https://geostat-framework.readthedocs.io/projects/gstools/en/stable/index.html">GSTools library</a> interface</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="mlmc.sim.html#module-0" title="mlmc.sim"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sim</span></code></a></p></td>
+<td><p>Contains a parent simulation class and a specific synthetic simulation</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="mlmc.tool.html#module-0" title="mlmc.tool"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tool</span></code></a></p></td>
+<td><p>Contains classes that provide an interface to other resources such as HDF5, Gmsh, PBS, …</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="sampler">
+<h3>Sampler<a class="headerlink" href="#sampler" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/mlmc.sampler.Sampler.html#mlmc.sampler.Sampler" title="mlmc.sampler.Sampler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Sampler</span></code></a>(sample_storage, sampling_pool, …)</p></td>
+<td><p>Manages samples scheduling, results collection, and result storage.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="samplingpool">
+<h3>SamplingPool<a class="headerlink" href="#samplingpool" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/mlmc.sampling_pool.SamplingPool.html#mlmc.sampling_pool.SamplingPool" title="mlmc.sampling_pool.SamplingPool"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SamplingPool</span></code></a>([work_dir, debug])</p></td>
+<td><p>Determining the runtime environment of samples, eg single process, multiple processes, running PBS, …</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/mlmc.sampling_pool.OneProcessPool.html#mlmc.sampling_pool.OneProcessPool" title="mlmc.sampling_pool.OneProcessPool"><code class="xref py py-obj docutils literal notranslate"><span class="pre">OneProcessPool</span></code></a>([work_dir, debug])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/mlmc.sampling_pool.ProcessPool.html#mlmc.sampling_pool.ProcessPool" title="mlmc.sampling_pool.ProcessPool"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ProcessPool</span></code></a>(n_processes[, work_dir, debug])</p></td>
+<td><p>Suitable for local parallel sampling for simulations WITHOUT external program call</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="samplingpoolpbs">
+<h3>SamplingPoolPBS<a class="headerlink" href="#samplingpoolpbs" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/mlmc.sampling_pool_pbs.SamplingPoolPBS.html#mlmc.sampling_pool_pbs.SamplingPoolPBS" title="mlmc.sampling_pool_pbs.SamplingPoolPBS"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SamplingPoolPBS</span></code></a>(work_dir[, debug])</p></td>
+<td><p>Sampling pool PBS (Portable batch system) runtime environment</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="samplestorage">
+<h3>SampleStorage<a class="headerlink" href="#samplestorage" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/mlmc.sample_storage.SampleStorage.html#mlmc.sample_storage.SampleStorage" title="mlmc.sample_storage.SampleStorage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SampleStorage</span></code></a>()</p></td>
+<td><p>Provides methods to store and retrieve sample’s data</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/mlmc.sample_storage.Memory.html#mlmc.sample_storage.Memory" title="mlmc.sample_storage.Memory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Memory</span></code></a>()</p></td>
+<td><p>Sample’s data are stored in the main memory</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="samplestoragehdf">
+<h3>SampleStorageHDF<a class="headerlink" href="#samplestoragehdf" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/mlmc.sample_storage_hdf.SampleStorageHDF.html#mlmc.sample_storage_hdf.SampleStorageHDF" title="mlmc.sample_storage_hdf.SampleStorageHDF"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SampleStorageHDF</span></code></a>(file_path)</p></td>
+<td><p>Sample’s data are stored in a HDF5 file</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="estimate">
+<h3>Estimate<a class="headerlink" href="#estimate" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/mlmc.estimator.Estimate.html#mlmc.estimator.Estimate" title="mlmc.estimator.Estimate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Estimate</span></code></a>(quantity, sample_storage[, moments_fn])</p></td>
+<td><p>Provides wrapper methods for moments estimation, pdf approximation, …</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="moments">
+<h3>Moments<a class="headerlink" href="#moments" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/mlmc.moments.Moments.html#mlmc.moments.Moments" title="mlmc.moments.Moments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Moments</span></code></a>(size, domain[, log, safe_eval])</p></td>
+<td><p>Class for calculating moments of a random variable</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/mlmc.moments.Monomial.html#mlmc.moments.Monomial" title="mlmc.moments.Monomial"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Monomial</span></code></a>(size[, domain, ref_domain, log, …])</p></td>
+<td><p>Monomials generalized moments</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/mlmc.moments.Fourier.html#mlmc.moments.Fourier" title="mlmc.moments.Fourier"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Fourier</span></code></a>(size[, domain, ref_domain, log, …])</p></td>
+<td><p>Fourier functions generalized moments</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/mlmc.moments.Legendre.html#mlmc.moments.Legendre" title="mlmc.moments.Legendre"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Legendre</span></code></a>(size, domain[, ref_domain, log, …])</p></td>
+<td><p>Legendre polynomials generalized moments</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="levelsimulation">
+<h3>LevelSimulation<a class="headerlink" href="#levelsimulation" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/mlmc.level_simulation.LevelSimulation.html#mlmc.level_simulation.LevelSimulation" title="mlmc.level_simulation.LevelSimulation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LevelSimulation</span></code></a>(config_dict, Any], …)</p></td>
+<td><p>This class is used to pass simulation data at a given level between a Sampler and a SamplingPool User shouldn’t change this class</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mlmc.plot.html">mlmc.plot</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mlmc.quantity.html">mlmc.quantity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mlmc.random.html">mlmc.random</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mlmc.sim.html">mlmc.sim</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mlmc.tool.html">mlmc.tool</a></li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, Jan Březina, Martin Špetlík.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

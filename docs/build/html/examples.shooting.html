@@ -1,0 +1,560 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>examples.shooting package &mdash; mlmc 1.0.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html">MLMC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="index.html#installation">Installation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples_sampler_creation.html">Sampler creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples_samples_scheduling.html">Samples scheduling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_samples_scheduling.html#prescribe-the-exact-number-of-samples">1. Prescribe the exact number of samples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_samples_scheduling.html#prescribe-a-target-variance">2. Prescribe a target variance</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples_quantity.html">Quantity tutorial</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#mean-estimates">Mean estimates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#estimate-moments-and-covariance-matrix">Estimate moments and covariance matrix</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#quantity-selection">Quantity selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#binary-operations">Binary operations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#numpy-universal-functions">NumPy universal functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#quantity-selection-by-conditions">Quantity selection by conditions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples_postprocessing.html">Results postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_postprocessing.html#probability-density-function-approximation">Probability density function approximation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mlmc.html">MLMC package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.html#classes">Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#sampler">Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplingpool">SamplingPool</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplingpoolpbs">SamplingPoolPBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplestorage">SampleStorage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplestoragehdf">SampleStorageHDF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#estimate">Estimate</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#moments">Moments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#levelsimulation">LevelSimulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.plot.html">mlmc.plot</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-mlmc.plot.plots">mlmc.plot.plots module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-mlmc.plot.violinplot">mlmc.plot.violinplot module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.quantity.html">mlmc.quantity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity">mlmc.quantity.quantity module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_estimate">mlmc.quantity.quantity_estimate module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_spec">mlmc.quantity.quantity_spec module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_types">mlmc.quantity.quantity_types module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.random.html">mlmc.random</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#module-mlmc.random.correlated_field">mlmc.random.correlated_field module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#mlmc-random-frac-geom-module">mlmc.random.frac_geom module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#mlmc-random-gstools-wrapper-module">mlmc.random.gstools_wrapper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.sim.html">mlmc.sim</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim.simulation">mlmc.sim.simulation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim.synth_simulation">mlmc.sim.synth_simulation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.tool.html">mlmc.tool</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#mlmc-tool-context-statprof-module">mlmc.tool.context_statprof module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.distribution">mlmc.tool.distribution module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.flow_mc">mlmc.tool.flow_mc module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.gmsh_io">mlmc.tool.gmsh_io module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.hdf5">mlmc.tool.hdf5 module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.pbs_job">mlmc.tool.pbs_job module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.process_base">mlmc.tool.process_base module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.simple_distribution">mlmc.tool.simple_distribution module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.stats_tests">mlmc.tool.stats_tests module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-0">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>examples.shooting package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/examples.shooting.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="examples-shooting-package">
+<h1>examples.shooting package<a class="headerlink" href="#examples-shooting-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="examples-shooting-shooting1dpbs-module">
+<h2>examples.shooting.Shooting1DPBS module<a class="headerlink" href="#examples-shooting-shooting1dpbs-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-examples.shooting.shooting_1D">
+<span id="examples-shooting-shooting-1d-module"></span><h2>examples.shooting.shooting_1D module<a class="headerlink" href="#module-examples.shooting.shooting_1D" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="examples.shooting.shooting_1D.ProcessShooting1D">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">examples.shooting.shooting_1D.</span></code><code class="sig-name descname"><span class="pre">ProcessShooting1D</span></code><a class="reference internal" href="_modules/examples/shooting/shooting_1D.html#ProcessShooting1D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_1D.ProcessShooting1D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt id="examples.shooting.shooting_1D.ProcessShooting1D.all_collect">
+<code class="sig-name descname"><span class="pre">all_collect</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sampler</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_1D.html#ProcessShooting1D.all_collect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_1D.ProcessShooting1D.all_collect" title="Permalink to this definition">¶</a></dt>
+<dd><p>Collect samples, wait until all samples are finished
+:param sampler: mlmc.sampler.Sampler object
+:return: None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_1D.ProcessShooting1D.approx_distribution">
+<code class="sig-name descname"><span class="pre">approx_distribution</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">estimator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.95</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_1D.html#ProcessShooting1D.approx_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_1D.ProcessShooting1D.approx_distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Probability density function approximation
+:param estimator: mlmc.estimator.Estimate instance, it contains quantity for which the density is approximated
+:param n_levels: int, number of MLMC levels
+:param tol: Tolerance of the fitting problem, with account for variances in moments.
+:return: None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_1D.ProcessShooting1D.create_sampler">
+<code class="sig-name descname"><span class="pre">create_sampler</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level_parameters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_1D.html#ProcessShooting1D.create_sampler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_1D.ProcessShooting1D.create_sampler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create:
+# sampling pool - the way sample simulations are executed
+# sample storage - stores sample results
+# sampler - controls MLMC execution
+:param level_parameters: list of lists
+:return: mlmc.sampler.Sampler instance</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_1D.ProcessShooting1D.determine_level_parameters">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">determine_level_parameters</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_range</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_1D.html#ProcessShooting1D.determine_level_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_1D.ProcessShooting1D.determine_level_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine level parameters,
+In this case, a step of fine simulation at each level
+:param n_levels: number of MLMC levels
+:param step_range: simulation step range
+:return: list of lists</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_1D.ProcessShooting1D.generate_samples">
+<code class="sig-name descname"><span class="pre">generate_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sampler</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_var</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_1D.html#ProcessShooting1D.generate_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_1D.ProcessShooting1D.generate_samples" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate MLMC samples
+:param sampler: mlmc.sampler.Sampler instance
+:param n_samples: None or list, number of samples at each level
+:param target_var: target variance of MLMC estimates
+:return: None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_1D.ProcessShooting1D.process_results">
+<code class="sig-name descname"><span class="pre">process_results</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sampler</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_1D.html#ProcessShooting1D.process_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_1D.ProcessShooting1D.process_results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Process MLMC results
+:param sampler: mlmc.sampler.Sampler instance
+:param n_levels: int, number of MLMC levels
+:return: None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_1D.ProcessShooting1D.set_moments">
+<code class="sig-name descname"><span class="pre">set_moments</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quantity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_storage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_1D.html#ProcessShooting1D.set_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_1D.ProcessShooting1D.set_moments" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-examples.shooting.shooting_2D">
+<span id="examples-shooting-shooting-2d-module"></span><h2>examples.shooting.shooting_2D module<a class="headerlink" href="#module-examples.shooting.shooting_2D" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="examples.shooting.shooting_2D.ProcessShooting2D">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">examples.shooting.shooting_2D.</span></code><code class="sig-name descname"><span class="pre">ProcessShooting2D</span></code><a class="reference internal" href="_modules/examples/shooting/shooting_2D.html#ProcessShooting2D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_2D.ProcessShooting2D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt id="examples.shooting.shooting_2D.ProcessShooting2D.all_collect">
+<code class="sig-name descname"><span class="pre">all_collect</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sampler</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_2D.html#ProcessShooting2D.all_collect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_2D.ProcessShooting2D.all_collect" title="Permalink to this definition">¶</a></dt>
+<dd><p>Collect samples
+:param sampler: mlmc.Sampler object
+:return: None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_2D.ProcessShooting2D.approx_distribution">
+<code class="sig-name descname"><span class="pre">approx_distribution</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">estimator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.95</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_2D.html#ProcessShooting2D.approx_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_2D.ProcessShooting2D.approx_distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Probability density function approximation
+:param estimator: mlmc.estimator.Estimate instance, it contains quantity for which the density is approximated
+:param n_levels: int, number of MLMC levels
+:param tol: Tolerance of the fitting problem, with account for variances in moments.
+:return: None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_2D.ProcessShooting2D.create_estimator">
+<code class="sig-name descname"><span class="pre">create_estimator</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quantity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_storage</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_2D.html#ProcessShooting2D.create_estimator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_2D.ProcessShooting2D.create_estimator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_2D.ProcessShooting2D.create_sampler">
+<code class="sig-name descname"><span class="pre">create_sampler</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level_parameters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_2D.html#ProcessShooting2D.create_sampler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_2D.ProcessShooting2D.create_sampler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simulation dependent configuration
+:return: mlmc.sampler instance</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_2D.ProcessShooting2D.determine_level_parameters">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">determine_level_parameters</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_range</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_2D.html#ProcessShooting2D.determine_level_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_2D.ProcessShooting2D.determine_level_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine level parameters,
+In this case, a step of fine simulation at each level
+:param n_levels: number of MLMC levels
+:param step_range: simulation step range
+:return: List of lists</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_2D.ProcessShooting2D.generate_samples">
+<code class="sig-name descname"><span class="pre">generate_samples</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sampler</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_var</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_2D.html#ProcessShooting2D.generate_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_2D.ProcessShooting2D.generate_samples" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate MLMC samples
+:param sampler: mlmc.sampler.Sampler instance
+:param n_samples: None or list, number of samples at each level
+:param target_var: target variance of MLMC estimates
+:return: None</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_2D.ProcessShooting2D.process_results">
+<code class="sig-name descname"><span class="pre">process_results</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sampler</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_levels</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_2D.html#ProcessShooting2D.process_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_2D.ProcessShooting2D.process_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.shooting_2D.ProcessShooting2D.set_moments">
+<code class="sig-name descname"><span class="pre">set_moments</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quantity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_storage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/shooting_2D.html#ProcessShooting2D.set_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.shooting_2D.ProcessShooting2D.set_moments" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-examples.shooting.simulation_shooting_1D">
+<span id="examples-shooting-simulation-shooting-1d-module"></span><h2>examples.shooting.simulation_shooting_1D module<a class="headerlink" href="#module-examples.shooting.simulation_shooting_1D" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="examples.shooting.simulation_shooting_1D.ShootingSimulation1D">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">examples.shooting.simulation_shooting_1D.</span></code><code class="sig-name descname"><span class="pre">ShootingSimulation1D</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_1D.html#ShootingSimulation1D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_1D.ShootingSimulation1D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="mlmc.sim.html#mlmc.sim.simulation.Simulation" title="mlmc.sim.simulation.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">mlmc.sim.simulation.Simulation</span></code></a></p>
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_1D.ShootingSimulation1D.calculate">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">calculate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_1D.html#ShootingSimulation1D.calculate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.calculate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate fine and coarse sample and also extract their results
+:param config: dictionary containing simulation configuration
+:param seed: random number generator seed
+:return: np.ndarray, np.ndarray</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_1D.ShootingSimulation1D.create_points">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">create_points</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_1D.html#ShootingSimulation1D.create_points"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.create_points" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_1D.ShootingSimulation1D.generate_random_sample">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">generate_random_sample</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">field</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coarse_step</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_fine_elements</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_1D.html#ShootingSimulation1D.generate_random_sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.generate_random_sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate random field, both fine and coarse part.
+:return: List, List</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_1D.ShootingSimulation1D.level_instance">
+<code class="sig-name descname"><span class="pre">level_instance</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fine_level_params</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coarse_level_params</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <a class="reference internal" href="generated/mlmc.level_simulation.LevelSimulation.html#mlmc.level_simulation.LevelSimulation" title="mlmc.level_simulation.LevelSimulation"><span class="pre">mlmc.level_simulation.LevelSimulation</span></a><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_1D.html#ShootingSimulation1D.level_instance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.level_instance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called from mlmc.Sampler, it creates single instance of LevelSimulation (mlmc.level_simulation)
+:param fine_level_params: fine simulation step at particular level
+:param coarse_level_params: coarse simulation step at particular level
+:return: mlmc.LevelSimulation object</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_1D.ShootingSimulation1D.n_ops_estimate">
+<code class="sig-name descname"><span class="pre">n_ops_estimate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_1D.html#ShootingSimulation1D.n_ops_estimate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.n_ops_estimate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_1D.ShootingSimulation1D.result_format">
+<code class="sig-name descname"><span class="pre">result_format</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; <span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="mlmc.quantity.html#mlmc.quantity.quantity_spec.QuantitySpec" title="mlmc.quantity.quantity_spec.QuantitySpec"><span class="pre">mlmc.quantity.quantity_spec.QuantitySpec</span></a><span class="p"><span class="pre">]</span></span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_1D.html#ShootingSimulation1D.result_format"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.result_format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Result format
+:return:</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="examples.shooting.simulation_shooting_1D.create_corr_field">
+<code class="sig-prename descclassname"><span class="pre">examples.shooting.simulation_shooting_1D.</span></code><code class="sig-name descname"><span class="pre">create_corr_field</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gauss'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">corr_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode_no</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_1D.html#create_corr_field"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_1D.create_corr_field" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create correlated random field
+:return: mlmc.random.correlated_field.Field instance</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-examples.shooting.simulation_shooting_2D">
+<span id="examples-shooting-simulation-shooting-2d-module"></span><h2>examples.shooting.simulation_shooting_2D module<a class="headerlink" href="#module-examples.shooting.simulation_shooting_2D" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="examples.shooting.simulation_shooting_2D.ShootingSimulation2D">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">examples.shooting.simulation_shooting_2D.</span></code><code class="sig-name descname"><span class="pre">ShootingSimulation2D</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_2D.html#ShootingSimulation2D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_2D.ShootingSimulation2D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="mlmc.sim.html#mlmc.sim.simulation.Simulation" title="mlmc.sim.simulation.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">mlmc.sim.simulation.Simulation</span></code></a></p>
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_2D.ShootingSimulation2D.calculate">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">calculate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_2D.html#ShootingSimulation2D.calculate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.calculate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate fine and coarse sample and also extract their results
+:param config: dictionary containing simulation configuration
+:param seed: random number generator seed
+:return: np.ndarray, np.ndarray</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_2D.ShootingSimulation2D.create_points">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">create_points</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_2D.html#ShootingSimulation2D.create_points"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.create_points" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_2D.ShootingSimulation2D.generate_random_sample">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">generate_random_sample</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">field_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coarse_step</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_fine_elements</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_2D.html#ShootingSimulation2D.generate_random_sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.generate_random_sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate random field, both fine and coarse part.
+:return: List, List</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_2D.ShootingSimulation2D.level_instance">
+<code class="sig-name descname"><span class="pre">level_instance</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fine_level_params</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coarse_level_params</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <a class="reference internal" href="generated/mlmc.level_simulation.LevelSimulation.html#mlmc.level_simulation.LevelSimulation" title="mlmc.level_simulation.LevelSimulation"><span class="pre">mlmc.level_simulation.LevelSimulation</span></a><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_2D.html#ShootingSimulation2D.level_instance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.level_instance" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fine_level_params</strong> – </p></li>
+<li><p><strong>coarse_level_params</strong> – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_2D.ShootingSimulation2D.n_ops_estimate">
+<code class="sig-name descname"><span class="pre">n_ops_estimate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_2D.html#ShootingSimulation2D.n_ops_estimate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.n_ops_estimate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="examples.shooting.simulation_shooting_2D.ShootingSimulation2D.result_format">
+<code class="sig-name descname"><span class="pre">result_format</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; <span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="mlmc.quantity.html#mlmc.quantity.quantity_spec.QuantitySpec" title="mlmc.quantity.quantity_spec.QuantitySpec"><span class="pre">mlmc.quantity.quantity_spec.QuantitySpec</span></a><span class="p"><span class="pre">]</span></span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_2D.html#ShootingSimulation2D.result_format"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.result_format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Result format
+:return:</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="examples.shooting.simulation_shooting_2D.create_corr_field">
+<code class="sig-prename descclassname"><span class="pre">examples.shooting.simulation_shooting_2D.</span></code><code class="sig-name descname"><span class="pre">create_corr_field</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gauss'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">corr_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode_no</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/examples/shooting/simulation_shooting_2D.html#create_corr_field"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#examples.shooting.simulation_shooting_2D.create_corr_field" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create random fields
+:return:</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-examples.shooting">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-examples.shooting" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, Jan Březina, Martin Špetlík.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

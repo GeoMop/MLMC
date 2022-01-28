@@ -1,0 +1,1625 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Index &mdash; mlmc 1.0.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="#" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html">MLMC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="index.html#installation">Installation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples_sampler_creation.html">Sampler creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples_samples_scheduling.html">Samples scheduling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_samples_scheduling.html#prescribe-the-exact-number-of-samples">1. Prescribe the exact number of samples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_samples_scheduling.html#prescribe-a-target-variance">2. Prescribe a target variance</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples_quantity.html">Quantity tutorial</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#mean-estimates">Mean estimates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#estimate-moments-and-covariance-matrix">Estimate moments and covariance matrix</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#quantity-selection">Quantity selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#binary-operations">Binary operations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#numpy-universal-functions">NumPy universal functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples_quantity.html#quantity-selection-by-conditions">Quantity selection by conditions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples_postprocessing.html">Results postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples_postprocessing.html#probability-density-function-approximation">Probability density function approximation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mlmc.html">MLMC package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.html#classes">Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#sampler">Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplingpool">SamplingPool</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplingpoolpbs">SamplingPoolPBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplestorage">SampleStorage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#samplestoragehdf">SampleStorageHDF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#estimate">Estimate</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#moments">Moments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.html#levelsimulation">LevelSimulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.plot.html">mlmc.plot</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-mlmc.plot.plots">mlmc.plot.plots module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-mlmc.plot.violinplot">mlmc.plot.violinplot module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.plot.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.quantity.html">mlmc.quantity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity">mlmc.quantity.quantity module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_estimate">mlmc.quantity.quantity_estimate module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_spec">mlmc.quantity.quantity_spec module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-mlmc.quantity.quantity_types">mlmc.quantity.quantity_types module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.quantity.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.random.html">mlmc.random</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#module-mlmc.random.correlated_field">mlmc.random.correlated_field module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#mlmc-random-frac-geom-module">mlmc.random.frac_geom module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#mlmc-random-gstools-wrapper-module">mlmc.random.gstools_wrapper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.random.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.sim.html">mlmc.sim</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim.simulation">mlmc.sim.simulation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-mlmc.sim.synth_simulation">mlmc.sim.synth_simulation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.sim.html#module-0">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mlmc.tool.html">mlmc.tool</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#mlmc-tool-context-statprof-module">mlmc.tool.context_statprof module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.distribution">mlmc.tool.distribution module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.flow_mc">mlmc.tool.flow_mc module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.gmsh_io">mlmc.tool.gmsh_io module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.hdf5">mlmc.tool.hdf5 module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.pbs_job">mlmc.tool.pbs_job module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.process_base">mlmc.tool.process_base module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.simple_distribution">mlmc.tool.simple_distribution module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-mlmc.tool.stats_tests">mlmc.tool.stats_tests module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlmc.tool.html#module-0">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Index</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+
+<h1 id="index">Index</h1>
+
+<div class="genindex-jumpbox">
+ <a href="#_"><strong>_</strong></a>
+ | <a href="#A"><strong>A</strong></a>
+ | <a href="#B"><strong>B</strong></a>
+ | <a href="#C"><strong>C</strong></a>
+ | <a href="#D"><strong>D</strong></a>
+ | <a href="#E"><strong>E</strong></a>
+ | <a href="#F"><strong>F</strong></a>
+ | <a href="#G"><strong>G</strong></a>
+ | <a href="#H"><strong>H</strong></a>
+ | <a href="#I"><strong>I</strong></a>
+ | <a href="#J"><strong>J</strong></a>
+ | <a href="#K"><strong>K</strong></a>
+ | <a href="#L"><strong>L</strong></a>
+ | <a href="#M"><strong>M</strong></a>
+ | <a href="#N"><strong>N</strong></a>
+ | <a href="#O"><strong>O</strong></a>
+ | <a href="#P"><strong>P</strong></a>
+ | <a href="#Q"><strong>Q</strong></a>
+ | <a href="#R"><strong>R</strong></a>
+ | <a href="#S"><strong>S</strong></a>
+ | <a href="#T"><strong>T</strong></a>
+ | <a href="#U"><strong>U</strong></a>
+ | <a href="#V"><strong>V</strong></a>
+ | <a href="#W"><strong>W</strong></a>
+ | <a href="#Y"><strong>Y</strong></a>
+ 
+</div>
+<h2 id="_">_</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="generated/mlmc.estimator.Estimate.html#mlmc.estimator.Estimate.__init__">__init__() (mlmc.estimator.Estimate method)</a>
+
+      <ul>
+        <li><a href="generated/mlmc.level_simulation.LevelSimulation.html#mlmc.level_simulation.LevelSimulation.__init__">(mlmc.level_simulation.LevelSimulation method)</a>
+</li>
+        <li><a href="generated/mlmc.moments.Fourier.html#mlmc.moments.Fourier.__init__">(mlmc.moments.Fourier method)</a>
+</li>
+        <li><a href="generated/mlmc.moments.Legendre.html#mlmc.moments.Legendre.__init__">(mlmc.moments.Legendre method)</a>
+</li>
+        <li><a href="generated/mlmc.moments.Moments.html#mlmc.moments.Moments.__init__">(mlmc.moments.Moments method)</a>
+</li>
+        <li><a href="generated/mlmc.moments.Monomial.html#mlmc.moments.Monomial.__init__">(mlmc.moments.Monomial method)</a>
+</li>
+        <li><a href="generated/mlmc.sample_storage.Memory.html#mlmc.sample_storage.Memory.__init__">(mlmc.sample_storage.Memory method)</a>
+</li>
+        <li><a href="generated/mlmc.sample_storage.SampleStorage.html#mlmc.sample_storage.SampleStorage.__init__">(mlmc.sample_storage.SampleStorage method)</a>
+</li>
+        <li><a href="generated/mlmc.sample_storage_hdf.SampleStorageHDF.html#mlmc.sample_storage_hdf.SampleStorageHDF.__init__">(mlmc.sample_storage_hdf.SampleStorageHDF method)</a>
+</li>
+        <li><a href="generated/mlmc.sampler.Sampler.html#mlmc.sampler.Sampler.__init__">(mlmc.sampler.Sampler method)</a>
+</li>
+        <li><a href="generated/mlmc.sampling_pool.OneProcessPool.html#mlmc.sampling_pool.OneProcessPool.__init__">(mlmc.sampling_pool.OneProcessPool method)</a>
+</li>
+        <li><a href="generated/mlmc.sampling_pool.ProcessPool.html#mlmc.sampling_pool.ProcessPool.__init__">(mlmc.sampling_pool.ProcessPool method)</a>
+</li>
+        <li><a href="generated/mlmc.sampling_pool.SamplingPool.html#mlmc.sampling_pool.SamplingPool.__init__">(mlmc.sampling_pool.SamplingPool method)</a>
+</li>
+        <li><a href="generated/mlmc.sampling_pool_pbs.SamplingPoolPBS.html#mlmc.sampling_pool_pbs.SamplingPoolPBS.__init__">(mlmc.sampling_pool_pbs.SamplingPoolPBS method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="A">A</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Distribution.add_distribution">add_distribution() (mlmc.plot.plots.Distribution method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.HDF5.add_level_group">add_level_group() (mlmc.tool.hdf5.HDF5 method)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Variance.add_level_variances">add_level_variances() (mlmc.plot.plots.Variance method)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Eigenvalues.add_linear_fit">add_linear_fit() (mlmc.plot.plots.Eigenvalues method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.add_op">add_op() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Distribution.add_raw_samples">add_raw_samples() (mlmc.plot.plots.Distribution method)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Eigenvalues.add_values">add_values() (mlmc.plot.plots.Eigenvalues method)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.VarianceBreakdown.add_variances">add_variances() (mlmc.plot.plots.VarianceBreakdown method)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Distribution.adjust_domain">adjust_domain() (mlmc.plot.plots.Distribution method)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Eigenvalues.adjust_ylim">adjust_ylim() (mlmc.plot.plots.Eigenvalues method)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.shooting_1D.ProcessShooting1D.all_collect">all_collect() (examples.shooting.shooting_1D.ProcessShooting1D method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.all_collect">(examples.shooting.shooting_2D.ProcessShooting2D method)</a>
+</li>
+        <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.all_collect">(mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_error_of_level_variances">analyze_error_of_level_variances() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_error_of_log_variance">analyze_error_of_log_variance() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_error_of_regression_level_variances">analyze_error_of_regression_level_variances() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_error_of_regression_variance">analyze_error_of_regression_variance() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_error_of_variance">analyze_error_of_variance() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_pdf_approx">analyze_pdf_approx() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.analyze_regression_of_variance">analyze_regression_of_variance() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.stats_tests.anova">anova() (in module mlmc.tool.stats_tests)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.append_failed">append_failed() (mlmc.tool.hdf5.LevelGroup method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.append_scheduled">append_scheduled() (mlmc.tool.hdf5.LevelGroup method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.append_successful">append_successful() (mlmc.tool.hdf5.LevelGroup method)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.shooting_1D.ProcessShooting1D.approx_distribution">approx_distribution() (examples.shooting.shooting_1D.ProcessShooting1D method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.approx_distribution">(examples.shooting.shooting_2D.ProcessShooting2D method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.ArrayType">ArrayType (class in mlmc.quantity.quantity_types)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Aux">Aux (class in mlmc.plot.plots)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="B">B</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.DictType.base_qtype">base_qtype() (mlmc.quantity.quantity_types.DictType method)</a>
+
+      <ul>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.QType.base_qtype">(mlmc.quantity.quantity_types.QType method)</a>
+</li>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.ScalarType.base_qtype">(mlmc.quantity.quantity_types.ScalarType method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.best_fit_all">best_fit_all() (in module mlmc.tool.simple_distribution)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.best_p1_fit">best_p1_fit() (in module mlmc.tool.simple_distribution)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.BoolType">BoolType (class in mlmc.quantity.quantity_types)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.BSplots">BSplots (class in mlmc.plot.plots)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="C">C</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_estimate.cache_clear">cache_clear() (in module mlmc.quantity.quantity_estimate)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.calculate">calculate() (examples.shooting.simulation_shooting_1D.ShootingSimulation1D static method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.calculate">(examples.shooting.simulation_shooting_2D.ShootingSimulation2D static method)</a>
+</li>
+        <li><a href="mlmc.sim.html#mlmc.sim.simulation.Simulation.calculate">(mlmc.sim.simulation.Simulation static method)</a>
+</li>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation.calculate">(mlmc.sim.synth_simulation.SynthSimulation static method)</a>
+</li>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.calculate">(mlmc.sim.synth_simulation.SynthSimulationWorkspace static method)</a>
+</li>
+        <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.calculate">(mlmc.tool.flow_mc.FlowSim static method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.calculate_samples">calculate_samples() (mlmc.tool.pbs_job.PbsJob method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.distribution.Distribution.cdf">cdf() (mlmc.tool.distribution.Distribution method)</a>
+
+      <ul>
+        <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution.cdf">(mlmc.tool.simple_distribution.SimpleDistribution method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.GSToolsSpatialCorrelatedField.change_srf">change_srf() (mlmc.random.correlated_field.GSToolsSpatialCorrelatedField method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.stats_tests.chi2_test">chi2_test() (in module mlmc.tool.stats_tests)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_spec.ChunkSpec.chunk_id">chunk_id (mlmc.quantity.quantity_spec.ChunkSpec attribute)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_spec.ChunkSpec.chunk_slice">chunk_slice (mlmc.quantity.quantity_spec.ChunkSpec attribute)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.chunks">chunks() (mlmc.quantity.quantity.QuantityStorage method)</a>
+
+      <ul>
+        <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.chunks">(mlmc.tool.hdf5.LevelGroup method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_spec.ChunkSpec">ChunkSpec (class in mlmc.quantity.quantity_spec)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.CLASS_FILE">CLASS_FILE (mlmc.tool.pbs_job.PbsJob attribute)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.clear_failed_dataset">clear_failed_dataset() (mlmc.tool.hdf5.LevelGroup method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.HDF5.clear_groups">clear_groups() (mlmc.tool.hdf5.HDF5 method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.collected">collected() (mlmc.tool.hdf5.LevelGroup method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.COLLECTED_ATTRS">COLLECTED_ATTRS (mlmc.tool.hdf5.LevelGroup attribute)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.collected_ids_dset">collected_ids_dset() (mlmc.tool.hdf5.LevelGroup property)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.collected_n_items">collected_n_items() (mlmc.tool.hdf5.LevelGroup method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.command_params">command_params() (mlmc.tool.pbs_job.PbsJob static method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.compute_exact_cov">compute_exact_cov() (in module mlmc.tool.simple_distribution)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.distribution.compute_exact_moments">compute_exact_moments() (in module mlmc.tool.distribution)</a>
+
+      <ul>
+        <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.compute_exact_moments">(in module mlmc.tool.simple_distribution)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.compute_semiexact_cov">compute_semiexact_cov() (in module mlmc.tool.simple_distribution)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.compute_semiexact_moments">compute_semiexact_moments() (in module mlmc.tool.simple_distribution)</a>
+</li>
+      <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.CONFIG_FILE">CONFIG_FILE (mlmc.sim.synth_simulation.SynthSimulationWorkspace attribute)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.construct_ortogonal_moments">construct_ortogonal_moments() (in module mlmc.tool.simple_distribution)</a>
+</li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.SpatialCorrelatedField.cov_matrix">cov_matrix() (mlmc.random.correlated_field.SpatialCorrelatedField method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_estimate.covariance">covariance() (in module mlmc.quantity.quantity_estimate)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.create_color_bar">create_color_bar() (in module mlmc.plot.plots)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_1D.create_corr_field">create_corr_field() (in module examples.shooting.simulation_shooting_1D)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_2D.create_corr_field">(in module examples.shooting.simulation_shooting_2D)</a>
+</li>
+        <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.create_corr_field">(in module mlmc.tool.flow_mc)</a>
+</li>
+      </ul></li>
+      <li><a href="examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.create_estimator">create_estimator() (examples.shooting.shooting_2D.ProcessShooting2D method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.HDF5.create_file_structure">create_file_structure() (mlmc.tool.hdf5.HDF5 method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.create_job">create_job() (mlmc.tool.pbs_job.PbsJob class method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.create_pbs_object">create_pbs_object() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.create_points">create_points() (examples.shooting.simulation_shooting_1D.ShootingSimulation1D static method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.create_points">(examples.shooting.simulation_shooting_2D.ShootingSimulation2D static method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.create_process">create_process() (mlmc.tool.pbs_job.PbsJob class method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.create_quantity">create_quantity() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.shooting_1D.ProcessShooting1D.create_sampler">create_sampler() (examples.shooting.shooting_1D.ProcessShooting1D method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.create_sampler">(examples.shooting.shooting_2D.ProcessShooting2D method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="D">D</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.distribution.Distribution.density">density() (mlmc.tool.distribution.Distribution method)</a>
+
+      <ul>
+        <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution.density">(mlmc.tool.simple_distribution.SimpleDistribution method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.detect_treshold_slope_change">detect_treshold_slope_change() (in module mlmc.tool.simple_distribution)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.shooting_1D.ProcessShooting1D.determine_level_parameters">determine_level_parameters() (examples.shooting.shooting_1D.ProcessShooting1D static method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.determine_level_parameters">(examples.shooting.shooting_2D.ProcessShooting2D static method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.DictType">DictType (class in mlmc.quantity.quantity_types)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Distribution">Distribution (class in mlmc.plot.plots)</a>
+
+      <ul>
+        <li><a href="mlmc.tool.html#mlmc.tool.distribution.Distribution">(class in mlmc.tool.distribution)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.plot.html#mlmc.plot.violinplot.ViolinPlotter.draw_quartiles">draw_quartiles() (mlmc.plot.violinplot.ViolinPlotter method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="E">E</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Eigenvalues">Eigenvalues (class in mlmc.plot.plots)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.distribution.Distribution.end_point_derivatives">end_point_derivatives() (mlmc.tool.distribution.Distribution method)</a>
+
+      <ul>
+        <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution.end_point_derivatives">(mlmc.tool.simple_distribution.SimpleDistribution method)</a>
+</li>
+      </ul></li>
+      <li><a href="generated/mlmc.estimator.Estimate.html#mlmc.estimator.Estimate">Estimate (class in mlmc.estimator)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.distribution.Distribution.estimate_density">estimate_density() (mlmc.tool.distribution.Distribution method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.distribution.Distribution.estimate_density_minimize">estimate_density_minimize() (mlmc.tool.distribution.Distribution method)</a>
+
+      <ul>
+        <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution.estimate_density_minimize">(mlmc.tool.simple_distribution.SimpleDistribution method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_estimate.estimate_mean">estimate_mean() (in module mlmc.quantity.quantity_estimate)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.distribution.Distribution.eval_moments">eval_moments() (mlmc.tool.distribution.Distribution method)</a>
+
+      <ul>
+        <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution.eval_moments">(mlmc.tool.simple_distribution.SimpleDistribution method)</a>
+</li>
+      </ul></li>
+      <li>
+    examples
+
+      <ul>
+        <li><a href="examples.html#module-examples">module</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    examples.shooting
+
+      <ul>
+        <li><a href="examples.shooting.html#module-examples.shooting">module</a>
+</li>
+      </ul></li>
+      <li>
+    examples.shooting.shooting_1D
+
+      <ul>
+        <li><a href="examples.shooting.html#module-examples.shooting.shooting_1D">module</a>
+</li>
+      </ul></li>
+      <li>
+    examples.shooting.shooting_2D
+
+      <ul>
+        <li><a href="examples.shooting.html#module-examples.shooting.shooting_2D">module</a>
+</li>
+      </ul></li>
+      <li>
+    examples.shooting.simulation_shooting_1D
+
+      <ul>
+        <li><a href="examples.shooting.html#module-examples.shooting.simulation_shooting_1D">module</a>
+</li>
+      </ul></li>
+      <li>
+    examples.shooting.simulation_shooting_2D
+
+      <ul>
+        <li><a href="examples.shooting.html#module-examples.shooting.simulation_shooting_2D">module</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.FourierSpatialCorrelatedField.exp">exp() (mlmc.random.correlated_field.FourierSpatialCorrelatedField method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.distribution.Distribution.extend_size">extend_size() (mlmc.tool.distribution.Distribution method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.extract_mesh">extract_mesh() (mlmc.tool.flow_mc.FlowSim static method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="F">F</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.failed_dset">failed_dset() (mlmc.tool.hdf5.LevelGroup property)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.FAILED_DTYPE">FAILED_DTYPE (mlmc.tool.hdf5.LevelGroup attribute)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.FAILED_RESULTS">FAILED_RESULTS (mlmc.tool.pbs_job.PbsJob attribute)</a>
+</li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.Field">Field (class in mlmc.random.correlated_field)</a>
+</li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.Fields">Fields (class in mlmc.random.correlated_field)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.FIELDS_FILE">FIELDS_FILE (mlmc.tool.flow_mc.FlowSim attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.FieldType">FieldType (class in mlmc.quantity.quantity_types)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.violinplot.fine_coarse_violinplot">fine_coarse_violinplot() (in module mlmc.plot.violinplot)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim">FlowSim (class in mlmc.tool.flow_mc)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.force_mkdir">force_mkdir() (in module mlmc.tool.flow_mc)</a>
+</li>
+      <li><a href="generated/mlmc.moments.Fourier.html#mlmc.moments.Fourier">Fourier (class in mlmc.moments)</a>
+</li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.FourierSpatialCorrelatedField">FourierSpatialCorrelatedField (class in mlmc.random.correlated_field)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="G">G</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.FourierSpatialCorrelatedField.gau">gau() (mlmc.random.correlated_field.FourierSpatialCorrelatedField method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.generate_jobs">generate_jobs() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.generate_random_sample">generate_random_sample() (examples.shooting.simulation_shooting_1D.ShootingSimulation1D static method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.generate_random_sample">(examples.shooting.simulation_shooting_2D.ShootingSimulation2D static method)</a>
+</li>
+        <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.generate_random_sample">(mlmc.tool.flow_mc.FlowSim static method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation.generate_random_samples">generate_random_samples() (mlmc.sim.synth_simulation.SynthSimulation static method)</a>
+
+      <ul>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.generate_random_samples">(mlmc.sim.synth_simulation.SynthSimulationWorkspace static method)</a>
+</li>
+      </ul></li>
+      <li><a href="examples.shooting.html#examples.shooting.shooting_1D.ProcessShooting1D.generate_samples">generate_samples() (examples.shooting.shooting_1D.ProcessShooting1D method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.generate_samples">(examples.shooting.shooting_2D.ProcessShooting2D method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.GEO_FILE">GEO_FILE (mlmc.tool.flow_mc.FlowSim attribute)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.get_arguments">get_arguments() (mlmc.tool.process_base.ProcessBase static method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.get_cache_key">get_cache_key() (mlmc.quantity.quantity.Quantity method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.get_failed_ids">get_failed_ids() (mlmc.tool.hdf5.LevelGroup method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.get_finished_ids">get_finished_ids() (mlmc.tool.hdf5.LevelGroup method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.get_job_n_running">get_job_n_running() (mlmc.tool.pbs_job.PbsJob static method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.ArrayType.get_key">get_key() (mlmc.quantity.quantity_types.ArrayType method)</a>
+
+      <ul>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.DictType.get_key">(mlmc.quantity.quantity_types.DictType method)</a>
+</li>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.FieldType.get_key">(mlmc.quantity.quantity_types.FieldType method)</a>
+</li>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.TimeSeriesType.get_key">(mlmc.quantity.quantity_types.TimeSeriesType method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.FourierSpatialCorrelatedField.get_normal_distr">get_normal_distr() (mlmc.random.correlated_field.FourierSpatialCorrelatedField method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.DictType.get_qtypes">get_qtypes() (mlmc.quantity.quantity_types.DictType method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.get_quantity_storage">get_quantity_storage() (mlmc.quantity.quantity.Quantity method)</a>
+
+      <ul>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.get_quantity_storage">(mlmc.quantity.quantity.QuantityStorage method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.get_scheduled_sample_ids">get_scheduled_sample_ids() (mlmc.tool.pbs_job.PbsJob static method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.get_unfinished_ids">get_unfinished_ids() (mlmc.tool.hdf5.LevelGroup method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO">GmshIO (class in mlmc.tool.gmsh_io)</a>
+</li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.GSToolsSpatialCorrelatedField">GSToolsSpatialCorrelatedField (class in mlmc.random.correlated_field)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="H">H</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.HDF5">HDF5 (class in mlmc.tool.hdf5)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="I">I</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.HDF5.init_header">init_header() (mlmc.tool.hdf5.HDF5 method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="J">J</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.job_id_from_sample_id">job_id_from_sample_id() (mlmc.tool.pbs_job.PbsJob static method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="K">K</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.QType.keep_dims">keep_dims() (mlmc.quantity.quantity_types.QType static method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.distribution.KL_divergence">KL_divergence() (in module mlmc.tool.distribution)</a>
+
+      <ul>
+        <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.KL_divergence">(in module mlmc.tool.simple_distribution)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.kozeny_carman">kozeny_carman() (in module mlmc.random.correlated_field)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="L">L</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.distribution.L2_distance">L2_distance() (in module mlmc.tool.distribution)</a>
+
+      <ul>
+        <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.L2_distance">(in module mlmc.tool.simple_distribution)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityMean.l_means">l_means() (mlmc.quantity.quantity.QuantityMean property)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityMean.l_vars">l_vars() (mlmc.quantity.quantity.QuantityMean property)</a>
+</li>
+      <li><a href="generated/mlmc.moments.Legendre.html#mlmc.moments.Legendre">Legendre (class in mlmc.moments)</a>
+</li>
+      <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation.len_results">len_results (mlmc.sim.synth_simulation.SynthSimulation attribute)</a>
+
+      <ul>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.len_results">(mlmc.sim.synth_simulation.SynthSimulationWorkspace attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_spec.ChunkSpec.level_id">level_id (mlmc.quantity.quantity_spec.ChunkSpec attribute)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.level_ids">level_ids() (mlmc.quantity.quantity.QuantityStorage method)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.level_instance">level_instance() (examples.shooting.simulation_shooting_1D.ShootingSimulation1D method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.level_instance">(examples.shooting.simulation_shooting_2D.ShootingSimulation2D method)</a>
+</li>
+        <li><a href="mlmc.sim.html#mlmc.sim.simulation.Simulation.level_instance">(mlmc.sim.simulation.Simulation method)</a>
+</li>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation.level_instance">(mlmc.sim.synth_simulation.SynthSimulation method)</a>
+</li>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.level_instance">(mlmc.sim.synth_simulation.SynthSimulationWorkspace method)</a>
+</li>
+        <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.level_instance">(mlmc.tool.flow_mc.FlowSim method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup">LevelGroup (class in mlmc.tool.hdf5)</a>
+</li>
+      <li><a href="generated/mlmc.level_simulation.LevelSimulation.html#mlmc.level_simulation.LevelSimulation">LevelSimulation (class in mlmc.level_simulation)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.HDF5.load_from_file">load_from_file() (mlmc.tool.hdf5.HDF5 method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.HDF5.load_level_parameters">load_level_parameters() (mlmc.tool.hdf5.HDF5 method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.HDF5.load_result_format">load_result_format() (mlmc.tool.hdf5.HDF5 method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_spec.QuantitySpec.locations">locations (mlmc.quantity.quantity_spec.QuantitySpec attribute)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.lsq_reconstruct">lsq_reconstruct() (in module mlmc.tool.simple_distribution)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="M">M</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.make_fields">make_fields() (mlmc.tool.flow_mc.FlowSim static method)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.make_monotone">make_monotone() (in module mlmc.plot.plots)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.make_root_quantity">make_root_quantity() (in module mlmc.quantity.quantity)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_estimate.mask_nan_samples">mask_nan_samples() (in module mlmc.quantity.quantity_estimate)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityMean.mean">mean() (mlmc.quantity.quantity.QuantityMean property)</a>
+</li>
+      <li><a href="generated/mlmc.sample_storage.Memory.html#mlmc.sample_storage.Memory">Memory (class in mlmc.sample_storage)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.MESH_FILE">MESH_FILE (mlmc.tool.flow_mc.FlowSim attribute)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.MESH_FILE_VAR">MESH_FILE_VAR (mlmc.tool.flow_mc.FlowSim attribute)</a>
+</li>
+      <li>
+    mlmc
+
+      <ul>
+        <li><a href="mlmc.html#module-mlmc">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.plot
+
+      <ul>
+        <li><a href="generated/mlmc.plot.html#module-mlmc.plot">module</a>, <a href="mlmc.plot.html#module-0">[1]</a>, <a href="mlmc.plot.html#module-mlmc.plot">[2]</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.plot.plots
+
+      <ul>
+        <li><a href="mlmc.plot.html#module-mlmc.plot.plots">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.plot.violinplot
+
+      <ul>
+        <li><a href="mlmc.plot.html#module-mlmc.plot.violinplot">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.quantity
+
+      <ul>
+        <li><a href="generated/mlmc.quantity.html#module-mlmc.quantity">module</a>, <a href="mlmc.quantity.html#module-0">[1]</a>, <a href="mlmc.quantity.html#module-mlmc.quantity">[2]</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.quantity.quantity
+
+      <ul>
+        <li><a href="mlmc.quantity.html#module-mlmc.quantity.quantity">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.quantity.quantity_estimate
+
+      <ul>
+        <li><a href="mlmc.quantity.html#module-mlmc.quantity.quantity_estimate">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.quantity.quantity_spec
+
+      <ul>
+        <li><a href="mlmc.quantity.html#module-mlmc.quantity.quantity_spec">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.quantity.quantity_types
+
+      <ul>
+        <li><a href="mlmc.quantity.html#module-mlmc.quantity.quantity_types">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.random
+
+      <ul>
+        <li><a href="generated/mlmc.random.html#module-mlmc.random">module</a>, <a href="mlmc.random.html#module-0">[1]</a>, <a href="mlmc.random.html#module-mlmc.random">[2]</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.random.correlated_field
+
+      <ul>
+        <li><a href="mlmc.random.html#module-mlmc.random.correlated_field">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.sim
+
+      <ul>
+        <li><a href="generated/mlmc.sim.html#module-mlmc.sim">module</a>, <a href="mlmc.sim.html#module-0">[1]</a>, <a href="mlmc.sim.html#module-mlmc.sim">[2]</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.sim.simulation
+
+      <ul>
+        <li><a href="mlmc.sim.html#module-mlmc.sim.simulation">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.sim.synth_simulation
+
+      <ul>
+        <li><a href="mlmc.sim.html#module-mlmc.sim.synth_simulation">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.tool
+
+      <ul>
+        <li><a href="generated/mlmc.tool.html#module-mlmc.tool">module</a>, <a href="mlmc.tool.html#module-0">[1]</a>, <a href="mlmc.tool.html#module-mlmc.tool">[2]</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.tool.distribution
+
+      <ul>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.distribution">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.tool.flow_mc
+
+      <ul>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.flow_mc">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.tool.gmsh_io
+
+      <ul>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.gmsh_io">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.tool.hdf5
+
+      <ul>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.hdf5">module</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    mlmc.tool.pbs_job
+
+      <ul>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.pbs_job">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.tool.process_base
+
+      <ul>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.process_base">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.tool.simple_distribution
+
+      <ul>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.simple_distribution">module</a>
+</li>
+      </ul></li>
+      <li>
+    mlmc.tool.stats_tests
+
+      <ul>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.stats_tests">module</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.mod_op">mod_op() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+      <li>
+    module
+
+      <ul>
+        <li><a href="examples.html#module-examples">examples</a>
+</li>
+        <li><a href="examples.shooting.html#module-examples.shooting">examples.shooting</a>
+</li>
+        <li><a href="examples.shooting.html#module-examples.shooting.shooting_1D">examples.shooting.shooting_1D</a>
+</li>
+        <li><a href="examples.shooting.html#module-examples.shooting.shooting_2D">examples.shooting.shooting_2D</a>
+</li>
+        <li><a href="examples.shooting.html#module-examples.shooting.simulation_shooting_1D">examples.shooting.simulation_shooting_1D</a>
+</li>
+        <li><a href="examples.shooting.html#module-examples.shooting.simulation_shooting_2D">examples.shooting.simulation_shooting_2D</a>
+</li>
+        <li><a href="mlmc.html#module-mlmc">mlmc</a>
+</li>
+        <li><a href="generated/mlmc.plot.html#module-mlmc.plot">mlmc.plot</a>, <a href="mlmc.plot.html#module-0">[1]</a>, <a href="mlmc.plot.html#module-mlmc.plot">[2]</a>
+</li>
+        <li><a href="mlmc.plot.html#module-mlmc.plot.plots">mlmc.plot.plots</a>
+</li>
+        <li><a href="mlmc.plot.html#module-mlmc.plot.violinplot">mlmc.plot.violinplot</a>
+</li>
+        <li><a href="generated/mlmc.quantity.html#module-mlmc.quantity">mlmc.quantity</a>, <a href="mlmc.quantity.html#module-0">[1]</a>, <a href="mlmc.quantity.html#module-mlmc.quantity">[2]</a>
+</li>
+        <li><a href="mlmc.quantity.html#module-mlmc.quantity.quantity">mlmc.quantity.quantity</a>
+</li>
+        <li><a href="mlmc.quantity.html#module-mlmc.quantity.quantity_estimate">mlmc.quantity.quantity_estimate</a>
+</li>
+        <li><a href="mlmc.quantity.html#module-mlmc.quantity.quantity_spec">mlmc.quantity.quantity_spec</a>
+</li>
+        <li><a href="mlmc.quantity.html#module-mlmc.quantity.quantity_types">mlmc.quantity.quantity_types</a>
+</li>
+        <li><a href="generated/mlmc.random.html#module-mlmc.random">mlmc.random</a>, <a href="mlmc.random.html#module-0">[1]</a>, <a href="mlmc.random.html#module-mlmc.random">[2]</a>
+</li>
+        <li><a href="mlmc.random.html#module-mlmc.random.correlated_field">mlmc.random.correlated_field</a>
+</li>
+        <li><a href="generated/mlmc.sim.html#module-mlmc.sim">mlmc.sim</a>, <a href="mlmc.sim.html#module-0">[1]</a>, <a href="mlmc.sim.html#module-mlmc.sim">[2]</a>
+</li>
+        <li><a href="mlmc.sim.html#module-mlmc.sim.simulation">mlmc.sim.simulation</a>
+</li>
+        <li><a href="mlmc.sim.html#module-mlmc.sim.synth_simulation">mlmc.sim.synth_simulation</a>
+</li>
+        <li><a href="generated/mlmc.tool.html#module-mlmc.tool">mlmc.tool</a>, <a href="mlmc.tool.html#module-0">[1]</a>, <a href="mlmc.tool.html#module-mlmc.tool">[2]</a>
+</li>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.distribution">mlmc.tool.distribution</a>
+</li>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.flow_mc">mlmc.tool.flow_mc</a>
+</li>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.gmsh_io">mlmc.tool.gmsh_io</a>
+</li>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.hdf5">mlmc.tool.hdf5</a>
+</li>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.pbs_job">mlmc.tool.pbs_job</a>
+</li>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.process_base">mlmc.tool.process_base</a>
+</li>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.simple_distribution">mlmc.tool.simple_distribution</a>
+</li>
+        <li><a href="mlmc.tool.html#module-mlmc.tool.stats_tests">mlmc.tool.stats_tests</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_estimate.moment">moment() (in module mlmc.quantity.quantity_estimate)</a>
+</li>
+      <li><a href="generated/mlmc.moments.Moments.html#mlmc.moments.Moments">Moments (class in mlmc.moments)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.moments">moments() (in module mlmc.plot.plots)</a>
+
+      <ul>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_estimate.moments">(in module mlmc.quantity.quantity_estimate)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.moments_subset">moments_subset() (in module mlmc.plot.plots)</a>
+</li>
+      <li><a href="generated/mlmc.moments.Monomial.html#mlmc.moments.Monomial">Monomial (class in mlmc.moments)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.mult_op">mult_op() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="N">N</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.n_collected">n_collected() (mlmc.quantity.quantity.QuantityStorage method)</a>
+</li>
+      <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation.n_nans">n_nans (mlmc.sim.synth_simulation.SynthSimulation attribute)</a>
+
+      <ul>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.n_nans">(mlmc.sim.synth_simulation.SynthSimulationWorkspace attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.n_ops_estimate">n_ops_estimate() (examples.shooting.simulation_shooting_1D.ShootingSimulation1D method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.n_ops_estimate">(examples.shooting.simulation_shooting_2D.ShootingSimulation2D method)</a>
+</li>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation.n_ops_estimate">(mlmc.sim.synth_simulation.SynthSimulation method)</a>
+</li>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.n_ops_estimate">(mlmc.sim.synth_simulation.SynthSimulationWorkspace method)</a>
+</li>
+        <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.n_ops_estimate">(mlmc.tool.hdf5.LevelGroup property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityMean.n_rm_samples">n_rm_samples() (mlmc.quantity.quantity.QuantityMean property)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.n_sample_estimate">n_sample_estimate() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityMean.n_samples">n_samples() (mlmc.quantity.quantity.QuantityMean property)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_spec.QuantitySpec.name">name (mlmc.quantity.quantity_spec.QuantitySpec attribute)</a>
+</li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.Fields.names">names() (mlmc.random.correlated_field.Fields property)</a>
+</li>
+      <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation.nan_fraction">nan_fraction (mlmc.sim.synth_simulation.SynthSimulation attribute)</a>
+
+      <ul>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.nan_fraction">(mlmc.sim.synth_simulation.SynthSimulationWorkspace attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.need_workspace">need_workspace (mlmc.sim.synth_simulation.SynthSimulationWorkspace attribute)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="O">O</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="generated/mlmc.sampling_pool.OneProcessPool.html#mlmc.sampling_pool.OneProcessPool">OneProcessPool (class in mlmc.sampling_pool)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="P">P</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.PBS_ID">PBS_ID (mlmc.tool.pbs_job.PbsJob attribute)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob">PbsJob (class in mlmc.tool.pbs_job)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.pick_samples">pick_samples() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Aux.plot_bootstrap_variance_compare">plot_bootstrap_variance_compare() (mlmc.plot.plots.Aux method)</a>
+
+      <ul>
+        <li><a href="mlmc.plot.html#mlmc.plot.plots.BSplots.plot_bootstrap_variance_compare">(mlmc.plot.plots.BSplots method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Aux.plot_bs_level_variances_error">plot_bs_level_variances_error() (mlmc.plot.plots.Aux method)</a>
+
+      <ul>
+        <li><a href="mlmc.plot.html#mlmc.plot.plots.BSplots.plot_bs_level_variances_error">(mlmc.plot.plots.BSplots method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Aux.plot_bs_var_error_contributions">plot_bs_var_error_contributions() (mlmc.plot.plots.Aux method)</a>
+
+      <ul>
+        <li><a href="mlmc.plot.html#mlmc.plot.plots.BSplots.plot_bs_var_error_contributions">(mlmc.plot.plots.BSplots method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Aux.plot_bs_var_log_var">plot_bs_var_log_var() (mlmc.plot.plots.Aux method)</a>
+
+      <ul>
+        <li><a href="mlmc.plot.html#mlmc.plot.plots.BSplots.plot_bs_var_log_var">(mlmc.plot.plots.BSplots method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Aux.plot_bs_variances">plot_bs_variances() (mlmc.plot.plots.Aux method)</a>
+
+      <ul>
+        <li><a href="mlmc.plot.html#mlmc.plot.plots.BSplots.plot_bs_variances">(mlmc.plot.plots.BSplots method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.plot_convergence">plot_convergence() (in module mlmc.plot.plots)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.plot_diff_var">plot_diff_var() (in module mlmc.plot.plots)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.plot_diff_var_subsample">plot_diff_var_subsample() (in module mlmc.plot.plots)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.plot_error">plot_error() (in module mlmc.plot.plots)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Aux.plot_means_and_vars">plot_means_and_vars() (mlmc.plot.plots.Aux method)</a>
+
+      <ul>
+        <li><a href="mlmc.plot.html#mlmc.plot.plots.BSplots.plot_means_and_vars">(mlmc.plot.plots.BSplots method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.plot_mlmc_conv">plot_mlmc_conv() (in module mlmc.plot.plots)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.plot_n_sample_est_distributions">plot_n_sample_est_distributions() (in module mlmc.plot.plots)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.plot_pbs_flow_job_time">plot_pbs_flow_job_time() (in module mlmc.plot.plots)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.plot_regression_diffs">plot_regression_diffs() (in module mlmc.plot.plots)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.plot_var_regression">plot_var_regression() (in module mlmc.plot.plots)</a>
+
+      <ul>
+        <li><a href="mlmc.plot.html#mlmc.plot.plots.Aux.plot_var_regression">(mlmc.plot.plots.Aux method)</a>
+</li>
+        <li><a href="mlmc.plot.html#mlmc.plot.plots.BSplots.plot_var_regression">(mlmc.plot.plots.BSplots method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.plot_vars">plot_vars() (in module mlmc.plot.plots)</a>
+</li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.positive_to_range">positive_to_range() (in module mlmc.random.correlated_field)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.process_analysis">process_analysis() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.shooting_1D.ProcessShooting1D.process_results">process_results() (examples.shooting.shooting_1D.ProcessShooting1D method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.process_results">(examples.shooting.shooting_2D.ProcessShooting2D method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase">ProcessBase (class in mlmc.tool.process_base)</a>
+</li>
+      <li><a href="generated/mlmc.sampling_pool.ProcessPool.html#mlmc.sampling_pool.ProcessPool">ProcessPool (class in mlmc.sampling_pool)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.shooting_1D.ProcessShooting1D">ProcessShooting1D (class in examples.shooting.shooting_1D)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D">ProcessShooting2D (class in examples.shooting.shooting_2D)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="Q">Q</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QArray">QArray() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QDict">QDict() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QField">QField() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.QTimeSeries">QTimeSeries() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.QType">QType (class in mlmc.quantity.quantity_types)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity">Quantity (class in mlmc.quantity.quantity)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityConst">QuantityConst (class in mlmc.quantity.quantity)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityMean">QuantityMean (class in mlmc.quantity.quantity)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_spec.QuantitySpec">QuantitySpec (class in mlmc.quantity.quantity_spec)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage">QuantityStorage (class in mlmc.quantity.quantity)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="R">R</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.FourierSpatialCorrelatedField.random_field">random_field() (mlmc.random.correlated_field.FourierSpatialCorrelatedField method)</a>
+
+      <ul>
+        <li><a href="mlmc.random.html#mlmc.random.correlated_field.GSToolsSpatialCorrelatedField.random_field">(mlmc.random.correlated_field.GSToolsSpatialCorrelatedField method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.RandomFieldBase">RandomFieldBase (class in mlmc.random.correlated_field)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.read">read() (mlmc.tool.gmsh_io.GmshIO method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.read_element_data">read_element_data() (mlmc.tool.gmsh_io.GmshIO method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.read_element_data_head">read_element_data_head() (mlmc.tool.gmsh_io.GmshIO method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.read_results">read_results() (mlmc.tool.pbs_job.PbsJob static method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.DictType.replace_scalar">replace_scalar() (mlmc.quantity.quantity_types.DictType method)</a>
+
+      <ul>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.QType.replace_scalar">(mlmc.quantity.quantity_types.QType method)</a>
+</li>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.ScalarType.replace_scalar">(mlmc.quantity.quantity_types.ScalarType method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Distribution.reset">reset() (mlmc.plot.plots.Distribution method)</a>
+
+      <ul>
+        <li><a href="mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.reset">(mlmc.tool.gmsh_io.GmshIO method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.ArrayType.reshape">reshape() (mlmc.quantity.quantity_types.ArrayType method)</a>
+
+      <ul>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.QType.reshape">(mlmc.quantity.quantity_types.QType method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation.result_dict">result_dict (mlmc.sim.synth_simulation.SynthSimulation attribute)</a>
+
+      <ul>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.result_dict">(mlmc.sim.synth_simulation.SynthSimulationWorkspace attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_1D.ShootingSimulation1D.result_format">result_format() (examples.shooting.simulation_shooting_1D.ShootingSimulation1D method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_2D.ShootingSimulation2D.result_format">(examples.shooting.simulation_shooting_2D.ShootingSimulation2D method)</a>
+</li>
+        <li><a href="mlmc.sim.html#mlmc.sim.simulation.Simulation.result_format">(mlmc.sim.simulation.Simulation method)</a>
+</li>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation.result_format">(mlmc.sim.synth_simulation.SynthSimulation method)</a>
+</li>
+        <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.result_format">(mlmc.tool.flow_mc.FlowSim static method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.HDF5.result_format_dset_name">result_format_dset_name() (mlmc.tool.hdf5.HDF5 property)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.rm_files">rm_files() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.run">run() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="S">S</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.Field.sample">sample() (mlmc.random.correlated_field.Field method)</a>
+
+      <ul>
+        <li><a href="mlmc.random.html#mlmc.random.correlated_field.Fields.sample">(mlmc.random.correlated_field.Fields method)</a>
+</li>
+        <li><a href="mlmc.random.html#mlmc.random.correlated_field.GSToolsSpatialCorrelatedField.sample">(mlmc.random.correlated_field.GSToolsSpatialCorrelatedField method)</a>
+</li>
+        <li><a href="mlmc.random.html#mlmc.random.correlated_field.RandomFieldBase.sample">(mlmc.random.correlated_field.RandomFieldBase method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation.sample_fn">sample_fn() (mlmc.sim.synth_simulation.SynthSimulation static method)</a>
+
+      <ul>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.sample_fn">(mlmc.sim.synth_simulation.SynthSimulationWorkspace static method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation.sample_fn_no_error">sample_fn_no_error() (mlmc.sim.synth_simulation.SynthSimulation static method)</a>
+
+      <ul>
+        <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace.sample_fn_no_error">(mlmc.sim.synth_simulation.SynthSimulationWorkspace static method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.SAMPLE_ID_JOB_ID">SAMPLE_ID_JOB_ID (mlmc.tool.pbs_job.PbsJob attribute)</a>
+</li>
+      <li><a href="generated/mlmc.sampler.Sampler.html#mlmc.sampler.Sampler">Sampler (class in mlmc.sampler)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.samples">samples() (mlmc.quantity.quantity.Quantity method)</a>
+
+      <ul>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityConst.samples">(mlmc.quantity.quantity.QuantityConst method)</a>
+</li>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.samples">(mlmc.quantity.quantity.QuantityStorage method)</a>
+</li>
+      </ul></li>
+      <li><a href="generated/mlmc.sample_storage.SampleStorage.html#mlmc.sample_storage.SampleStorage">SampleStorage (class in mlmc.sample_storage)</a>
+</li>
+      <li><a href="generated/mlmc.sample_storage_hdf.SampleStorageHDF.html#mlmc.sample_storage_hdf.SampleStorageHDF">SampleStorageHDF (class in mlmc.sample_storage_hdf)</a>
+</li>
+      <li><a href="generated/mlmc.sampling_pool.SamplingPool.html#mlmc.sampling_pool.SamplingPool">SamplingPool (class in mlmc.sampling_pool)</a>
+</li>
+      <li><a href="generated/mlmc.sampling_pool_pbs.SamplingPoolPBS.html#mlmc.sampling_pool_pbs.SamplingPoolPBS">SamplingPoolPBS (class in mlmc.sampling_pool_pbs)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.HDF5.save_result_format">save_result_format() (mlmc.tool.hdf5.HDF5 method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.save_sample_id_job_id">save_sample_id_job_id() (mlmc.tool.pbs_job.PbsJob method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.save_scheduled">save_scheduled() (mlmc.tool.pbs_job.PbsJob method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.ScalarType">ScalarType (class in mlmc.quantity.quantity_types)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.SCHEDULED">SCHEDULED (mlmc.tool.pbs_job.PbsJob attribute)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.scheduled">scheduled() (mlmc.tool.hdf5.LevelGroup method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.scheduled_dset">scheduled_dset() (mlmc.tool.hdf5.LevelGroup property)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.hdf5.LevelGroup.SCHEDULED_DTYPE">SCHEDULED_DTYPE (mlmc.tool.hdf5.LevelGroup attribute)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.select">select() (mlmc.quantity.quantity.Quantity method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.selection_id">selection_id() (mlmc.quantity.quantity.Quantity method)</a>
+
+      <ul>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityConst.selection_id">(mlmc.quantity.quantity.QuantityConst method)</a>
+</li>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityStorage.selection_id">(mlmc.quantity.quantity.QuantityStorage method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.set_environment_variables">set_environment_variables() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.shooting_1D.ProcessShooting1D.set_moments">set_moments() (examples.shooting.shooting_1D.ProcessShooting1D method)</a>
+
+      <ul>
+        <li><a href="examples.shooting.html#examples.shooting.shooting_2D.ProcessShooting2D.set_moments">(examples.shooting.shooting_2D.ProcessShooting2D method)</a>
+</li>
+        <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.set_moments">(mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.BSplots.set_moments_color_bar">set_moments_color_bar() (mlmc.plot.plots.BSplots method)</a>
+</li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.Fields.set_outer_fields">set_outer_fields() (mlmc.random.correlated_field.Fields method)</a>
+</li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.Field.set_points">set_points() (mlmc.random.correlated_field.Field method)</a>
+
+      <ul>
+        <li><a href="mlmc.random.html#mlmc.random.correlated_field.Fields.set_points">(mlmc.random.correlated_field.Fields method)</a>
+</li>
+        <li><a href="mlmc.random.html#mlmc.random.correlated_field.RandomFieldBase.set_points">(mlmc.random.correlated_field.RandomFieldBase method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.set_selection_id">set_selection_id() (mlmc.quantity.quantity.Quantity method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.process_base.ProcessBase.setup_config">setup_config() (mlmc.tool.process_base.ProcessBase method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_spec.QuantitySpec.shape">shape (mlmc.quantity.quantity_spec.QuantitySpec attribute)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_1D.ShootingSimulation1D">ShootingSimulation1D (class in examples.shooting.simulation_shooting_1D)</a>
+</li>
+      <li><a href="examples.shooting.html#examples.shooting.simulation_shooting_2D.ShootingSimulation2D">ShootingSimulation2D (class in examples.shooting.simulation_shooting_2D)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Distribution.show">show() (mlmc.plot.plots.Distribution method)</a>
+
+      <ul>
+        <li><a href="mlmc.plot.html#mlmc.plot.plots.Eigenvalues.show">(mlmc.plot.plots.Eigenvalues method)</a>
+</li>
+        <li><a href="mlmc.plot.html#mlmc.plot.plots.Variance.show">(mlmc.plot.plots.Variance method)</a>
+</li>
+        <li><a href="mlmc.plot.html#mlmc.plot.plots.VarianceBreakdown.show">(mlmc.plot.plots.VarianceBreakdown method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.tool.html#mlmc.tool.simple_distribution.SimpleDistribution">SimpleDistribution (class in mlmc.tool.simple_distribution)</a>
+</li>
+      <li><a href="mlmc.sim.html#mlmc.sim.simulation.Simulation">Simulation (class in mlmc.sim.simulation)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.size">size() (mlmc.quantity.quantity.Quantity method)</a>
+
+      <ul>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.ArrayType.size">(mlmc.quantity.quantity_types.ArrayType method)</a>
+</li>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.DictType.size">(mlmc.quantity.quantity_types.DictType method)</a>
+</li>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.FieldType.size">(mlmc.quantity.quantity_types.FieldType method)</a>
+</li>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.QType.size">(mlmc.quantity.quantity_types.QType method)</a>
+</li>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.ScalarType.size">(mlmc.quantity.quantity_types.ScalarType method)</a>
+</li>
+        <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.TimeSeriesType.size">(mlmc.quantity.quantity_types.TimeSeriesType method)</a>
+</li>
+      </ul></li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.SpatialCorrelatedField">SpatialCorrelatedField (class in mlmc.random.correlated_field)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.sub_op">sub_op() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.subsample">subsample() (mlmc.quantity.quantity.Quantity method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.substitute_placeholders">substitute_placeholders() (in module mlmc.tool.flow_mc)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.SUCCESSFUL_RESULTS">SUCCESSFUL_RESULTS (mlmc.tool.pbs_job.PbsJob attribute)</a>
+</li>
+      <li><a href="mlmc.random.html#mlmc.random.correlated_field.SpatialCorrelatedField.svd_dcmp">svd_dcmp() (mlmc.random.correlated_field.SpatialCorrelatedField method)</a>
+</li>
+      <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulation">SynthSimulation (class in mlmc.sim.synth_simulation)</a>
+</li>
+      <li><a href="mlmc.sim.html#mlmc.sim.synth_simulation.SynthSimulationWorkspace">SynthSimulationWorkspace (class in mlmc.sim.synth_simulation)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="T">T</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.stats_tests.t_test">t_test() (in module mlmc.tool.stats_tests)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.TIME">TIME (mlmc.tool.pbs_job.PbsJob attribute)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.TimeSeriesType.time_interpolation">time_interpolation() (mlmc.quantity.quantity_types.TimeSeriesType static method)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_spec.QuantitySpec.times">times (mlmc.quantity.quantity_spec.QuantitySpec attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_types.TimeSeriesType">TimeSeriesType (class in mlmc.quantity.quantity_types)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.TIMESTEP_H1_VAR">TIMESTEP_H1_VAR (mlmc.tool.flow_mc.FlowSim attribute)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.TIMESTEP_H2_VAR">TIMESTEP_H2_VAR (mlmc.tool.flow_mc.FlowSim attribute)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.total_sim_id">total_sim_id (mlmc.tool.flow_mc.FlowSim attribute)</a>
+</li>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.truediv_op">truediv_op() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="U">U</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity_spec.QuantitySpec.unit">unit (mlmc.quantity.quantity_spec.QuantitySpec attribute)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="V">V</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.QuantityMean.var">var() (mlmc.quantity.quantity.QuantityMean property)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.Variance">Variance (class in mlmc.plot.plots)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.plot.html#mlmc.plot.plots.VarianceBreakdown">VarianceBreakdown (class in mlmc.plot.plots)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.violinplot.violinplot">violinplot() (in module mlmc.plot.violinplot)</a>
+</li>
+      <li><a href="mlmc.plot.html#mlmc.plot.violinplot.ViolinPlotter">ViolinPlotter (class in mlmc.plot.violinplot)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="W">W</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.quantity.html#mlmc.quantity.quantity.Quantity.wrap">wrap() (mlmc.quantity.quantity.Quantity static method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.write_ascii">write_ascii() (mlmc.tool.gmsh_io.GmshIO method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.write_binary">write_binary() (mlmc.tool.gmsh_io.GmshIO method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.write_element_data">write_element_data() (mlmc.tool.gmsh_io.GmshIO method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.write_fields">write_fields() (mlmc.tool.gmsh_io.GmshIO method)</a>
+</li>
+      <li><a href="mlmc.tool.html#mlmc.tool.pbs_job.PbsJob.write_pbs_id">write_pbs_id() (mlmc.tool.pbs_job.PbsJob method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="Y">Y</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.YAML_FILE">YAML_FILE (mlmc.tool.flow_mc.FlowSim attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="mlmc.tool.html#mlmc.tool.flow_mc.FlowSim.YAML_TEMPLATE">YAML_TEMPLATE (mlmc.tool.flow_mc.FlowSim attribute)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, Jan Březina, Martin Špetlík.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

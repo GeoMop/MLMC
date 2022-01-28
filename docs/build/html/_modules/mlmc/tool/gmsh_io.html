@@ -1,0 +1,581 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>mlmc.tool.gmsh_io &mdash; mlmc 1.0.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../contents.html" class="icon icon-home"> mlmc
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">MLMC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../index.html#installation">Installation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_sampler_creation.html">Sampler creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_samples_scheduling.html">Samples scheduling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_samples_scheduling.html#prescribe-the-exact-number-of-samples">1. Prescribe the exact number of samples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_samples_scheduling.html#prescribe-a-target-variance">2. Prescribe a target variance</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_quantity.html">Quantity tutorial</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#mean-estimates">Mean estimates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#estimate-moments-and-covariance-matrix">Estimate moments and covariance matrix</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#quantity-selection">Quantity selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#binary-operations">Binary operations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#numpy-universal-functions">NumPy universal functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_quantity.html#quantity-selection-by-conditions">Quantity selection by conditions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples_postprocessing.html">Results postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples_postprocessing.html#probability-density-function-approximation">Probability density function approximation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mlmc.html">MLMC package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../mlmc.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../mlmc.html#classes">Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#sampler">Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplingpool">SamplingPool</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplingpoolpbs">SamplingPoolPBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplestorage">SampleStorage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#samplestoragehdf">SampleStorageHDF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#estimate">Estimate</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#moments">Moments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../mlmc.html#levelsimulation">LevelSimulation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../contents.html">mlmc</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../contents.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>mlmc.tool.gmsh_io</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for mlmc.tool.gmsh_io</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Module containing an expanded python gmsh class&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">struct</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">enum</span>
+
+
+<span class="c1"># class ElementType(enum.IntEnum):</span>
+<span class="c1">#     simplex_1d = 1</span>
+<span class="c1">#     simplex_2d = 2</span>
+<span class="c1">#     simplex_3d = 4</span>
+<span class="c1">#</span>
+<span class="c1"># element_sizes = {</span>
+<span class="c1">#     1: 1,</span>
+<span class="c1">#     2: 2,</span>
+<span class="c1">#     4: 3</span>
+<span class="c1"># }</span>
+<span class="c1">#</span>
+
+<div class="viewcode-block" id="GmshIO"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO">[docs]</a><span class="k">class</span> <span class="nc">GmshIO</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;This is a class for storing nodes and elements. Based on Gmsh.py</span>
+
+<span class="sd">    Members:</span>
+<span class="sd">    nodes -- A dict of the form { nodeID: [ xcoord, ycoord, zcoord] }</span>
+<span class="sd">    elements -- A dict of the form { elemID: (type, [tags], [nodeIDs]) }</span>
+<span class="sd">    physical -- A dict of the form { name: (id, dim) }</span>
+
+<span class="sd">    Methods:</span>
+<span class="sd">    read([file]) -- Parse a Gmsh version 1.0 or 2.0 mesh file</span>
+<span class="sd">    write([file]) -- Output a Gmsh version 2.0 mesh file</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialise Gmsh data structure&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+<div class="viewcode-block" id="GmshIO.reset"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reinitialise Gmsh data structure&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">physical</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">element_data</span> <span class="o">=</span> <span class="p">{}</span></div>
+
+<div class="viewcode-block" id="GmshIO.read_element_data_head"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.read_element_data_head">[docs]</a>    <span class="k">def</span> <span class="nf">read_element_data_head</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mshfile</span><span class="p">):</span>
+
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">mshfile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">n_str_tags</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">n_str_tags</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">field</span> <span class="o">=</span> <span class="n">mshfile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span>
+
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">mshfile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">n_real_tags</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">n_real_tags</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">mshfile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">mshfile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">n_int_tags</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">n_int_tags</span> <span class="o">==</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">mshfile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">t_idx</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">mshfile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">n_comp</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">mshfile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">n_elem</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">field</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">t_idx</span><span class="p">,</span> <span class="n">n_comp</span><span class="p">,</span> <span class="n">n_elem</span></div>
+
+
+<div class="viewcode-block" id="GmshIO.read"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mshfile</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Read a Gmsh .msh file.</span>
+
+<span class="sd">        Reads Gmsh format 1.0 and 2.0 mesh files, storing the nodes and</span>
+<span class="sd">        elements in the appropriate dicts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">mshfile</span><span class="p">:</span>
+            <span class="n">mshfile</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+
+        <span class="n">readmode</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Reading </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">mshfile</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="s1">&#39;a&#39;</span>
+        <span class="k">while</span> <span class="n">line</span><span class="p">:</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">mshfile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;$&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">line</span> <span class="o">==</span> <span class="s1">&#39;$NOD&#39;</span> <span class="ow">or</span> <span class="n">line</span> <span class="o">==</span> <span class="s1">&#39;$Nodes&#39;</span><span class="p">:</span>
+                    <span class="n">readmode</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="k">elif</span> <span class="n">line</span> <span class="o">==</span> <span class="s1">&#39;$ELM&#39;</span><span class="p">:</span>
+                    <span class="n">readmode</span> <span class="o">=</span> <span class="mi">2</span>
+                <span class="k">elif</span> <span class="n">line</span> <span class="o">==</span> <span class="s1">&#39;$Elements&#39;</span><span class="p">:</span>
+                    <span class="n">readmode</span> <span class="o">=</span> <span class="mi">3</span>
+                <span class="k">elif</span> <span class="n">line</span> <span class="o">==</span> <span class="s1">&#39;$MeshFormat&#39;</span><span class="p">:</span>
+                    <span class="n">readmode</span> <span class="o">=</span> <span class="mi">4</span>
+                <span class="k">elif</span> <span class="n">line</span> <span class="o">==</span> <span class="s1">&#39;$PhysicalNames&#39;</span><span class="p">:</span>
+                    <span class="n">readmode</span> <span class="o">=</span> <span class="mi">5</span>
+                <span class="k">elif</span> <span class="n">line</span> <span class="o">==</span> <span class="s1">&#39;$ElementData&#39;</span><span class="p">:</span>
+                    <span class="n">field</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">t_idx</span><span class="p">,</span> <span class="n">n_comp</span><span class="p">,</span> <span class="n">n_ele</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_element_data_head</span><span class="p">(</span><span class="n">mshfile</span><span class="p">)</span>
+                    <span class="n">field_times</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">element_data</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="p">{})</span>
+                    <span class="k">assert</span> <span class="n">t_idx</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">field_times</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">current_elem_data</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">current_n_components</span> <span class="o">=</span> <span class="n">n_comp</span>
+                    <span class="n">field_times</span><span class="p">[</span><span class="n">t_idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_elem_data</span><span class="p">)</span>
+                    <span class="n">readmode</span> <span class="o">=</span> <span class="mi">6</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">readmode</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">elif</span> <span class="n">readmode</span><span class="p">:</span>
+                <span class="n">columns</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">readmode</span> <span class="o">==</span> <span class="mi">6</span><span class="p">:</span>
+                    <span class="n">ele_idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="n">comp_values</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]</span>
+                    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp_values</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_n_components</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">current_elem_data</span><span class="p">[</span><span class="n">ele_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">comp_values</span>
+
+                <span class="k">if</span> <span class="n">readmode</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">columns</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">physical</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">2</span><span class="p">])]</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+
+                <span class="k">if</span> <span class="n">readmode</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">columns</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                        <span class="n">vno</span><span class="p">,</span> <span class="n">ftype</span><span class="p">,</span> <span class="n">dsize</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                                             <span class="nb">int</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                                             <span class="nb">int</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+                        <span class="nb">print</span><span class="p">((</span><span class="s1">&#39;ASCII&#39;</span><span class="p">,</span> <span class="s1">&#39;Binary&#39;</span><span class="p">)[</span><span class="n">ftype</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39; format&#39;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">endian</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">readmode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="c1"># Version 1.0 or 2.0 Nodes</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">ftype</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">columns</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]</span>
+                        <span class="k">elif</span> <span class="n">ftype</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="n">nnods</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                            <span class="k">for</span> <span class="n">N</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nnods</span><span class="p">):</span>
+                                <span class="n">data</span> <span class="o">=</span> <span class="n">mshfile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">dsize</span><span class="p">)</span>
+                                <span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;=i3d&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">]</span>
+                            <span class="n">mshfile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Node format error: &#39;</span> <span class="o">+</span> <span class="n">line</span><span class="p">,</span> <span class="n">ERROR</span><span class="p">)</span>
+                        <span class="n">readmode</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">elif</span> <span class="n">ftype</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">readmode</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">columns</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">5</span><span class="p">:</span>
+                    <span class="c1"># Version 1.0 or 2.0 Elements</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">]</span>
+                    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Element format error: &#39;</span> <span class="o">+</span> <span class="n">line</span><span class="p">,</span> <span class="n">ERROR</span><span class="p">)</span>
+                        <span class="n">readmode</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="o">=</span> <span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">readmode</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                            <span class="c1"># Version 1.0 Elements</span>
+                            <span class="n">tags</span> <span class="o">=</span> <span class="n">columns</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
+                            <span class="n">nodes</span> <span class="o">=</span> <span class="n">columns</span><span class="p">[</span><span class="mi">5</span><span class="p">:]</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="c1"># Version 2.0 Elements</span>
+                            <span class="n">ntags</span> <span class="o">=</span> <span class="n">columns</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                            <span class="n">tags</span> <span class="o">=</span> <span class="n">columns</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">3</span> <span class="o">+</span> <span class="n">ntags</span><span class="p">]</span>
+                            <span class="n">nodes</span> <span class="o">=</span> <span class="n">columns</span><span class="p">[</span><span class="mi">3</span> <span class="o">+</span> <span class="n">ntags</span><span class="p">:]</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">tags</span><span class="p">,</span> <span class="n">nodes</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">readmode</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">ftype</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="c1"># el_type : num of nodes per element</span>
+                    <span class="n">tdict</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">9</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">10</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">11</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">15</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">neles</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="n">k</span> <span class="o">=</span> <span class="mi">0</span>
+                        <span class="k">while</span> <span class="n">k</span> <span class="o">&lt;</span> <span class="n">neles</span><span class="p">:</span>
+                            <span class="n">etype</span><span class="p">,</span> <span class="n">ntype</span><span class="p">,</span> <span class="n">ntags</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;=3i&#39;</span><span class="p">,</span>
+                                                                <span class="n">mshfile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="mi">4</span><span class="p">))</span>
+                            <span class="n">k</span> <span class="o">+=</span> <span class="mi">1</span>
+                            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ntype</span><span class="p">):</span>
+                                <span class="n">mysize</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">ntags</span> <span class="o">+</span> <span class="n">tdict</span><span class="p">[</span><span class="n">etype</span><span class="p">]</span>
+                                <span class="n">data</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;=</span><span class="si">%d</span><span class="s1">i&#39;</span> <span class="o">%</span> <span class="n">mysize</span><span class="p">,</span>
+                                                     <span class="n">mshfile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">mysize</span><span class="p">))</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span><span class="n">etype</span><span class="p">,</span>
+                                                          <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">1</span> <span class="o">+</span> <span class="n">ntags</span><span class="p">],</span>
+                                                          <span class="n">data</span><span class="p">[</span><span class="mi">1</span> <span class="o">+</span> <span class="n">ntags</span><span class="p">:])</span>
+                    <span class="k">except</span><span class="p">:</span>
+                        <span class="k">raise</span>
+                    <span class="n">mshfile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;  </span><span class="si">%d</span><span class="s1"> Nodes&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;  </span><span class="si">%d</span><span class="s1"> Elements&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">))</span>
+
+        <span class="n">mshfile</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="GmshIO.write_ascii"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.write_ascii">[docs]</a>    <span class="k">def</span> <span class="nf">write_ascii</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mshfile</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Dump the mesh out to a Gmsh 2.0 msh file.&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">mshfile</span><span class="p">:</span>
+            <span class="n">mshfile</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;$MeshFormat</span><span class="se">\n</span><span class="s1">2.2 0 8</span><span class="se">\n</span><span class="s1">$EndMeshFormat&#39;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">mshfile</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;$PhysicalNames</span><span class="se">\n</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physical</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">mshfile</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+            <span class="n">region_id</span><span class="p">,</span> <span class="n">dim</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1"> </span><span class="si">%d</span><span class="s1"> &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">region_id</span><span class="p">,</span> <span class="n">name</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">mshfile</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;$EndPhysicalNames&#39;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">mshfile</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;$Nodes</span><span class="se">\n</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">mshfile</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">node_id</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">coord</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">node_id</span><span class="p">]</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">node_id</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coord</span><span class="p">]),</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+                  <span class="n">file</span><span class="o">=</span><span class="n">mshfile</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;$EndNodes&#39;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">mshfile</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;$Elements</span><span class="se">\n</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">mshfile</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ele_id</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">elem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="n">ele_id</span><span class="p">]</span>
+            <span class="p">(</span><span class="n">ele_type</span><span class="p">,</span> <span class="n">tags</span><span class="p">,</span> <span class="n">nodes</span><span class="p">)</span> <span class="o">=</span> <span class="n">elem</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">ele_id</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">ele_type</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tags</span><span class="p">),</span> <span class="s1">&#39; &#39;</span><span class="p">,</span>
+                  <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">tags</span><span class="p">]),</span> <span class="s1">&#39; &#39;</span><span class="p">,</span>
+                  <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">]),</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">mshfile</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;$EndElements&#39;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">mshfile</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GmshIO.write_binary"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.write_binary">[docs]</a>    <span class="k">def</span> <span class="nf">write_binary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Dump the mesh out to a Gmsh 2.0 msh file.&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filename</span>
+
+        <span class="n">mshfile</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;wr&#39;</span><span class="p">)</span>
+
+        <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;$MeshFormat</span><span class="se">\n</span><span class="s2">2.2 1 8</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;@i&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">$EndMeshFormat</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;$Nodes</span><span class="se">\n</span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)))</span>
+        <span class="k">for</span> <span class="n">node_id</span><span class="p">,</span> <span class="n">coord</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;@i&#39;</span><span class="p">,</span> <span class="n">node_id</span><span class="p">))</span>
+            <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;@3d&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">coord</span><span class="p">))</span>
+        <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">$EndNodes</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;$Elements</span><span class="se">\n</span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">)))</span>
+        <span class="k">for</span> <span class="n">ele_id</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="p">(</span><span class="n">ele_type</span><span class="p">,</span> <span class="n">tags</span><span class="p">,</span> <span class="n">nodes</span><span class="p">)</span> <span class="o">=</span> <span class="n">elem</span>
+            <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;@i&#39;</span><span class="p">,</span> <span class="n">ele_type</span><span class="p">))</span>
+            <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;@i&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;@i&#39;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tags</span><span class="p">)))</span>
+            <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;@i&#39;</span><span class="p">,</span> <span class="n">ele_id</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">tags</span><span class="p">:</span>
+                <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;@i&#39;</span><span class="p">,</span> <span class="n">c</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">:</span>
+                <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;@i&#39;</span><span class="p">,</span> <span class="n">c</span><span class="p">))</span>
+        <span class="n">mshfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">$EndElements</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">mshfile</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="GmshIO.write_element_data"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.write_element_data">[docs]</a>    <span class="k">def</span> <span class="nf">write_element_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">ele_ids</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write given element data to the MSH file. Write only a single &#39;$ElementData&#39; section.</span>
+<span class="sd">        :param f: Output file stream.</span>
+<span class="sd">        :param ele_ids: Iterable giving element ids of N value rows given in &#39;values&#39;</span>
+<span class="sd">        :param name: Field name.</span>
+<span class="sd">        :param values: np.array (N, L); N number of elements, L values per element (components)</span>
+<span class="sd">        :return:</span>
+
+<span class="sd">        TODO: Generalize to time dependent fields.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_els</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">n_comp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="p">(</span><span class="n">n_els</span><span class="p">,</span> <span class="n">n_comp</span><span class="p">))</span>
+        <span class="n">header_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">field</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">),</span>
+            <span class="n">time</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">time_idx</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">n_components</span><span class="o">=</span><span class="n">n_comp</span><span class="p">,</span>
+            <span class="n">n_els</span><span class="o">=</span><span class="n">n_els</span>
+        <span class="p">)</span>
+
+        <span class="n">header</span> <span class="o">=</span> <span class="s2">&quot;1</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{field}</span><span class="se">\&quot;\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;1</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;</span><span class="si">{time}</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;3</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;</span><span class="si">{time_idx}</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;</span><span class="si">{n_components}</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;</span><span class="si">{n_els}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="n">header_dict</span><span class="p">)</span>
+
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;$ElementData</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
+        <span class="k">for</span> <span class="n">ele_id</span><span class="p">,</span> <span class="n">value_row</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ele_ids</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+            <span class="n">value_line</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value_row</span><span class="p">])</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{:d}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ele_id</span><span class="p">),</span> <span class="n">value_line</span><span class="p">))</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;$EndElementData</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GmshIO.write_fields"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.write_fields">[docs]</a>    <span class="k">def</span> <span class="nf">write_fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msh_file</span><span class="p">,</span> <span class="n">ele_ids</span><span class="p">,</span> <span class="n">fields</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates input data msh file for Flow model.</span>
+<span class="sd">        :param msh_file: Target file (or None for current mesh file)</span>
+<span class="sd">        :param ele_ids: Element IDs in computational mesh corrsponding to order of</span>
+<span class="sd">        field values in element&#39;s barycenter.</span>
+<span class="sd">        :param fields: {&#39;field_name&#39; : values_array, ..}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">msh_file</span><span class="p">:</span>
+            <span class="n">msh_file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">msh_file</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fout</span><span class="p">:</span>
+            <span class="n">fout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;$MeshFormat</span><span class="se">\n</span><span class="s1">2.2 0 8</span><span class="se">\n</span><span class="s1">$EndMeshFormat</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">fields</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">write_element_data</span><span class="p">(</span><span class="n">fout</span><span class="p">,</span> <span class="n">ele_ids</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GmshIO.read_element_data"><a class="viewcode-back" href="../../../mlmc.tool.html#mlmc.tool.gmsh_io.GmshIO.read_element_data">[docs]</a>    <span class="k">def</span> <span class="nf">read_element_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write given element data to the MSH file. Write only a single &#39;$ElementData&#39; section.</span>
+<span class="sd">        :param f: Output file stream.</span>
+<span class="sd">        :param ele_ids: Iterable giving element ids of N value rows given in &#39;values&#39;</span>
+<span class="sd">        :param name: Field name.</span>
+<span class="sd">        :param values: np.array (N, L); N number of elements, L values per element (components)</span>
+<span class="sd">        :return:</span>
+
+<span class="sd">        TODO: Generalize to time dependent fields.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">n_els</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">n_comp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="p">(</span><span class="n">n_els</span><span class="p">,</span> <span class="n">n_comp</span><span class="p">))</span>
+        <span class="n">header_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">field</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">),</span>
+            <span class="n">time</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">time_idx</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">n_components</span><span class="o">=</span><span class="n">n_comp</span><span class="p">,</span>
+            <span class="n">n_els</span><span class="o">=</span><span class="n">n_els</span>
+        <span class="p">)</span>
+
+        <span class="n">header</span> <span class="o">=</span> <span class="s2">&quot;1</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{field}</span><span class="se">\&quot;\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;1</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;</span><span class="si">{time}</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;3</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;</span><span class="si">{time_idx}</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;</span><span class="si">{n_components}</span><span class="se">\n</span><span class="s2">&quot;</span> \
+                 <span class="s2">&quot;</span><span class="si">{n_els}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="n">header_dict</span><span class="p">)</span>
+
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;$ElementData</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
+        <span class="k">for</span> <span class="n">ele_id</span><span class="p">,</span> <span class="n">value_row</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ele_ids</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+            <span class="n">value_line</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value_row</span><span class="p">])</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{:d}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ele_id</span><span class="p">),</span> <span class="n">value_line</span><span class="p">))</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;$EndElementData</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, Jan Březina, Martin Špetlík.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
