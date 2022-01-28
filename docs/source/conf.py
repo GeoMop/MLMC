@@ -13,8 +13,14 @@
 import os
 import sys
 import datetime
-sys.path.insert(0, os.path.abspath('../..'))
-sys.path.insert(0, os.path.abspath("../../"))
+sys.path.append(os.path.abspath('../..'))
+sys.path.append(os.path.abspath('../../src'))
+sys.path.append(os.path.abspath('../../src/mlmc'))
+sys.path.append(os.path.abspath('../../src/mlmc/plot'))
+sys.path.append(os.path.abspath('../../src/mlmc/quantity'))
+sys.path.append(os.path.abspath('../../src/mlmc/tool'))
+sys.path.append(os.path.abspath('../../src/mlmc/sim'))
+sys.path.append(os.path.abspath('../../src/mlmc/random'))
 
 # -- Project information -----------------------------------------------------
 # General information about the project.
