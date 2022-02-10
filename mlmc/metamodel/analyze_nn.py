@@ -19,10 +19,10 @@ from tensorflow import keras
 from scipy.stats import ks_2samp
 import sklearn.model_selection
 from mlmc.metamodel.custom_methods import abs_activation, MSE_moments
-from mlmc.metamodel.postprocessing import analyze_results, plot_loss, estimate_density, process_mlmc, plot_progress
+from mlmc.metamodel.postprocessing import analyze_results, plot_loss, estimate_density, process_mlmc, plot_progress, plot_learning_rate
 from mlmc.metamodel.flow_task_NN import DNN
 from mlmc.metamodel.flow_task_CNN import CNN
-
+import keras.backend as K
 from mlmc.metamodel.flow_task_GNN_2 import GNN
 from tensorflow.keras.losses import MeanSquaredError
 from spektral.data import MixedLoader
@@ -355,6 +355,7 @@ def statistics(config):
     model_data = {}
     model_data["log"] = log
 
+
     # seeds = []
     # for i in range(n_subsamples):
     #     seeds.append(i * 125)
@@ -380,12 +381,16 @@ def statistics(config):
 
             config['iter_dir'] = iter_dir
 
-            model, targets, predictions, learning_time, train_targets, train_predictions, \
+            gnn, targets, predictions, learning_time, train_targets, train_predictions, \
             val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps = \
                 mch_l_model(config, stats=True, train=config.get('train_model', True), log=log, seed=i)
 
             if config['save_model']:
-                model_data["model"] = model
+                model_data["model"] = gnn._model
+                model_data["train_loss"] = gnn._train_loss
+                model_data["val_loss"] = gnn._val_loss
+                model_data["test_loss"] = gnn._test_loss
+                model_data["learning_rates"] = gnn._learning_rates
             model_data["test_targets"] = targets
             model_data["test_predictions"] = predictions
             model_data["train_targets"] = train_targets
@@ -412,7 +417,7 @@ def statistics(config):
     #     print("##################################################")
 
 
-    analyze_statistics(config)
+    return analyze_statistics(config)
 
     # plot_loss(train_losses, val_losses)
     # analyze_results(np.mean(all_test_outputs, axis=0), np.mean(all_predictions, axis=0))
@@ -433,6 +438,10 @@ def save_statistics(save_dir_path, model_data):
 def load_statistics(dir_path):
     models_data = {}
     models_data["model"] = []
+    models_data["train_loss"] = []
+    models_data["val_loss"] = []
+    models_data["test_loss"] = []
+    models_data["learning_rates"] = []
     models_data["test_targets"] = []
     models_data["test_predictions"] = []
     models_data["train_targets"] = []
@@ -447,6 +456,7 @@ def load_statistics(dir_path):
     models_data["learning_times"] = []
     models_data["log"] = []
     models_data["dataset_config"] = []
+
 
     #dirs = (os.path.split(dir_path)[-1]).split("_")
     n_iters = 25
@@ -509,7 +519,10 @@ def check_loss(config, model, log=True, dataset_config={}):
 
     config['dataset_config'] = dataset_config
 
-    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config)
+    print("config ", config)
+    print("dataset config ", config["dataset_config"])
+
+    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=None)
     data = data  # [:10000]
 
     data.a = config['conv_layer'].preprocess(data.a)
@@ -533,15 +546,27 @@ def check_loss(config, model, log=True, dataset_config={}):
     test_targets, test_predictions = model_predict(model, loader_te)
     test_predictions = np.squeeze(test_predictions)
 
+    #print("(train_predictions - train_targets)  ", (train_predictions - train_targets))
+
     train_MSE = np.mean((train_predictions - train_targets) ** 2)
+    train_bias = np.mean((train_targets - np.mean(train_predictions))**2)
+    train_variance = np.mean((train_predictions - np.mean(train_predictions))**2)
+    train_variance_2 = np.var(train_predictions)
+
     test_MSE = np.mean((test_predictions - test_targets) ** 2)
+    test_bias = np.mean((test_targets - np.mean(test_predictions)) ** 2)
+    test_variance = np.mean((test_predictions - np.mean(test_predictions)) ** 2)
+    test_variance_2 = np.var(test_predictions)
 
-    print("test targets ", np.sort(test_targets)[:10])
-    print("test predictions ", test_predictions)
-
+    # print("test targets ", np.sort(test_targets)[:10])
+    # print("test predictions ", test_predictions)
 
     print("train MSE: {}, test MSE: {}".format(train_MSE, test_MSE))
 
+    print("train MSE: {}, bias: {}, variance: {}, var2: {}".format(train_MSE, train_bias, train_variance, train_variance_2))
+    print("test MSE: {}, bias: {}, variance: {}, var2: {}".format(test_MSE, test_bias, test_variance, test_variance_2))
+
+    exit()
 
     conv_layers = {}
     dense_layers = {}
@@ -569,7 +594,8 @@ def predict_data(config, model, mesh_file, log=True):
     if model is None:
         return
     batch_size = config['batch_size']
-    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log)
+    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=0,
+                       predict=True)
     data = data  # [:10000]
 
     data.a = config['conv_layer'].preprocess(data.a)
@@ -759,6 +785,13 @@ def analyze_statistics(config, get_model=True):
     orth_mlmc_means_mse = []
     orth_nn_means_mse = []
 
+    train_MSE_list = []
+    train_bias = []
+    train_variance = []
+    test_MSE_list = []
+    test_bias = []
+    test_variance = []
+
     limit = 1e10  # 0.008#0.01#0.0009
     #limit = 0.37
 
@@ -766,6 +799,9 @@ def analyze_statistics(config, get_model=True):
         print("index i ", i)
         # if i == 4:
         #     break
+
+        # if i == 1:
+        #     continue
 
         #print("index ", i)
 
@@ -797,29 +833,67 @@ def analyze_statistics(config, get_model=True):
 
         try:
             model = data_dict["model"][i]
+            model_train_loss = data_dict["train_loss"][i]
+            model_val_loss = data_dict["val_loss"][i]
+            model_test_loss = data_dict["test_loss"][i]
+            model_learning_rates = data_dict["learning_rates"][i]
         except:
             model = None
 
-        #check_loss(config, model, dataset_config=data_dict.get("dataset_config", {}))
-        #predict_data(config, model, mesh_file=config["mesh"])
+        plot_loss(model_train_loss, model_val_loss)
+        plot_learning_rate(model_learning_rates)
+        print("model learning rates ", model_learning_rates)
+
+        print("model ", model)
+        print("dir(model.optimizer) ", dir(model.optimizer))
+        #print("model weights ", model.weights)
+        print("model.optimizer", model.optimizer)
+        # print("model.optimizer", K.eval(model.optimizer.lr))
+        # exit()
 
         iter_test_MSE = np.mean((predictions - targets) ** 2)
+        iter_test_bias = np.sqrt(np.mean((targets - np.mean(predictions)) ** 2))
+        iter_test_variance = np.mean((predictions - np.mean(predictions)) ** 2)
+
         iter_train_MSE = np.mean((train_predictions - train_targets) ** 2)
+        iter_train_bias = np.sqrt(np.mean((train_targets - np.mean(train_predictions)) ** 2))
+        iter_train_variance = np.mean((train_predictions - np.mean(train_predictions)) ** 2)
+
+        train_MSE_list.append(iter_train_MSE)
+        train_bias.append(iter_train_bias)
+        train_variance.append(iter_train_variance)
+        test_MSE_list.append(iter_test_MSE)
+        test_bias.append(iter_test_bias)
+        test_variance.append(iter_test_variance)
 
         if iter_test_MSE > limit:
             continue
 
-        print("iter test MSE ", iter_test_MSE)
-        print("iter train MSE ", iter_train_MSE)
+        print("iter test MSE: {}, bias: {}, variance:{} ".format(iter_test_MSE, iter_test_bias, iter_test_variance))
+        print("iter train MSE: {}, bias: {}, variance:{} ".format(iter_train_MSE, iter_train_bias, iter_train_variance))
+
 
         # if "current_patience" in data_dict:
         #     current_patience = data_dict["current_patience"][i]
         #     print("current patience ", current_patience)
 
-        if 'dataset_config' in data_dict:
+        dataset_config = {}
+        if 'dataset_config' in data_dict and len(data_dict.get("dataset_config")) > 0:
             dataset_config = data_dict.get("dataset_config")[i]
         else:
-            dataset_config = {}
+            if os.path.exists(os.path.join(config['save_path'], "dataset_config.pkl")):
+                # Save config to Pickle
+                import pickle
+                # create a binary pickle file
+                with open(os.path.join(config['save_path'], "dataset_config.pkl"), "rb") as reader:
+                    dataset_config = pickle.load(reader)
+
+        config['dataset_config'] = dataset_config
+
+        #check_loss(config, model, dataset_config=config["dataset_config"])
+
+        #predict_data(config, model, mesh_file=config["mesh"])
+        #exit()
 
         print("total steps ", total_steps)
         # try:
@@ -841,7 +915,6 @@ def analyze_statistics(config, get_model=True):
                                                                                  dataset_config=dataset_config)
         # except:
         #      continue
-
 
         mlmc_n_collected_all.append(mlmc_n_collected)
         nn_n_collected_all.append(nn_mlmc_n_collected)
@@ -1162,6 +1235,9 @@ def analyze_statistics(config, get_model=True):
     print("test MSE ", np.mean(test_MSE))
     print("test MSE ", test_MSE)
     print("stats.sem(test_MSE) ", stats.sem(test_MSE))
+    print("train MSE: {}, bias: {}, variance: {}".format(np.mean(train_MSE_list), np.mean(train_bias), np.mean(train_variance)))
+    print("test MSE: {}, bias: {}, variance: {}".format(np.mean(test_MSE_list), np.mean(test_bias),
+                                                         np.mean(test_variance)))
     # print("test MSE std", np.sqrt(np.var(test_MSE)))
     print("train RSE ", np.mean(all_train_RSE))
     print("test RSE ", np.mean(all_test_RSE))
@@ -1176,7 +1252,8 @@ def analyze_statistics(config, get_model=True):
     print("max learning time ", np.max(learning_times))
 
     print("######################################")
-    return train_MSE, test_MSE, np.mean(all_train_RSE), np.mean(all_test_RSE)
+    return train_MSE, test_MSE, all_train_RSE, all_test_RSE, nn_total_time, mlmc_total_time, kl_mlmc_all, kl_nn_all,\
+           learning_times
 
 
 def plot_sse(data_nn, data_mlmc, x_label="ith moment", y_label="MSE", title=""):
@@ -1340,6 +1417,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     graph_creation_time = config['graph_creation_time']
     if graph_creation_time == 0:
         graph_creator_preproces_time = time.process_time()
+
         graph_creator(config['output_dir'], config['hdf_path'], config['mesh'], level=config['level'],
                       feature_names=config.get('feature_names', [['conductivity']]))
         graph_creation_time = time.process_time() - graph_creator_preproces_time
@@ -1377,7 +1455,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
         data_tr = data
         data_te = data
     else:
-        data_tr = data[seed*train_data_len: seed*train_data_len + train_data_len]
+        data_tr = data.get_train_data(seed, train_data_len)
         print("data tr ", data_tr)
         data_te = data.get_test_data(seed, train_data_len)
     #data_tr, data_te = data[:train_data_len], data[train_data_len:]
@@ -1500,7 +1578,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
         #              l_0_predictions, l1_sample_time, l0_sample_time, nn_level=level, replace_level=replace_level,
         #                                                stats=stats)
 
-        return gnn._model, targets, predictions, learning_time, train_targets, train_predictions,\
+        return gnn, targets, predictions, learning_time, train_targets, train_predictions,\
                val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps
 
     save_times(config['save_path'], False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
