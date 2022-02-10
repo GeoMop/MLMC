@@ -349,7 +349,7 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
 
 
 def statistics(config):
-    n_subsamples = 1
+    n_subsamples = 25
 
     model_title, mch_l_model, log = config['machine_learning_model']
     model_data = {}
@@ -415,7 +415,6 @@ def statistics(config):
     #     analyze_results(all_targets[i], all_predictions[i])
     #     print("learning time ", learning_times[i])
     #     print("##################################################")
-
 
     return analyze_statistics(config)
 

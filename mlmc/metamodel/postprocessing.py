@@ -184,7 +184,7 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
     output_mult_factor = dataset_config.get('output_mult_factor', 1)
     #print("output mult factor ", output_mult_factor)
 
-    analyze_output(targets, output_mult_factor, dataset_config=dataset_config)
+    #analyze_output(targets, output_mult_factor, dataset_config=dataset_config)
 
     if dataset_config.get('output_normalization', False):
         min_out = dataset_config.get('min_output')
@@ -788,6 +788,16 @@ def plot_loss(train_loss, val_loss):
     plt.show()
 
 
+def plot_learning_rate(learning_rates):
+    plt.plot(learning_rates, label='loss')
+    #plt.ylim([0, 8])
+    #plt.yscale("log")
+    plt.xlabel('Epoch')
+    plt.ylabel('Learning rate')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
 def analyze_results(target, predictions):
     #statistics, pvalue = ks_2samp(target, predictions)
 
@@ -1128,7 +1138,6 @@ def compare_densities(estimator_1, estimator_2, ref_estimator, label_1="", label
     #distr_plot.add_distribution(distr_obj_1, label=label_1, color="blue")
 
     print("predict estimator")
-
     distr_obj_2, _, result, _, predict_orth_moments = estimator_2.construct_density(tol=tol, reg_param=reg_param,  orth_moments_tol=TARGET_VAR)
     #distr_plot.add_distribution(distr_obj_2, label=label_2, color="red", line_style="--")
 
@@ -1160,7 +1169,7 @@ def compare_densities(estimator_1, estimator_2, ref_estimator, label_1="", label
     #distr_plot.add_distribution(distr_obj_2, label=label_2 + ", KL(ref|gnn):{:0.4g}".format(kl_div_ref_gnn), color="red", line_style="--")
     distr_plot.add_distribution(distr_obj_1, label=r"$D_{MC}:$" + "{:0.4g}".format(kl_div_ref_mlmc), color="blue")
     distr_plot.add_distribution(distr_obj_2, label=r"$D_{meta}:$" + "{:0.4g}".format(kl_div_ref_gnn), color="red", line_style="--")
-    #distr_plot.add_distribution(ref_distr_obj, label="MC ref", color="black", line_style=":")
+    distr_plot.add_distribution(ref_distr_obj, label="MC ref", color="black", line_style=":")
 
     distr_plot.show(file="densities.pdf")
     distr_plot.show(file=None)
@@ -1255,7 +1264,7 @@ def cut_samples(data, sample_storage, new_n_collected, new_l_0=0, bootstrap=Fals
     return sample_storage
 
 
-def plot_progress(conv_layers, dense_layers, output_flatten, mesh_file=None):
+def plot_progress(conv_layers, dense_layers, output_flatten, mesh_file=None, n_samples=5):
 
     if mesh_file is not None:
         #mesh = gmsh_io.GmshIO(fields_mesh)
@@ -1270,7 +1279,7 @@ def plot_progress(conv_layers, dense_layers, output_flatten, mesh_file=None):
         plt.show()
         # Note: weights have different shape than the mesh
 
-        for index, input in enumerate(inputs[::10]):
+        for index, input in enumerate(inputs[:n_samples]):
             if mesh_file:
                 fig, ax = plt.subplots(1, 1, figsize=(15, 10))
 
@@ -1279,14 +1288,15 @@ def plot_progress(conv_layers, dense_layers, output_flatten, mesh_file=None):
                 plt.title("input")
                 plt.show()
 
-                for i in range(outputs[index].shape[1]):
-                    channel_output = outputs[index][:, i]
-                    fig, ax = plt.subplots(1, 1, figsize=(15, 10))
-                    cont = ax.tricontourf(X, Y, channel_output, levels=16)
-                    fig.colorbar(cont)
-                    plt.title("channel {}".format(i))
-
-                    plt.show()
+                # for i in range(outputs[index].shape[1]):
+                #     channel_output = outputs[index][:, i]
+                #     print("channel output shape ", channel_output.shape)
+                #     fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+                #     cont = ax.tricontourf(X, Y, channel_output, levels=16)
+                #     fig.colorbar(cont)
+                #     plt.title("channel {}".format(i))
+                #
+                #     plt.show()
 
             else:
                 plt.matshow(input[0])
@@ -1296,6 +1306,13 @@ def plot_progress(conv_layers, dense_layers, output_flatten, mesh_file=None):
 
             # print("shape ", c_layer._outputs[index][0].shape)
             plt.matshow(np.sum(outputs[index], axis=0, keepdims=True))
+            plt.title("flatten")
+            plt.show()
+
+            fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+            cont = ax.tricontourf(X, Y, np.sum(outputs[index], axis=1), levels=16)
+            fig.colorbar(cont)
+            plt.title("sum channels")
             plt.show()
 
             # plt.matshow(self._inputs[-1][0])
@@ -1308,6 +1325,7 @@ def plot_progress(conv_layers, dense_layers, output_flatten, mesh_file=None):
 
             if len(output_flatten) > 0:
                 plt.matshow([output_flatten[-1]])
+                plt.title("flatten")
                 plt.show()
 
     for idx, dense_layer in dense_layers.items():
