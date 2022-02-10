@@ -14,6 +14,7 @@ from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARM
 from spektral.utils.sparse import sp_matrix_to_sp_tensor
 from tensorflow.keras.layers.experimental import preprocessing
 from mlmc.metamodel.custom_methods import abs_activation, var_loss_function
+import keras.backend as K
 
 from mlmc.metamodel.graph_models import Net1
 
@@ -42,6 +43,7 @@ class GNN:
         self._train_loss = []
         self._val_loss = []
         self._test_loss = []
+        self._learning_rates = []
 
         self.val_targets = []
         self._states = {}
@@ -53,6 +55,7 @@ class GNN:
             model = model_class(**net_model_config)
         else:
             model = kwargs.get('model')
+
 
         if model is None:
             self._model = Net1(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
@@ -66,6 +69,8 @@ class GNN:
             #                    kernel_regularization=self._hidden_regularizer,
             #                    normalizer=self._normalizer)
             #self._model = model(n_labels=1, output_activation="relu")
+
+        self._model.optimizer = self._optimizer
 
     def fit(self, loader_tr, loader_va, loader_te):
         """
@@ -120,6 +125,9 @@ class GNN:
                         print("Early stopping")
                         break
 
+                lr = K.eval(self._optimizer._decayed_lr(tf.float32))
+                self._learning_rates.append(lr)
+
                 # Print results
                 results_tr = np.array(results_tr)
                 results_tr = np.average(results_tr[:, :-1], 0, weights=results_tr[:, -1])
@@ -127,8 +135,8 @@ class GNN:
                     print(
                         "Train loss: {:.12f}, acc: {:.12f} | "
                         "Valid loss: {:.12f}, acc: {:.12f} | "
-                        "Test loss: {:.12f}, acc: {:.12f}".format(
-                            *results_tr, *results_va, *results_te
+                        "Test loss: {:.12f}, acc: {:.12f} | LR: {:.12f}".format(
+                            *results_tr, *results_va, *results_te, lr
                         )
                     )
 

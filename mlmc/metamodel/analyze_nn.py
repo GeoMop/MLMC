@@ -349,7 +349,7 @@ def predict_level_zero_SVR(nn, output_dir, hdf_path, mesh, batch_size=1000, log=
 
 
 def statistics(config):
-    n_subsamples = 1
+    n_subsamples = 25
 
     model_title, mch_l_model, log = config['machine_learning_model']
     model_data = {}
@@ -380,12 +380,16 @@ def statistics(config):
 
             config['iter_dir'] = iter_dir
 
-            model, targets, predictions, learning_time, train_targets, train_predictions, \
+            gnn, targets, predictions, learning_time, train_targets, train_predictions, \
             val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps = \
                 mch_l_model(config, stats=True, train=config.get('train_model', True), log=log, seed=i)
 
             if config['save_model']:
-                model_data["model"] = model
+                model_data["model"] = gnn._model
+                model_data["train_loss"] = gnn._train_loss
+                model_data["val_loss"] = gnn._val_loss
+                model_data["test_loss"] = gnn._test_loss
+                model_data["learning_rates"] = gnn._learning_rates
             model_data["test_targets"] = targets
             model_data["test_predictions"] = predictions
             model_data["train_targets"] = train_targets
@@ -412,7 +416,7 @@ def statistics(config):
     #     print("##################################################")
 
 
-    analyze_statistics(config)
+    #analyze_statistics(config)
 
     # plot_loss(train_losses, val_losses)
     # analyze_results(np.mean(all_test_outputs, axis=0), np.mean(all_predictions, axis=0))
@@ -1500,7 +1504,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
         #              l_0_predictions, l1_sample_time, l0_sample_time, nn_level=level, replace_level=replace_level,
         #                                                stats=stats)
 
-        return gnn._model, targets, predictions, learning_time, train_targets, train_predictions,\
+        return gnn, targets, predictions, learning_time, train_targets, train_predictions,\
                val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps
 
     save_times(config['save_path'], False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
