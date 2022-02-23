@@ -32,6 +32,7 @@ class FlowDataset(Dataset):
         self._corr_field_config = corr_field_config
         self.adjacency_matrix = np.load(os.path.join(self._output_dir, "adjacency_matrix.npy"), allow_pickle=True)  # adjacency matrix
         self.data = []
+        self._aug_data = []
         self._config = config
         self._index = index
         self._predict = predict
@@ -59,7 +60,6 @@ class FlowDataset(Dataset):
             self._var_output = None
             self._output_mult_factor = 1
 
-        self._aug_data = []
         self._columns = None
 
         super().__init__(**kwargs)
@@ -96,15 +96,15 @@ class FlowDataset(Dataset):
     def _data_augmentation(self, df_slice):
         import smogn
         import matplotlib.pyplot as plt
-        import seaborn
+        #import seaborn
 
         # df_slice = self._df_for_augmentation[self._index * self._config['n_train_samples']:
         #                             self._index * self._config['n_train_samples'] + self._config['n_train_samples']]
 
         # print("index ", self._index)
         # print("df slice shape ", df_slice.shape)
+        df_slice = df_slice.reset_index(drop=True)
         if 'augmentation_config' in self._config:
-            print("len df slice 0", len(df_slice))
             dataset_modified = smogn.smoter(data=df_slice, y="y", **self._config["augmentation_config"])
         else:
             dataset_modified = smogn.smoter(data=df_slice, y="y", k=9, samp_method="extreme")
