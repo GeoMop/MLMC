@@ -73,17 +73,42 @@ class FlowDataset(Dataset):
 
     def get_train_data(self, index, length):
         new_dataset = self.dataset[index * length: index * length + length]
+        new_graphs = self.graphs[index * length: index * length + length]  # self.graphs is read() method output
+
         if self._augment_data:
-            new_dataset = self._data_augmentation(self._df_for_augmentation[index * length: index * length + length])
+            new_dataset, new_graphs = self._data_augmentation(self._df_for_augmentation[index * length: index * length + length], new_graphs)
 
         new_obj = copy.deepcopy(self)
         new_obj.dataset = new_dataset
+        new_obj.graphs = new_graphs
+
         return new_obj
+
+    def split_val_train(self, len_val_data):
+        tr_dataset = self.dataset[:-len_val_data]
+        va_dataset = self.dataset[-len_val_data:]
+
+        tr_graphs = self.graphs[:-len_val_data]
+        va_graphs = self.graphs[-len_val_data:]
+        #new_graphs = self.graphs[index * length: index * length + length]  # self.graphs is read() method output
+
+        tr_obj = copy.deepcopy(self)
+        va_obj = copy.deepcopy(self)
+
+        tr_obj.dataset = tr_dataset
+        va_obj.dataset = va_dataset
+
+        tr_obj.graphs = tr_graphs
+        va_obj.graphs = va_graphs
+
+        return tr_obj, va_obj
 
     def get_test_data(self, index, length):
         new_dataset = self.dataset[0:index * length] + self.dataset[index * length + length:]
+        new_graphs = self.graphs[0:index * length] + self.graphs[index * length + length:]
         new_obj = copy.deepcopy(self)
         new_obj.dataset = new_dataset
+        new_obj.graphs = new_graphs
         return new_obj
 
     def shuffle(self, seed=None):
@@ -93,7 +118,7 @@ class FlowDataset(Dataset):
         random.shuffle(self.data)
         self.dataset = pd.DataFrame(self.data)
 
-    def _data_augmentation(self, df_slice):
+    def _data_augmentation(self, df_slice, new_graphs):
         import smogn
         import matplotlib.pyplot as plt
         import seaborn
@@ -101,10 +126,9 @@ class FlowDataset(Dataset):
         # df_slice = self._df_for_augmentation[self._index * self._config['n_train_samples']:
         #                             self._index * self._config['n_train_samples'] + self._config['n_train_samples']]
 
-        # print("index ", self._index)
-        # print("df slice shape ", df_slice.shape)
+        df_slice = df_slice.reset_index(drop=True)
+
         if 'augmentation_config' in self._config:
-            print("len df slice 0", len(df_slice))
             dataset_modified = smogn.smoter(data=df_slice, y="y", **self._config["augmentation_config"])
         else:
             dataset_modified = smogn.smoter(data=df_slice, y="y", k=9, samp_method="extreme")
@@ -124,15 +148,17 @@ class FlowDataset(Dataset):
         # ax.hist(dataset_modified['y'], bins=50, alpha=0.5, label='target', density=True)
         # plt.title("modified")
         # plt.show()
-        #
-        # appended_dataset = df_slice.append(dataset_modified)
-        #
-        # fig, ax = plt.subplots(1, 1, figsize=(15, 10))
-        # ax.hist(appended_dataset['y'], bins=50, alpha=0.5, label='target', density=True)
-        # plt.title("appended")
-        # plt.show()
 
-        return dataset_modified
+        appended_dataset = df_slice.append(dataset_modified)
+
+        numpy_frame = dataset_modified.to_numpy()
+
+        for i in range(numpy_frame.shape[0]):
+            features = numpy_frame[i][:-1]
+            features = features.reshape((len(features), 1))
+            new_graphs.append(Graph(x=features, y=numpy_frame[i][-1]))
+
+        return appended_dataset, copy.deepcopy(new_graphs)
 
         # seaborn.kdeplot(df_slice['y'], label="Original")
         # seaborn.kdeplot(dataset_modified['y'], label="Modified")

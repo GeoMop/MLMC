@@ -839,16 +839,17 @@ def analyze_statistics(config, get_model=True):
         except:
             model = None
 
-        plot_loss(model_train_loss, model_val_loss)
-        plot_learning_rate(model_learning_rates)
-        print("model learning rates ", model_learning_rates)
+        if model is not None:
+            plot_loss(model_train_loss, model_val_loss)
+            plot_learning_rate(model_learning_rates)
+            print("model learning rates ", model_learning_rates)
 
-        print("model ", model)
-        print("dir(model.optimizer) ", dir(model.optimizer))
-        #print("model weights ", model.weights)
-        print("model.optimizer", model.optimizer)
-        # print("model.optimizer", K.eval(model.optimizer.lr))
-        # exit()
+            print("model ", model)
+            print("dir(model.optimizer) ", dir(model.optimizer))
+            #print("model weights ", model.weights)
+            print("model.optimizer", model.optimizer)
+            # print("model.optimizer", K.eval(model.optimizer.lr))
+            # exit()
 
         iter_test_MSE = np.mean((predictions - targets) ** 2)
         iter_test_bias = np.sqrt(np.mean((targets - np.mean(predictions)) ** 2))
@@ -1454,9 +1455,11 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
         data_tr = data
         data_te = data
     else:
+        #data_tr = data[seed*train_data_len: seed*train_data_len + train_data_len]
         data_tr = data.get_train_data(seed, train_data_len)
-        print("data tr ", data_tr)
+        #print("data tr ", data_tr)
         data_te = data.get_test_data(seed, train_data_len)
+        print("data te ", data_te)
     #data_tr, data_te = data[:train_data_len], data[train_data_len:]
 
     gnn = config['gnn'](**config['model_config'])
@@ -1470,9 +1473,13 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     #     #accuracy_func = MSE_moments(moments_fn=moments_fn)
     #     gnn._loss = MSE_moments(moments_fn=moments_fn)
 
-    np.random.shuffle(data_tr)
+    #np.random.shuffle(data_tr)
     val_data_len = int(len(data_tr) * config['val_samples_ratio'])
-    data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
+    data_tr, data_va = data_tr.split_val_train(val_data_len)
+    #data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
+
+    print("data tr ", data_tr)
+    print("data va ", data_va)
 
     # print("data_tr len ", len(data_tr))
     # print("data_va len ", len(data_va))
