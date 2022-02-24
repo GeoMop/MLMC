@@ -1475,8 +1475,9 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
 
     #np.random.shuffle(data_tr)
     val_data_len = int(len(data_tr) * config['val_samples_ratio'])
-    data_tr, data_va = data_tr.split_val_train(val_data_len)
-    #data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
+    print("val data len ", val_data_len)
+    #data_tr, data_va = data_tr.split_val_train(val_data_len)
+    data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
 
     print("data tr ", data_tr)
     print("data va ", data_va)
