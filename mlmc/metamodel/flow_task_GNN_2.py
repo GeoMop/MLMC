@@ -43,6 +43,7 @@ class GNN:
         self._train_loss = []
         self._val_loss = []
         self._test_loss = []
+        self._train_acc = []
         self._learning_rates = []
 
         self.val_targets = []
@@ -99,6 +100,7 @@ class GNN:
 
             loss, acc = self.train_on_batch(inputs, target)
             self._train_loss.append(loss)
+            self._train_acc.append(acc)
             results_tr.append((loss, acc, len(target)))
 
             results_va = self.evaluate(loader_va)

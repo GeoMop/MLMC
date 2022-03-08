@@ -388,6 +388,7 @@ def statistics(config):
             if config['save_model']:
                 model_data["model"] = gnn._model
                 model_data["train_loss"] = gnn._train_loss
+                model_data["train_acc"] = gnn._train_acc
                 model_data["val_loss"] = gnn._val_loss
                 model_data["test_loss"] = gnn._test_loss
                 model_data["learning_rates"] = gnn._learning_rates
@@ -438,6 +439,7 @@ def load_statistics(dir_path):
     models_data = {}
     models_data["model"] = []
     models_data["train_loss"] = []
+    models_data["train_acc"] = []
     models_data["val_loss"] = []
     models_data["test_loss"] = []
     models_data["learning_rates"] = []
@@ -833,6 +835,7 @@ def analyze_statistics(config, get_model=True):
         try:
             model = data_dict["model"][i]
             model_train_loss = data_dict["train_loss"][i]
+            model_train_acc = data_dict["train_acc"][i]
             model_val_loss = data_dict["val_loss"][i]
             model_test_loss = data_dict["test_loss"][i]
             model_learning_rates = data_dict["learning_rates"][i]
