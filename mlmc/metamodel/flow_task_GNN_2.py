@@ -154,7 +154,6 @@ class GNN:
         with tf.GradientTape() as tape:
             predictions = self._model(inputs, training=True)
             loss = self._loss(target, predictions) + sum(self._model.losses) #+ 5 * var_loss_function(target, predictions)
-            #loss = 100 * var_loss_function(target, predictions)
             acc = tf.reduce_mean(self._accuracy_func(target, predictions))
 
         gradients = tape.gradient(loss, self._model.trainable_variables)
@@ -178,16 +177,25 @@ class GNN:
             if val_targets:
                 self.val_targets.extend(target)
 
-            predictions = self._model(inputs, training=False)
+            loss, acc = self.evaluate_batch(inputs, target)
 
-            loss = self._loss(target, predictions)
-            #print("target ", target)
-            #print("loss ", np.mean((target - predictions)**2))
-            acc = tf.reduce_mean(self._accuracy_func(target, predictions))
+            #predictions = self._model(inputs, training=False)
+            #loss = self._loss(target, predictions)
+            #acc = tf.reduce_mean(self._accuracy_func(target, predictions))
             results.append((loss, acc, len(target)))  # Keep track of batch size
             if step == loader.steps_per_epoch:
                 results = np.array(results)
                 return np.average(results[:, :-1], axis=0, weights=results[:, -1])
+
+    @tf.function
+    def evaluate_batch(self, inputs, target):
+        predictions = self._model(inputs, training=False)
+
+        loss = self._loss(target, predictions)
+        acc = tf.reduce_mean(self._accuracy_func(target, predictions))
+
+        return loss, acc
+
 
     def predict(self, loader):
         targets = []
