@@ -797,9 +797,9 @@ def analyze_statistics(config, get_model=True):
     #limit = 0.37
 
     for i in range(len(data_dict["test_targets"])):
-        print("index i ", i)
+        # print("index i ", i)
         # if i == 4:
-        #     break
+        #     continue
 
         # if i == 1:
         #     continue
@@ -835,7 +835,10 @@ def analyze_statistics(config, get_model=True):
         try:
             model = data_dict["model"][i]
             model_train_loss = data_dict["train_loss"][i]
-            model_train_acc = data_dict["train_acc"][i]
+            if "train_acc" in data_dict and len(data_dict["train_acc"]) > 0:
+                model_train_acc = data_dict["train_acc"][i]
+            else:
+                model_train_acc = None
             model_val_loss = data_dict["val_loss"][i]
             model_test_loss = data_dict["test_loss"][i]
             model_learning_rates = data_dict["learning_rates"][i]
@@ -843,7 +846,7 @@ def analyze_statistics(config, get_model=True):
             model = None
 
         if model is not None:
-            plot_loss(model_train_loss, model_val_loss)
+            plot_loss(model_train_loss, model_val_loss, model_train_acc)
             plot_learning_rate(model_learning_rates)
             print("model learning rates ", model_learning_rates)
 
@@ -899,25 +902,25 @@ def analyze_statistics(config, get_model=True):
         #exit()
 
         print("total steps ", total_steps)
-        # try:
-        mlmc_n_collected, nn_mlmc_n_collected, n_ops, n_ops_predict, orig_moments_mean, predict_moments_mean, \
-        ref_moments_mean, orig_level_params, nn_level_params, kl_mlmc, kl_nn, target_variance, \
-        orig_orth_moments, predict_orth_moments, ref_orth_moments = process_mlmc(config['hdf_path'],
-                                                                                 config['sampling_info_path'],
-                                                                                 config['ref_mlmc_file'], targets,
-                                                                                 predictions, train_targets,
-                                                                                 train_predictions,
-                                                                                 val_targets, l_0_targets,
-                                                                                 l_0_predictions, l1_sample_time,
-                                                                                 l0_sample_time,
-                                                                                 nn_level=config['level'],
-                                                                                 replace_level=config['replace_level'],
-                                                                                 mlmc_hdf_file=config['mlmc_hdf_path'],
-                                                                                 stats=True,
-                                                                                 learning_time=learning_time,
-                                                                                 dataset_config=dataset_config)
-        # except:
-        #      continue
+        try:
+            mlmc_n_collected, nn_mlmc_n_collected, n_ops, n_ops_predict, orig_moments_mean, predict_moments_mean, \
+            ref_moments_mean, orig_level_params, nn_level_params, kl_mlmc, kl_nn, target_variance, \
+            orig_orth_moments, predict_orth_moments, ref_orth_moments = process_mlmc(config['hdf_path'],
+                                                                                     config['sampling_info_path'],
+                                                                                     config['ref_mlmc_file'], targets,
+                                                                                     predictions, train_targets,
+                                                                                     train_predictions,
+                                                                                     val_targets, l_0_targets,
+                                                                                     l_0_predictions, l1_sample_time,
+                                                                                     l0_sample_time,
+                                                                                     nn_level=config['level'],
+                                                                                     replace_level=config['replace_level'],
+                                                                                     mlmc_hdf_file=config['mlmc_hdf_path'],
+                                                                                     stats=True,
+                                                                                     learning_time=learning_time,
+                                                                                     dataset_config=dataset_config)
+        except:
+             continue
 
         mlmc_n_collected_all.append(mlmc_n_collected)
         nn_n_collected_all.append(nn_mlmc_n_collected)
@@ -1072,6 +1075,8 @@ def analyze_statistics(config, get_model=True):
     data_dict["test_predictions"] = np.array(data_dict["test_predictions"])
     data_dict["train_targets"] = np.array(data_dict["train_targets"])
     data_dict["train_predictions"] = np.array(data_dict["train_predictions"])
+    data_dict["val_targets"] = np.array(data_dict["val_targets"])
+    data_dict["val_predictions"] = np.array(data_dict["val_predictions"])
 
     print("data dict train predictions ", data_dict["train_predictions"])
 
@@ -1107,10 +1112,14 @@ def analyze_statistics(config, get_model=True):
     # print("test targets shape ", data_dict["test_targets"].shape)
 
     test_MSE = np.mean((data_dict["test_predictions"] - data_dict["test_targets"]) ** 2, axis=1)
+    print("val predictions ", data_dict["val_predictions"])
+    print("val targets ", data_dict["val_targets"])
+    #val_MSE = np.mean((data_dict["val_predictions"] - data_dict["val_targets"]) ** 2, axis=1)
     test_RMSE = np.sqrt(test_MSE)
 
     test_MAE = np.mean(np.abs(data_dict["test_predictions"] - data_dict["test_targets"]), axis=1)
 
+    #print("val MSE ", val_MSE)
     print("test MSE ", test_MSE)
 
     all_test_RSE = []
@@ -1453,6 +1462,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     #train_data_len = int(len(data) * 0.8)
     train_data_len = config['n_train_samples']
     # Train/valid/test split
+    print("train data len ", train_data_len)
 
     if not train:
         data_tr = data
@@ -1462,7 +1472,6 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
         data_tr = data.get_train_data(seed, train_data_len)
         #print("data tr ", data_tr)
         data_te = data.get_test_data(seed, train_data_len)
-        print("data te ", data_te)
     #data_tr, data_te = data[:train_data_len], data[train_data_len:]
 
     gnn = config['gnn'](**config['model_config'])

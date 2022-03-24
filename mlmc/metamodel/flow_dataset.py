@@ -21,7 +21,7 @@ class FlowDataset(Dataset):
     GRAPHS_FILE = "graphs"
     DATA_FILE = "data"
 
-    def __init__(self, output_dir=None, level=0, log=False, mesh=None, corr_field_config=None, config={}, index=None,
+    def __init__(self, output_dir=None, level=0, log=False, mesh=None, corr_field_config=None, config={}, index=None, adj_matrix=None, dataset=None, graphs=None,
                  predict=False, **kwargs):
         self._output_dir = output_dir
         # if self._output_dir is None:
@@ -30,7 +30,9 @@ class FlowDataset(Dataset):
         self.level = level
         self._mesh = mesh
         self._corr_field_config = corr_field_config
-        self.adjacency_matrix = np.load(os.path.join(self._output_dir, "adjacency_matrix.npy"), allow_pickle=True)  # adjacency matrix
+        self.adjacency_matrix = adj_matrix
+        if self.adjacency_matrix is None and self._output_dir is not None and os.path.exists(os.path.join(self._output_dir, "adjacency_matrix.npy")):
+            self.adjacency_matrix = np.load(os.path.join(self._output_dir, "adjacency_matrix.npy"), allow_pickle=True)  # adjacency matrix
         self.data = []
         self._aug_data = []
         self._config = config
@@ -62,9 +64,14 @@ class FlowDataset(Dataset):
 
         self._columns = None
 
-        super().__init__(**kwargs)
+        self.dataset = dataset
+        self.graphs = graphs
 
-        #self.a = self.adjacency_matrix
+        if self.dataset is None or self.graphs is None:
+            super().__init__(**kwargs)
+        else:
+            self.a = self.adjacency_matrix
+
         self.dataset = pd.DataFrame(self.data)
 
         self._df_for_augmentation = pd.DataFrame(self._aug_data, columns=self._columns)
@@ -78,9 +85,22 @@ class FlowDataset(Dataset):
         if self._augment_data:
             new_dataset, new_graphs = self._data_augmentation(self._df_for_augmentation[index * length: index * length + length], new_graphs)
 
-        new_obj = copy.deepcopy(self)
-        new_obj.dataset = new_dataset
-        new_obj.graphs = new_graphs
+        new_obj = FlowDataset(output_dir=self._output_dir, level=self.level, log=self._log, mesh=self._mesh,
+                              corr_field_config=self._corr_field_config, config=self._config, index=self._index,
+                              adj_matrix=self.adjacency_matrix, dataset=new_dataset, graphs=new_graphs)
+
+        # self_dict = self.__dict__
+        # self_dict["dataset"] = new_dataset
+        # self_dict["graphs"] = new_graphs
+        #
+        #new_obj.__dict__.update(self_dict)
+        #
+        print("new_obj.dataset ", len(new_obj.dataset))
+        print("self dataset len ", len(self.dataset))
+
+        #new_obj = copy.deepcopy(self)
+        #new_obj.dataset = new_dataset
+        #new_obj.graphs = new_graphs
 
         return new_obj
 
@@ -106,9 +126,15 @@ class FlowDataset(Dataset):
     def get_test_data(self, index, length):
         new_dataset = self.dataset[0:index * length] + self.dataset[index * length + length:]
         new_graphs = self.graphs[0:index * length] + self.graphs[index * length + length:]
-        new_obj = copy.deepcopy(self)
-        new_obj.dataset = new_dataset
-        new_obj.graphs = new_graphs
+
+        new_obj = FlowDataset(output_dir=self._output_dir, level=self.level, log=self._log, mesh=self._mesh,
+                              corr_field_config=self._corr_field_config, config=self._config, index=self._index,
+                              adj_matrix=self.adjacency_matrix, dataset=new_dataset, graphs=new_graphs)
+
+
+        # new_obj = copy.deepcopy(self)
+        # new_obj.dataset = new_dataset
+        # new_obj.graphs = new_graphs
         return new_obj
 
     def shuffle(self, seed=None):
@@ -201,12 +227,11 @@ class FlowDataset(Dataset):
     #
     #     self.a = self.adjacency_matrix
     #     return graphs
-
     def read(self):
         all_outputs = []
         all_features = []
 
-        for s_dir in os.listdir(self._output_dir):
+        for idx, s_dir in enumerate(os.listdir(self._output_dir)):
             try:
                 l = re.findall(r'L(\d+)_S', s_dir)[0]
                 if int(l) != self.level:
@@ -344,7 +369,6 @@ class FlowDataset(Dataset):
             #     self._df_for_augmentation = self._df_for_augmentation.append(new_df)
             # else:
             #     self._df_for_augmentation = new_df
-
 
         self.a = self.adjacency_matrix
         return graphs
