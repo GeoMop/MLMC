@@ -1528,10 +1528,10 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
 
     learning_time = time.process_time() - learning_time_start
 
-    # states = gnn._states
-    # if len(states) > 0:
-    #     min_key = np.min(list(states.keys()))
-    #     gnn = states[min_key]
+    states = gnn._states
+    if len(states) > 0:
+        min_key = np.min(list(states.keys()))
+        gnn = states[min_key]
 
     train_targets, train_predictions = gnn.predict(MixedLoader(data_tr, batch_size=batch_size, epochs=1))
     train_predictions = np.squeeze(train_predictions)

@@ -121,8 +121,8 @@ class GNN:
                 else:
                     current_patience -= 1
                     #results_tr_0 = np.array(results_tr)
-                    loss_tr = results_va[0]
-                    self._states[loss_tr] = self
+                    loss_va = results_va[0]
+                    self._states[loss_va] = self
                     if current_patience == 0:
                         print("Early stopping")
                         break
