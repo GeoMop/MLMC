@@ -1,4 +1,9 @@
+import warnings
 import os
+import logging
+logging.getLogger('tensorflow').disabled = True
+logging.getLogger('absl').disabled = True
+
 import numpy as np
 import time
 import glob
@@ -15,6 +20,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 # np.set_printoptions(precision=9, suppress=True)
 import tensorflow as tf
+
 from tensorflow import keras
 from scipy.stats import ks_2samp
 import sklearn.model_selection
@@ -27,6 +33,8 @@ from mlmc.metamodel.flow_task_GNN_2 import GNN
 from tensorflow.keras.losses import MeanSquaredError
 from spektral.data import MixedLoader
 from spektral.utils.sparse import sp_matrix_to_sp_tensor
+
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 epochs = 100
@@ -1462,7 +1470,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     #train_data_len = int(len(data) * 0.8)
     train_data_len = config['n_train_samples']
     # Train/valid/test split
-    print("train data len ", train_data_len)
+    #print("train data len ", train_data_len)
 
     if not train:
         data_tr = data
@@ -1487,12 +1495,12 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
 
     #np.random.shuffle(data_tr)
     val_data_len = int(len(data_tr) * config['val_samples_ratio'])
-    print("val data len ", val_data_len)
+    #print("val data len ", val_data_len)
     #data_tr, data_va = data_tr.split_val_train(val_data_len)
     data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
 
-    print("data tr ", data_tr)
-    print("data va ", data_va)
+    # print("data tr ", data_tr)
+    # print("data va ", data_va)
 
     # print("data_tr len ", len(data_tr))
     # print("data_va len ", len(data_va))
@@ -1529,9 +1537,16 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     learning_time = time.process_time() - learning_time_start
 
     states = gnn._states
+    # print("states ", states)
+    # for state in states.values():
+    #     print("state._model", state._model)
+
     if len(states) > 0:
         min_key = np.min(list(states.keys()))
         gnn = states[min_key]
+
+    # print("gnn._model.layers[min].get_weights() ", states[np.min(list(states.keys()))]._model.layers[0].get_weights())
+    # print("gnn._model.layers[max].get_weights() ", states[np.max(list(states.keys()))]._model.layers[0].get_weights())
 
     train_targets, train_predictions = gnn.predict(MixedLoader(data_tr, batch_size=batch_size, epochs=1))
     train_predictions = np.squeeze(train_predictions)
@@ -1625,7 +1640,7 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
     
     predict_time_start = time.process_time()
     data.a = conv_layer.preprocess(data.a)
-    data.a = sp_matrix_to_sp_tensor(data.a)
+    #data.a = sp_matrix_to_sp_tensor(data.a)
 
     loader_te = MixedLoader(data, batch_size=batch_size)
 

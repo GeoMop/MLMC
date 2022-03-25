@@ -1,4 +1,9 @@
 import os
+import warnings
+import logging
+logging.getLogger('tensorflow').disabled = True
+logging.getLogger('absl').disabled = True
+warnings.simplefilter("ignore")
 import numpy as np
 #os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
 import tensorflow as tf
@@ -13,10 +18,12 @@ from mlmc.metamodel.flow_dataset import FlowDataset
 from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv
 from spektral.utils.sparse import sp_matrix_to_sp_tensor
 from tensorflow.keras.layers.experimental import preprocessing
+import copy
 from mlmc.metamodel.custom_methods import abs_activation, var_loss_function
 import keras.backend as K
 
 from mlmc.metamodel.graph_models import Net1
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 
 class GNN:
@@ -56,7 +63,6 @@ class GNN:
             model = model_class(**net_model_config)
         else:
             model = kwargs.get('model')
-
 
         if model is None:
             self._model = Net1(conv_layer=self._conv_layer, hidden_activation=self._hidden_activation,
@@ -115,14 +121,13 @@ class GNN:
                 if results_va[0] < best_val_loss:
                     best_val_loss = results_va[0]
                     current_patience = self._patience
-                    self._states = {}
+                    #self._states = {}
+                    self._states[results_va[0]] = copy.deepcopy(self)
                     results_te = self.evaluate(loader_te)
                     self._test_loss.append(results_te[0])
                 else:
                     current_patience -= 1
                     #results_tr_0 = np.array(results_tr)
-                    loss_va = results_va[0]
-                    self._states[loss_va] = self
                     if current_patience == 0:
                         print("Early stopping")
                         break
@@ -195,7 +200,6 @@ class GNN:
         acc = tf.reduce_mean(self._accuracy_func(target, predictions))
 
         return loss, acc
-
 
     def predict(self, loader):
         targets = []

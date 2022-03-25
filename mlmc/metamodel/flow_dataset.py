@@ -69,12 +69,10 @@ class FlowDataset(Dataset):
 
         if self.dataset is None or self.graphs is None:
             super().__init__(**kwargs)
+            self.dataset = pd.DataFrame(self.data)
+            self._df_for_augmentation = pd.DataFrame(self._aug_data, columns=self._columns)
         else:
             self.a = self.adjacency_matrix
-
-        self.dataset = pd.DataFrame(self.data)
-
-        self._df_for_augmentation = pd.DataFrame(self._aug_data, columns=self._columns)
 
         #self._data_augmentation()
 
@@ -94,9 +92,6 @@ class FlowDataset(Dataset):
         # self_dict["graphs"] = new_graphs
         #
         #new_obj.__dict__.update(self_dict)
-        #
-        print("new_obj.dataset ", len(new_obj.dataset))
-        print("self dataset len ", len(self.dataset))
 
         #new_obj = copy.deepcopy(self)
         #new_obj.dataset = new_dataset
@@ -131,10 +126,6 @@ class FlowDataset(Dataset):
                               corr_field_config=self._corr_field_config, config=self._config, index=self._index,
                               adj_matrix=self.adjacency_matrix, dataset=new_dataset, graphs=new_graphs)
 
-
-        # new_obj = copy.deepcopy(self)
-        # new_obj.dataset = new_dataset
-        # new_obj.graphs = new_graphs
         return new_obj
 
     def shuffle(self, seed=None):
