@@ -1445,59 +1445,83 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
         exit()
 
     preprocess_start_time = time.process_time()
-    # Load data
-    data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=seed)
-    data = data#[:10000]
 
-    # Dataset preprocess config
-    config['dataset_config'] = data._dataset_config
-
-    # print("n node features ", data.graphs[0].n_node_features)
-    # print("graph x", data.graphs[0].x)
-    # print("graphs[0] ", repr(data.graphs[0]))
-    # exit()
-
-    #print("len data ", len(data))
-    #data.shuffle(seed=seed)
-    preprocess_time = time.process_time() - preprocess_start_time
-    #print("preproces time ", preprocess_time)
-    preprocess_time = preprocess_time + graph_creation_time
-    #print("total preprocess time ", preprocess_time)
-
-    learning_time_start = time.process_time()
-    data.a = config['conv_layer'].preprocess(data.a)
-    data.a = sp_matrix_to_sp_tensor(data.a)
-    #train_data_len = int(len(data) * 0.8)
-    train_data_len = config['n_train_samples']
-    # Train/valid/test split
-    #print("train data len ", train_data_len)
-
-    if not train:
+    if train:
+        data_tr = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=seed, train_samples=True)
+        print("data tr")
+        data_te = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=seed, predict=True, test_samples=True)
+    else:
+        data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=seed)
         data_tr = data
         data_te = data
-    else:
-        #data_tr = data[seed*train_data_len: seed*train_data_len + train_data_len]
-        data_tr = data.get_train_data(seed, train_data_len)
-        #print("data tr ", data_tr)
-        data_te = data.get_test_data(seed, train_data_len)
-    #data_tr, data_te = data[:train_data_len], data[train_data_len:]
 
-    gnn = config['gnn'](**config['model_config'])
+    # Dataset preprocess config
+    config['dataset_config'] = data_tr._dataset_config
 
-    # if hasattr(gnn._loss,'__name__') and gnn._loss.__name__ == "MSE_moments":
-    #     tr_output = [g.y for g in data_tr]
-    #     n_moments = 3
-    #     quantile = 0.001
-    #     domain = np.percentile(tr_output, [100 * quantile, 100 * (1 - quantile)])
-    #     moments_fn = Legendre_tf(n_moments, domain)
-    #     #accuracy_func = MSE_moments(moments_fn=moments_fn)
-    #     gnn._loss = MSE_moments(moments_fn=moments_fn)
+    preprocess_time = time.process_time() - preprocess_start_time
+    preprocess_time = preprocess_time + graph_creation_time
+    print("preprocess time ", preprocess_time)
 
-    #np.random.shuffle(data_tr)
+    learning_time_start = time.process_time()
+    data_tr.a = sp_matrix_to_sp_tensor(config['conv_layer'].preprocess(data_tr.a))
+    data_te.a = data_tr.a #sp_matrix_to_sp_tensor(config['conv_layer'].preprocess(data_te.a))
+
     val_data_len = int(len(data_tr) * config['val_samples_ratio'])
-    #print("val data len ", val_data_len)
-    #data_tr, data_va = data_tr.split_val_train(val_data_len)
+    # print("val data len ", val_data_len)
+    # data_tr, data_va = data_tr.split_val_train(val_data_len)
     data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
+
+    print("len data tr ", len(data_tr))
+    print("len data va ", len(data_va))
+    print("len data te ", len(data_te))
+
+    # #############################
+    # #### OLD version
+    # #############################
+    # # Load data
+    # data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=seed)
+    # data = data#[:10000]
+    #
+    # # Dataset preprocess config
+    # config['dataset_config'] = data._dataset_config
+    #
+    # #print("len data ", len(data))
+    # #data.shuffle(seed=seed)
+    # preprocess_time = time.process_time() - preprocess_start_time
+    # #print("preproces time ", preprocess_time)
+    # preprocess_time = preprocess_time + graph_creation_time
+    # #print("total preprocess time ", preprocess_time)
+    #
+    # learning_time_start = time.process_time()
+    # data.a = config['conv_layer'].preprocess(data.a)
+    # data.a = sp_matrix_to_sp_tensor(data.a)
+    # #train_data_len = int(len(data) * 0.8)
+    # train_data_len = config['n_train_samples']
+    # # Train/valid/test split
+    # #print("train data len ", train_data_len)
+    #
+    # if not train:
+    #     data_tr = data
+    #     data_te = data
+    # else:
+    #     #data_tr = data[seed*train_data_len: seed*train_data_len + train_data_len]
+    #     data_tr = data.get_train_data(seed, train_data_len)
+    #     #print("data tr ", data_tr)
+    #     data_te = data.get_test_data(seed, train_data_len)
+    # #data_tr, data_te = data[:train_data_len], data[train_data_len:]
+    #
+    # #np.random.shuffle(data_tr)
+    # val_data_len = int(len(data_tr) * config['val_samples_ratio'])
+    # #print("val data len ", val_data_len)
+    # #data_tr, data_va = data_tr.split_val_train(val_data_len)
+    # data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
+
+
+    ###########################################
+    ###########################################
+    ###########################################
+    ###########################################
+
 
     # print("data tr ", data_tr)
     # print("data va ", data_va)
@@ -1505,6 +1529,9 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     # print("data_tr len ", len(data_tr))
     # print("data_va len ", len(data_va))
     # print("data_te len ", len(data_te))
+
+
+    gnn = config['gnn'](**config['model_config'])
 
     # We use a MixedLoader since the dataset is in mixed mode
     loader_tr = MixedLoader(data_tr, batch_size=batch_size, epochs=epochs)
@@ -1600,7 +1627,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     #predict_l_0_time = time.process_time() - predict_l_0_start_time
 
     if stats:
-        l1_sample_time = preprocess_time / len(data) + learning_time / len(data)
+        l1_sample_time = preprocess_time / (len(data_tr) + len(data_te)) + learning_time / (len(data_tr) + len(data_te))
         l0_sample_time = predict_l_0_time / len(l_0_targets)
 
         # print("targets ", targets)
@@ -1615,7 +1642,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
         return gnn, targets, predictions, learning_time, train_targets, train_predictions,\
                val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps
 
-    save_times(config['save_path'], False, (preprocess_time, len(data)), learning_time, (predict_l_0_time, len(l_0_targets)))
+    save_times(config['save_path'], False, (preprocess_time, (len(data_tr) + len(data_te))), learning_time, (predict_l_0_time, len(l_0_targets)))
     save_load_data(config['save_path'], False, targets, predictions, train_targets, train_predictions, val_targets, l_0_targets,
                    l_0_predictions)
 
@@ -1640,7 +1667,7 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
     
     predict_time_start = time.process_time()
     data.a = conv_layer.preprocess(data.a)
-    #data.a = sp_matrix_to_sp_tensor(data.a)
+    data.a = sp_matrix_to_sp_tensor(data.a)
 
     loader_te = MixedLoader(data, batch_size=batch_size)
 

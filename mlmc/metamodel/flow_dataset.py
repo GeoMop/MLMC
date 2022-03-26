@@ -22,7 +22,7 @@ class FlowDataset(Dataset):
     DATA_FILE = "data"
 
     def __init__(self, output_dir=None, level=0, log=False, mesh=None, corr_field_config=None, config={}, index=None, adj_matrix=None, dataset=None, graphs=None,
-                 predict=False, **kwargs):
+                 predict=False, train_samples=False, test_samples=False, n_test_samples=20000, **kwargs):
         self._output_dir = output_dir
         # if self._output_dir is None:
         #     self._output_dir = OUTPUT_DIR
@@ -38,6 +38,9 @@ class FlowDataset(Dataset):
         self._config = config
         self._index = index
         self._predict = predict
+        self._train_samples = train_samples
+        self._test_samples = test_samples
+        self._n_test_samples = n_test_samples
         self._dataset_config = config.get('dataset_config', {})
         self._augment_data = config.get('augment_data', False)
 
@@ -83,9 +86,11 @@ class FlowDataset(Dataset):
         if self._augment_data:
             new_dataset, new_graphs = self._data_augmentation(self._df_for_augmentation[index * length: index * length + length], new_graphs)
 
-        new_obj = FlowDataset(output_dir=self._output_dir, level=self.level, log=self._log, mesh=self._mesh,
-                              corr_field_config=self._corr_field_config, config=self._config, index=self._index,
-                              adj_matrix=self.adjacency_matrix, dataset=new_dataset, graphs=new_graphs)
+        new_obj = FlowDataset(output_dir=copy.deepcopy(self._output_dir), level=copy.deepcopy(self.level),
+                              log=copy.deepcopy(self._log), mesh=copy.deepcopy(self._mesh),
+                              corr_field_config=copy.deepcopy(self._corr_field_config),
+                              config=copy.deepcopy(self._config), index=copy.deepcopy(self._index),
+                              adj_matrix=copy.deepcopy(self.adjacency_matrix), dataset=new_dataset, graphs=new_graphs)
 
         # self_dict = self.__dict__
         # self_dict["dataset"] = new_dataset
@@ -107,14 +112,26 @@ class FlowDataset(Dataset):
         va_graphs = self.graphs[-len_val_data:]
         #new_graphs = self.graphs[index * length: index * length + length]  # self.graphs is read() method output
 
-        tr_obj = copy.deepcopy(self)
-        va_obj = copy.deepcopy(self)
+        tr_obj = FlowDataset(output_dir=copy.deepcopy(self._output_dir), level=copy.deepcopy(self.level),
+                              log=copy.deepcopy(self._log), mesh=copy.deepcopy(self._mesh),
+                              corr_field_config=copy.deepcopy(self._corr_field_config),
+                              config=copy.deepcopy(self._config), index=copy.deepcopy(self._index),
+                              adj_matrix=copy.deepcopy(self.adjacency_matrix), dataset=tr_dataset, graphs=tr_graphs)
 
-        tr_obj.dataset = tr_dataset
-        va_obj.dataset = va_dataset
+        va_obj = FlowDataset(output_dir=copy.deepcopy(self._output_dir), level=copy.deepcopy(self.level),
+                              log=copy.deepcopy(self._log), mesh=copy.deepcopy(self._mesh),
+                              corr_field_config=copy.deepcopy(self._corr_field_config),
+                              config=copy.deepcopy(self._config), index=copy.deepcopy(self._index),
+                              adj_matrix=copy.deepcopy(self.adjacency_matrix), dataset=va_dataset, graphs=va_graphs)
 
-        tr_obj.graphs = tr_graphs
-        va_obj.graphs = va_graphs
+        # tr_obj = copy.deepcopy(self)
+        # va_obj = copy.deepcopy(self)
+        #
+        # tr_obj.dataset = tr_dataset
+        # va_obj.dataset = va_dataset
+        #
+        # tr_obj.graphs = tr_graphs
+        # va_obj.graphs = va_graphs
 
         return tr_obj, va_obj
 
@@ -122,9 +139,9 @@ class FlowDataset(Dataset):
         new_dataset = self.dataset[0:index * length] + self.dataset[index * length + length:]
         new_graphs = self.graphs[0:index * length] + self.graphs[index * length + length:]
 
-        new_obj = FlowDataset(output_dir=self._output_dir, level=self.level, log=self._log, mesh=self._mesh,
-                              corr_field_config=self._corr_field_config, config=self._config, index=self._index,
-                              adj_matrix=self.adjacency_matrix, dataset=new_dataset, graphs=new_graphs)
+        new_obj = FlowDataset(output_dir=copy.deepcopy(self._output_dir), level=copy.deepcopy(self.level), log=copy.deepcopy(self._log), mesh=copy.deepcopy(self._mesh),
+                              corr_field_config=copy.deepcopy(self._corr_field_config), config=copy.deepcopy(self._config), index=copy.deepcopy(self._index),
+                              adj_matrix=copy.deepcopy(self.adjacency_matrix), dataset=new_dataset, graphs=new_graphs)
 
         return new_obj
 
@@ -218,6 +235,7 @@ class FlowDataset(Dataset):
     #
     #     self.a = self.adjacency_matrix
     #     return graphs
+
     def read(self):
         all_outputs = []
         all_features = []
@@ -233,6 +251,13 @@ class FlowDataset(Dataset):
                 sample_dir = os.path.join(self._output_dir, s_dir)
                 if os.path.exists(os.path.join(sample_dir, "nodes_features.npy")):
                     features = np.load(os.path.join(sample_dir, "nodes_features.npy"))
+                    # print("type features ", type(features))
+                    # print("features shape ", features.shape)
+                    # features = np.expand_dims(features, axis=0)
+                    # if all_features is None:
+                    #    all_features = features
+                    # else:
+                    #     all_features = np.vstack((all_features, features))
                     all_features.append(features)
 
                     output = np.load(os.path.join(sample_dir, "output.npy"))
@@ -288,6 +313,30 @@ class FlowDataset(Dataset):
                 self._dataset_config["var_output"] = self._var_output
 
             self._save_data_config()
+
+            if self._train_samples:
+                all_features = train_features
+                all_outputs = train_outputs
+
+        elif self._test_samples:
+            if isinstance(all_outputs, list):
+                all_outputs = all_outputs[0:self._index * self._config['n_train_samples']] +  all_outputs[self._index * self._config['n_train_samples'] +
+                                                                                                            self._config['n_train_samples']:]
+            else:
+                all_outputs = np.concatenate([all_outputs[0:self._index * self._config['n_train_samples']], all_outputs[self._index * self._config['n_train_samples'] + self._config['n_train_samples']:]])
+
+            if isinstance(all_features, list):
+                all_features = all_features[0:self._index * self._config['n_train_samples']] + all_features[
+                                               self._index * self._config['n_train_samples'] + self._config[
+                                                   'n_train_samples']:]
+            else:
+                all_features = np.concatenate([all_features[0:self._index * self._config['n_train_samples']],
+                                               all_features[
+                                               self._index * self._config['n_train_samples'] + self._config[
+                                                   'n_train_samples']:]])
+
+        all_outputs = all_outputs[:self._n_test_samples]
+        all_features = all_features[:self._n_test_samples]
 
         graphs = []
         for features, output in zip(all_features, all_outputs):
