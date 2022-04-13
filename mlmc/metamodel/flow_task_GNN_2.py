@@ -121,7 +121,7 @@ class GNN:
                 if results_va[0] < best_val_loss:
                     best_val_loss = results_va[0]
                     current_patience = self._patience
-                    #self._states = {}
+                    self._states = {}
                     self._states[results_va[0]] = copy.deepcopy(self)
                     results_te = self.evaluate(loader_te)
                     self._test_loss.append(results_te[0])
