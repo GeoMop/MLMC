@@ -22,7 +22,7 @@ class FlowDataset(Dataset):
     DATA_FILE = "data"
 
     def __init__(self, output_dir=None, level=0, log=False, mesh=None, corr_field_config=None, config={}, index=None, adj_matrix=None, dataset=None, graphs=None,
-                 predict=False, train_samples=False, test_samples=False, n_test_samples=20000, **kwargs):
+                 predict=False, train_samples=False, test_samples=False, n_test_samples=20000, independent_samples=False, **kwargs):
         self._output_dir = output_dir
         # if self._output_dir is None:
         #     self._output_dir = OUTPUT_DIR
@@ -40,6 +40,7 @@ class FlowDataset(Dataset):
         self._predict = predict
         self._train_samples = train_samples
         self._test_samples = test_samples
+        self._independent_samples = independent_samples
         self._n_test_samples = n_test_samples
         self._dataset_config = config.get('dataset_config', {})
         self._augment_data = config.get('augment_data', False)
@@ -136,8 +137,17 @@ class FlowDataset(Dataset):
         return tr_obj, va_obj
 
     def get_test_data(self, index, length):
-        new_dataset = self.dataset[0:index * length] + self.dataset[index * length + length:]
-        new_graphs = self.graphs[0:index * length] + self.graphs[index * length + length:]
+        if self._independent_samples:
+            if index > 0:
+                new_dataset =self.dataset[-index * length - length:-index * length]
+                new_graphs = self.graphs[-index * length - length:-index * length]
+            else:
+                new_dataset = self.dataset[-index * length - length:]
+                new_graphs = self.graphs[-index * length - length:]
+
+        else:
+            new_dataset = self.dataset[0:index * length] + self.dataset[index * length + length:]
+            new_graphs = self.graphs[0:index * length] + self.graphs[index * length + length:]
 
         new_obj = FlowDataset(output_dir=copy.deepcopy(self._output_dir), level=copy.deepcopy(self.level), log=copy.deepcopy(self._log), mesh=copy.deepcopy(self._mesh),
                               corr_field_config=copy.deepcopy(self._corr_field_config), config=copy.deepcopy(self._config), index=copy.deepcopy(self._index),
@@ -319,21 +329,33 @@ class FlowDataset(Dataset):
                 all_outputs = train_outputs
 
         elif self._test_samples:
-            if isinstance(all_outputs, list):
-                all_outputs = all_outputs[0:self._index * self._config['n_train_samples']] +  all_outputs[self._index * self._config['n_train_samples'] +
-                                                                                                            self._config['n_train_samples']:]
-            else:
-                all_outputs = np.concatenate([all_outputs[0:self._index * self._config['n_train_samples']], all_outputs[self._index * self._config['n_train_samples'] + self._config['n_train_samples']:]])
+            if self._independent_samples:
+                if self._index > 0:
+                    all_outputs = all_outputs[-self._index * self._config['n_train_samples']- self._config['n_train_samples']:-self._index * self._config['n_train_samples']]
+                    all_features = all_features[-self._index * self._config['n_train_samples']- self._config['n_train_samples']:-self._index *self._config['n_train_samples']]
+                else:
+                    all_outputs = all_outputs[-self._index * self._config['n_train_samples'] - self._config[
+                        'n_train_samples']:]
+                    all_features = all_features[-self._index * self._config['n_train_samples'] - self._config[
+                        'n_train_samples']:]
 
-            if isinstance(all_features, list):
-                all_features = all_features[0:self._index * self._config['n_train_samples']] + all_features[
-                                               self._index * self._config['n_train_samples'] + self._config[
-                                                   'n_train_samples']:]
             else:
-                all_features = np.concatenate([all_features[0:self._index * self._config['n_train_samples']],
-                                               all_features[
-                                               self._index * self._config['n_train_samples'] + self._config[
-                                                   'n_train_samples']:]])
+
+                if isinstance(all_outputs, list):
+                    all_outputs = all_outputs[0:self._index * self._config['n_train_samples']] + all_outputs[self._index * self._config['n_train_samples'] +
+                                                                                                                self._config['n_train_samples']:]
+                else:
+                    all_outputs = np.concatenate([all_outputs[0:self._index * self._config['n_train_samples']], all_outputs[self._index * self._config['n_train_samples'] + self._config['n_train_samples']:]])
+
+                if isinstance(all_features, list):
+                    all_features = all_features[0:self._index * self._config['n_train_samples']] + all_features[
+                                                   self._index * self._config['n_train_samples'] + self._config[
+                                                       'n_train_samples']:]
+                else:
+                    all_features = np.concatenate([all_features[0:self._index * self._config['n_train_samples']],
+                                                   all_features[
+                                                   self._index * self._config['n_train_samples'] + self._config[
+                                                       'n_train_samples']:]])
 
         all_outputs = all_outputs[:self._n_test_samples]
         all_features = all_features[:self._n_test_samples]

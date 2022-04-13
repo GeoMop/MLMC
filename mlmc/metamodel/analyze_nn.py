@@ -33,6 +33,7 @@ from mlmc.metamodel.flow_task_GNN_2 import GNN
 from tensorflow.keras.losses import MeanSquaredError
 from spektral.data import MixedLoader
 from spektral.utils.sparse import sp_matrix_to_sp_tensor
+from sklearn.metrics import r2_score
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
@@ -391,7 +392,7 @@ def statistics(config):
 
             gnn, targets, predictions, learning_time, train_targets, train_predictions, \
             val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps = \
-                mch_l_model(config, stats=True, train=config.get('train_model', True), log=log, seed=i)
+                mch_l_model(config, stats=True, train=config.get('train_model', True), log=log, index=i)
 
             if config['save_model']:
                 model_data["model"] = gnn._model
@@ -751,6 +752,8 @@ def analyze_statistics(config, get_model=True):
 
     data_dict = process_data(data_dict)
 
+    rescale_data = True
+
     # print("train predictions type ", type(data_dict["train_predictions"]))
     # print("train predictions type ", type(data_dict["train_predictions"][0]))
     # print("train predictions shape ", np.array(data_dict["train_predictions"]).shape)
@@ -788,6 +791,16 @@ def analyze_statistics(config, get_model=True):
     nn_vars_mse = []
     mlmc_means_mse = []
     nn_means_mse = []
+    mlmc_means_diff = []
+    nn_means_diff = []
+
+    mlmc_vars_mse_2 = []
+    nn_vars_mse_2 = []
+    mlmc_means_mse_2 = []
+    nn_means_mse_2 = []
+    mlmc_means_diff_2 = []
+    nn_means_diff_2 = []
+
     kl_mlmc_all = []
     kl_nn_all = []
 
@@ -800,8 +813,16 @@ def analyze_statistics(config, get_model=True):
     test_MSE_list = []
     test_bias = []
     test_variance = []
+    train_RSE_list = []
+    train_RMSE_list = []
+    train_MAE_list = []
 
-    limit = 1e10  # 0.008#0.01#0.0009
+    test_RSE_list = []
+    test_RMSE_list = []
+    test_MAE_list = []
+
+
+    limit = 5  # 0.008#0.01#0.0009
     #limit = 0.37
 
     for i in range(len(data_dict["test_targets"])):
@@ -855,7 +876,7 @@ def analyze_statistics(config, get_model=True):
 
         if model is not None:
             plot_loss(model_train_loss, model_val_loss, model_train_acc)
-            plot_learning_rate(model_learning_rates)
+            #plot_learning_rate(model_learning_rates)
             print("model learning rates ", model_learning_rates)
 
             print("model ", model)
@@ -865,18 +886,79 @@ def analyze_statistics(config, get_model=True):
             # print("model.optimizer", K.eval(model.optimizer.lr))
             # exit()
 
+        if rescale_data:
+            if "dataset_config" in data_dict:
+                dataset_config = data_dict["dataset_config"][i]
+
+                if dataset_config.get('output_normalization', False):
+                    min_out = dataset_config.get('min_output')
+                    max_out = dataset_config.get('max_output')
+
+                    targets = targets * (max_out - min_out) + min_out
+                    predictions = predictions * (max_out - min_out) + min_out
+                    train_targets = train_targets * (max_out - min_out) + min_out
+                    train_predictions = train_predictions * (max_out - min_out) + min_out
+
+                if dataset_config.get('output_scale', False):
+                    # mean_targets = np.mean(targets)
+                    # var_targets = np.var(targets)
+
+                    mean_targets = dataset_config.get('mean_output', False)
+                    var_targets = dataset_config.get('var_output', False)
+
+                    targets = var_targets * targets + mean_targets
+                    predictions = var_targets * predictions + mean_targets
+
+                    # mean_l_0_targets = mean_targets
+                    # var_l_0_targets = var_targets
+
+                    train_targets = var_targets * train_targets + mean_targets
+                    train_predictions = var_targets * train_predictions + mean_targets
+
+                if dataset_config.get('output_log', False):
+                    targets = np.exp(targets)
+                    predictions = np.exp(predictions)
+                    train_predictions = np.exp(train_predictions)
+                    train_targets = np.exp(train_targets)
+
+                if dataset_config.get('first_log_output', False):
+                    targets = np.exp(targets)
+                    predictions = np.exp(predictions)
+                    train_predictions = np.exp(train_predictions)
+                    train_targets = np.exp(train_targets)
+
         iter_test_MSE = np.mean((predictions - targets) ** 2)
+
         iter_test_bias = np.sqrt(np.mean((targets - np.mean(predictions)) ** 2))
         iter_test_variance = np.mean((predictions - np.mean(predictions)) ** 2)
 
         iter_train_MSE = np.mean((train_predictions - train_targets) ** 2)
+
         iter_train_bias = np.sqrt(np.mean((train_targets - np.mean(train_predictions)) ** 2))
         iter_train_variance = np.mean((train_predictions - np.mean(train_predictions)) ** 2)
 
+        mean_t = np.mean(targets)
+        iter_test_RSE = np.sum((predictions - targets) ** 2) / np.sum((targets - mean_t) ** 2)
+
+        mean_tr = np.mean(train_targets)
+        iter_train_RSE = np.sum((train_predictions - train_targets) ** 2) / np.sum((train_targets - mean_tr) ** 2)
+
+        iter_test_MAE = np.abs((predictions - targets))
+        iter_train_MAE = np.abs((train_predictions - train_targets))
+
         train_MSE_list.append(iter_train_MSE)
+        train_RSE_list.append(iter_train_RSE)
+        train_RMSE_list.append(np.sqrt(iter_train_MSE))
+        train_MAE_list.append(iter_train_MAE)
+
         train_bias.append(iter_train_bias)
         train_variance.append(iter_train_variance)
+
         test_MSE_list.append(iter_test_MSE)
+        test_RSE_list.append(iter_test_RSE)
+        test_RMSE_list.append(np.sqrt(iter_test_MSE))
+        test_MAE_list.append(iter_test_MAE)
+
         test_bias.append(iter_test_bias)
         test_variance.append(iter_test_variance)
 
@@ -913,13 +995,18 @@ def analyze_statistics(config, get_model=True):
         try:
             mlmc_n_collected, nn_mlmc_n_collected, n_ops, n_ops_predict, orig_moments_mean, predict_moments_mean, \
             ref_moments_mean, orig_level_params, nn_level_params, kl_mlmc, kl_nn, target_variance, \
-            orig_orth_moments, predict_orth_moments, ref_orth_moments = process_mlmc(config['hdf_path'],
+            orig_orth_moments, predict_orth_moments, ref_orth_moments,\
+            ref_orig_moments, ref_predict_moments = process_mlmc(config['hdf_path'],
                                                                                      config['sampling_info_path'],
-                                                                                     config['ref_mlmc_file'], targets,
-                                                                                     predictions, train_targets,
-                                                                                     train_predictions,
-                                                                                     val_targets, l_0_targets,
-                                                                                     l_0_predictions, l1_sample_time,
+                                                                                     config['ref_mlmc_file'],
+                                                                                     data_dict["test_targets"][i],
+                                                                                     data_dict["test_predictions"][i],
+                                                                                     data_dict["train_targets"][i],
+                                                                                     data_dict["train_predictions"][i],
+                                                                                     data_dict["val_targets"][i],
+                                                                                     data_dict["l_0_targets"][i],
+                                                                                     data_dict["l_0_predictions"][i],
+                                                                                     l1_sample_time,
                                                                                      l0_sample_time,
                                                                                      nn_level=config['level'],
                                                                                      replace_level=config['replace_level'],
@@ -952,7 +1039,24 @@ def analyze_statistics(config, get_model=True):
         nn_vars_mse.append((ref_moments_mean.var - predict_moments_mean.var) ** 2)
 
         mlmc_means_mse.append((ref_moments_mean.mean - orig_moments_mean.mean) ** 2)
-        nn_means_mse.append((ref_moments_mean.mean) ** 2 - predict_moments_mean.mean)
+        nn_means_mse.append((ref_moments_mean.mean - predict_moments_mean.mean) ** 2)
+
+        mlmc_means_diff.append(np.abs(ref_moments_mean.mean - orig_moments_mean.mean))
+        nn_means_diff.append(np.abs(ref_moments_mean.mean - predict_moments_mean.mean))
+
+
+        #######################################
+        # Moments same domain for comparison  #
+        #######################################
+
+        mlmc_vars_mse_2.append((ref_orig_moments[0].var - ref_orig_moments[1].var) ** 2)
+        nn_vars_mse_2.append((ref_predict_moments[0].var - ref_predict_moments[1].var) ** 2)
+
+        mlmc_means_mse_2.append((ref_orig_moments[0].mean - ref_orig_moments[1].mean) ** 2)
+        nn_means_mse_2.append((ref_predict_moments[0].mean - ref_predict_moments[1].mean) ** 2)
+
+        mlmc_means_diff_2.append(np.abs(ref_orig_moments[0].mean - ref_orig_moments[1].mean))
+        nn_means_diff_2.append(np.abs(ref_predict_moments[0].mean - ref_predict_moments[1].mean))
 
         # print("np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean)) ", np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean)))
         # print("ref_orth_moments.mean[:np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean))] ", ref_orth_moments.mean[:np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean))])
@@ -1004,6 +1108,9 @@ def analyze_statistics(config, get_model=True):
     print("mlmc means MSE ", np.mean(mlmc_means_mse, axis=0))
     print("nn means MSE ", np.mean(nn_means_mse, axis=0))
 
+    print("mlmc means diff ", np.mean(mlmc_means_diff, axis=0))
+    print("nn means diff ", np.mean(nn_means_diff, axis=0))
+
     print("mlmc times ", mlmc_times)
     print("nn times ", nn_times)
 
@@ -1041,10 +1148,10 @@ def analyze_statistics(config, get_model=True):
     mlmc_n_collected = np.mean(mlmc_n_collected_all, axis=0)
     nn_n_collected = np.mean(nn_n_collected_all, axis=0)
 
-    # print("mlmc n collected ", mlmc_n_collected_all)
-    # print("nn n collected all ", nn_n_collected_all)
-    # print("mlmc n collected ", mlmc_n_collected)
-    # print("nn n collected ", nn_n_collected)
+    print("mlmc n collected ", mlmc_n_collected_all)
+    print("nn n collected all ", nn_n_collected_all)
+    print("mlmc n collected ", mlmc_n_collected)
+    print("nn n collected ", nn_n_collected)
 
     plt_var = plots.VarianceNN()
     plt_var.set_n_ops(np.mean(n_ops_predict_all, axis=0))
@@ -1073,6 +1180,11 @@ def analyze_statistics(config, get_model=True):
     plot_sse(nn_vars_mse, mlmc_vars_mse, title="moments_var")
     plot_sse(nn_means_mse, mlmc_means_mse, title="moments_mean")
     plot_sse(mlmc_means_mse, mlmc_means_mse, title="mlmc moments_mean")
+
+    plot_sse(nn_vars_mse_2, mlmc_vars_mse_2, title="moments_var same domain")
+    plot_sse(nn_means_mse_2, mlmc_means_mse_2, title="moments_mean same domain")
+    plot_sse(mlmc_means_mse_2, mlmc_means_mse_2, title="mlmc moments_mean same domain")
+
 
     # if ref_orth_moments is not None:
     #     print("orth nn means mse ", orth_nn_means_mse)
@@ -1167,6 +1279,11 @@ def analyze_statistics(config, get_model=True):
     print("test RAE ", test_RAE)
     print("test_MSE ", test_MSE)
 
+
+    for pred, target in zip(data_dict["test_predictions"], data_dict["test_targets"]):
+        R_squared = r2_score(target, pred)
+        print("R squared ", R_squared)
+
     t_mse_sum = []
     for t_mse in test_MSE:
         # Note: je mozne odstranit vetsi hodnoty MSE pro L4, protoze by slo dosahnout mensich hodnot pokud by se navysil pocet iteraci nebo by se vysledek pro nejlepsi train + val MSE a ne posledni vysledek
@@ -1212,9 +1329,9 @@ def analyze_statistics(config, get_model=True):
     print("NN moments MSE sum ", np.sum(np.mean(nn_means_mse, axis=0)))
 
     print("mean test MSE ", np.mean(test_MSE))
-    # print("mean test RSE ", np.mean(test_RSE))
-    # print("mean test RMSE ", np.mean(test_RMSE))
-    # print("mean test MAE ", np.mean(test_MAE))
+    print("mean test RSE ", np.mean(test_RSE))
+    print("mean test RMSE ", np.mean(test_RMSE))
+    print("mean test MAE ", np.mean(test_MAE))
     print("max test MSE ", np.max(test_MSE))
     # print("max test RMSE ", np.max(test_RMSE))
     # print("max test MAE ", np.max(test_MAE))
@@ -1225,9 +1342,9 @@ def analyze_statistics(config, get_model=True):
 
     print("test RSE ", np.mean(all_test_RSE))
     print("test RSE ", np.mean(all_train_RSE))
-    # print("mean train RSE ", np.mean(train_RSE))
-    # print("mean train RMSE ", np.mean(train_RMSE))
-    # print("mean train MAE ", np.mean(train_MAE))
+    print("mean train RSE ", np.mean(train_RSE))
+    print("mean train RMSE ", np.mean(train_RMSE))
+    print("mean train MAE ", np.mean(train_MAE))
     print("max train MSE ", np.max(train_MSE))
     # print("max train RMSE ", np.max(train_RMSE))
     # print("max train MAE ", np.max(train_MAE))
@@ -1258,9 +1375,33 @@ def analyze_statistics(config, get_model=True):
     print("train MSE: {}, bias: {}, variance: {}".format(np.mean(train_MSE_list), np.mean(train_bias), np.mean(train_variance)))
     print("test MSE: {}, bias: {}, variance: {}".format(np.mean(test_MSE_list), np.mean(test_bias),
                                                          np.mean(test_variance)))
+    print("SEM train MSE: {}".format(stats.sem(train_MSE_list)))
+    print("SEM test MSE: {}".format(stats.sem(test_MSE_list)))
     # print("test MSE std", np.sqrt(np.var(test_MSE)))
-    print("train RSE ", np.mean(all_train_RSE))
-    print("test RSE ", np.mean(all_test_RSE))
+    print("RMSE train: {}, test: {}".format(np.mean(train_RMSE_list), np.mean(test_RMSE_list)))
+    print("RSE train: {}, test: {}".format(np.mean(train_RSE_list), np.mean(test_RSE_list)))
+    print("MAE train: {}, test: {}".format(np.mean(train_MAE_list), np.mean(test_MAE_list)))
+
+    # print("train RSE ", np.mean(train_RSE))
+    # print("test RSE ", np.mean(test_RMSE))
+    #
+    # print("train RMSE ", np.mean(train_RMSE))
+    # print("test RMSE ", np.mean(test_RMSE))
+
+    print("MC mom mean MSE: total: {:0.5g}, to 10: {:0.5g}, above: {:0.5g}".format(np.sum(np.mean(mlmc_means_mse, axis=0)), np.sum(np.mean(mlmc_means_mse, axis=0)[:10]),
+                                            np.sum(np.mean(mlmc_means_mse, axis=0)[10:])))
+    print("NN mom mean MSE: total: {:0.5g}, to 10: {:0.5g}, above: {:0.5g}".format(np.sum(np.mean(nn_means_mse, axis=0)), np.sum(np.mean(nn_means_mse, axis=0)[:10]),
+                                            np.sum(np.mean(nn_means_mse, axis=0)[10:])))
+
+    print("compare moments each couple has same domain (common domain)")
+    print("MC mom mean MSE: total: {:0.5g}, to 10: {:0.5g}, above: {:0.5g}".format(
+        np.sum(np.mean(mlmc_means_mse_2, axis=0)), np.sum(np.mean(mlmc_means_mse_2, axis=0)[:10]),
+        np.sum(np.mean(mlmc_means_mse_2, axis=0)[10:])))
+    print("NN mom mean MSE: total: {:0.5g}, to 10: {:0.5g}, above: {:0.5g}".format(np.sum(np.mean(nn_means_mse_2, axis=0)),
+                                                                                 np.sum(np.mean(nn_means_mse_2, axis=0)[
+                                                                                        :10]),
+                                                                                 np.sum(np.mean(nn_means_mse_2, axis=0)[
+                                                                                        10:])))
 
     print("nn total time ", nn_total_time)
     print("mlmc total time ", mlmc_total_time)
@@ -1420,8 +1561,8 @@ def set_model_layers(new_model, old_model):
     # exit()
 
 
-def run_GNN(config, stats=True, train=True, log=False, seed=0):
-    print("seed ", seed)
+def run_GNN(config, stats=True, train=True, log=False, index=0):
+    print("seed ", index)
 
     loss = MeanSquaredError()  # var_loss_function#
     accuracy_func = MSE_moments
@@ -1447,13 +1588,29 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     preprocess_start_time = time.process_time()
 
     if train:
-        data_tr = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=seed, train_samples=True)
-        print("data tr")
-        data_te = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=seed, predict=True, test_samples=True)
+        data_tr = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=index, train_samples=True)
+        data_te = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=index, predict=True, test_samples=True)
     else:
-        data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=seed)
+        data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=index)
         data_tr = data
         data_te = data
+
+    independent_samples = config.get("independent_samples", False)
+
+    if independent_samples and train:
+        len_all_samples = len(data_tr) + len(data_te)
+
+        last_train_sample = index * config['n_train_samples'] + config['n_train_samples']
+        last_test_sample = len_all_samples - (index * config['n_train_samples'] + config['n_train_samples'])
+
+        if last_train_sample > last_test_sample:
+            return
+
+        data_tr = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config,
+                              index=index, train_samples=True, independent_sample=True)
+
+        data_te = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config,
+                              index=index, predict=True, test_samples=True, independent_samples=True)
 
     # Dataset preprocess config
     config['dataset_config'] = data_tr._dataset_config
@@ -1522,14 +1679,12 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
     ###########################################
     ###########################################
 
-
     # print("data tr ", data_tr)
     # print("data va ", data_va)
 
     # print("data_tr len ", len(data_tr))
     # print("data_va len ", len(data_va))
     # print("data_te len ", len(data_te))
-
 
     gnn = config['gnn'](**config['model_config'])
 
@@ -1620,7 +1775,7 @@ def run_GNN(config, stats=True, train=True, log=False, seed=0):
                                                                         config['conv_layer'], batch_size, log,
                                                                         stats=stats,
                                                                         corr_field_config=config['corr_field_config'],
-                                                                        seed=seed,
+                                                                        seed=index,
                                                                         feature_names=config.get('feature_names', [['conductivity']]),
                                                                         config=config
                                                                         )
