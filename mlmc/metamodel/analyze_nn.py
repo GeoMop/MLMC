@@ -1587,18 +1587,12 @@ def run_GNN(config, stats=True, train=True, log=False, index=0):
 
     preprocess_start_time = time.process_time()
 
-    if train:
-        data_tr = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=index, train_samples=True)
-        data_te = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=index, predict=True, test_samples=True)
-    else:
-        data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config, index=index)
-        data_tr = data
-        data_te = data
-
     independent_samples = config.get("independent_samples", False)
 
     if independent_samples and train:
-        len_all_samples = len(data_tr) + len(data_te)
+        data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config,
+                           index=index, n_test_samples=100000)
+        len_all_samples = len(data)
 
         last_train_sample = index * config['n_train_samples'] + config['n_train_samples']
         last_test_sample = len_all_samples - (index * config['n_train_samples'] + config['n_train_samples'])
@@ -1611,6 +1605,19 @@ def run_GNN(config, stats=True, train=True, log=False, index=0):
 
         data_te = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config,
                               index=index, predict=True, test_samples=True, independent_samples=True)
+
+    else:
+        if train:
+            data_tr = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config,
+                                  index=index, train_samples=True)
+            data_te = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config,
+                                  index=index, predict=True, test_samples=True)
+        else:
+            data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config,
+                               index=index)
+            data_tr = data
+            data_te = data
+
 
     # Dataset preprocess config
     config['dataset_config'] = data_tr._dataset_config
