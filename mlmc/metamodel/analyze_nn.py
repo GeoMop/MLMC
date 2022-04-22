@@ -391,7 +391,8 @@ def statistics(config):
             config['iter_dir'] = iter_dir
 
             gnn, targets, predictions, learning_time, train_targets, train_predictions, \
-            val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps = \
+            val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time,\
+            total_steps, targets_to_est, predictions_to_est = \
                 mch_l_model(config, stats=True, train=config.get('train_model', True), log=log, index=i)
 
             if config['save_model']:
@@ -413,6 +414,8 @@ def statistics(config):
             model_data["l0_sample_time"] = l0_sample_time
             model_data["total_steps"] = total_steps
             model_data["learning_times"] = learning_time
+            model_data["targets_to_est"] = targets_to_est
+            model_data["predictions_to_est"] = predictions_to_est
 
             save_statistics(iter_dir, model_data)
 
@@ -466,7 +469,8 @@ def load_statistics(dir_path):
     models_data["learning_times"] = []
     models_data["log"] = []
     models_data["dataset_config"] = []
-
+    models_data["targets_to_est"] = []
+    models_data["predictions_to_est"] = []
 
     #dirs = (os.path.split(dir_path)[-1]).split("_")
     n_iters = 25
@@ -796,10 +800,18 @@ def analyze_statistics(config, get_model=True):
 
     mlmc_vars_mse_2 = []
     nn_vars_mse_2 = []
+    mlmc_nn_vars_mse_2 = []
     mlmc_means_mse_2 = []
     nn_means_mse_2 = []
+    mlmc_nn_means_mse_2 = []
     mlmc_means_diff_2 = []
     nn_means_diff_2 = []
+    mlmc_nn_means_diff_2 = []
+
+    mlmc_moments_mean = []
+    mlmc_nn_moments_mean = []
+    mlmc_moments_var = []
+    mlmc_nn_moments_var = []
 
     kl_mlmc_all = []
     kl_nn_all = []
@@ -816,6 +828,12 @@ def analyze_statistics(config, get_model=True):
     train_RSE_list = []
     train_RMSE_list = []
     train_MAE_list = []
+    train_relRMSE_list = []
+    test_relRMSE_list = []
+
+
+    all_train_samples = []
+    all_test_samples = []
 
     test_RSE_list = []
     test_RMSE_list = []
@@ -835,7 +853,7 @@ def analyze_statistics(config, get_model=True):
 
         #print("index ", i)
 
-        # if i not in [0,2]:
+        # if i not in [0]:
         #     continue
 
         # if i in [2, 11, 12]:
@@ -877,7 +895,7 @@ def analyze_statistics(config, get_model=True):
         if model is not None:
             plot_loss(model_train_loss, model_val_loss, model_train_acc)
             #plot_learning_rate(model_learning_rates)
-            print("model learning rates ", model_learning_rates)
+            #print("model learning rates ", model_learning_rates)
 
             print("model ", model)
             print("dir(model.optimizer) ", dir(model.optimizer))
@@ -937,6 +955,9 @@ def analyze_statistics(config, get_model=True):
         iter_train_bias = np.sqrt(np.mean((train_targets - np.mean(train_predictions)) ** 2))
         iter_train_variance = np.mean((train_predictions - np.mean(train_predictions)) ** 2)
 
+        all_test_samples.append(targets)
+        all_train_samples.append(train_targets)
+
         mean_t = np.mean(targets)
         iter_test_RSE = np.sum((predictions - targets) ** 2) / np.sum((targets - mean_t) ** 2)
 
@@ -949,6 +970,7 @@ def analyze_statistics(config, get_model=True):
         train_MSE_list.append(iter_train_MSE)
         train_RSE_list.append(iter_train_RSE)
         train_RMSE_list.append(np.sqrt(iter_train_MSE))
+        train_relRMSE_list.append(np.sqrt(iter_train_MSE)/np.mean(train_targets))
         train_MAE_list.append(iter_train_MAE)
 
         train_bias.append(iter_train_bias)
@@ -957,6 +979,7 @@ def analyze_statistics(config, get_model=True):
         test_MSE_list.append(iter_test_MSE)
         test_RSE_list.append(iter_test_RSE)
         test_RMSE_list.append(np.sqrt(iter_test_MSE))
+        test_relRMSE_list.append(np.sqrt(iter_train_MSE) / np.mean(targets))
         test_MAE_list.append(iter_test_MAE)
 
         test_bias.append(iter_test_bias)
@@ -992,30 +1015,32 @@ def analyze_statistics(config, get_model=True):
         #exit()
 
         print("total steps ", total_steps)
-        try:
-            mlmc_n_collected, nn_mlmc_n_collected, n_ops, n_ops_predict, orig_moments_mean, predict_moments_mean, \
-            ref_moments_mean, orig_level_params, nn_level_params, kl_mlmc, kl_nn, target_variance, \
-            orig_orth_moments, predict_orth_moments, ref_orth_moments,\
-            ref_orig_moments, ref_predict_moments = process_mlmc(config['hdf_path'],
-                                                                                     config['sampling_info_path'],
-                                                                                     config['ref_mlmc_file'],
-                                                                                     data_dict["test_targets"][i],
-                                                                                     data_dict["test_predictions"][i],
-                                                                                     data_dict["train_targets"][i],
-                                                                                     data_dict["train_predictions"][i],
-                                                                                     data_dict["val_targets"][i],
-                                                                                     data_dict["l_0_targets"][i],
-                                                                                     data_dict["l_0_predictions"][i],
-                                                                                     l1_sample_time,
-                                                                                     l0_sample_time,
-                                                                                     nn_level=config['level'],
-                                                                                     replace_level=config['replace_level'],
-                                                                                     mlmc_hdf_file=config['mlmc_hdf_path'],
-                                                                                     stats=True,
-                                                                                     learning_time=learning_time,
-                                                                                     dataset_config=dataset_config)
-        except:
-             continue
+        #try:
+        mlmc_n_collected, nn_mlmc_n_collected, n_ops, n_ops_predict, orig_moments_mean, predict_moments_mean, \
+        ref_moments_mean, orig_level_params, nn_level_params, kl_mlmc, kl_nn, target_variance, \
+        orig_orth_moments, predict_orth_moments, ref_orth_moments,\
+        ref_orig_moments, ref_predict_moments, mlmc_predict_moments = process_mlmc(config['hdf_path'],
+                                                                                 config['sampling_info_path'],
+                                                                                 config['ref_mlmc_file'],
+                                                                                 data_dict["test_targets"][i],
+                                                                                 data_dict["test_predictions"][i],
+                                                                                 data_dict["train_targets"][i],
+                                                                                 data_dict["train_predictions"][i],
+                                                                                 data_dict["val_targets"][i],
+                                                                                 data_dict["l_0_targets"][i],
+                                                                                 data_dict["l_0_predictions"][i],
+                                                                                 l1_sample_time,
+                                                                                 l0_sample_time,
+                                                                                 nn_level=config['level'],
+                                                                                 replace_level=config['replace_level'],
+                                                                                 mlmc_hdf_file=config['mlmc_hdf_path'],
+                                                                                 stats=True,
+                                                                                 learning_time=learning_time,
+                                                                                 dataset_config=dataset_config,
+                                                                                   targets_to_est=data_dict["targets_to_est"][i],
+                                                                                   predictions_to_est=data_dict["predictions_to_est"][i])
+        # except:
+        #      continue
 
         mlmc_n_collected_all.append(mlmc_n_collected)
         nn_n_collected_all.append(nn_mlmc_n_collected)
@@ -1058,6 +1083,16 @@ def analyze_statistics(config, get_model=True):
         mlmc_means_diff_2.append(np.abs(ref_orig_moments[0].mean - ref_orig_moments[1].mean))
         nn_means_diff_2.append(np.abs(ref_predict_moments[0].mean - ref_predict_moments[1].mean))
 
+        mlmc_nn_vars_mse_2.append((mlmc_predict_moments[0].var - mlmc_predict_moments[1].var) ** 2)
+        mlmc_nn_means_mse_2.append((mlmc_predict_moments[0].mean - mlmc_predict_moments[1].mean) ** 2)
+        mlmc_nn_means_diff_2.append(np.abs(mlmc_predict_moments[0].mean - mlmc_predict_moments[1].mean))
+
+
+        mlmc_moments_mean.append(mlmc_predict_moments[0].mean)
+        mlmc_moments_var.append(mlmc_predict_moments[0].var)
+        mlmc_nn_moments_mean.append(mlmc_predict_moments[1].mean)
+        mlmc_nn_moments_var.append(mlmc_predict_moments[1].var)
+
         # print("np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean)) ", np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean)))
         # print("ref_orth_moments.mean[:np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean))] ", ref_orth_moments.mean[:np.min(len(ref_orth_moments.mean), len(orig_orth_moments.mean))])
         if ref_orth_moments is not None:
@@ -1090,6 +1125,14 @@ def analyze_statistics(config, get_model=True):
     moments_plot.add_moments((orig_moments_mean.mean,
                               orig_moments_mean.var), label="orig moments")
     moments_plot.show(None)
+
+    moments_plot_2 = plots.MomentsPlots(log_var_y=True, title="Moments MLMC domain")
+    moments_plot_2.add_moments((np.mean(mlmc_moments_mean, axis=0),
+                              np.mean(mlmc_moments_var, axis=0)), label="mlmc moments")
+    moments_plot_2.add_moments((np.mean(mlmc_nn_moments_mean, axis=0),
+                              np.mean(mlmc_nn_moments_var, axis=0)), label="mlmc nn moments")
+
+    moments_plot_2.show(None)
 
     display_vars(mlmc_vars, nn_vars, target_variance=target_variance)
 
@@ -1171,7 +1214,14 @@ def analyze_statistics(config, get_model=True):
     l_vars = np.mean(nn_l_vars, axis=0)
     # print("nn l vars  ", l_vars)
     # print("nn level parsm ", nn_level_params)
-    level_params = np.squeeze(nn_level_params)
+    if len(nn_level_params) > 1:
+        level_params = np.squeeze(nn_level_params)
+    else:
+        level_params = nn_level_params[0]
+
+    print("level params ", level_params)
+
+
     level_params[0] *= 2
     plt_var.add_level_variances_nn(level_params, l_vars)
     plt_var.show("nn_vars")
@@ -1378,7 +1428,13 @@ def analyze_statistics(config, get_model=True):
     print("SEM train MSE: {}".format(stats.sem(train_MSE_list)))
     print("SEM test MSE: {}".format(stats.sem(test_MSE_list)))
     # print("test MSE std", np.sqrt(np.var(test_MSE)))
+    print("mean train sample: {}".format(np.mean(all_train_samples)))
+    print("mean test sample: {}".format(np.mean(all_test_samples)))
+    #print("mean sample : {}".format(np.mean(np.array(all_train_samples).flatten() + np.array(all_test_samples).flatten())))
     print("RMSE train: {}, test: {}".format(np.mean(train_RMSE_list), np.mean(test_RMSE_list)))
+    print("relative RMSE train: {}, test: {}".format(np.mean(train_RMSE_list)/np.mean(all_train_samples), np.mean(test_RMSE_list)/np.mean(all_test_samples)))
+    print("iter relative RMSE train: {}, test: {}".format(np.mean(train_relRMSE_list),
+                                                     np.mean(test_relRMSE_list)))
     print("RSE train: {}, test: {}".format(np.mean(train_RSE_list), np.mean(test_RSE_list)))
     print("MAE train: {}, test: {}".format(np.mean(train_MAE_list), np.mean(test_MAE_list)))
 
@@ -1402,6 +1458,14 @@ def analyze_statistics(config, get_model=True):
                                                                                         :10]),
                                                                                  np.sum(np.mean(nn_means_mse_2, axis=0)[
                                                                                         10:])))
+
+    print("MLMC vs NN mom mean MSE: total: {:0.5g}, to 10: {:0.5g}, above: {:0.5g}".format(
+        np.sum(np.mean(mlmc_nn_means_mse_2, axis=0)), np.sum(np.mean(mlmc_nn_means_mse_2, axis=0)[:10]),
+        np.sum(np.mean(mlmc_nn_means_mse_2, axis=0)[10:])))
+    print("MLMC vs NN mom var MSE: total: {:0.5g}, to 10: {:0.5g}, above: {:0.5g}".format(
+        np.sum(np.mean(mlmc_nn_vars_mse_2, axis=0)),
+        np.sum(np.mean(mlmc_nn_vars_mse_2, axis=0)[:10]),
+        np.sum(np.mean(mlmc_nn_vars_mse_2, axis=0)[10:])))
 
     print("nn total time ", nn_total_time)
     print("mlmc total time ", mlmc_total_time)
@@ -1597,14 +1661,22 @@ def run_GNN(config, stats=True, train=True, log=False, index=0):
         last_train_sample = index * config['n_train_samples'] + config['n_train_samples']
         last_test_sample = len_all_samples - (index * config['n_train_samples'] + config['n_train_samples'])
 
+        print("last train sample ", last_train_sample)
+        print("last test sample ", last_test_sample)
+
         if last_train_sample > last_test_sample:
             return
 
         data_tr = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config,
                               index=index, train_samples=True, independent_sample=True)
 
+        print("len data tr ", len(data_tr))
+
         data_te = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config,
                               index=index, predict=True, test_samples=True, independent_samples=True)
+
+        print("len data te ", len(data_te))
+
 
     else:
         if train:
@@ -1625,6 +1697,17 @@ def run_GNN(config, stats=True, train=True, log=False, index=0):
     preprocess_time = time.process_time() - preprocess_start_time
     preprocess_time = preprocess_time + graph_creation_time
     print("preprocess time ", preprocess_time)
+
+    if config["predict_dir"] is not None:
+        # data_te_predict = FlowDataset(output_dir=config['predict_dir'], level=config['level'], log=log, config=config,
+        #                               index=index, n_test_samples=50000)
+
+        data_te_predict = FlowDataset(output_dir=config['predict_dir'], config=config, predict=True)
+
+        data_te_predict.a = config['conv_layer'].preprocess(data_te_predict.a)
+        data_te_predict.a = sp_matrix_to_sp_tensor(data_te_predict.a)
+
+
 
     learning_time_start = time.process_time()
     data_tr.a = sp_matrix_to_sp_tensor(config['conv_layer'].preprocess(data_tr.a))
@@ -1700,6 +1783,8 @@ def run_GNN(config, stats=True, train=True, log=False, index=0):
     loader_va = MixedLoader(data_va, batch_size=batch_size)
     loader_te = MixedLoader(data_te, batch_size=batch_size)
 
+    loader_te_predict = MixedLoader(data_te_predict, batch_size=batch_size)
+
     if not train:
         gnn.fit(MixedLoader(data_tr[:10], batch_size=batch_size, epochs=epochs),
                 MixedLoader(data_tr[10:20], batch_size=batch_size), MixedLoader(data_tr[20:30], batch_size=batch_size))
@@ -1725,6 +1810,8 @@ def run_GNN(config, stats=True, train=True, log=False, index=0):
 
     learning_time = time.process_time() - learning_time_start
 
+    print("learning time ", learning_time)
+
     states = gnn._states
     # print("states ", states)
     # for state in states.values():
@@ -1749,6 +1836,11 @@ def run_GNN(config, stats=True, train=True, log=False, index=0):
     targets, predictions = gnn.predict(loader_te)
     predictions = np.squeeze(predictions)
 
+    targets_to_est, predictions_to_est = gnn.predict(loader_te_predict)
+    predictions_to_est = np.squeeze(predictions_to_est)
+    targets_to_est = np.array(targets_to_est)
+    predictions_to_est = np.array(predictions_to_est)
+
     #print("learning time ", learning_time)
 
     targets = np.array(targets)
@@ -1759,6 +1851,8 @@ def run_GNN(config, stats=True, train=True, log=False, index=0):
     if log:
         targets = np.exp(targets)
         predictions = np.exp(predictions)
+        target_to_est = np.exp(targets_to_est)
+        predictions_to_est = np.exp(predictions_to_est)
 
     if not stats:
         analyze_results(targets, predictions)
@@ -1802,7 +1896,7 @@ def run_GNN(config, stats=True, train=True, log=False, index=0):
         #                                                stats=stats)
 
         return gnn, targets, predictions, learning_time, train_targets, train_predictions,\
-               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps
+               val_targets, val_predictions, l_0_targets, l_0_predictions, l1_sample_time, l0_sample_time, total_steps, targets_to_est, predictions_to_est
 
     save_times(config['save_path'], False, (preprocess_time, (len(data_tr) + len(data_te))), learning_time, (predict_l_0_time, len(l_0_targets)))
     save_load_data(config['save_path'], False, targets, predictions, train_targets, train_predictions, val_targets, l_0_targets,

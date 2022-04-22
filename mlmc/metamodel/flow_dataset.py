@@ -22,7 +22,7 @@ class FlowDataset(Dataset):
     DATA_FILE = "data"
 
     def __init__(self, output_dir=None, level=0, log=False, mesh=None, corr_field_config=None, config={}, index=None, adj_matrix=None, dataset=None, graphs=None,
-                 predict=False, train_samples=False, test_samples=False, n_test_samples=20000, independent_samples=False, **kwargs):
+                 predict=False, train_samples=False, test_samples=False, n_test_samples=50000, independent_samples=False, **kwargs):
         self._output_dir = output_dir
         # if self._output_dir is None:
         #     self._output_dir = OUTPUT_DIR
