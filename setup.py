@@ -57,8 +57,6 @@ setup(
     keywords=[
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
-    # packages=find_packages(where='.',
-    #     exclude=['examples*', 'test*', 'docs']),
     packages=['mlmc', 'mlmc.plot', 'mlmc.quantity', 'mlmc.random', 'mlmc.sim', 'mlmc.tool'],
     # include automatically all files in the template MANIFEST.in
     include_package_data=True,
