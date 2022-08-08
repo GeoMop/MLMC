@@ -1,0 +1,9 @@
+numpy
+scipy
+sklearn
+h5py>=3.1.0
+ruamel.yaml
+attrs
+gstools
+memoization
+matplotlib
