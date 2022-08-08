@@ -3,6 +3,7 @@ import scipy.stats as st
 import scipy.integrate as integrate
 import mlmc.quantity.quantity_estimate as qe
 import mlmc.tool.simple_distribution
+from mlmc.quantity.quantity_estimate import mask_nan_samples
 from mlmc.quantity.quantity_types import ScalarType
 from mlmc.plot import plots
 from mlmc.quantity.quantity_spec import ChunkSpec
@@ -16,6 +17,7 @@ class Estimate:
         self._quantity = quantity
         self._sample_storage = sample_storage
         self._moments_fn = moments_fn
+        self._moments_mean = None
 
     @property
     def quantity(self):
@@ -29,6 +31,16 @@ class Estimate:
     def n_moments(self):
         return self._moments_fn.size
 
+    @property
+    def moments_mean_obj(self):
+        return self._moments_mean
+
+    @moments_mean_obj.setter
+    def moments_mean_obj(self, moments_mean):
+        if not isinstance(moments_mean, mlmc.quantity.quantity.QuantityMean):
+            raise TypeError
+        self._moments_mean = moments_mean
+
     def estimate_moments(self, moments_fn=None):
         """
         Use collected samples to estimate moments and variance of this estimate.
@@ -39,6 +51,7 @@ class Estimate:
             moments_fn = self._moments_fn
 
         moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_fn))
+        self.moments_mean_obj = moments_mean
         return moments_mean.mean, moments_mean.var
 
     def estimate_covariance(self, moments_fn=None):
@@ -340,6 +353,51 @@ class Estimate:
         chunk_spec = next(self._sample_storage.chunks(level_id=level_id, n_samples=n_samples))
         return self._quantity.samples(chunk_spec=chunk_spec)
 
+    def kurtosis_check(self, quantity=None):
+        if quantity is None:
+            quantity = self._quantity
+        moments_mean_quantity = qe.estimate_mean(quantity)
+        kurtosis = qe.level_kurtosis(quantity, moments_mean_quantity)
+        return kurtosis
+
+
+def consistency_check(quantity, sample_storage=None):
+
+    fine_samples = {}
+    coarse_samples = {}
+    for chunk_spec in quantity.get_quantity_storage().chunks():
+        samples = quantity.samples(chunk_spec)
+        chunk, n_mask_samples = mask_nan_samples(samples)
+
+        # No samples in chunk
+        if chunk.shape[1] == 0:
+            continue
+
+        fine_samples.setdefault(chunk_spec.level_id, []).extend(chunk[:, :, 0])
+        if chunk_spec.level_id > 0:
+            coarse_samples.setdefault(chunk_spec.level_id, []).extend(chunk[:, :, 1])
+
+    cons_check_val = {}
+    for level_id in range(sample_storage.get_n_levels()):
+        if level_id > 0:
+            fine_mean = np.mean(fine_samples[level_id])
+            coarse_mean = np.mean(coarse_samples[level_id])
+            diff_mean = np.mean(np.array(fine_samples[level_id]) - np.array(coarse_samples[level_id]))
+
+            fine_var = np.var(fine_samples[level_id])
+            coarse_var = np.var(fine_samples[level_id])
+            diff_var = np.var(np.array(fine_samples[level_id]) - np.array(coarse_samples[level_id]))
+
+            val = np.abs(coarse_mean - fine_mean + diff_mean) / (
+                        3 * (np.sqrt(coarse_var) + np.sqrt(fine_var) + np.sqrt(diff_var)))
+
+            assert np.isclose(coarse_mean - fine_mean + diff_mean, 0)
+            assert val < 0.9
+
+            cons_check_val[level_id] = val
+
+    return cons_check_val
+
 
 def estimate_domain(quantity, sample_storage, quantile=None):
     """
@@ -363,7 +421,23 @@ def estimate_domain(quantity, sample_storage, quantile=None):
     return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
 
-def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_ops, n_levels):
+def coping_with_high_kurtosis(vars, costs, kurtosis, kurtosis_threshold=100):
+    """
+    Coping with high kurtosis is recommended by prof. M. Giles in http://people.maths.ox.ac.uk/~gilesm/talks/MCQMC_22_b.pdf
+    :param vars: vars[L, M] for all levels L and moments_fn M safe the (zeroth) constant moment with zero variance.
+    :param costs: cost of level's sample
+    :param kurtosis: each level's sample kurtosis
+    :param kurtosis_threshold: Kurtosis is considered to be too high if it is above this threshold.
+                              Original variances are underestimated and therefore modified in this metod
+    :return: vars
+    """
+    for l_id in range(2, vars.shape[0]):
+        if kurtosis[l_id] > kurtosis_threshold:
+            vars[l_id] = np.maximum(vars[l_id], 0.5 * vars[l_id - 1] * costs[l_id - 1] / costs[l_id])
+    return vars
+
+
+def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_ops, n_levels, theta=0, kurtosis=None):
     """
     Estimate optimal number of samples for individual levels that should provide a target variance of
     resulting moment estimate.
@@ -372,12 +446,20 @@ def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_op
     :param prescribe_vars: vars[ L, M] for all levels L and moments_fn M safe the (zeroth) constant moment with zero variance.
     :param n_ops: number of operations at each level
     :param n_levels: number of levels
+    :param theta: number of samples N_l control parameter, suitable values: 0.25 ... 0.5
+    :param kurtosis: levels' kurtosis
     :return: np.array with number of optimal samples for individual levels and moments_fn, array (LxR)
     """
     vars = prescribe_vars
+
+    if kurtosis is not None and len(vars) == len(kurtosis):
+        vars = coping_with_high_kurtosis(vars, n_ops, kurtosis)
+
     sqrt_var_n = np.sqrt(vars.T * n_ops)  # moments_fn in rows, levels in cols
     total = np.sum(sqrt_var_n, axis=1)  # sum over levels
     n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)  # moments_fn in cols
+    n_samples_estimate = 1/(1-theta) * n_samples_estimate
+
     # Limit maximal number of samples per level
     n_samples_estimate_safe = np.maximum(
         np.minimum(n_samples_estimate, vars * n_levels / target_variance), 2)
