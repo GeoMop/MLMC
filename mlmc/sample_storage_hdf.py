@@ -206,6 +206,21 @@ class SampleStorageHDF(SampleStorage):
 
         return unfinished
 
+    def collected_ids(self, level_id=None):
+        """
+        List of colected ids
+        :param level_id: int
+        :return: list
+        """
+        if level_id is not None:
+            return self._level_groups[level_id].get_collected_ids()
+
+        unfinished = []
+        for level in self._level_groups:
+            unfinished.extend(level.get_collected_ids())
+
+        return unfinished
+
     def failed_samples(self):
         """
         Dictionary of failed samples
@@ -241,12 +256,65 @@ class SampleStorageHDF(SampleStorage):
         Get number of estimated operations on each level
         :return: List
         """
+        # n_ops = list(np.zeros(len(self._level_groups)))
+        # for level in self._level_groups:
+        #     if level.running_times[1] > 0:
+        #         n_ops[int(level.level_id)] = level.running_times[0] / level.running_times[1]
+        #     else:
+        #         n_ops[int(level.level_id)] = 0
+        # return n_ops
+
         n_ops = list(np.zeros(len(self._level_groups)))
         for level in self._level_groups:
             if level.n_ops_estimate[1] > 0:
                 n_ops[int(level.level_id)] = level.n_ops_estimate[0] / level.n_ops_estimate[1]
             else:
                 n_ops[int(level.level_id)] = 0
+        return n_ops
+
+    def get_original_n_ops(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            if level.n_ops_estimate[1] > 0:
+                n_ops[int(level.level_id)] = level.n_ops_estimate[0] / level.n_ops_estimate[1]
+            else:
+                n_ops[int(level.level_id)] = 0
+        return n_ops
+
+    def get_running_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.running_times
+        return n_ops
+
+    def get_extract_mesh_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.extract_mesh_times
+        return n_ops
+
+    def get_make_field_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.make_field_times
+        return n_ops
+
+    def get_generate_rnd_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.generate_rnd_times
+        return n_ops
+
+    def get_fine_flow_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.fine_flow_times
+        return n_ops
+
+    def get_coarse_flow_times(self):
+        n_ops = list(np.zeros(len(self._level_groups)))
+        for level in self._level_groups:
+            n_ops[int(level.level_id)] = level.coarse_flow_times
         return n_ops
 
     def get_level_ids(self):
@@ -271,3 +339,4 @@ class SampleStorageHDF(SampleStorage):
         :return: int
         """
         return len(self._level_groups)
+

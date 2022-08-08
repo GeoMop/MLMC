@@ -357,7 +357,7 @@ class LevelGroup:
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
 
             if n_samples is not None:
-                yield ChunkSpec(chunk_id=0, chunk_slice=slice(0, n_samples, 1), level_id=int(self.level_id))
+                yield ChunkSpec(chunk_id=0, chunk_slice=slice(0, n_samples, ...), level_id=int(self.level_id))
             else:
                 for chunk_id, chunk in enumerate(dataset.iter_chunks()):
                     yield ChunkSpec(chunk_id=chunk_id, chunk_slice=chunk[0], level_id=int(self.level_id))  # slice, level_id
@@ -387,6 +387,12 @@ class LevelGroup:
             collected_n_items = len(dataset[()])
         return collected_n_items
 
+    def get_collected_ids(self):
+        collected_ids = []
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            collected_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.collected_ids_dset][()]]
+        return collected_ids
+
     def get_finished_ids(self):
         """
         Get collected and failed samples ids
@@ -394,8 +400,8 @@ class LevelGroup:
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             failed_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.failed_dset][()]]
-            successful_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.collected_ids_dset][()]]
-            return np.concatenate((np.array(successful_ids), np.array(failed_ids)), axis=0)
+            collected_ids = [sample[0].decode() for sample in hdf_file[self.level_group_path][self.collected_ids_dset][()]]
+            return np.concatenate((np.array(collected_ids), np.array(failed_ids)), axis=0)
 
     def get_unfinished_ids(self):
         """
@@ -437,6 +443,138 @@ class LevelGroup:
             if 'n_ops_estimate' in hdf_file[self.level_group_path].attrs:
                 return hdf_file[self.level_group_path].attrs['n_ops_estimate']
 
+    @property
+    def running_times(self):
+        """
+        Get number of operations estimate
+        :return: float
+        """
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            if 'running_times' in hdf_file[self.level_group_path].attrs:
+                return hdf_file[self.level_group_path].attrs['running_times']
+
+    @running_times.setter
+    def running_times(self, n_ops_estimate):
+        """
+        Set property n_ops_estimate
+        :param n_ops_estimate: number of operations (time) per samples
+        :return: None
+        """
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            if 'running_times' not in hdf_file[self.level_group_path].attrs:
+                hdf_file[self.level_group_path].attrs['running_times'] = [0., 0.]
+            hdf_file[self.level_group_path].attrs['running_times'] = n_ops_estimate
+
+    @property
+    def extract_mesh_times(self):
+        """
+        Get number of operations estimate
+        :return: float
+        """
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            if 'extract_mesh_times' in hdf_file[self.level_group_path].attrs:
+                return hdf_file[self.level_group_path].attrs['extract_mesh_times']
+
+    @extract_mesh_times.setter
+    def extract_mesh_times(self, n_ops_estimate):
+        """
+        Set property n_ops_estimate
+        :param n_ops_estimate: number of operations (time) per samples
+        :return: None
+        """
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            if 'extract_mesh_times' not in hdf_file[self.level_group_path].attrs:
+                hdf_file[self.level_group_path].attrs['extract_mesh_times'] = [0., 0.]
+            hdf_file[self.level_group_path].attrs['extract_mesh_times'] = n_ops_estimate
+
+    @property
+    def make_field_times(self):
+        """
+        Get number of operations estimate
+        :return: float
+        """
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            if 'make_field_times' in hdf_file[self.level_group_path].attrs:
+                return hdf_file[self.level_group_path].attrs['make_field_times']
+
+    @make_field_times.setter
+    def make_field_times(self, n_ops_estimate):
+        """
+        Set property n_ops_estimate
+        :param n_ops_estimate: number of operations (time) per samples
+        :return: None
+        """
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            if 'make_field_times' not in hdf_file[self.level_group_path].attrs:
+                hdf_file[self.level_group_path].attrs['make_field_times'] = [0., 0.]
+            hdf_file[self.level_group_path].attrs['make_field_times'] = n_ops_estimate
+
+    @property
+    def generate_rnd_times(self):
+        """
+        Get number of operations estimate
+        :return: float
+        """
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            if 'generate_rnd_times' in hdf_file[self.level_group_path].attrs:
+                return hdf_file[self.level_group_path].attrs['generate_rnd_times']
+
+    @generate_rnd_times.setter
+    def generate_rnd_times(self, n_ops_estimate):
+        """
+        Set property n_ops_estimate
+        :param n_ops_estimate: number of operations (time) per samples
+        :return: None
+        """
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            if 'generate_rnd_times' not in hdf_file[self.level_group_path].attrs:
+                hdf_file[self.level_group_path].attrs['generate_rnd_times'] = [0., 0.]
+            hdf_file[self.level_group_path].attrs['generate_rnd_times'] = n_ops_estimate
+
+    @property
+    def fine_flow_times(self):
+        """
+        Get number of operations estimate
+        :return: float
+        """
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            if 'fine_flow_times' in hdf_file[self.level_group_path].attrs:
+                return hdf_file[self.level_group_path].attrs['fine_flow_times']
+
+    @fine_flow_times.setter
+    def fine_flow_times(self, n_ops_estimate):
+        """
+        Set property n_ops_estimate
+        :param n_ops_estimate: number of operations (time) per samples
+        :return: None
+        """
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            if 'fine_flow_times' not in hdf_file[self.level_group_path].attrs:
+                hdf_file[self.level_group_path].attrs['fine_flow_times'] = [0., 0.]
+            hdf_file[self.level_group_path].attrs['fine_flow_times'] = n_ops_estimate
+
+    @property
+    def coarse_flow_times(self):
+        """
+        Get number of operations estimate
+        :return: float
+        """
+        with h5py.File(self.file_name, 'r') as hdf_file:
+            if 'coarse_flow_times' in hdf_file[self.level_group_path].attrs:
+                return hdf_file[self.level_group_path].attrs['coarse_flow_times']
+
+    @coarse_flow_times.setter
+    def coarse_flow_times(self, n_ops_estimate):
+        """
+        Set property n_ops_estimate
+        :param n_ops_estimate: number of operations (time) per samples
+        :return: None
+        """
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            if 'coarse_flow_times' not in hdf_file[self.level_group_path].attrs:
+                hdf_file[self.level_group_path].attrs['coarse_flow_times'] = [0., 0.]
+            hdf_file[self.level_group_path].attrs['coarse_flow_times'] = n_ops_estimate
+
     @n_ops_estimate.setter
     def n_ops_estimate(self, n_ops_estimate):
         """
@@ -448,4 +586,3 @@ class LevelGroup:
             if 'n_ops_estimate' not in hdf_file[self.level_group_path].attrs:
                 hdf_file[self.level_group_path].attrs['n_ops_estimate'] = [0., 0.]
             hdf_file[self.level_group_path].attrs['n_ops_estimate'] = n_ops_estimate
-

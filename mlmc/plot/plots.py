@@ -8,7 +8,7 @@ from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 
 
-def create_color_bar(range, label, ax = None):
+def create_color_bar(range, label, ax=None, colormap=None):
     """
     Create colorbar for a variable with given range and add it to given axes.
     :param range: single value as high bound or tuple (low bound, high bound)
@@ -16,13 +16,16 @@ def create_color_bar(range, label, ax = None):
     :param ax:
     :return: Function to map values to colors. (normalize + cmap)
     """
+
     # Create colorbar
-    colormap = plt.cm.gist_ncar
+    if colormap is None:
+        colormap = plt.cm.gist_ncar
     try:
         min_r, max_r = range
     except TypeError:
         min_r, max_r = 0, range
     normalize = plt.Normalize(vmin=min_r, vmax=max_r)
+    #colormap = (matplotlib.colors.ListedColormap(['red', 'green', 'blue', 'orange']))
     scalar_mappable = plt.cm.ScalarMappable(norm=normalize, cmap=colormap)
     if type(max_r) is int:
         cb_values = np.arange(min_r, max_r)
@@ -31,6 +34,11 @@ def create_color_bar(range, label, ax = None):
         cb_values = np.linspace(min_r, max_r, 100)
         #ticks = np.linspace(min_r, int(size / 10) * 10, 9)
     ticks = None
+    ticks = [5,10,15,20]
+    ticks = [2, 4, 6, 8, 10]
+    ticks = [2, 3, 4, 5]
+
+
     scalar_mappable.set_array(cb_values)
     clb = plt.colorbar(scalar_mappable, ticks=ticks, aspect=50, pad=0.01, ax=ax)
     clb.set_label(label)
@@ -484,6 +492,165 @@ class VarianceBreakdown:
         _show_and_save(self.fig, file, self.title)
 
 
+class CorrLength:
+    """
+    Plot level variances, i.e. Var X^l as a function of the mesh step.
+    Selected moments are plotted.
+    """
+    def __init__(self, moments=None):
+        """
+        :param moments: Size or type of moments subset, see moments_subset function.
+        """
+        matplotlib.rcParams.update({'font.size': 26})
+        matplotlib.rcParams.update({'lines.markersize': 8})
+        self.fig = plt.figure(figsize=(15, 8))
+        self.title = ""
+        self.fig.suptitle(self.title)
+
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.ax.set_xlabel("$\lambda$ - correlation length")
+        self.ax.set_ylabel("$MSE$")
+        self.ax.set_xscale('log')
+        self.ax.set_yscale('log')
+
+        self.n_moments = None
+        self.subset_type = moments
+        self.min_step = 1e300
+        self.max_step = 0
+        self.data = {}
+
+        self.nn_min_step = 1e300
+        self.nn_max_step = 0
+        self.nn_data = {}
+
+        self._mse_train = {}
+        self._mse_test = {}
+
+        #self._colormap = plt.cm.tab20
+
+    def add_mse_train(self, mse):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        self._mse_train = mse
+
+    def add_mse_test(self, mse):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        self._mse_test = mse
+
+    def show(self, file=""):
+        #self._colormap = create_color_bar(range=[1, self.n_moments], label=r'$M_i$', ax=self.ax, colormap=plt.cm.tab20)
+        res = 5
+        step_range = self.max_step / self.min_step
+        log_scale = step_range ** 0.001 - 1
+        #rv = st.lognorm(scale=1, s=log_scale)
+
+        # if m == 5:
+        #     break
+        col = "blue"
+        label = "MSE train"
+
+        print("mse train ", self._mse_train)
+        print("mse test ", self._mse_test)
+
+        print("list(self._mse_train.keys()) ", list(self._mse_train.keys()))
+        print("self._mse_train.items() ", self._mse_train.items())
+
+        self.ax.scatter(list(self._mse_train.keys()), list(self._mse_train.values()), color=col, label=label)
+
+        col = "red"
+        label = "MSE test"
+        self.ax.scatter(list(self._mse_test.keys()), list(self._mse_test.values()), color=col, label=label)
+
+        self.fig.legend()
+        _show_and_save(self.fig, file, self.title)
+
+
+class Variance:
+    """
+    Plot level variances, i.e. Var X^l as a function of the mesh step.
+    Selected moments are plotted.
+    """
+    def __init__(self, moments=None):
+        """
+        :param moments: Size or type of moments subset, see moments_subset function.
+        """
+        matplotlib.rcParams.update({'font.size': 26})
+        matplotlib.rcParams.update({'lines.markersize': 8})
+        self.fig = plt.figure(figsize=(15, 8))
+        self.title = ""
+        self.fig.suptitle(self.title)
+
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.ax.set_xlabel("$\lambda$ - correlation length")
+        self.ax.set_ylabel("$MSE$")
+        self.ax.set_xscale('log')
+        self.ax.set_yscale('log')
+
+        self.n_moments = None
+        self.subset_type = moments
+        self.min_step = 1e300
+        self.max_step = 0
+        self.data = {}
+
+        self.nn_min_step = 1e300
+        self.nn_max_step = 0
+        self.nn_data = {}
+
+        self._mse_train = {}
+        self._mse_test = {}
+
+        #self._colormap = plt.cm.tab20
+
+    def add_mse_train(self, mse):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        self._mse_train = mse
+
+    def add_mse_test(self, mse):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        self._mse_test = mse
+
+    def show(self, file=""):
+        #self._colormap = create_color_bar(range=[1, self.n_moments], label=r'$M_i$', ax=self.ax, colormap=plt.cm.tab20)
+        res = 5
+        step_range = self.max_step / self.min_step
+        log_scale = step_range ** 0.001 - 1
+        #rv = st.lognorm(scale=1, s=log_scale)
+
+        # if m == 5:
+        #     break
+        col = "blue"
+        label = "MSE train"
+
+        print("mse train ", self._mse_train)
+        print("mse test ", self._mse_test)
+
+        print("list(self._mse_train.keys()) ", list(self._mse_train.keys()))
+        print("self._mse_train.items() ", self._mse_train.items())
+
+        self.ax.scatter(list(self._mse_train.keys()), list(self._mse_train.values()), color=col, label=label)
+
+        col = "red"
+        label = "MSE test"
+        self.ax.scatter(list(self._mse_test.keys()), list(self._mse_test.values()), color=col, label=label)
+
+        self.fig.legend()
+        _show_and_save(self.fig, file, self.title)
+
 class Variance:
     """
     Plot level variances, i.e. Var X^l as a function of the mesh step.
@@ -552,6 +719,508 @@ class Variance:
             self.ax.plot(xf, yf, color=col)
         self.fig.legend()
         _show_and_save(self.fig, file, self.title)
+
+
+class TrainTestMSE:
+    """
+    Plot meta-model MSE
+    """
+    def __init__(self, moments=None):
+        """
+        :param moments: Size or type of moments subset, see moments_subset function.
+        """
+        matplotlib.rcParams.update({'font.size': 26})
+        matplotlib.rcParams.update({'lines.markersize': 8})
+        self.fig = plt.figure(figsize=(15, 8))
+        self.title = ""
+        self.fig.suptitle(self.title)
+
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.ax.set_xlabel("$\lambda$ - correlation length")
+        self.ax.set_ylabel("$MSE$")
+        self.ax.set_xscale('log')
+        self.ax.set_yscale('log')
+
+        self.n_moments = None
+        self.subset_type = moments
+        self.min_step = 1e300
+        self.max_step = 0
+        self.data = {}
+
+        self.nn_min_step = 1e300
+        self.nn_max_step = 0
+        self.nn_data = {}
+
+        self._mse_train = {}
+        self._mse_test = {}
+
+        #self._colormap = plt.cm.tab20
+
+    def add_mse_train(self, mse):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        self._mse_train = mse
+
+    def add_mse_test(self, mse):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        self._mse_test = mse
+
+    def show(self, file=""):
+        #self._colormap = create_color_bar(range=[1, self.n_moments], label=r'$M_i$', ax=self.ax, colormap=plt.cm.tab20)
+        res = 5
+        step_range = self.max_step / self.min_step
+        log_scale = step_range ** 0.001 - 1
+        #rv = st.lognorm(scale=1, s=log_scale)
+
+        # if m == 5:
+        #     break
+        col = "blue"
+        label = "MSE train"
+
+        print("mse train ", self._mse_train)
+        print("mse test ", self._mse_test)
+
+        print("list(self._mse_train.keys()) ", list(self._mse_train.keys()))
+        print("self._mse_train.items() ", self._mse_train.items())
+
+        self.ax.scatter(list(self._mse_train.keys()), list(self._mse_train.values()), color=col, label=label)
+
+        col = "red"
+        label = "MSE test"
+        self.ax.scatter(list(self._mse_test.keys()), list(self._mse_test.values()), color=col, label=label)
+
+        self.fig.legend()
+        _show_and_save(self.fig, file, self.title)
+
+
+class VarianceNN:
+    """
+    Plot level variances, i.e. Var X^l as a function of the mesh step.
+    Selected moments are plotted.
+    """
+    def __init__(self, moments=None):
+        """
+        :param moments: Size or type of moments subset, see moments_subset function.
+        """
+        matplotlib.rcParams.update({'font.size': 26})
+        matplotlib.rcParams.update({'lines.markersize': 7})
+        self.fig = plt.figure(figsize=(15, 8))
+
+        matplotlib.rcParams.update({'font.size': 16})
+        matplotlib.rcParams.update({'lines.markersize': 8})
+        # fig, axes = plt.subplots(1, 1, figsize=(22, 10))
+        self.fig = plt.figure(figsize=(8, 5))
+
+        self.title = ""#"Level variances"
+        self.fig.suptitle(self.title)
+
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.ax.set_xlabel("$h$ - mesh step")
+        #self.ax.set_ylabel("Var $X^h$")
+        self.ax.set_ylabel("$\hat{V}^r_l$")
+        self.ax.set_xscale('log')
+        self.ax.set_yscale('log')
+
+        #self.ax.set_xlim([1e-3, 1e0])
+
+        self.n_moments = None
+        self.subset_type = moments
+        self.min_step = 1e300
+        self.max_step = 0
+        self.data = {}
+
+        self.nn_min_step = 1e300
+        self.nn_max_step = 0
+        self.nn_data = {}
+
+        self._colormap = plt.cm.tab20
+        self._n_ops = None
+
+    def set_n_ops(self, n_ops):
+        print("n ops ", n_ops)
+        self._n_ops = n_ops
+
+    def add_level_variances(self, steps, variances):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        n_levels, n_moments = variances.shape
+        if self.n_moments is None:
+            self.n_moments = n_moments
+            self.moments_subset = moments_subset(n_moments, self.subset_type)
+        else:
+            assert self.n_moments == n_moments
+
+        variances = variances[:, self.moments_subset]
+        self.min_step = min(self.min_step, steps[-1])
+        self.max_step = max(self.max_step, steps[0])
+        for m, vars in enumerate(variances.T):
+            X, Y = self.data.get(m, ([], []))
+            X.extend(steps.tolist())
+            Y.extend(vars.tolist())
+            self.data[m] = (X, Y)
+
+    def add_level_variances_nn(self, steps, variances):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        n_levels, n_moments = variances.shape
+        if self.n_moments is None:
+            self.n_moments = n_moments
+            self.moments_subset = moments_subset(n_moments, self.subset_type)
+        else:
+            assert self.n_moments == n_moments
+
+        variances = variances[:, self.moments_subset]
+        self.nn_min_step = min(self.min_step, steps[-1])
+        self.nn_max_step = max(self.max_step, steps[0])
+        for m, vars in enumerate(variances.T):
+            X, Y = self.nn_data.get(m, ([], []))
+            X.extend(steps.tolist())
+            Y.extend(vars.tolist())
+            self.nn_data[m] = (X, Y)
+
+    def show(self, file=""):
+        self._colormap = create_color_bar(range=[1, self.n_moments], label=r'$r$', ax=self.ax, colormap=plt.cm.tab20)
+        res = 5
+        step_range = self.max_step / self.min_step
+        log_scale = step_range ** 0.001 - 1
+        #rv = st.lognorm(scale=1, s=log_scale)
+        for m, (X, Y) in self.data.items():
+            # if m == 5:
+            #     break
+            col = self._colormap(m)
+            label = "M{}".format(self.moments_subset[m])
+            label = "MLMC"
+            # print("X ", X)
+            # print("len(X) ", len(X))
+            # #print("rv.rvs(size=len(X)) ", rv.rvs(size=len(X)))
+            # print("Y ", Y)
+            XX = np.array(X) #* rv.rvs(size=len(X))
+            # print("XX ", X)
+            self.ax.scatter(XX, Y, color=col)
+            XX, YY = make_monotone(X, Y)
+
+        # step_range = self.nn_max_step / self.nn_min_step
+        # log_scale = step_range ** 0.01 - 1
+        # rv = st.lognorm(scale=1, s=log_scale)
+        levels = {}
+
+        print("nn data ", self.nn_data)
+        for m, (X, Y) in self.nn_data.items():
+            # if m == 5:
+            #     break
+            col = plt.cm.tab20(m)
+            label = "M{}".format(self.moments_subset[m])
+            label = "MLMC meta"
+            XX = np.array(X) * 0.84  # rv.rvs(size=len(X))
+            XY = np.array(X) * 1.16
+
+            self.ax.scatter(XX, Y, color=col, marker='v')
+            # XX, YY = make_monotone(X, Y)
+
+            for x, y in zip(X, Y):
+                if x not in levels:
+                    levels[x] = []
+                levels[x].append(y)
+
+        print("XX ", XX)
+        print("np.max(Y) + np.max(Y)*0.3) ", np.max(Y) + np.max(Y) * 0.3)
+        if self._n_ops is not None:
+            for index, n_ops in enumerate(self._n_ops):
+                self.ax.annotate("{:0.3g}".format(n_ops), (XY[index], np.max(levels[X[index]])))
+
+        #self.fig.legend()
+
+        legend = self.ax.legend()
+        ax = legend.axes
+
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Rectangle, RegularPolygon, FancyBboxPatch
+
+        handles, labels = ax.get_legend_handles_labels()
+
+        mlmc_marker = Line2D([], [], color='black', marker='o', linestyle='None',
+                               markersize=8, markeredgewidth=1.7,
+                               label='MLMC')  # Line2D([], [], color='black', marker='|')
+
+        handles.append(mlmc_marker)
+        labels.append("MLMC")
+
+        if self.nn_data:
+            mlmc_marker_meta = Line2D([], [], color='black', marker='v', linestyle='None',
+                                 markersize=8, markeredgewidth=1.7,
+                                 label='r"$MLMC_{meta}:$"')  # Line2D([], [], color='black', marker='|')
+
+            handles.append(mlmc_marker_meta)
+            labels.append("MLMC-M")
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
+
+        _show_and_save(self.fig, file, self.title)
+
+
+class VarianceNN2:
+    """
+    Plot level variances, i.e. Var X^l as a function of the mesh step.
+    Selected moments are plotted.
+    """
+    def __init__(self, moments=None):
+        """
+        :param moments: Size or type of moments subset, see moments_subset function.
+        """
+        matplotlib.rcParams.update({'font.size': 26})
+        matplotlib.rcParams.update({'lines.markersize': 7})
+        self.fig = plt.figure(figsize=(15, 8))
+
+        matplotlib.rcParams.update({'font.size': 16})
+        matplotlib.rcParams.update({'lines.markersize': 8})
+        # fig, axes = plt.subplots(1, 1, figsize=(22, 10))
+        self.fig = plt.figure(figsize=(8, 5))
+
+        self.title = ""#"Level variances"
+        self.fig.suptitle(self.title)
+
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.ax.set_xlabel("mesh elements")
+        #self.ax.set_ylabel("Var $X^h$")
+        self.ax.set_ylabel("$\hat{V}^r_l$")
+        self.ax.set_xscale('log')
+        self.ax.set_yscale('log')
+
+        #self.ax.set_xlim([1e-3, 1e0])
+        self.ax.set_xlim([5e1, 1e5])
+
+        self.n_moments = None
+        self.subset_type = moments
+        self.min_step = 1e300
+        self.max_step = 0
+        self.data = {}
+
+        self.nn_min_step = 1e300
+        self.nn_max_step = 0
+        self.nn_data = {}
+
+        self._colormap = plt.cm.tab20
+        self._n_ops = None
+
+    def set_n_ops(self, n_ops):
+        print("n ops ", n_ops)
+        self._n_ops = n_ops
+
+    def add_level_variances(self, steps, variances):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        n_levels, n_moments = variances.shape
+        if self.n_moments is None:
+            self.n_moments = n_moments
+            self.moments_subset = moments_subset(n_moments, self.subset_type)
+        else:
+            assert self.n_moments == n_moments
+
+        variances = variances[:, self.moments_subset]
+        self.min_step = min(self.min_step, steps[-1])
+        self.max_step = max(self.max_step, steps[0])
+        for m, vars in enumerate(variances.T):
+            X, Y = self.data.get(m, ([], []))
+            X.extend(steps.tolist())
+            Y.extend(vars.tolist())
+            self.data[m] = (X, Y)
+
+    def add_level_variances_nn(self, steps, variances):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        n_levels, n_moments = variances.shape
+        if self.n_moments is None:
+            self.n_moments = n_moments
+            self.moments_subset = moments_subset(n_moments, self.subset_type)
+        else:
+            assert self.n_moments == n_moments
+
+        variances = variances[:, self.moments_subset]
+        self.nn_min_step = min(self.min_step, steps[-1])
+        self.nn_max_step = max(self.max_step, steps[0])
+        for m, vars in enumerate(variances.T):
+            X, Y = self.nn_data.get(m, ([], []))
+            X.extend(steps.tolist())
+            Y.extend(vars.tolist())
+            self.nn_data[m] = (X, Y)
+
+    def show(self, file=""):
+        self._colormap = create_color_bar(range=[1, self.n_moments], label=r'$r$', ax=self.ax, colormap=plt.cm.tab20)
+        res = 5
+        step_range = self.max_step / self.min_step
+        log_scale = step_range ** 0.001 - 1
+        #rv = st.lognorm(scale=1, s=log_scale)
+        for m, (X, Y) in self.data.items():
+
+            # if m == 5:
+            #     break
+            print("m+1+m ", m+1+m)
+            col = self._colormap(m+1)
+            label = "M{}".format(self.moments_subset[m])
+            label = "MLMC"
+            print("data m: {}, col: {}".format(m, col))
+            # print("X ", X)
+            # print("len(X) ", len(X))
+            # #print("rv.rvs(size=len(X)) ", rv.rvs(size=len(X)))
+            # print("Y ", Y)
+            XX = np.array(X) #* rv.rvs(size=len(X))
+            # print("XX ", X)
+            self.ax.scatter(XX, Y, color=col)
+            XX, YY = make_monotone(X, Y)
+
+        # step_range = self.nn_max_step / self.nn_min_step
+        # log_scale = step_range ** 0.01 - 1
+        # rv = st.lognorm(scale=1, s=log_scale)
+        levels = {}
+
+        print("nn data ", self.nn_data)
+        for m, (X, Y) in self.nn_data.items():
+            #m += 1
+            # if m == 5:
+            #     break
+            #col = plt.cm.tab20(m)
+            col = self._colormap(m+1)
+            print("nn_data m: {}, col: {}".format(m, col))
+            XX = np.array(X) * 0.84  # rv.rvs(size=len(X))
+            print("X ", X)
+            X = np.array(X)
+            #XY = np.concatenate(([X[0] * 0.35], X[1:] * 1.16), axis=0)
+
+            XY = np.concatenate(([X[0] * 0.6], [X[1] * 1.1], X[2:] * 0.95), axis=0)
+
+            self.ax.scatter(XX, Y, color=col, marker='v')
+            # XX, YY = make_monotone(X, Y)
+
+            for x, y in zip(X, Y):
+                if x not in levels:
+                    levels[x] = []
+                levels[x].append(y)
+
+        print("XX ", XX)
+        print("np.max(Y) + np.max(Y)*0.3) ", np.max(Y) + np.max(Y) * 0.3)
+        print("self._n_ops ", self._n_ops)
+        self._n_ops = [0.338,  29.7, 223, 2320]
+        if self._n_ops is not None:
+            for index, n_ops in enumerate(self._n_ops):
+                if index == 0:
+                    self.ax.annotate("{}".format(n_ops), (XY[index], np.max(levels[X[index]])*1.7))
+                elif index == 1:
+                    self.ax.annotate("{}".format(n_ops), (XY[index], np.max(levels[X[index]])*1.9))
+                else:
+                    #self.ax.annotate("{:0.3g}".format(n_ops), (XY[index], np.max(levels[X[index]])))
+                    self.ax.annotate("{}".format(n_ops), (XY[index], np.max(levels[X[index]])*1.7))
+
+        #self.fig.legend()
+
+        legend = self.ax.legend()
+        ax = legend.axes
+
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Rectangle, RegularPolygon, FancyBboxPatch
+
+        handles, labels = ax.get_legend_handles_labels()
+
+        mlmc_marker = Line2D([], [], color='black', marker='o', linestyle='None',
+                               markersize=8, markeredgewidth=1.7,
+                               label='MLMC')  # Line2D([], [], color='black', marker='|')
+
+        handles.append(mlmc_marker)
+        labels.append("3LMC")
+
+        if self.nn_data:
+            mlmc_marker_meta = Line2D([], [], color='black', marker='v', linestyle='None',
+                                 markersize=8, markeredgewidth=1.7,
+                                 label='r"$MLMC_{meta}:$"')  # Line2D([], [], color='black', marker='|')
+
+            handles.append(mlmc_marker_meta)
+            labels.append("3LMC-M")
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
+
+        _show_and_save(self.fig, file, self.title)
+
+
+class MomentsPlots(Distribution):
+    def __init__(self, title="", quantity_name="i-th moment", legend_title="", log_mean_y=False, log_var_y=False):
+        """
+        """
+        self._domain = None
+        self._title = title
+        self._legend_title = legend_title
+        self.plot_matrix = []
+        self.i_plot = 0
+
+        self.cmap = plt.cm.tab20
+        self.ax_var = None
+        self.ax_log_density = None
+        self.x_lim = None
+
+        # mean_colors = ["brown", "salmon", "orange", "goldenrod", "red"]
+        # var_colors = ["blue", "slateblue", "indigo", "darkseagreen", "green"]
+        #
+        # self.mean_color = iter(mean_colors)
+        # self.cdf_color = iter(var_colors)
+
+        self.fig, axes = plt.subplots(1, 2, figsize=(22, 10))
+        self.ax_mean = axes[0]
+        self.ax_var = axes[1]
+
+        #self.fig.suptitle(title, y=0.99)
+        x_axis_label = quantity_name
+
+        self.ax_mean.set_ylabel("Mean")
+        self.ax_mean.set_xlabel(x_axis_label)
+        self.ax_mean.tick_params(axis='y')
+
+        self.ax_var.set_ylabel("Var")
+        #self.ax_var.tick_params(axis='y')
+        self.ax_var.set_xlabel(x_axis_label)
+
+        if log_mean_y:
+            self.ax_mean.set_yscale('log')
+
+        if log_var_y:
+            self.ax_var.set_yscale('log')
+
+    def add_moments(self, moments, label=None):
+        means, vars = moments
+        X = range(0, len(means))
+        print("vars ", vars)
+        self.ax_var.scatter(X, vars, color=self.cmap(self.i_plot), label=label)
+        self.ax_mean.scatter(X, means, color=self.cmap(self.i_plot), label=label)
+        #self._plot_borders(self.ax_cdf, self.cdf_color, domain)
+        self.i_plot += 1
+
+    def show(self, file=""):
+        self.ax_mean.legend()
+        self.ax_var.legend()
+
+        _show_and_save(self.fig, file, self._title)
 
 
 class BSplots:
@@ -986,7 +1655,6 @@ class Aux:
         plt.legend()
         plt.show()
 
-
     def plot_var_regression(self, i_moments = None):
         """
         Plot total and level variances and their regression and errors of regression.
@@ -1311,3 +1979,169 @@ def plot_pbs_flow_job_time():
     #ax.set_yscale('log')
     ax.plot(1/(level_params**2), n_ops)
     _show_and_save(fig, "flow_time", "flow_time")
+
+
+class ArticleDistributionPDF(Distribution):
+    """
+    mlmc.plot.Distribution
+
+    Class for plotting distribution approximation: PDF and CDF (optional)
+    Provides methods to: add more plots, add exact PDF, add ECDF/histogram from single level MC
+    """
+    def __init__(self, exact_distr=None, title="", quantity_name="Y", legend_title="",
+                 log_density=False, cdf_plot=False, log_x=False, error_plot='l2', reg_plot=False, multipliers_plot=True,
+                 set_x_lim=True):
+        """
+        Plot configuration
+        :param exact_distr:  Optional exact domain (for adding to plot and computing error)
+        :param title: Figure title.
+        :param quantity_name: Quantity for X axis label.
+        :param log_density: Plot logarithm of density value.
+        :param cdf_plot: Plot CDF as well (default)
+        :param log_x: Use logarithmic scale for X axis.
+        :param error_plot: None, 'diff', 'kl. Plot error of pdf using either difference or
+        integrand of KL divergence: exact_pdf * log(exact_pdf / approx_pdf).
+        Simple difference is used for CDF for both options.
+        """
+        plt.ticklabel_format(style='sci')
+        matplotlib.rcParams.update({'font.size': 16})
+        from matplotlib import ticker
+        formatter = ticker.ScalarFormatter(useMathText=True)
+        formatter.set_scientific(True)
+        #matplotlib.rcParams.update({'lines.markersize': 8})
+        self._exact_distr = exact_distr
+        self._log_density = log_density
+        self._log_x = log_x
+        self._error_plot = error_plot
+        self._domain = None
+        self._title = title
+        self._legend_title = legend_title
+        self.plot_matrix = []
+        self.i_plot = 0
+
+        self.ax_cdf = None
+        self.ax_log_density = None
+        self.x_lim = None
+
+        self.pdf_color = "brown"
+        self.cdf_color = "blue"
+
+        self.reg_plot = reg_plot
+
+        #self.fig, self.ax_cdf = plt.subplots(1, 1, figsize=(22, 10))
+        self.fig, self.ax_pdf = plt.subplots(1, 1, figsize=(8, 5))
+        self.fig_cdf = None
+        #self.ax_pdf = self.ax_cdf.twinx()
+
+        #self.fig.suptitle(title, y=0.99)
+        x_axis_label = quantity_name
+
+        # PDF axes
+        self.ax_pdf.set_ylabel("PDF")#, color=self.pdf_color)
+        #self.ax_pdf.set_ylabel("probability density")
+        self.ax_pdf.set_xlabel(x_axis_label)
+        #self.ax_pdf.ticklabel_format(style='sci')
+        #self.ax_pdf.tick_params(axis='y', labelcolor=self.pdf_color)
+        if self._log_x:
+            self.ax_pdf.set_xscale('log')
+            x_axis_label = "log " + x_axis_label
+        # if self._log_density:
+        #     self.ax_pdf.set_yscale('log')
+
+        # if cdf_plot:
+        #     # CDF axes
+        #     #self.ax_cdf.set_title("CDF approximations")
+        #     self.ax_cdf.set_ylabel("CDF", color=self.cdf_color)
+        #     self.ax_cdf.tick_params(axis='y', labelcolor=self.cdf_color)
+        #     self.ax_cdf.set_xlabel(x_axis_label)
+        #     if self._log_x:
+        #         self.ax_cdf.set_xscale('log')
+
+        if set_x_lim:
+            self.x_lim = [0, 2.6]
+            #self.x_lim = [0, 5]
+            self.x_lim = [0, 2.5]
+
+            self.ax_pdf.set_xlim(*self.x_lim)
+        #self.ax_cdf.set_xlim(*self.x_lim)
+
+        # """adjust ax2 ylimit so that v2 in ax2 is aligned to v1 in ax1"""
+        # _, y1 = self.ax_pdf.transData.transform((0, 0))
+        # _, y2 = self.ax_cdf.transData.transform((0, 0))
+        # inv = self.ax_cdf.transData.inverted()
+        # _, dy = inv.transform((0, 0)) - inv.transform((0, y1 - y2))
+        # miny, maxy = self.ax_cdf.get_ylim()
+        # self.ax_cdf.set_ylim(miny + dy, maxy + dy)
+
+    def add_raw_samples(self, samples):
+        """
+        Add histogram and ecdf for raw samples.
+        :param samples:
+        """
+        # Histogram
+        domain = (np.min(samples), np.max(samples))
+        self.adjust_domain(domain)
+        if self.x_lim is not None:
+            self._domain = self.x_lim
+        N = len(samples)
+        print("N samples ", N)
+        bins = self._grid(int(0.5 * np.sqrt(N)))
+        self.ax_pdf.hist(samples, density=True, color='red', bins=bins, alpha=0.3)
+
+        # Ecdf
+        # X = np.sort(samples)
+        # Y = (np.arange(len(X)) + 0.5) / float(len(X))
+        # X, Y = make_monotone(X, Y)
+        # if self.ax_cdf is not None:
+        #     self.ax_cdf.plot(X, Y, ':', color='midnightblue', label="ecdf")
+
+        # PDF approx as derivative of Bspline CDF approx
+        # size_8 = int(N / 8)
+        # w = np.ones_like(X)
+        # w[:size_8] = 1 / (Y[:size_8])
+        # w[N - size_8:] = 1 / (1 - Y[N - size_8:])
+        # spl = interpolate.UnivariateSpline(X, Y, w, k=3, s=1)
+        # sX = np.linspace(domain[0], domain[1], 1000)
+        # if self._reg_param == 0:
+        #     self.ax_pdf.plot(sX, spl.derivative()(sX), color='red', alpha=0.4, label="derivative of Bspline CDF")
+
+    def add_distribution(self, distr_object, label=None, size=0, mom_indices=None, reg_param=0, color=None, line_style=None):
+        """
+        Add plot for distribution 'distr_object' with given label.
+        :param distr_object: Instance of Distribution, we use methods: density, cdf and attribute domain
+        :param label: string label for legend
+        :return:
+        """
+        self._reg_param = reg_param
+
+        # if label is None:
+        #     label = "size {}".format(distr_object.moments_fn.size)
+        domain = distr_object.domain
+        self.adjust_domain(domain)
+        d_size = domain[1] - domain[0]
+        slack = 0  # 0.05
+        extended_domain = (domain[0] - slack * d_size, domain[1] + slack * d_size)
+        X = self._grid(10000, domain=domain)
+
+        line_styles = ['-', ':', '-.', '--']
+        plots = []
+
+        Y_pdf = distr_object.density(X)
+
+        if line_style is None:
+            line_style = "-"
+
+        if color is None:
+            color = self.pdf_color
+
+        self.ax_pdf.plot(X, Y_pdf, color=color, label=label, linestyle=line_style)
+        Y_cdf = distr_object.cdf(X)
+
+        # if self.ax_cdf is not None:
+        #     if line_style is None:
+        #         line_style = "-"
+        #     if color is None:
+        #         color = self.cdf_color
+        #     self.ax_cdf.plot(X, Y_cdf, color=color, linestyle=line_style)
+        #     #self._plot_borders(self.ax_cdf, self.cdf_color, domain)
+        self.i_plot += 1
