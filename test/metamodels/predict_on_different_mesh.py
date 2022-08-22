@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import warnings
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
+#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Run on CPU only
 import sys
 import shutil
 import subprocess
@@ -45,7 +45,7 @@ def get_gnn():
     # loss = KLDivergence()
     # loss = total_loss_function
     optimizer = tf.optimizers.Adam(learning_rate=0.001)
-    patience = 150
+    patience = 1000
     hidden_regularization = None  # l2(2e-10)
 
     net_model_config = {
@@ -81,7 +81,7 @@ class Net(Model):
             conv_layer(8, K=4, activation=hidden_activation, kernel_regularizer=kernel_regularization)]
         self.flatten = GlobalSumPool()
 
-        self._dense_layers = [Dense(32, activation=hidden_activation), Dense(16, activation=hidden_activation),
+        self._dense_layers = [Dense(64, activation=hidden_activation), Dense(32, activation=hidden_activation),
                               Dense(1)]
 
         # T34
@@ -111,30 +111,34 @@ class Net(Model):
 
 
 def get_config(data_dir, case=0):
-
     if case == 12:  # mesh size comparison
         data_dir = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/"
         # cl = "cl_0_1_s_1"
-        level = 3
+        level = "4"
         nn_level = 0
         replace_level = False
         mesh = os.path.join(data_dir, "l_step_1.0_common_files/repo.msh")  # L1, 7s
-        #mesh = os.path.join(data_dir, "l_step_0.3760603093086394_common_files/repo.msh") #L2 10.5 s
-        mesh = os.path.join(data_dir, "l_step_0.1414213562373095_common_files/repo.msh") #L3 12s
-        #mesh = os.path.join(data_dir, "l_step_0.053182958969449884_common_files/repo.msh")  # L4
-        output_dir = os.path.join(data_dir, "L1_{}/test/02_conc/output/".format(level))
-        hdf_path = os.path.join(data_dir, "L1_{}/mlmc_1.hdf5".format(level))
+        # mesh = os.path.join(data_dir, "l_step_0.3760603093086394_common_files/repo.msh") #L2 10.5 s
+        # mesh = os.path.join(data_dir, "l_step_0.1414213562373095_common_files/repo.msh") #L3 12s
+        mesh = os.path.join(data_dir, "l_step_0.053182958969449884_common_files/repo.msh")  # L4 # 4388 - for 50k
+        # mesh = os.path.join(data_dir, "l_step_0.027_common_files/repo.msh")  # L5 - graph creation time: 2564.6843196170003
+        output_dir = os.path.join(data_dir, "L1_{}_50k/test/02_conc/output/".format(level))
+        predict_dir = os.path.join(data_dir, "L1_{}/test/02_conc/output/".format(level))
+        predict_hdf = os.path.join(data_dir, "L1_{}/mlmc_1.hdf5".format(level))
+        hdf_path = os.path.join(data_dir, "L1_{}_50k/mlmc_1.hdf5".format(level))
         mlmc_hdf_path = os.path.join(data_dir, "mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
         save_path = data_dir
-        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}/test/02_conc/output/".format(level))
-        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}/mlmc_1.hdf5".format(level))
+        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}_50k/test/02_conc/output/".format(level))
+        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}_50k/mlmc_1.hdf5".format(level))
         sampling_info_path = os.path.join(data_dir, "sampling_info")
 
-        #ref_mlmc_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/L1_3/mlmc_1.hdf5"
-        #ref_mlmc_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/L1_1/mlmc_1.hdf5"
+        # ref_mlmc_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/L1_3/mlmc_1.hdf5"
+        # ref_mlmc_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/L1_1/mlmc_1.hdf5"
         ref_mlmc_file = os.path.join(data_dir, "L1_benchmark/mlmc_1.hdf5")
 
         feature_names = [['conductivity_top', 'conductivity_bot', 'conductivity_repo']]
+
+        graph_creation_time = 4400
 
     if case == "L2":  # mesh size comparison
         data_dir = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/"
@@ -144,12 +148,12 @@ def get_config(data_dir, case=0):
         mesh = os.path.join(data_dir, "l_step_0.3760603093086394_common_files/repo.msh")
         graph_creation_time = 35
 
-        output_dir = os.path.join(data_dir, "L1_{}/test/02_conc/output/".format(level))
-        hdf_path = os.path.join(data_dir, "L1_{}/mlmc_1.hdf5".format(level))
+        output_dir = os.path.join(data_dir, "L1_{}_50k/test/02_conc/output/".format(level))
+        hdf_path = os.path.join(data_dir, "L1_{}_50k/mlmc_1.hdf5".format(level))
         mlmc_hdf_path = os.path.join(data_dir, "mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
         save_path = data_dir
-        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}/test/02_conc/output/".format(level))
-        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}/mlmc_1.hdf5".format(level))
+        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}_50k/test/02_conc/output/".format(level))
+        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}_50k/mlmc_1.hdf5".format(level))
         sampling_info_path = os.path.join(data_dir, "sampling_info")
 
         #ref_mlmc_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/L1_3/mlmc_1.hdf5"
@@ -165,12 +169,12 @@ def get_config(data_dir, case=0):
         replace_level = False
         mesh = os.path.join(data_dir, "l_step_1.0_common_files/repo.msh")
         graph_creation_time = 68
-        output_dir = os.path.join(data_dir, "L1_{}/test/02_conc/output/".format(level))
-        hdf_path = os.path.join(data_dir, "L1_{}/mlmc_1.hdf5".format(level))
+        output_dir = os.path.join(data_dir, "L1_{}_50k/test/02_conc/output/".format(level))
+        hdf_path = os.path.join(data_dir, "L1_{}_50k/mlmc_1.hdf5".format(level))
         mlmc_hdf_path = os.path.join(data_dir, "mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
         save_path = data_dir
-        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}/test/02_conc/output/".format(level))
-        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}/mlmc_1.hdf5".format(level))
+        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}_50k/test/02_conc/output/".format(level))
+        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}_50k/mlmc_1.hdf5".format(level))
         sampling_info_path = os.path.join(data_dir, "sampling_info")
 
         #ref_mlmc_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/L1_3/mlmc_1.hdf5"
@@ -185,13 +189,37 @@ def get_config(data_dir, case=0):
         nn_level = 0
         replace_level = False
         mesh = os.path.join(data_dir, "l_step_0.1414213562373095_common_files/repo.msh")  # L3 12s
-        graph_creation_time = 250
-        output_dir = os.path.join(data_dir, "L1_{}/test/02_conc/output/".format(level))
-        hdf_path = os.path.join(data_dir, "L1_{}/mlmc_1.hdf5".format(level))
+        graph_creation_time = 500
+        output_dir = os.path.join(data_dir, "L1_{}_50k/test/02_conc/output/".format(level))
+        hdf_path = os.path.join(data_dir, "L1_{}_50k/mlmc_1.hdf5".format(level))
         mlmc_hdf_path = os.path.join(data_dir, "mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
         save_path = data_dir
-        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}/test/02_conc/output/".format(level))
-        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}/mlmc_1.hdf5".format(level))
+        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}_50k/test/02_conc/output/".format(level))
+        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}_50k/mlmc_1.hdf5".format(level))
+        sampling_info_path = os.path.join(data_dir, "sampling_info")
+
+        # output_dir = l_0_output_dir
+        # hdf_path = l_0_hdf_path
+
+        #ref_mlmc_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/L1_3/mlmc_1.hdf5"
+        #ref_mlmc_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/L1_1/mlmc_1.hdf5"
+        ref_mlmc_file = os.path.join(data_dir, "L1_benchmark/mlmc_1.hdf5")
+
+        feature_names = [['conductivity_top', 'conductivity_bot', 'conductivity_repo']]
+
+    if case == 'L5':  # mesh size comparison
+        data_dir = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/"
+        level = 5
+        nn_level = 0
+        replace_level = False
+        mesh = os.path.join(data_dir, "l_step_0.027_common_files/repo.msh")  # L5 - graph creation time: 2564.6843196170003
+        graph_creation_time = 5000
+        output_dir = os.path.join(data_dir, "L1_{}_50k/test/02_conc/output/".format(level))
+        hdf_path = os.path.join(data_dir, "L1_{}_50k/mlmc_1.hdf5".format(level))
+        mlmc_hdf_path = os.path.join(data_dir, "mlmc_hdf/L1_{}/mlmc_1.hdf5".format(level))
+        save_path = data_dir
+        l_0_output_dir = os.path.join(data_dir, "L0_MC/L1_{}_50k/test/02_conc/output/".format(level))
+        l_0_hdf_path = os.path.join(data_dir, "L0_MC/L1_{}_50k/mlmc_1.hdf5".format(level))
         sampling_info_path = os.path.join(data_dir, "sampling_info")
 
         # output_dir = l_0_output_dir
@@ -406,7 +434,7 @@ if __name__ == "__main__":
     # Load trained model  #
     #######################
     #machine_learning_model = ("L1_3_02_conc_cond_log_output_mult_T19_case_1", run_GNN, False)
-    machine_learning_model = ("L1_3_T19_case_1_out_log_scale", run_GNN, False)
+    machine_learning_model = ("L1_4_T27_case_1_out_log_scale_is", run_GNN, False)
     save_path = os.path.join("/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/", machine_learning_model[0])
     data_dict = load_statistics(save_path)
     #data_dict = process_data(data_dict)
@@ -415,7 +443,7 @@ if __name__ == "__main__":
     list_train_MSE, list_test_MSE, list_all_train_RSE, list_all_test_RSE, list_nn_total_time, list_mlmc_total_time,\
     list_kl_mlmc_all, list_kl_nn_all, list_learning_times = [], [], [], [], [], [], [], [], []
 
-    for index, model in enumerate(data_dict["model"][:2]):
+    for index, model in enumerate(data_dict["model"][:12]):
 
         # newInput = Input(batch_shape=(None, 108, 1))
         # newOutputs = model(newInput)
@@ -434,12 +462,14 @@ if __name__ == "__main__":
         work_dir = args.work_dir
         # case = "L2"
         # case = 521
-        case = "case_3"
+        case = 12#"case_3"
+        case = "L5"
+        case="L1"
         #data_dir = "/home/martin/Documents/metamodels/data/1000_ele/"
         output_dir, hdf_path, l_0_output_dir, l_0_hdf_path, save_path, mesh, sampling_info_path, ref_mlmc_file,\
         replace_level, nn_level, mlmc_hdf_path, feature_names, graph_creation_time = get_config(data_dir, case)
 
-        machine_learning_model = ("L1_2_02_conc_cond_log_output_mult_T19_case_1_trained_{}_{}".format(case, index), run_GNN, False)
+        machine_learning_model = ("L1_5_02_conc_cond_log_output_mult_T27_case_1_trained_{}_{}".format(case, index), run_GNN, False)
         save_path = os.path.join(save_path, machine_learning_model[0])
 
         if os.path.exists(save_path):
@@ -464,14 +494,13 @@ if __name__ == "__main__":
         #                   "output_log": True
         #                   }
 
-        dataset_config = {"first_log_features": False,
-                          "first_log_output": True,
-                          "features_normalization": False,
-                          "output_normalization": False,
+        # # 02_conc config
+        dataset_config = {"features_normalization": False,
                           "calc_output_mult_factor": False,
                           "output_mult_factor": 1,
                           "features_mult_factor": 1,
-                          "features_scale": False,
+                          "first_log_features": False,
+                          "first_log_output": True,
                           "output_scale": True,
                           }
 
@@ -486,22 +515,25 @@ if __name__ == "__main__":
                   'sampling_info_path': sampling_info_path,
                   'ref_mlmc_file': ref_mlmc_file,
                   'level': nn_level,
-                   'conv_layer': conv_layer,
-                   'gnn': gnn,
-                   'model_config': model_config,
+                  'conv_layer': conv_layer,
+                  'gnn': gnn,
+                  'model_config': model_config,
                   'replace_level': replace_level,
                   'corr_field_config': corr_field_config,
                   'n_train_samples': 2000,
                   'val_samples_ratio': 0.2,
                   'batch_size': 200,
-                  'epochs': 1,
+                  'epochs': 2,
                   'learning_rate': 0.001,
                   'graph_creation_time': graph_creation_time,
                   'save_model': True,
-                  'feature_names': feature_names,
                   "train_model": False,
+                  'feature_names': feature_names,
                   "set_model": model,
-                  "dataset_config": dataset_config
+                  'dataset_config': dataset_config,
+                  'independent_samples': False,
+                  # 'predict_dir': predict_dir,
+                  # 'predict_hdf ': predict_hdf
                   }
 
         model_title, mch_l_model, log = config['machine_learning_model']

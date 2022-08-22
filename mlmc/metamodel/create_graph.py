@@ -26,7 +26,7 @@ FIELDS_SAMPLE = "fine_fields_sample.msh"
 # HDF_PATH = "/home/martin/Documents/metamodels/data/1000_ele/cl_0_1_s_1/L5/mlmc_5.hdf5"
 
 
-def extract_mesh_gmsh_io(mesh_file, get_points=False):
+def extract_mesh_gmsh_io(mesh_file, get_points=False, image=False):
     """
     Extract mesh from file
     :param mesh_file: Mesh file path
@@ -41,6 +41,7 @@ def extract_mesh_gmsh_io(mesh_file, get_points=False):
         region_map[unquoted_name] = id
 
     bulk_elements = []
+    triangles = {}
 
     for id, el in mesh.elements.items():
         _, tags, i_nodes = el
@@ -61,9 +62,9 @@ def extract_mesh_gmsh_io(mesh_file, get_points=False):
         point_region_ids[i] = region_id
         ele_ids[i] = id_bulk
         ele_nodes[id_bulk] = i_nodes
+        triangles[ele_ids[i]] = i_nodes
 
     if get_points:
-
         min_pt = np.min(centers, axis=0)
         max_pt = np.max(centers, axis=0)
         diff = max_pt - min_pt
@@ -75,6 +76,9 @@ def extract_mesh_gmsh_io(mesh_file, get_points=False):
         points = centers[:, non_zero_axes]
 
         return {'points': points, 'point_region_ids': point_region_ids, 'ele_ids': ele_ids, 'region_map': region_map}
+
+    if image:
+        return mesh.nodes, triangles, ele_ids
 
     return ele_nodes
 
@@ -89,12 +93,14 @@ def get_node_features(fields_mesh, feature_names):
     mesh = gmsh_io.GmshIO(fields_mesh)
 
     features = []
+    all_joint_features = []
+    all_fields = []
     for f_names in feature_names:
+        all_fields.append(mesh._fields)
         joint_features = join_fields(mesh._fields, f_names)
-
         features.append(list(joint_features.values()))
 
-    return np.array(features).T
+    return np.array(features).T, all_fields
 
 
 def join_fields(fields, f_names):
@@ -154,6 +160,130 @@ def reject_outliers(data, m=2):
     #print("abs(data - np.mean(data)) < m * np.std(data) ", abs(data - np.mean(data)) < m * np.std(data))
     #return data[abs(data - np.mean(data)) < m * np.std(data)]
     return abs(data - np.mean(data)) < m * np.std(data)
+
+
+def rasterization(mesh_nodes, triangles, srf, image_path):
+    from collections import OrderedDict, defaultdict
+    from numpy.testing import assert_array_equal
+    import numpy as np
+    import datashader as ds
+    from datashader.utils import export_image
+    import pandas as pd
+    import datashader.utils as du, datashader.transfer_functions as tf
+    from scipy.spatial import Delaunay
+    from colorcet import rainbow as c
+    import dask.dataframe as dd
+
+    # print("triangles ", triangles)
+    # print("len triangles", len(triangles))
+    #print("fine input sample ", srf)
+
+    assert_array_equal(np.array(list(triangles.keys())), np.array(list(srf.keys())))
+
+    triangles = OrderedDict(triangles)
+    srf = OrderedDict(srf)
+
+    cvs = ds.Canvas(plot_height=512, plot_width=512)
+
+    verts = pd.DataFrame(np.array(list(mesh_nodes.values()))[:, :2], columns=['x', 'y'])
+    tris = pd.DataFrame(triangles.values(), columns=['v0', 'v1', 'v2'])
+
+    # Add point at the begining of the dataframe to deal with different indexing
+    verts.loc[-1] = [0, 0]
+    verts.index = verts.index + 1
+    verts.sort_index(inplace=True)
+
+    #print("srf.values() ", np.squeeze(np.array(list(srf.values()))))
+
+    tris['rf_value'] = np.squeeze(np.array(list(srf.values())))
+
+
+
+    # print("verts[288] ", verts.loc[288])
+
+    # print("verts ", verts["y"])
+    #print("tris ", tris)
+
+    # tf.Images(tris.head(15), tf.shade(cvs.trimesh(verts, tris)))
+    cvs.trimesh(verts, tris, interpolate='nearest')
+
+    nearest_img = tf.shade(cvs.trimesh(verts, tris, interpolate='nearest'), cmap=c, name='10 Vertices')
+
+    #rgb_image = np.array(nearest_img.to_pil())[..., :3]
+    # print("rgb_image ", rgb_image)
+    #
+    # linear_img = tf.shade(cvs.trimesh(verts, tris, interpolate='linear'), cmap=c, name='10 Vertices Interpolated')
+    #
+    export_image(img=nearest_img, filename=image_path, fmt=".png", export_path=".")
+    #export_image(img=linear_img, filename='mesh_linear_img', fmt=".png", export_path=".")
+
+    #exit()
+
+    #return rgb_image
+
+
+def image_creator(output_dir, hdf_path, mesh, level=0, feature_names=[['conductivity']], quantity_name="conductivity"):
+    mesh_nodes, triangles, ele_ids = extract_mesh_gmsh_io(mesh, image=True)
+
+    sample_storage = SampleStorageHDF(file_path=hdf_path)
+    sample_storage.chunk_size = 1e8
+    result_format = sample_storage.load_result_format()
+    root_quantity = make_root_quantity(sample_storage, result_format)
+
+    conductivity = root_quantity[quantity_name]
+    time = conductivity[1]  # times: [1]
+    location = time['0']  # locations: ['0']
+    q_value = location[0, 0]
+
+    hdf = HDF5(file_path=hdf_path, load_from_file=True)
+    level_group = hdf.add_level_group(level_id=str(level))
+
+    chunk_spec = next(sample_storage.chunks(level_id=level, n_samples=sample_storage.get_n_collected()[int(level)]))
+    collected_values = q_value.samples(chunk_spec=chunk_spec)[0]
+
+    collected_ids = sample_storage.collected_ids(level_id=level)
+
+    indices = np.ones(len(collected_values))
+    collected = zip(collected_ids, collected_values)
+
+    graphs = []
+    data = []
+    i = 0
+    for keep, (sample_id, col_values) in zip(indices, collected):
+        if not keep:
+            continue
+
+        output_value = col_values[0]
+
+        sample_dir = os.path.join(output_dir, sample_id)
+        field_mesh = os.path.join(sample_dir, FIELDS_SAMPLE)
+        if os.path.exists(field_mesh):
+            # i += 1
+            # if i > 2:
+            #     break
+
+            features, all_fields = get_node_features(field_mesh, feature_names)
+
+            # print("features ", features)
+            # print("all fields ", all_fields[0])
+
+            srf = dict(zip(ele_ids, np.zeros(len(ele_ids))))
+            for feature_name in feature_names[0]:
+                if len(all_fields) > 1:
+                    raise NotImplementedError
+                #print("all_joint_features[0] ", all_fields[0])
+
+                for e_id, val in zip(ele_ids, list(all_fields[0][feature_name].values())):
+                    val = val[0]
+                    if val != 0:
+                        #print("eid: {}, val: {}".format(e_id, val))
+                        srf[e_id] = val
+
+            rasterization(mesh_nodes, triangles, srf, image_path=os.path.join(sample_dir, "image_512"))
+
+            #np.save(os.path.join(sample_dir, "image"), rgb_image)
+            np.save(os.path.join(sample_dir, "output"), output_value)
+
 
 
 def graph_creator(output_dir, hdf_path, mesh, level=0, feature_names=[['conductivity']], quantity_name="conductivity"):
