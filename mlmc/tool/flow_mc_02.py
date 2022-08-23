@@ -1,9 +1,9 @@
 import os
 import os.path
 import subprocess
-import time
 import numpy as np
 import shutil
+import time
 import ruamel.yaml as yaml
 from typing import List
 import gstools
@@ -14,7 +14,10 @@ from mlmc.quantity.quantity_spec import QuantitySpec
 from mlmc.random import correlated_field as cf
 
 
-def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, por_sigma=1, factor_sigma=1, sigma=1, mode_no=1000):
+def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, factor_sigma=1, sigma=1, mode_no=1000,
+                       por_top_mean=-1.0, por_bot_mean=-1.0, por_top_sigma=1, por_bot_sigma=1,
+                       por_top_len_scale=0.2, por_bot_len_scale=0.2, factor_top_mean=1e-8, factor_bot_mean=1e-8,
+                       factor_top_model_len_scale=1, factor_bot_model_len_scale=1, por_sigma=None):
     """
     Create random fields
     :return:
@@ -30,15 +33,12 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, por_sig
     #
     # print("por top ", por_top)
 
-    print("por sigma ", por_sigma)
+    if por_sigma is not None:
+        por_top_sigma = por_sigma
+        por_bot_sigma = por_sigma
 
-    model='exp'
-    por_sigma=1
-    corr_length=0.1
-    mode_no=1000
-
-    por_top = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2,  len_scale=0.2),
-                                               log=log, mean=-1.0, sigma=por_sigma, mode_no=mode_no)
+    por_top = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2,  len_scale=por_top_len_scale),
+                                               log=log, mean=por_top_mean, sigma=por_top_sigma, mode_no=mode_no)
 
     #print("por top gstools ", por_top_gstools)
 
@@ -51,15 +51,15 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, por_sig
     #     log=True
     # )
 
-    por_bot = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2, len_scale=0.2),
-                                               log=log, mean=-1.0, sigma=por_sigma, mode_no=mode_no)
+    por_bot = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2, len_scale=por_bot_len_scale),
+                                               log=log, mean=por_bot_mean, sigma=por_bot_sigma, mode_no=mode_no)
 
     #por_bot = gstools.Gaussian(dim=dim,  len_scale=0.2, mu=-1.0, sigma=1.0, log=True)
 
     water_viscosity = 8.90e-4
 
-    factor_top_model = gstools.Gaussian(dim=dim,  len_scale=1)
-    factor_bot_model = gstools.Gaussian(dim=dim, len_scale=1)
+    factor_top_model = gstools.Gaussian(dim=dim,  len_scale=factor_top_model_len_scale)
+    factor_bot_model = gstools.Gaussian(dim=dim, len_scale=factor_bot_model_len_scale)
 
     fields = cf.Fields([
         cf.Field('por_top', por_top, regions='ground_0'),
@@ -69,7 +69,7 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, por_sig
         cf.Field('porosity_repo', 0.5, regions='repo'),
         #cf.Field('factor_top', cf.SpatialCorrelatedField('gauss', mu=1e-8, sigma=1, log=True), regions='ground_0'),
 
-        cf.Field('factor_top', cf.GSToolsSpatialCorrelatedField(factor_top_model, log=log, mean=1e-8, sigma=factor_sigma, mode_no=mode_no),
+        cf.Field('factor_top', cf.GSToolsSpatialCorrelatedField(factor_top_model, log=log, mean=factor_top_mean, sigma=factor_sigma, mode_no=mode_no),
                  regions='ground_0'),
 
         #cf.Field('factor_top', gstools.Gaussian(len_scale=1, mu=1e-8, sigma=1.0, log=True), regions='ground_0'),
@@ -77,7 +77,7 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, por_sig
         #cf.Field('factor_bot', cf.SpatialCorrelatedField('gauss', mu=1e-8, sigma=1, log=True), regions='ground_1'),
         #cf.Field('factor_bot', gstools.Gaussian(len_scale=1, mu=1e-8, sigma=1, log=True), regions='ground_1'),
         cf.Field('factor_bot',
-                 cf.GSToolsSpatialCorrelatedField(factor_bot_model, log=log, mean=1e-8, sigma=factor_sigma, mode_no=mode_no),
+                 cf.GSToolsSpatialCorrelatedField(factor_bot_model, log=log, mean=factor_bot_mean, sigma=factor_sigma, mode_no=mode_no),
                  regions='ground_1'),
 
         # cf.Field('factor_repo', cf.SpatialCorrelatedField('gauss', mu=1e-10, sigma=1, log=True), regions='repo'),
@@ -89,9 +89,82 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, por_sig
         cf.Field('conductivity_repo', 0.001, regions='repo')
     ])
 
-
-
     return fields
+
+
+
+# def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, por_sigma=1, factor_sigma=1, sigma=1,
+#                       mode_no=10000, por_top_len_scale=0.2, por_bot_len_scale=0.2):
+#     """
+#     Create random fields
+#     :return:
+#     """
+#     # por_top = cf.SpatialCorrelatedField(
+#     #     corr_exp='gauss',
+#     #     dim=2,
+#     #     corr_length=0.2,
+#     #     mu=-1.0,
+#     #     sigma=1.0,
+#     #     log=True
+#     # )
+#     #
+#     # print("por top ", por_top)
+#
+#     print("por sigma ", por_sigma)
+#
+#     por_top = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2,  len_scale=por_top_len_scale),
+#                                                log=log, mean=-1.0, sigma=por_sigma, mode_no=mode_no)
+#
+#     #print("por top gstools ", por_top_gstools)
+#
+#     # por_bot = cf.SpatialCorrelatedField(
+#     #     corr_exp='gauss',
+#     #     dim=2,
+#     #     corr_length=0.2,
+#     #     mu=-1.0,
+#     #     sigma=1.0,
+#     #     log=True
+#     # )
+#
+#     por_bot = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2, len_scale=por_bot_len_scale),
+#                                                log=log, mean=-1.0, sigma=por_sigma, mode_no=mode_no)
+#
+#     #por_bot = gstools.Gaussian(dim=dim,  len_scale=0.2, mu=-1.0, sigma=1.0, log=True)
+#
+#     water_viscosity = 8.90e-4
+#
+#     factor_top_model = gstools.Gaussian(dim=dim,  len_scale=1)
+#     factor_bot_model = gstools.Gaussian(dim=dim, len_scale=1)
+#
+#     fields = cf.Fields([
+#         cf.Field('por_top', por_top, regions='ground_0'),
+#         cf.Field('porosity_top', cf.positive_to_range, ['por_top', 0.02, 0.1], regions='ground_0'),
+#         cf.Field('por_bot', por_bot, regions='ground_1'),
+#         cf.Field('porosity_bot', cf.positive_to_range, ['por_bot', 0.01, 0.05], regions='ground_1'),
+#         cf.Field('porosity_repo', 0.5, regions='repo'),
+#         #cf.Field('factor_top', cf.SpatialCorrelatedField('gauss', mu=1e-8, sigma=1, log=True), regions='ground_0'),
+#
+#         cf.Field('factor_top', cf.GSToolsSpatialCorrelatedField(factor_top_model, log=log, mean=1e-8, sigma=factor_sigma, mode_no=mode_no),
+#                  regions='ground_0'),
+#
+#         #cf.Field('factor_top', gstools.Gaussian(len_scale=1, mu=1e-8, sigma=1.0, log=True), regions='ground_0'),
+#         # conductivity about
+#         #cf.Field('factor_bot', cf.SpatialCorrelatedField('gauss', mu=1e-8, sigma=1, log=True), regions='ground_1'),
+#         #cf.Field('factor_bot', gstools.Gaussian(len_scale=1, mu=1e-8, sigma=1, log=True), regions='ground_1'),
+#         cf.Field('factor_bot',
+#                  cf.GSToolsSpatialCorrelatedField(factor_bot_model, log=log, mean=1e-8, sigma=factor_sigma, mode_no=mode_no),
+#                  regions='ground_1'),
+#
+#         # cf.Field('factor_repo', cf.SpatialCorrelatedField('gauss', mu=1e-10, sigma=1, log=True), regions='repo'),
+#         cf.Field('conductivity_top', cf.kozeny_carman, ['porosity_top', 1, 'factor_top', water_viscosity],
+#                  regions='ground_0'),
+#         cf.Field('conductivity_bot', cf.kozeny_carman, ['porosity_bot', 1, 'factor_bot', water_viscosity],
+#                  regions='ground_1'),
+#         # cf.Field('conductivity_repo', cf.kozeny_carman, ['porosity_repo', 1, 'factor_repo', water_viscosity], regions='repo')
+#         cf.Field('conductivity_repo', 0.001, regions='repo')
+#     ])
+#
+#     return fields
 
 
 def substitute_placeholders(file_in, file_out, params):
@@ -213,17 +286,17 @@ class FlowSimProcConc(Simulation):
 
         self.mesh_file = os.path.join(common_files_dir, self.MESH_FILE)
 
-        if self.clean:
-            # Prepare mesh
-            geo_file = os.path.join(common_files_dir, self.GEO_FILE)
-            shutil.copyfile(self.base_geo_file, geo_file)
-            self._make_mesh(geo_file, self.mesh_file, fine_step)  # Common computational mesh for all samples.
+        #if self.clean:
+        # Prepare mesh
+        geo_file = os.path.join(common_files_dir, self.GEO_FILE)
+        shutil.copyfile(self.base_geo_file, geo_file)
+        self._make_mesh(geo_file, self.mesh_file, fine_step)  # Common computational mesh for all samples.
 
-            # Prepare main input YAML
-            yaml_template = os.path.join(common_files_dir, self.YAML_TEMPLATE)
-            shutil.copyfile(self.base_yaml_file, yaml_template)
-            yaml_file = os.path.join(common_files_dir, self.YAML_FILE)
-            self._substitute_yaml(yaml_template, yaml_file)
+        # Prepare main input YAML
+        yaml_template = os.path.join(common_files_dir, self.YAML_TEMPLATE)
+        shutil.copyfile(self.base_yaml_file, yaml_template)
+        yaml_file = os.path.join(common_files_dir, self.YAML_FILE)
+        self._substitute_yaml(yaml_template, yaml_file)
 
         # Mesh is extracted because we need number of mesh points to determine task_size parameter (see return value)
         fine_mesh_data = self.extract_mesh(self.mesh_file)
@@ -252,7 +325,7 @@ class FlowSimProcConc(Simulation):
         config['fields_params'] = self._fields_params
 
         # Auxiliary parameter which I use to determine task_size (should be from 0 to 1, if task_size is above 1 then pbs job is scheduled)
-        job_weight = 17000000  # 4000000 - 20 min, 2000000 - cca 10 min
+        job_weight = 170000  # 4000000 - 20 min, 2000000 - cca 10 min
 
         return LevelSimulation(config_dict=config,
                                task_size=len(fine_mesh_data['points']) / job_weight,
@@ -281,7 +354,7 @@ class FlowSimProcConc(Simulation):
         extract_mesh_start = time.time()
         # Extract fine mesh
         fine_common_files_dir = config["fine"]["common_files_dir"]  # Directory with fine simulation common files
-        fine_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(fine_common_files_dir, FlowSim.MESH_FILE))
+        fine_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(fine_common_files_dir, FlowSimProcConc.MESH_FILE))
 
         # Extract coarse mesh
         coarse_mesh_data = None
@@ -289,7 +362,7 @@ class FlowSimProcConc(Simulation):
         if coarse_step != 0:
             coarse_common_files_dir = config["coarse"][
                 "common_files_dir"]  # Directory with coarse simulation common files
-            coarse_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(coarse_common_files_dir, FlowSim.MESH_FILE))
+            coarse_mesh_data = FlowSimProcConc.extract_mesh(os.path.join(coarse_common_files_dir, FlowSimProcConc.MESH_FILE))
 
         extract_mesh_time = time.time() - extract_mesh_start
         times['extract_mesh'] = extract_mesh_time
@@ -379,20 +452,22 @@ class FlowSimProcConc(Simulation):
         #          "-o", os.getcwd(), ">{}/flow.out".format(os.getcwd())]
 
         #try:
+        st = time.time()
         subprocess.call(
             [flow123d, "--yaml_balance", '-i', os.getcwd(), '-s', "{}/02_conc.yaml".format(common_files_dir),
              "-o", os.getcwd(), ">{}/flow.out".format(os.getcwd())])
+        end = time.time() - st
         # except:
         #     import sys
         #     print(sys.exc_info())
 
-        return FlowSimProcConc._extract_result(os.getcwd())
+        return FlowSimProcConc._extract_result(os.getcwd()), end
 
     @staticmethod
     def generate_random_sample(fields, coarse_step, n_fine_elements):
         """
         Generate random field, both fine and coarse part.
-        Store them separated.
+        Store them separeted.
         :return: Dict, Dict
         """
         fields_sample = fields.sample()
