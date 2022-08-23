@@ -12,6 +12,7 @@ from mlmc.tool.process_base import ProcessBase
 from mlmc.quantity.quantity import make_root_quantity
 from mlmc.quantity.quantity_estimate import estimate_mean, moments
 from mlmc import estimator
+import mlmc.quantity.quantity_estimate as qe
 
 
 class ProcConc:
@@ -27,22 +28,22 @@ class ProcConc:
         # 'Debug' mode is on - keep sample directories
         self.use_pbs = True
         # Use PBS sampling pool
-        self.n_levels = 1
-        self.n_moments = 5
+        self.n_levels = 5
+        self.n_moments = 25
         # Number of MLMC levels
 
         # step_range = [0.055, 0.0035]
-        step_range = [1, 0.02] # 5LMC - 53, 115, 474, 2714, 18397
+        step_range = [1, 0.01] # 5LMC - 53, 115, 474, 2714, 18397
         # step   - elements
-        # 0.1    - 262
-        # 0.08   - 478
-        # 0.06   - 816
-        # 0.055  - 996
-        # 0.006 -  74188
-        # 0.0055 - 87794
-        # 0.005  - 106056
-        # 0.004  - 165404
-        # 0.0035 - 217208
+
+        step_range = [0.1414213562373095, 0.027] # 429
+        #step_range = [1, 0.053182958969449884]  # 429
+        #step_range = [1, 0.14]  # 429
+        step_range = [1, 0.02]  # 521
+        step_range = [0.1414213562373095, 0.005]
+        step_range = [1, 0.005]
+        # 0.01  -  73508
+        # 0.02  -  18397
 
         # step_range [simulation step at the coarsest level, simulation step at the finest level]
 
@@ -77,6 +78,11 @@ class ProcConc:
         moments_fn = Legendre(self.n_moments, true_domain)
 
         estimator = mlmc.estimator.Estimate(quantity=q_value, sample_storage=sample_storage, moments_fn=moments_fn)
+
+        mean = estimate_mean(estimator._quantity)
+        est_mean = mean.mean
+        est_mean_var = mean.var
+
         means, vars = estimator.estimate_moments(moments_fn)
 
         moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
@@ -97,8 +103,8 @@ class ProcConc:
         # print("n estimated ", n_estimated)
 
 
-        # print("means ", means)
-        # print("vars ", vars)
+        print("means ", means)
+        print("vars ", vars)
 
         # true_domain = [-10, 10]  # keep all values on the original domain
         # central_moments = Monomial(self.n_moments, true_domain, ref_domain=true_domain, mean=means())
@@ -107,9 +113,37 @@ class ProcConc:
 
         #estimator.sub_subselect(sample_vector=[10000])
 
+        self.variance_cost(estimator)
+
         #self.process_target_var(estimator)
         self.construct_density(estimator, tol=1e-7)
         #self.data_plots(estimator)
+
+    def variance_cost(self, estimator):
+
+        plt_var = mlmc.plot.plots.Variance()
+        n_ops = estimator._sample_storage.get_n_ops()
+        # new_n_ops = []
+        # print("n ops ", n_ops)
+        # for level_n_ops in n_ops:
+        #     time, n_samples = level_n_ops[0], level_n_ops[1]
+        #
+        #     new_n_ops.append(time / n_samples)
+
+        # print("n ops ", n_ops)
+        # print("new n ops ", new_n_ops)
+        # print("n collected ", estimator._sample_storage.get_n_collected())
+        # print("total cost ", np.sum(new_n_ops * np.array(estimator._sample_storage.get_n_collected())))
+        #
+        # plt_var.set_n_ops(new_n_ops)
+        # moments_mean = estimator.estimate_moments()#estimate_mean(moments_est_func(estimator._quantity, estimator._moments_fn))
+
+        moments_mean = qe.estimate_mean(qe.moments(estimator._quantity, estimator._moments_fn))
+        # plt_var.add_level_variances(estimator._sample_storage.get_level_parameters(), moments_mean.l_vars)
+        plt_var.add_level_variances(np.squeeze(estimator._sample_storage.get_level_parameters()), moments_mean.l_vars)
+
+        plt_var.show("variances.pdf")
+        plt_var.show(None)
 
     def data_plots(self, estimator):
         estimator.fine_coarse_violinplot()

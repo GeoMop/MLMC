@@ -483,6 +483,181 @@ class VarianceBreakdown:
         self.ax.set_xticklabels(self.X_labels)
         _show_and_save(self.fig, file, self.title)
 
+class VarianceCost:
+    """
+    Plot level variances, i.e. Var X^l as a function of the mesh step.
+    Selected moments are plotted.
+    """
+    def __init__(self, moments=None):
+        """
+        :param moments: Size or type of moments subset, see moments_subset function.
+        """
+        matplotlib.rcParams.update({'font.size': 26})
+        matplotlib.rcParams.update({'lines.markersize': 7})
+        self.fig = plt.figure(figsize=(15, 8))
+
+        matplotlib.rcParams.update({'font.size': 16})
+        matplotlib.rcParams.update({'lines.markersize': 8})
+        # fig, axes = plt.subplots(1, 1, figsize=(22, 10))
+        self.fig = plt.figure(figsize=(8, 5))
+
+        self.title = ""#"Level variances"
+        self.fig.suptitle(self.title)
+
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.ax.set_xlabel("$h$ - mesh step")
+        #self.ax.set_ylabel("Var $X^h$")
+        self.ax.set_ylabel("$\hat{V}^r_l$")
+        self.ax.set_xscale('log')
+        self.ax.set_yscale('log')
+
+        self.ax.set_xlim([1e-3, 5*1e0])
+
+        self.n_moments = None
+        self.subset_type = moments
+        self.min_step = 1e300
+        self.max_step = 0
+        self.data = {}
+
+        self.nn_min_step = 1e300
+        self.nn_max_step = 0
+        self.nn_data = {}
+
+        self._colormap = plt.cm.tab20
+        self._n_ops = None
+
+    def set_n_ops(self, n_ops):
+        print("set n ops ", n_ops)
+        self._n_ops = n_ops
+
+    def add_level_variances(self, steps, variances):
+        """
+        Add variances for single MLMC instance.
+        :param steps, variances : as returned by Estimate.estimate_level_vars
+        :param n_levels:
+        """
+        n_levels, n_moments = variances.shape
+        if self.n_moments is None:
+            self.n_moments = n_moments
+            #self.moments_subset = moments_subset(n_moments, self.subset_type)
+        else:
+            assert self.n_moments == n_moments
+
+        print("steps ", steps)
+        print("variances ", variances)
+
+        #print("self. moments subset ", self.moments_subset)
+        #variances = variances[:, self.moments_subset]
+
+        print("variances ", variances)
+        self.min_step = min(self.min_step, steps[-1])
+        self.max_step = max(self.max_step, steps[0])
+        for m, vars in enumerate(variances.T):
+            X, Y = self.data.get(m, ([], []))
+            X.extend(steps.tolist())
+            Y.extend(vars.tolist())
+            self.data[m] = (X, Y)
+
+        print("self data ", self.data)
+
+    def show(self, file=""):
+        self._colormap = create_color_bar(range=[1, self.n_moments], label=r'$r$', ax=self.ax)
+        res = 5
+        step_range = self.max_step / self.min_step
+        log_scale = step_range ** 0.001 - 1
+        #rv = st.lognorm(scale=1, s=log_scale)
+        levels = {}
+
+
+        for m, (X, Y) in self.data.items():
+            # if m == 5:
+            #     break
+            col = self._colormap(m)
+            #label = "M{}".format(self.moments_subset[m])
+            label = "MLMC"
+            # print("X ", X)
+            # print("len(X) ", len(X))
+            # #print("rv.rvs(size=len(X)) ", rv.rvs(size=len(X)))
+            # print("Y ", Y)
+            XX = np.array(X) #* rv.rvs(size=len(X))
+            # print("XX ", X)
+            self.ax.scatter(XX, Y, color=col)
+            XX, YY = make_monotone(X, Y)
+
+
+
+            for x, y in zip(X, Y):
+                # print("x ", x)
+                # x = x
+                # print("type(x) ", type(x))
+                # print("x ", x)
+                # print("levels ", levels)
+                if x not in levels:
+                    levels[x] = []
+                levels[x].append(y)
+
+        #print("levels ", levels)
+
+        # # step_range = self.nn_max_step / self.nn_min_step
+        # # log_scale = step_range ** 0.01 - 1
+        # # rv = st.lognorm(scale=1, s=log_scale)
+        # levels = {}
+        # for m, (X, Y) in self.nn_data.items():
+        #     # if m == 5:
+        #     #     break
+        #     col = plt.cm.tab20(m)
+        #     label = "M{}".format(self.moments_subset[m])
+        #     label = "MLMC meta"
+        #     XX = np.array(X) * 0.9  # rv.rvs(size=len(X))
+        #     XY = np.array(X) * 1.1
+        #
+        #     self.ax.scatter(XX, Y, color=col, marker='v')
+        #     # XX, YY = make_monotone(X, Y)
+        #
+        #     for x, y in zip(X, Y):
+        #         if x not in levels:
+        #             levels[x] = []
+        #         levels[x].append(y)
+
+
+        XX = np.flip(XX)
+        for index, n_ops in enumerate(self._n_ops):
+
+            self.ax.annotate("{:0.3g}".format(n_ops), (XX[index], np.max(levels[X[index]])))
+            #print("XX[index] ", XX[index])
+            #print("np.max(levels[X[index]]) ", np.max(levels[X[index]]))
+
+        #self.fig.legend()
+
+        legend = self.ax.legend()
+        ax = legend.axes
+
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Rectangle, RegularPolygon, FancyBboxPatch
+
+        handles, labels = ax.get_legend_handles_labels()
+
+        # mlmc_marker = Line2D([], [], color='black', marker='o', linestyle='None',
+        #                        markersize=8, markeredgewidth=1.7,
+        #                        label='MLMC')  # Line2D([], [], color='black', marker='|')
+        #
+        # handles.append(mlmc_marker)
+        # labels.append("MLMC")
+
+        # mlmc_marker_meta = Line2D([], [], color='black', marker='v', linestyle='None',
+        #                      markersize=8, markeredgewidth=1.7,
+        #                      label='MLMC meta')  # Line2D([], [], color='black', marker='|')
+        #
+        # handles.append(mlmc_marker_meta)
+        # labels.append("MLMC meta")
+
+        legend._legend_box = None
+        legend._init_legend_box(handles, labels)
+        legend._set_loc(legend._loc)
+        legend.set_title(legend.get_title().get_text())
+
+        _show_and_save(self.fig, file, self.title)
+
 
 class Variance:
     """
@@ -542,14 +717,14 @@ class Variance:
             self.ax.scatter(XX, Y, color=col, label=label)
             #f = interpolate.interp1d(X, Y, kind='cubic')
 
-            XX, YY = make_monotone(X, Y)
+            #XX, YY = make_monotone(X, Y)
 
             #f = interpolate.PchipInterpolator(XX[1:], YY[1:])
-            m = len(XX)-1
-            spl = interpolate.splrep(XX[1:], YY[1:], k=3, s=m - np.sqrt(2*m))
-            xf = np.geomspace(self.min_step, self.max_step, 100)
-            yf = interpolate.splev(xf, spl)
-            self.ax.plot(xf, yf, color=col)
+            #m = len(XX)-1
+            #spl = interpolate.splrep(XX[1:], YY[1:], k=3, s=m - np.sqrt(2*m))
+            #xf = np.geomspace(self.min_step, self.max_step, 100)
+            #yf = interpolate.splev(xf, spl)
+            #self.ax.plot(xf, yf, color=col)
         self.fig.legend()
         _show_and_save(self.fig, file, self.title)
 

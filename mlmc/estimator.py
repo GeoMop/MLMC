@@ -325,7 +325,7 @@ class Estimate:
         #print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
         moments_data = np.stack((est_moments, est_vars), axis=1)
         distr_obj = mlmc.tool.simple_distribution.SimpleDistribution(moments_obj, moments_data,
-                                                                     domain=moments_obj.domain)
+                                                                     domain=moments_obj.domain, verbose=True)
         result = distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
 
         return distr_obj, info, result, moments_obj

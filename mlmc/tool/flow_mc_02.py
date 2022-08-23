@@ -14,7 +14,7 @@ from mlmc.quantity.quantity_spec import QuantitySpec
 from mlmc.random import correlated_field as cf
 
 
-def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1, mode_no=1000):
+def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, por_sigma=1, factor_sigma=1, sigma=1, mode_no=1000):
     """
     Create random fields
     :return:
@@ -30,8 +30,15 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
     #
     # print("por top ", por_top)
 
+    print("por sigma ", por_sigma)
+
+    model='exp'
+    por_sigma=1
+    corr_length=0.1
+    mode_no=1000
+
     por_top = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2,  len_scale=0.2),
-                                               log=log, mean=-1.0, sigma=1.0, mode_no=mode_no)
+                                               log=log, mean=-1.0, sigma=por_sigma, mode_no=mode_no)
 
     #print("por top gstools ", por_top_gstools)
 
@@ -45,7 +52,7 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
     # )
 
     por_bot = cf.GSToolsSpatialCorrelatedField(gstools.Gaussian(dim=2, len_scale=0.2),
-                                               log=log, mean=-1.0, sigma=1.0, mode_no=mode_no)
+                                               log=log, mean=-1.0, sigma=por_sigma, mode_no=mode_no)
 
     #por_bot = gstools.Gaussian(dim=dim,  len_scale=0.2, mu=-1.0, sigma=1.0, log=True)
 
@@ -62,7 +69,7 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
         cf.Field('porosity_repo', 0.5, regions='repo'),
         #cf.Field('factor_top', cf.SpatialCorrelatedField('gauss', mu=1e-8, sigma=1, log=True), regions='ground_0'),
 
-        cf.Field('factor_top', cf.GSToolsSpatialCorrelatedField(factor_top_model, log=log, mean=1e-8, sigma=1.0, mode_no=mode_no),
+        cf.Field('factor_top', cf.GSToolsSpatialCorrelatedField(factor_top_model, log=log, mean=1e-8, sigma=factor_sigma, mode_no=mode_no),
                  regions='ground_0'),
 
         #cf.Field('factor_top', gstools.Gaussian(len_scale=1, mu=1e-8, sigma=1.0, log=True), regions='ground_0'),
@@ -70,7 +77,7 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
         #cf.Field('factor_bot', cf.SpatialCorrelatedField('gauss', mu=1e-8, sigma=1, log=True), regions='ground_1'),
         #cf.Field('factor_bot', gstools.Gaussian(len_scale=1, mu=1e-8, sigma=1, log=True), regions='ground_1'),
         cf.Field('factor_bot',
-                 cf.GSToolsSpatialCorrelatedField(factor_bot_model, log=log, mean=1e-8, sigma=1.0, mode_no=mode_no),
+                 cf.GSToolsSpatialCorrelatedField(factor_bot_model, log=log, mean=1e-8, sigma=factor_sigma, mode_no=mode_no),
                  regions='ground_1'),
 
         # cf.Field('factor_repo', cf.SpatialCorrelatedField('gauss', mu=1e-10, sigma=1, log=True), regions='repo'),
@@ -81,6 +88,8 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
         # cf.Field('conductivity_repo', cf.kozeny_carman, ['porosity_repo', 1, 'factor_repo', water_viscosity], regions='repo')
         cf.Field('conductivity_repo', 0.001, regions='repo')
     ])
+
+
 
     return fields
 
@@ -383,7 +392,7 @@ class FlowSimProcConc(Simulation):
     def generate_random_sample(fields, coarse_step, n_fine_elements):
         """
         Generate random field, both fine and coarse part.
-        Store them separeted.
+        Store them separated.
         :return: Dict, Dict
         """
         fields_sample = fields.sample()
