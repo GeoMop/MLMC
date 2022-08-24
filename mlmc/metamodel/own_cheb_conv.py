@@ -126,6 +126,9 @@ class OwnChebConv(Conv):
     def call(self, inputs):
         x, a = inputs
 
+        # print("x. shape ", x.shape)
+        # print("kernel shape", self.kernel.shape)
+
         T_0 = x
         output = K.dot(T_0, self.kernel[0])
 
@@ -137,9 +140,15 @@ class OwnChebConv(Conv):
             # print("self.kernel[1] ", self.kernel[1])
 
         for k in range(2, self.K):
+            # print("a.shape ", a.shape)
+            # print("T_1.shape ", T_1.shape)
             T_2 = 2 * ops.modal_dot(a, T_1) - T_0
+            # print("T_2.shape ", T_2.shape)
+            # print("self.kernel[k].shape ", self.kernel[k].shape)
             output += K.dot(T_2, self.kernel[k])
             T_0, T_1 = T_1, T_2
+
+        #print("output.shape ", output.shape)
 
         #print("self use bias ", self.use_bias)
         if self.use_bias:
@@ -147,7 +156,12 @@ class OwnChebConv(Conv):
             output = K.bias_add(output, self.bias)
         output = self.activation(output)
 
+        #output = output, a
         return output
+
+    # def output_shape(self):
+    #     return (10, 20)
+
 
     @property
     def config(self):

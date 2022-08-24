@@ -16,7 +16,7 @@ warnings.simplefilter("ignore")
 import tensorflow as tf
 from mlmc.metamodel.analyze_nn import run_GNN, run_CNN, run_SVR, statistics, analyze_statistics, process_results, run_DeepMap
 from mlmc.moments import Legendre_tf, Monomial
-from mlmc.metamodel.flow_task_GNN_2 import GNN
+from mlmc.metamodel.flow_task_CNN import CNN
 from spektral.layers import GCNConv, GlobalSumPool, ChebConv, GraphSageConv, ARMAConv, GATConv, APPNPConv, GINConv, GeneralConv
 from mlmc.metamodel.own_cheb_conv import OwnChebConv
 from tensorflow.keras.losses import MeanSquaredError, KLDivergence, MeanAbsoluteError
@@ -75,163 +75,27 @@ def get_cnn():
 
     corr_field_config = {'02_conc': False, 'corr_length': 0.1, 'sigma': 1, 'log': True}
 
-    return GNN, conv_layer, corr_field_config, model_config
+    return CNN, conv_layer, corr_field_config, model_config
 
 
-def get_gnn():
-    # Parameters
-    # conv_layer = GCNConv
-    conv_layer = ChebConv  # Seems better than GCNConv, good distribution of predictions
-    #conv_layer = OwnChebConv
-    # conv_layer = GraphSageConv  # Seems better than ChebConv, good loss but very narrow distribution of predictions
-    # # conv_layer = ARMAConv  # Seems worse than GraphSageConv
-    # conv_layer = GATConv  # Slow and not better than GraphSageConv
-    # # conv_layer = APPNPConv  # Not bad but worse than GraphSageConv
-    # # conv_layer = GINConv  # it is comparable to APPNPConv
-    # act_func = "relu"  # "tanh"#"elu"
-    loss = MeanSquaredError()  # var_loss_function#
-    # loss = MSE_moments
-    # loss = MeanAbsoluteError()
-    # loss = MeanSquaredLogarithmicError()
-    # loss = KLDivergence()
-    # loss = total_loss_function
-    optimizer = tf.optimizers.Adam(learning_rate=0.001)
-    patience = 1000000
-    hidden_regularization = None  # l2(2e-10)
-
-    net_model_config = {
-        "conv_layer": conv_layer,
-        "hidden_activation": 'relu',
-        "output_activation": abs_activation,
-        # "output_activation": 'linear',
-        "kernel_regularization": hidden_regularization,
-        "normalizer": preprocessing.Normalization()
-    }
-
-    model = Net(**net_model_config)
-
-    model_config = {"loss": loss,
-                    "optimizer": optimizer,
-                    "patience": patience,
-                    "model_class": Net,
-                    "net_model_config": net_model_config,
-                    "verbose": True}
-
-    corr_field_config = {'02_conc': False, 'corr_length': 0.1, 'sigma': 1, 'log': True}
-
-    return GNN, conv_layer, corr_field_config, model_config
-
-
-# class NetCNN(Model):
-#     def __init__(self, conv_layer, hidden_activation, output_activation, kernel_regularization, normalizer,
-#                  **kwargs):
-#         super().__init__(**kwargs)
-#
-#         dropout_rate = 0.5
-#
-#
-#         # self.normalizer = normalizer
-#         # self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
-#         # self.normalizer = normalizer
-#         # self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
-#         self._conv_layers = [Conv2D(32, (3, 3), activation=hidden_activation, input_shape=(512, 512, 3)),
-#                              MaxPooling2D((2, 2)),
-#                              Conv2D(64, (3, 3), activation=hidden_activation),
-#                              MaxPooling2D((2, 2)),
-#                              Conv2D(64, (3, 3), activation=hidden_activation),
-#                              ]
-#         # conv_layer(64, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)]
-#         # self.conv3 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-#         # self.conv4 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-#         # self.conv2 = conv_layer(32, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-#         # self.conv3 = conv_layer(16, K=2, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-#         # self.conv3 = conv_layer(8, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-#         # self.conv4 = conv_layer(4, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-#         # self.conv3 = conv_layer(64, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-#         self.flatten = Flatten()
-#
-#         #self.dropout = Dropout(dropout_rate, input_shape=(200, 50, 128))
-#
-#         # self.flatten = GlobalAvgPool()
-#         # self._submodel = Sequential()
-#         # self._dense_layers = [Dense(64, activation=hidden_activation), Dense(32, activation=hidden_activation),
-#         #                       Dense(1)]
-#
-#         self._dense_layers = [Dense(64, activation=hidden_activation),# Dense(32, activation=hidden_activation),
-#                               Dense(1)]
-#
-#         #self._dense_layers = [Dense(1)]
-#
-#         # for d_layer in self._dense_layers:
-#         #     self._submodel.add(d_layer)
-#         # self.fc1 = Dense(32, activation=hidden_activation)
-#        #, activation=output_activation)  # linear activation for output neuron
-#
-#     def call(self, inputs):
-#         x, a = inputs
-#
-#         for c_layer in self._conv_layers:
-#             #print("type c layer ", type(c_layer))
-#             if isinstance(c_layer, MaxPooling2D):
-#                 x, a = c_layer([x, a])
-#                 #print("x " ,x)
-#                 #print("a " ,a)
-#                 #print("diff pool x shape ", x.shape)
-#
-#                 #print("np.array(x).shape ", np.array(x).shape)
-#             else:
-#                 #print("cov layer type ", type(c_layer))
-#                 #print("x.shape ", x.shape)
-#                 x = c_layer([x, a])
-#                 #print("x before dropout ", x.shape)
-#                 # print("num zeros ", np.count_nonzero(x == 0))
-#                 #x = self.dropout(x, training=True)
-#                 # print("after dropout x", np.array(x))
-#                 # print("num zeros ", np.count_nonzero(x == 0))
-#
-#
-#         output = self.flatten(x)
-#
-#
-#         for d_layer in self._dense_layers:
-#             output = d_layer(output)
-#             #output = self.dropout(output, training=True)
-#
-#
-#         return output
-#
-#
-
-class Net(Model):
+class NetCNN(Model):
     def __init__(self, conv_layer, hidden_activation, output_activation, kernel_regularization, normalizer,
                  **kwargs):
         super().__init__(**kwargs)
 
         dropout_rate = 0.5
 
-        # self.normalizer = normalizer
-        # self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
-        # self.normalizer = normalizer
-        # self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
-        self._conv_layers = [conv_layer(128, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization),
-                             DiffPool(k=12, channels=None, activation=hidden_activation,
-                                      kernel_regularizer=kernel_regularization),
-                             conv_layer(128, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization),
-                             # DiffPool(k=3, channels=None, activation=hidden_activation,
-                             #          kernel_regularizer=kernel_regularization),
-                             # conv_layer(8, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization),
 
-                             # conv_layer(8, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization),
-                             # DiffPool(k=5, channels=None, activation=hidden_activation,
-                             #             kernel_regularizer=kernel_regularization),
-                             #DMoNPool(k=20),
-                             #SAGPool(ratio=0.5),
-                             #TopKPool(ratio=0.5),
-                             #conv_layer(8, K=4, activation=hidden_activation, kernel_regularizer=kernel_regularization),
-                             # DiffPool(k=1, channels=None, activation=hidden_activation,
-                             #          kernel_regularizer=kernel_regularization),
-                             #conv_layer(8, K=4, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-                             ] # ,
+        # self.normalizer = normalizer
+        # self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
+        # self.normalizer = normalizer
+        # self.norm_layer = tf.keras.layers.LayerNormalization(axis=1)
+        self._conv_layers = [Conv2D(16, (3, 3), activation=hidden_activation, input_shape=(512, 512, 1)),
+                             MaxPooling2D((2, 2)),
+                             Conv2D(32, (3, 3), activation=hidden_activation),
+                             MaxPooling2D((2, 2)),
+                             #Conv2D(64, (3, 3), activation=hidden_activation),
+                             ]
         # conv_layer(64, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)]
         # self.conv3 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv4 = conv_layer(32, K=1, activation=hidden_activation, kernel_regularizer=kernel_regularization)
@@ -240,16 +104,16 @@ class Net(Model):
         # self.conv3 = conv_layer(8, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv4 = conv_layer(4, activation=hidden_activation, kernel_regularizer=kernel_regularization)
         # self.conv3 = conv_layer(64, activation=hidden_activation, kernel_regularizer=kernel_regularization)
-        self.flatten = GlobalSumPool()
+        self.flatten = Flatten()
 
-        self.dropout = Dropout(dropout_rate, input_shape=(200, 50, 128))
+        #self.dropout = Dropout(dropout_rate, input_shape=(200, 50, 128))
 
         # self.flatten = GlobalAvgPool()
         # self._submodel = Sequential()
         # self._dense_layers = [Dense(64, activation=hidden_activation), Dense(32, activation=hidden_activation),
         #                       Dense(1)]
 
-        self._dense_layers = [Dense(128, activation=hidden_activation), Dense(32, activation=hidden_activation),
+        self._dense_layers = [Dense(64, activation=hidden_activation), Dense(32, activation=hidden_activation),
                               Dense(1)]
 
         #self._dense_layers = [Dense(1)]
@@ -260,19 +124,12 @@ class Net(Model):
        #, activation=output_activation)  # linear activation for output neuron
 
     def call(self, inputs):
-        rate = 0.5
-        x, a = inputs
-        # print("a ", a)
-        # print("Net call a shape", a.shape)
-        # if not isinstance(a, tf.sparse.SparseTensor):
-        #     a = tf.sparse.from_dense(a)
-
-        #print("inputs.shape ", x.shape)
+        x = inputs
 
         for c_layer in self._conv_layers:
             #print("type c layer ", type(c_layer))
-            if isinstance(c_layer, DiffPool):
-                x, a = c_layer([x, a])
+            if isinstance(c_layer, MaxPooling2D):
+                x = c_layer(x)
                 #print("x " ,x)
                 #print("a " ,a)
                 #print("diff pool x shape ", x.shape)
@@ -281,38 +138,21 @@ class Net(Model):
             else:
                 #print("cov layer type ", type(c_layer))
                 #print("x.shape ", x.shape)
-                x = c_layer([x, a])
+                x = c_layer(x)
                 #print("x before dropout ", x.shape)
                 # print("num zeros ", np.count_nonzero(x == 0))
                 #x = self.dropout(x, training=True)
                 # print("after dropout x", np.array(x))
                 # print("num zeros ", np.count_nonzero(x == 0))
 
-
-
-
-        # x = self._conv_layers[0]([x, a])
-        # #print("x " ,x)
-        # x, a = self._conv_layers[1]([x, a])
-        # print("x diff pool ", x)
-        # x = self._conv_layers[2]([x, a])
-        # x, a = self._conv_layers[3]([x, a])
-        # print("a shape ", a.shape)
-        #
-        # print("c_layer x.shape ", x.shape)
-        #
-        #print("conv layers final shape ", x.shape)
-
+        #print("x.shape ", x.shape)
         output = self.flatten(x)
-
-        # print("flaten output shape ", output.shape)
+        # print("output flatten shape ", output.shape)
         # exit()
 
         for d_layer in self._dense_layers:
             output = d_layer(output)
             #output = self.dropout(output, training=True)
-
-
         return output
 
 
@@ -1016,8 +856,8 @@ if __name__ == "__main__":
     # process_results(hdf_path, sampling_info_path, ref_mlmc_file, save_path, nn_level, replace_level)
     #
 
-    gnn, conv_layer, corr_field_config, model_config = get_gnn()
-    #gnn, conv_layer, corr_field_config, model_config = get_cnn()
+    #gnn, conv_layer, corr_field_config, model_config = get_gnn()
+    gnn, conv_layer, corr_field_config, model_config = get_cnn()
 
     # print("gnn ", gnn)
     #print("conv layer ", conv_layer)
@@ -1129,8 +969,7 @@ if __name__ == "__main__":
 
         machine_learning_model = ("L1_1_test_diffpool", run_GNN, False)
 
-        machine_learning_model = ("L1_1_test_GNN", run_CNN, False)
-
+        machine_learning_model = ("L1_1_test_CNN", run_CNN, False)
 
     if case == "cnn":
         machine_learning_model = ("L1_2_test_CNN", run_CNN, False)
@@ -1316,7 +1155,7 @@ if __name__ == "__main__":
 
     graph_creation_time = 2500  # 72#4400
     graph_creation_time = 0  # 6045.724339538  #6944  # cl_0_1_s_1, L1_2
-    graph_creation_time = 868 # 1850.33 sec -  cl_0_1_s_1, L1 (50k samples)
+    graph_creation_time = 868  # 1850.33 sec -  cl_0_1_s_1, L1 (50k samples)
 
     # cl_0_1_s_1 config
     dataset_config = {"first_log_features": True,
@@ -1369,16 +1208,17 @@ if __name__ == "__main__":
               'replace_level': replace_level,
               'corr_field_config': corr_field_config,
               'n_train_samples': 2000,
-              'n_test_samples': 10000,
+              'n_test_samples': 1000,
               'val_samples_ratio': 0.2,
-              'batch_size': 200,
-              'epochs': 2,
+              'batch_size': 20,
+              'epochs': 20,
               'learning_rate': 0.001,
+              'file_name': "bypixel_512.npz",
               'graph_creation_time': graph_creation_time,
               'save_model': True,
               'feature_names': feature_names,
               'dataset_config': dataset_config,
-              'independent_samples': False,
+              'independent_samples': True,
               'predict_dir': predict_dir,
               'predict_hdf ': predict_hdf
               }

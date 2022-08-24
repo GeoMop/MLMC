@@ -1158,7 +1158,7 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
 
     ref_orig_moments, ref_predict_moments, mlmc_predict_moments = compare_moments_2(sample_storage, sample_storage_predict, ref_sample_storage)
 
-    level_kurtosis(original_q_estimator, predict_q_estimator)
+    #level_kurtosis(original_q_estimator, predict_q_estimator)
 
     kl_mlmc, kl_nn = -1, -1
     orig_orth_moments, predict_orth_moments, ref_orth_moments = None, None, None

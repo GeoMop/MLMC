@@ -162,7 +162,7 @@ def reject_outliers(data, m=2):
     return abs(data - np.mean(data)) < m * np.std(data)
 
 
-def rasterization(mesh_nodes, triangles, srf, image_path):
+def rasterization(mesh_nodes, triangles, srf, path):
     from collections import OrderedDict, defaultdict
     from numpy.testing import assert_array_equal
     import numpy as np
@@ -198,27 +198,28 @@ def rasterization(mesh_nodes, triangles, srf, image_path):
     tris['rf_value'] = np.squeeze(np.array(list(srf.values())))
 
 
-
     # print("verts[288] ", verts.loc[288])
 
     # print("verts ", verts["y"])
     #print("tris ", tris)
 
     # tf.Images(tris.head(15), tf.shade(cvs.trimesh(verts, tris)))
-    cvs.trimesh(verts, tris, interpolate='nearest')
+    trimesh = cvs.trimesh(verts, tris, interpolate='nearest')
+    np.savez_compressed(path, a=trimesh.values)
 
-    nearest_img = tf.shade(cvs.trimesh(verts, tris, interpolate='nearest'), cmap=c, name='10 Vertices')
+    # vals = np.load("pixel_values.npy")
+    # compressed_vals = np.load("pixel_values_compressed.npz")
+
+    #nearest_img = tf.shade(cvs.trimesh(verts, tris, interpolate='nearest'), cmap=c, name='10 Vertices')
 
     #rgb_image = np.array(nearest_img.to_pil())[..., :3]
     # print("rgb_image ", rgb_image)
     #
     # linear_img = tf.shade(cvs.trimesh(verts, tris, interpolate='linear'), cmap=c, name='10 Vertices Interpolated')
     #
-    export_image(img=nearest_img, filename=image_path, fmt=".png", export_path=".")
+    #export_image(img=nearest_img, filename=image_path, fmt=".png", export_path=".")
     #export_image(img=linear_img, filename='mesh_linear_img', fmt=".png", export_path=".")
-
     #exit()
-
     #return rgb_image
 
 
@@ -279,7 +280,7 @@ def image_creator(output_dir, hdf_path, mesh, level=0, feature_names=[['conducti
                         #print("eid: {}, val: {}".format(e_id, val))
                         srf[e_id] = val
 
-            rasterization(mesh_nodes, triangles, srf, image_path=os.path.join(sample_dir, "image_512"))
+            rasterization(mesh_nodes, triangles, srf, path=os.path.join(sample_dir, "bypixel_512"))
 
             #np.save(os.path.join(sample_dir, "image"), rgb_image)
             np.save(os.path.join(sample_dir, "output"), output_value)

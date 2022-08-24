@@ -158,15 +158,15 @@ for epoch in range(config["epochs"]):  # loop over the dataset multiple times
         #     running_loss = 0.0
 
         valid_loss = 0.0
-        # net.eval()  # Optional when not using Model Specific layer
-        # for data in validloader:
-        #     images, targets = data
-        #     images = images.to(device)
-        #     targets = targets.to(device)
-        #
-        #     output = net(images)
-        #     loss = criterion(output.float(), targets.float())
-        #     valid_loss += loss.item()
+        #net.eval()  # Optional when not using Model Specific layer
+        for data in validloader:
+            images, targets = data
+            images = images.to(device)
+            targets = targets.to(device)
+
+            output = net(images)
+            loss = criterion(output.float(), targets.float())
+            valid_loss += loss.item()
 
     print(f'Epoch {epoch + 1} \t\t Training Loss: {train_loss / len(trainloader)} \t\t Validation Loss: {valid_loss / len(validloader)}')
 
@@ -224,8 +224,4 @@ plt.yscale('log')
 plt.show()
 
 
-
-
 print('Finished Training')
-
-

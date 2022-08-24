@@ -48,8 +48,8 @@ class ImageFlowDataset(Dataset):
                     continue
             if os.path.isdir(os.path.join(self._data_dir, s_dir)):
                 sample_dir = os.path.join(self._data_dir, s_dir)
-                if os.path.exists(os.path.join(sample_dir, "image_512.png")):
-                    self.image_paths.append(os.path.join(sample_dir, "image_512.png"))
+                if os.path.exists(os.path.join(sample_dir, "bypixel_512.npz")):
+                    self.image_paths.append(os.path.join(sample_dir, "bypixel_512.npz"))
                     self.target_paths.append(os.path.join(sample_dir, "output.npy"))
 
     def __len__(self):
@@ -90,10 +90,8 @@ class ImageFlowDataset(Dataset):
         else:
             tf = self._transform
 
-
         #self._plot_image(iio.imread(img_path)[..., :3])
-
-        img = tf((iio.imread(img_path)[..., :3]))
+        img = tf(np.load(img_path)["a"])#tf((iio.imread(img_path)[..., :3]))
         label = torch.tensor(target)
 
         return img, label

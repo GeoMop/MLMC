@@ -92,9 +92,14 @@ class GNN:
         train_targets = True
         train_targets_list = []
 
+        print('loader tr epochs ', loader_tr.epochs)
+        print('loader tr batch size ', loader_tr.batch_size)
+        print("loader_tr.steps_per_epoch ", loader_tr.steps_per_epoch)
+
         # Training loop
         results_tr = []
         for batch in loader_tr:
+            print("batch ", batch)
             step += 1
             self._total_n_steps += 1
 
@@ -108,6 +113,7 @@ class GNN:
             self._train_loss.append(loss)
             self._train_acc.append(acc)
             results_tr.append((loss, acc, len(target)))
+            #print("loss ", loss)
 
             results_va = self.evaluate(loader_va)
             self._val_loss.append(results_va[0])
@@ -123,8 +129,8 @@ class GNN:
                     current_patience = self._patience
                     self._states = {}
                     self._states[results_va[0]] = copy.deepcopy(self)
-                    results_te = self.evaluate(loader_te)
-                    self._test_loss.append(results_te[0])
+                    #results_te = self.evaluate(loader_te)
+                    #self._test_loss.append(results_te[0])
                 else:
                     current_patience -= 1
                     #results_tr_0 = np.array(results_tr)
@@ -139,11 +145,19 @@ class GNN:
                 results_tr = np.array(results_tr)
                 results_tr = np.average(results_tr[:, :-1], 0, weights=results_tr[:, -1])
                 if self._verbose:
+                    # print(
+                    #     "Train loss: {:.12f}, acc: {:.12f} | "
+                    #     "Valid loss: {:.12f}, acc: {:.12f} | "
+                    #     "Test loss: {:.12f}, acc: {:.12f} | LR: {:.12f}".format(
+                    #         *results_tr, *results_va, *results_te, lr
+                    #     )
+                    # )
+
                     print(
                         "Train loss: {:.12f}, acc: {:.12f} | "
                         "Valid loss: {:.12f}, acc: {:.12f} | "
-                        "Test loss: {:.12f}, acc: {:.12f} | LR: {:.12f}".format(
-                            *results_tr, *results_va, *results_te, lr
+                        "LR: {:.12f}".format(
+                            *results_tr, *results_va, lr
                         )
                     )
 
@@ -158,6 +172,8 @@ class GNN:
     def train_on_batch(self, inputs, target):
         with tf.GradientTape() as tape:
             predictions = self._model(inputs, training=True)
+            # print("targets ", target)
+            # print("predictions ", predictions)
             loss = self._loss(target, predictions) + sum(self._model.losses) #+ 5 * var_loss_function(target, predictions)
             acc = tf.reduce_mean(self._accuracy_func(target, predictions))
 

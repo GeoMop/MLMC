@@ -170,30 +170,31 @@ def conc_corr_field(mesh_file, corr_field_config):
     mesh_data = FlowSim.extract_mesh(mesh_file)
     feature_names = [['conductivity_top', 'conductivity_bot', 'conductivity_repo']]
 
-    por_top_mean = -1.0
-    por_bot_mean = -1.0
-    por_top_sigma = 1
-    por_bot_sigma = 1
-    factor_sigma = 1
-    por_top_len_scale = 1
-    por_bot_len_scale = 1
-    factor_top_mean = 1e-8
-    factor_bot_mean = 1e-8
+    # por_top_mean = -1.0
+    # por_bot_mean = -1.0
+    # por_top_sigma = 1
+    # por_bot_sigma = 1
+    # factor_sigma = 1
+    # por_top_len_scale = 1
+    # por_bot_len_scale = 1
+    # factor_top_mean = 1e-8
+    # factor_bot_mean = 1e-8
 
     all_features = []
-    n_samples = 50
+    log_all_features = []
+    n_samples = 1000
     for i in range(n_samples):
         fields = create_corr_fields(dim=2, log=corr_field_config["log"],
-                                    por_top_mean=por_top_mean,
-                                    por_bot_mean=por_bot_mean,
-                                    por_top_sigma=por_top_sigma,
-                                    por_bot_sigma=por_bot_sigma,
-                                    factor_sigma=factor_sigma,
-                                    mode_no=1000,
-                                    por_top_len_scale=por_top_len_scale,
-                                    por_bot_len_scale=por_bot_len_scale,
-                                    factor_top_mean=factor_top_mean,
-                                    factor_bot_mean=factor_bot_mean
+                                    por_top_mean=corr_field_config["por_top_mean"],
+                                    por_bot_mean=corr_field_config["por_bot_mean"],
+                                    por_top_sigma=corr_field_config["por_top_sigma"],
+                                    por_bot_sigma=corr_field_config["por_bot_sigma"],
+                                    factor_sigma=corr_field_config["factor_sigma"],
+                                    mode_no=corr_field_config["mode_no"],
+                                    por_top_len_scale=corr_field_config["por_top_len_scale"],
+                                    por_bot_len_scale=corr_field_config["por_bot_len_scale"],
+                                    factor_top_mean=corr_field_config["factor_top_mean"],
+                                    factor_bot_mean=corr_field_config["factor_bot_mean"]
                                     )
 
         fields.set_points(mesh_data['points'], mesh_data['point_region_ids'],
@@ -210,8 +211,9 @@ def conc_corr_field(mesh_file, corr_field_config):
 
         #features = np.log(features)
         all_features.append(features)
+        log_all_features.append(np.log(features))
 
-    plot_rescale(all_features, mesh_file)
+    plot_rescale(all_features, log_all_features, mesh_file)
 
         # mesh_data = extract_mesh_gmsh_io(mesh_file, get_points=True)
         # points = mesh_data['points']
@@ -247,7 +249,8 @@ def cond_corr_field(mesh_file=None, corr_length_config=None):
         mesh_data = FlowSim.extract_mesh(mesh_file)
 
         all_features = []
-        n_samples = 500
+        log_all_features = []
+        n_samples = 1000
         for i in range(n_samples):
             if corr_length_config is not None:
                 fields = create_corr_field(model="exp", dim=dim,
@@ -281,6 +284,7 @@ def cond_corr_field(mesh_file=None, corr_length_config=None):
 
             #features = np.log(features)
             all_features.append(features)
+            log_all_features.append(np.log(features))
 
 
             ####
@@ -297,7 +301,7 @@ def cond_corr_field(mesh_file=None, corr_length_config=None):
             # plt.show()
 
 
-        plot_rescale(all_features, mesh_file)
+        plot_rescale(all_features, log_all_features, mesh_file)
 
         # print("conductivity mean ", np.mean(fine_input_sample["conductivity"]))
         # print("conductivity var ", np.var(fine_input_sample["conductivity"]))
@@ -317,7 +321,7 @@ def cond_corr_field(mesh_file=None, corr_length_config=None):
         return rnd_time / n_samples
 
 
-def plot_rescale(all_features, mesh_file):
+def plot_rescale(all_features, log_all_features, mesh_file):
     mean_features = np.mean(all_features, axis=0)
     variance_features = np.var(all_features, axis=0)
     print('mean features ', mean_features)
@@ -329,7 +333,19 @@ def plot_rescale(all_features, mesh_file):
     print("min features ", min_features)
     print("max features ", max_features)
 
-    for features in all_features[:3]:
+    log_mean_features = np.mean(log_all_features, axis=0)
+    log_variance_features = np.var(log_all_features, axis=0)
+    print('log mean features ', log_mean_features)
+    print("log variance features ", log_variance_features)
+
+    log_min_features = np.min(log_all_features, axis=0)
+    log_max_features = np.max(log_all_features, axis=0)
+
+    print("log min features ", log_min_features)
+    print("log max features ", log_max_features)
+
+    num = 1
+    for features, log_features in zip(all_features[:num], log_all_features[:num]):
         print("features[:10] ", features[:10])
         fig, ax = plt.subplots(1, 1, figsize=(15, 10))
         mesh_data = extract_mesh_gmsh_io(mesh_file, get_points=True)
@@ -339,22 +355,42 @@ def plot_rescale(all_features, mesh_file):
         print("features shape ", features.shape)
         cont = ax.tricontourf(X, Y, features.ravel(), levels=32)
         fig.colorbar(cont)
-        plt.title("input")
+        plt.title("original features")
+        fig.savefig("original_features.pdf")
         plt.show()
 
         # features -= mean_features
         # print("features - mean ", features)
         # features /= variance_features
 
-
-        #features = np.log(features)
-
+        ##################
+        ## log features ##
+        ##################
         # print("features - min_features ", features - min_features)
-        features = (features - min_features) / (max_features - min_features)
+        # features = (features - min_features) / (max_features - min_features)
         # print("final features ", features)
+        # pl_log_features = np.nan_to_num(log_features)
+        # print("log features ", pl_log_features)
 
-        features = np.nan_to_num(features)
-        print("final features ", features)
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        mesh_data = extract_mesh_gmsh_io(mesh_file, get_points=True)
+        points = mesh_data['points']
+        X = points[:, 0]
+        Y = points[:, 1]
+        cont = ax.tricontourf(X, Y, log_features.ravel(), levels=32)
+        fig.colorbar(cont)
+        plt.title("log features")
+        fig.savefig("log_features.pdf")
+        plt.show()
+
+        ###################
+        ## norm features ##
+        ###################
+        # print("features - min_features ", features - min_features)
+        norm_features = (features - min_features) / (max_features - min_features)
+        # print("final features ", features)
+        norm_features = np.nan_to_num(norm_features)
+        print("final features ", norm_features)
 
         # print("final features nan to num ", features)
         #
@@ -365,19 +401,179 @@ def plot_rescale(all_features, mesh_file):
         points = mesh_data['points']
         X = points[:, 0]
         Y = points[:, 1]
-        cont = ax.tricontourf(X, Y, features.ravel(), levels=32)
+        cont = ax.tricontourf(X, Y, norm_features.ravel(), levels=32)
         fig.colorbar(cont)
-        plt.title("input")
+        plt.title("norm features")
+        fig.savefig("norm_features.pdf")
+        plt.show()
+
+        #####################
+        ## scaled features ##
+        #####################
+        # print("features - min_features ", features - min_features)
+        scaled_features = (features - mean_features) / variance_features
+
+        # print("final features ", features)
+        scaled_features = np.nan_to_num(scaled_features)
+        print("scaled features ", scaled_features)
+
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        mesh_data = extract_mesh_gmsh_io(mesh_file, get_points=True)
+        points = mesh_data['points']
+        X = points[:, 0]
+        Y = points[:, 1]
+        cont = ax.tricontourf(X, Y, scaled_features.ravel(), levels=32)
+        fig.colorbar(cont)
+        plt.title("scaled features")
+        fig.savefig("scaled_features.pdf")
+        plt.show()
+
+        #######################
+        ## norm log features ##
+        #######################
+        # print("features - min_features ", features - min_features)
+        log_norm_features = (log_features - log_min_features) / (log_max_features - log_min_features)
+        # print("final features ", features)
+        log_norm_features = np.nan_to_num(log_norm_features)
+        print("log norm features ", log_norm_features)
+
+        # print("final features nan to num ", features)
+        #
+        # print("final features ", features.shape)
+
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        mesh_data = extract_mesh_gmsh_io(mesh_file, get_points=True)
+        points = mesh_data['points']
+        X = points[:, 0]
+        Y = points[:, 1]
+        cont = ax.tricontourf(X, Y, log_norm_features.ravel(), levels=32)
+        fig.colorbar(cont)
+        plt.title("norm log features")
+        fig.savefig("norm_log_features.pdf")
+        plt.show()
+
+        #########################
+        ## scaled log features ##
+        #########################
+        # print("features - min_features ", features - min_features)
+        log_scaled_features = (log_features - log_mean_features) / log_variance_features
+
+        # print("final features ", features)
+        log_scaled_features = np.nan_to_num(log_scaled_features)
+        print("scaled features ", log_scaled_features)
+
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        mesh_data = extract_mesh_gmsh_io(mesh_file, get_points=True)
+        points = mesh_data['points']
+        X = points[:, 0]
+        Y = points[:, 1]
+        cont = ax.tricontourf(X, Y, log_scaled_features.ravel(), levels=32)
+        fig.colorbar(cont)
+        plt.title("scaled log features")
+        fig.savefig("scaled_log_features.pdf")
         plt.show()
 
 
 if __name__ == "__main__":
-    corr_file_config = {"02_conc": True, 'log': True}
-    #mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_conr/l_step_1.0_common_files/repo.msh"
-    mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/l_step_0.1414213562373095_common_files/repo.msh"
 
-    # corr_file_config = {"02_conc": False, 'log': True, 'corr_length':0.1, 'sigma':1}
-    # mesh_file = "/home/martin/Documents/metamodels/data/1000_ele/l_step_0.055_common_files/mesh.msh"
+    case = "02_conc_cond_case_5"
+    case = "cl_0_1_s_1"
+
+    if case == "cl_0_1_s_1":
+        corr_file_config = {"02_conc": False, 'sigma': 1, 'corr_length': 0.1, 'log': True}
+        mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/l_step_0.07416198487095663_common_files/mesh.msh"
+
+        #mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/l_step_0.020196309484414757_common_files/mesh.msh"
+
+        cond_corr_field(mesh_file, corr_file_config)
+
+    elif case == "cl_0_3_s_4":
+        corr_file_config = {"02_conc": False, 'sigma': 4, 'corr_length': 0.3, 'log': True}
+        mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/l_step_0.07416198487095663_common_files/mesh.msh"
+        cond_corr_field(mesh_file, corr_file_config)
+
+    elif case == "02_conc_cond_case_1":
+        corr_file_config = {"02_conc": True, 'log': True, 'mode_no': 1000,
+                                                            'por_top_mean': -1.0,
+                                                            'por_bot_mean': -1.0,
+                                                            'por_top_sigma': 1,
+                                                            'por_bot_sigma': 1,
+                                                            'factor_sigma': 1,
+                                                            'por_top_len_scale': 0.2,
+                                                            'por_bot_len_scale': 0.2,
+                                                            'factor_top_mean': 1e-8,
+                                                            'factor_bot_mean': 1e-8}
+
+        mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/l_step_0.1414213562373095_common_files/repo.msh"
+        conc_corr_field(mesh_file, corr_file_config)
+
+    elif case == "02_conc_cond_case_2":
+        corr_file_config = {"02_conc": True, 'log': True, 'mode_no': 10000,
+                            'por_top_mean': -1.0,
+                            'por_bot_mean': -1.0,
+                            'por_top_sigma': 10,
+                            'por_bot_sigma': 10,
+                            'factor_sigma': 1,
+                            'por_top_len_scale': 0.2,
+                            'por_bot_len_scale': 0.2,
+                            'factor_top_mean': 1e-8,
+                            'factor_bot_mean': 1e-8}
+
+        mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/l_step_0.1414213562373095_common_files/repo.msh"
+        conc_corr_field(mesh_file, corr_file_config)
+
+    elif case == "02_conc_cond_case_3":
+        corr_file_config = {"02_conc": True, 'log': True, 'mode_no': 10000,
+                            'por_top_mean': -1.0,
+                            'por_bot_mean': -1.0,
+                            'por_top_sigma': 0.1,
+                            'por_bot_sigma': 0.1,
+                            'factor_sigma': 1,
+                            'por_top_len_scale': 0.2,
+                            'por_bot_len_scale': 0.2,
+                            'factor_top_mean': 1e-8,
+                            'factor_bot_mean': 1e-8}
+
+        mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/l_step_0.1414213562373095_common_files/repo.msh"
+        conc_corr_field(mesh_file, corr_file_config)
+
+    elif case == "02_conc_cond_case_4":
+        corr_file_config = {"02_conc": True, 'log': True, 'mode_no': 10000,
+                            'por_top_mean': -1.0,
+                            'por_bot_mean': -1.0,
+                            'por_top_sigma': 1,
+                            'por_bot_sigma': 1,
+                            'factor_sigma': 1,
+                            'por_top_len_scale': 1,
+                            'por_bot_len_scale': 1,
+                            'factor_top_mean': 1e-8,
+                            'factor_bot_mean': 1e-8}
+
+        mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/l_step_0.1414213562373095_common_files/repo.msh"
+        conc_corr_field(mesh_file, corr_file_config)
+
+    elif case == "02_conc_cond_case_5":
+        corr_file_config = {"02_conc": True, 'log': True, 'mode_no': 10000,
+                            'por_top_mean': -1.0,
+                            'por_bot_mean': -1.0,
+                            'por_top_sigma': 1,
+                            'por_bot_sigma': 1,
+                            'factor_sigma': 1,
+                            'por_top_len_scale': 0.01,
+                            'por_bot_len_scale': 0.01,
+                            'factor_top_mean': 1e-8,
+                            'factor_bot_mean': 1e-8}
+
+        mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/02_conc_cond/l_step_0.1414213562373095_common_files/repo.msh"
+        conc_corr_field(mesh_file, corr_file_config)
+
+
+
+    ###
+
+
+    #corr_file_config = {"02_conc": False, 'log': True, 'corr_length':0.1, 'sigma':1}
+    #mesh_file = "/home/martin/Documents/metamodels/data/1000_ele/l_step_0.055_common_files/mesh.msh"
 
 
     ###############################
@@ -387,8 +583,4 @@ if __name__ == "__main__":
 
     ##
     #### 01_cond_field
-    corr_file_config = {"02_conc": False, 'sigma': 1, 'corr_length': 0.1, 'log': True}
-    mesh_file = "/home/martin/Documents/metamodels/data/mesh_size/l_step_0.07416198487095663_common_files/mesh.msh"
-
-    cond_corr_field(mesh_file, corr_file_config)
 

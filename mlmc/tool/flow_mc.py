@@ -362,6 +362,10 @@ class FlowSim(Simulation):
             is_bc_region[id] = (unquoted_name[0] == '.')
             region_map[unquoted_name] = id
 
+
+
+        triangles = {}
+
         bulk_elements = []
         for id, el in mesh.elements.items():
             _, tags, i_nodes = el
@@ -377,9 +381,15 @@ class FlowSim(Simulation):
         for i, id_bulk in enumerate(bulk_elements):
             _, tags, i_nodes = mesh.elements[id_bulk]
             region_id = tags[0]
+
+
+            # print("i_nodes ", i_nodes)
+            # print("[mesh.nodes[i_node] for i_node in i_nodes] ", [mesh.nodes[i_node] for i_node in i_nodes])
+
             centers[i] = np.average(np.array([mesh.nodes[i_node] for i_node in i_nodes]), axis=0)
             point_region_ids[i] = region_id
             ele_ids[i] = id_bulk
+            triangles[ele_ids[i]] = i_nodes
 
         min_pt = np.min(centers, axis=0)
         max_pt = np.max(centers, axis=0)
@@ -391,7 +401,7 @@ class FlowSim(Simulation):
             non_zero_axes.pop(min_axis)
         points = centers[:, non_zero_axes]
 
-        return {'points': points, 'point_region_ids': point_region_ids, 'ele_ids': ele_ids, 'region_map': region_map}
+        return {'points': points, 'point_region_ids': point_region_ids, 'ele_ids': ele_ids, 'region_map': region_map, 'mesh_nodes': mesh.nodes, 'triangles': triangles}
 
     def _substitute_yaml(self, yaml_tmpl, yaml_out):
         """

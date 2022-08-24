@@ -80,6 +80,8 @@ class FlowDataset(Dataset):
 
         #self._data_augmentation()
 
+        #self._deep_map_preprocessing()
+
     def get_train_data(self, index, length):
         new_dataset = self.dataset[index * length: index * length + length]
         new_graphs = self.graphs[index * length: index * length + length]  # self.graphs is read() method output
@@ -162,50 +164,49 @@ class FlowDataset(Dataset):
         random.shuffle(self.data)
         self.dataset = pd.DataFrame(self.data)
 
-    def _data_augmentation(self, df_slice, new_graphs):
-        import smogn
-        import matplotlib.pyplot as plt
-        #import seaborn
-
-        # df_slice = self._df_for_augmentation[self._index * self._config['n_train_samples']:
-        #                             self._index * self._config['n_train_samples'] + self._config['n_train_samples']]
-
-        df_slice = df_slice.reset_index(drop=True)
-        if 'augmentation_config' in self._config:
-            dataset_modified = smogn.smoter(data=df_slice, y="y", **self._config["augmentation_config"])
-        else:
-            dataset_modified = smogn.smoter(data=df_slice, y="y", k=9, samp_method="extreme")
-
-        # print("dataset modified shape",  dataset_modified.shape)
-        # print("dataset modified ", dataset_modified)
-        #
-        # print("df stats ", smogn.box_plot_stats(df_slice['y'])['stats'])
-        # print("modified stats ", smogn.box_plot_stats(dataset_modified['y'])['stats'])
-        #
-        # fig, ax = plt.subplots(1, 1, figsize=(15, 10))
-        # ax.hist(df_slice['y'], bins=50, alpha=0.5, label='target', density=True)
-        # plt.title("original")
-        # plt.show()
-        #
-        # fig, ax = plt.subplots(1, 1, figsize=(15, 10))
-        # ax.hist(dataset_modified['y'], bins=50, alpha=0.5, label='target', density=True)
-        # plt.title("modified")
-        # plt.show()
-
-        appended_dataset = df_slice.append(dataset_modified)
-
-        numpy_frame = dataset_modified.to_numpy()
-
-        for i in range(numpy_frame.shape[0]):
-            features = numpy_frame[i][:-1]
-            features = features.reshape((len(features), 1))
-            new_graphs.append(Graph(x=features, y=numpy_frame[i][-1]))
-
-        return appended_dataset, copy.deepcopy(new_graphs)
-
-        # seaborn.kdeplot(df_slice['y'], label="Original")
-        # seaborn.kdeplot(dataset_modified['y'], label="Modified")
-
+    # def _data_augmentation(self, df_slice, new_graphs):
+    #     import smogn
+    #     import matplotlib.pyplot as plt
+    #     #import seaborn
+    #
+    #     # df_slice = self._df_for_augmentation[self._index * self._config['n_train_samples']:
+    #     #                             self._index * self._config['n_train_samples'] + self._config['n_train_samples']]
+    #
+    #     df_slice = df_slice.reset_index(drop=True)
+    #     if 'augmentation_config' in self._config:
+    #         dataset_modified = smogn.smoter(data=df_slice, y="y", **self._config["augmentation_config"])
+    #     else:
+    #         dataset_modified = smogn.smoter(data=df_slice, y="y", k=9, samp_method="extreme")
+    #
+    #     # print("dataset modified shape",  dataset_modified.shape)
+    #     # print("dataset modified ", dataset_modified)
+    #     #
+    #     # print("df stats ", smogn.box_plot_stats(df_slice['y'])['stats'])
+    #     # print("modified stats ", smogn.box_plot_stats(dataset_modified['y'])['stats'])
+    #     #
+    #     # fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+    #     # ax.hist(df_slice['y'], bins=50, alpha=0.5, label='target', density=True)
+    #     # plt.title("original")
+    #     # plt.show()
+    #     #
+    #     # fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+    #     # ax.hist(dataset_modified['y'], bins=50, alpha=0.5, label='target', density=True)
+    #     # plt.title("modified")
+    #     # plt.show()
+    #
+    #     appended_dataset = df_slice.append(dataset_modified)
+    #
+    #     numpy_frame = dataset_modified.to_numpy()
+    #
+    #     for i in range(numpy_frame.shape[0]):
+    #         features = numpy_frame[i][:-1]
+    #         features = features.reshape((len(features), 1))
+    #         new_graphs.append(Graph(x=features, y=numpy_frame[i][-1]))
+    #
+    #     return appended_dataset, copy.deepcopy(new_graphs)
+    #
+    #     # seaborn.kdeplot(df_slice['y'], label="Original")
+    #     # seaborn.kdeplot(dataset_modified['y'], label="Modified")
 
     # def generate_data(self):
     #     n_samples = 10**5
