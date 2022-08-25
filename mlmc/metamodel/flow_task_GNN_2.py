@@ -217,12 +217,11 @@ class GNN:
 
         return loss, acc
 
-    def predict(self, loader):
+    def predict(self, loader, batch_size=20):
         targets = []
         predictions = []
         step = 0
-        for batch in loader:
-
+        for batch in loader.batch(batch_size):
             step += 1
             inputs, target = batch
             targets.extend(target)

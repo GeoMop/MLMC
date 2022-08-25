@@ -1211,7 +1211,7 @@ if __name__ == "__main__":
               'n_test_samples': 1000,
               'val_samples_ratio': 0.2,
               'batch_size': 20,
-              'epochs': 20,
+              'epochs': 2,
               'learning_rate': 0.001,
               'file_name': "bypixel_512.npz",
               'graph_creation_time': graph_creation_time,

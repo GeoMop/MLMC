@@ -311,7 +311,7 @@ def run_CNN(config, stats=True, train=True, log=False, index=0):
     # print("gnn._model.layers[min].get_weights() ", states[np.min(list(states.keys()))]._model.layers[0].get_weights())
     # print("gnn._model.layers[max].get_weights() ", states[np.max(list(states.keys()))]._model.layers[0].get_weights())
 
-    train_targets, train_predictions = gnn.predict(BatchLoader(data_tr, batch_size=batch_size, epochs=1))
+    train_targets, train_predictions = gnn.predict(ds_train)
     train_predictions = np.squeeze(train_predictions)
 
     val_targets, val_predictions = gnn.predict(loader_va)

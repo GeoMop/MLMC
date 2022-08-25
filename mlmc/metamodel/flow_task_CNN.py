@@ -157,10 +157,10 @@ class CNN:
         epochs = config["epochs"]
         self._batch_size = config["batch_size"]
         for e in range(epochs):
-            print("e " ,e)
+            #print("e " ,e)
             # Training loop
             results_tr = []
-            loader_tr = loader_tr.shuffle(config["n_train_samples"])
+            loader_tr = loader_tr.shuffle(np.min([config["n_train_samples"], 500]))
             train_loss = 0
             for batch in loader_tr.batch(self._batch_size):
                 step += 1
@@ -266,14 +266,10 @@ class CNN:
         predictions = []
         step = 0
         for batch in loader.batch(batch_size):
-
             step += 1
             inputs, target = batch
             targets.extend(target)
             predictions.extend(self._model(inputs, training=False))
-
-            if step == loader.steps_per_epoch:
-                return targets, predictions
 
         return targets, predictions
 
