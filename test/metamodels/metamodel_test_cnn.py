@@ -297,7 +297,7 @@ def get_config(data_dir, case=0):
         mesh = os.path.join(data_dir, "l_step_1.0_common_files/mesh.msh".format(cl)) #L1, 7s
         #mesh = os.path.join(data_dir, "l_step_0.27232698153315_common_files/mesh.msh".format(cl)) #L2 10.5 s
         #mesh = os.path.join(data_dir, "l_step_0.07416198487095663_common_files/mesh.msh".format(cl)) #L3 12s
-        #mesh = os.path.join(data_dir, "l_step_0.020196309484414757_common_files/mesh.msh".format(cl)) #L4 mlmc  22s
+        ##mesh = os.path.join(data_dir, "l_step_0.020196309484414757_common_files/mesh.msh".format(cl)) #L4 mlmc  22s
         #mesh = os.path.join(data_dir, "l_step_0.031_common_files/mesh.msh".format(cl)) #L4 mlmc
         #mesh = os.path.join(data_dir, "l_step_0.016_common_files/mesh.msh".format(cl)) #L5 graph creation time 2938.779510805 s
         output_dir = os.path.join(data_dir, "{}/L1_{}/test/01_cond_field/output/".format(cl, level))
@@ -1127,7 +1127,7 @@ if __name__ == "__main__":
     #
     if os.path.exists(save_path):
         shutil.rmtree(save_path)
-    # #
+    #
     # print("save path ", save_path)
 
     # 02 proc times
@@ -1155,7 +1155,11 @@ if __name__ == "__main__":
 
     graph_creation_time = 2500  # 72#4400
     graph_creation_time = 0  # 6045.724339538  #6944  # cl_0_1_s_1, L1_2
-    graph_creation_time = 868  # 1850.33 sec -  cl_0_1_s_1, L1 (50k samples)
+    graph_creation_time = 920  # 1850.33 sec -  cl_0_1_s_1, L1 (50k samples)
+    # graph_creation_time = 936  # 1850.33 sec -  cl_0_1_s_1, L2 (50k samples)
+    # graph_creation_time = 1375  # 1850.33 sec -  cl_0_1_s_1, L3 (50k samples)
+    # graph_creation_time = 2324  # 1850.33 sec -  cl_0_1_s_1, L4 (50k samples)
+    # graph_creation_time = 6356  # 1850.33 sec -  cl_0_1_s_1, L5 (50k samples)
 
     # cl_0_1_s_1 config
     dataset_config = {"first_log_features": True,
@@ -1187,7 +1191,7 @@ if __name__ == "__main__":
                       "calc_output_mult_factor": False,
                       "output_mult_factor": 1,
                       "features_mult_factor": 1,
-                      "features_scale": False,
+                      "features_scale": True,
                       "output_scale": True,
                       }
 

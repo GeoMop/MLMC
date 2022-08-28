@@ -39,7 +39,7 @@ class ImageFlowDataset(tfds.core.GeneratorBasedBuilder):
 
         self._independent_samples = independent_samples
 
-        self._dataset_config = None
+        self._dataset_config = {}
         if len(config) > 0:
             self._dataset_config = config.get('dataset_config', {})
 
@@ -51,12 +51,11 @@ class ImageFlowDataset(tfds.core.GeneratorBasedBuilder):
         self._mean_target = mean_target
         self._std_target = std_target
 
-        if self._mean_target is None or self._std_target is None:
+        if self._dataset_config.get("output_scale", False) and self._mean_target is None or self._std_target is None:
             print("get mean std target")
-
             self.get_mean_std_target(index=index, length=self._n_train_samples)
 
-        if self._mean_features is None or self._std_features is None:
+        if self._dataset_config.get("features_scale", False) and self._mean_features is None or self._std_features is None:
             self.get_mean_std_features(index=index, length=self._n_train_samples)
 
         self.signature = np.random.random()
@@ -96,6 +95,12 @@ class ImageFlowDataset(tfds.core.GeneratorBasedBuilder):
 
         if target_paths is None:
             target_paths = self.target_paths
+
+        self._dataset_config["mean_output"] = self._mean_target
+        self._dataset_config["std_output"] = self._std_target
+        self._dataset_config["mean_features"] = self._mean_features
+        self._dataset_config["std_features"] = self._std_features
+        self._save_data_config()
 
         for feature_path, target_path in zip(features_paths, target_paths):
             target = np.log(np.load(target_path))
@@ -266,3 +271,16 @@ class ImageFlowDataset(tfds.core.GeneratorBasedBuilder):
             self._std_target = np.std(all_targets, axis=0)
 
         return self._mean_target, self._std_target
+
+    def _save_data_config(self):
+        # Save config to Pickle
+        import pickle
+        import shutil
+
+        if "iter_dir" in self._config:
+            if os.path.exists(os.path.join(self._config['iter_dir'], "dataset_config.pkl")):
+                os.remove(os.path.join(self._config['iter_dir'], "dataset_config.pkl"))
+
+            # create a binary pickle file
+            with open(os.path.join(self._config['iter_dir'], "dataset_config.pkl"), "wb") as writer:
+                pickle.dump(self._dataset_config, writer)

@@ -202,7 +202,6 @@ def run_CNN(config, stats=True, train=True, log=False, index=0):
     data_tr, data_va = data_tr[:-val_data_len], data_tr[-val_data_len:]
 
     features, target = data_tr[0]
-
     # print("features ", features.shape)
     # features = features[..., np.newaxis]
     # print("features.shape ", features.shape)
@@ -1334,6 +1333,7 @@ def analyze_statistics(config, get_model=True):
 
         if rescale_data:
             if "dataset_config" in data_dict:
+
                 dataset_config = data_dict["dataset_config"][i]
 
                 print("dataset config ", dataset_config)
@@ -2819,8 +2819,8 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
 
 def predict_level_zero_CNN(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=1000, log=False, stats=False,
                        corr_field_config=None, seed=1234, feature_names=[], config=None):
-    image_creator(output_dir, hdf_path, mesh, level=0, feature_names=feature_names)
-    exit()
+    # image_creator(output_dir, hdf_path, mesh, level=0, feature_names=feature_names)
+    # exit()
     # Load data
     sample_time = 0
     if corr_field_config:
@@ -2833,19 +2833,27 @@ def predict_level_zero_CNN(nn, output_dir, hdf_path, mesh, conv_layer, batch_siz
     # data = FlowDataset(output_dir=output_dir, log=log, config=config)
     data = ImageFlowDataset(data_dir=output_dir, config=config)  # , mesh=mesh, corr_field_config=corr_field_config)
     # data = data  # [:10000]
-    data.shuffle(seed=seed)
+    #data.shuffle(seed=seed)
+
+    features, target = data[0]
+    ot = (tf.float64, tf.float64)
+    os = (tf.TensorShape([features.shape[0], features.shape[1], features.shape[2]]), tf.TensorShape([]))
+
+    dataset = tf.data.Dataset.from_generator(data._generate_examples, output_types=ot,
+                                              output_shapes=os)  # output_shapes=(512,512,1))
+
 
     # print("output_dir ", output_dir)
     # print("len(data) ", len(data))
     # print("data[0] ", data[0])
 
     predict_time_start = time.process_time()
-    data.a = conv_layer.preprocess(data.a)
-    data.a = sp_matrix_to_sp_tensor(data.a)
+    # data.a = conv_layer.preprocess(data.a)
+    # data.a = sp_matrix_to_sp_tensor(data.a)
 
-    loader_te = BatchLoader(data, batch_size=batch_size)
+    #loader_te = BatchLoader(data, batch_size=batch_size)
 
-    targets, predictions = nn.predict(loader_te)
+    targets, predictions = nn.predict(dataset)
     predictions = np.squeeze(predictions)
 
     if not stats:

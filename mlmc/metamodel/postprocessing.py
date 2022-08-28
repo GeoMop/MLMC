@@ -465,7 +465,10 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
         # var_targets = np.var(targets)
 
         mean_targets = dataset_config.get('mean_output', False)
-        var_targets = dataset_config.get('var_output', False)
+        if 'std_output' in dataset_config:
+            var_targets = dataset_config.get('std_output', False)
+        else:
+            var_targets = dataset_config.get('var_output', False)
 
         targets = var_targets * targets + mean_targets
         predictions = var_targets * predictions + mean_targets
@@ -504,14 +507,14 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
     # print("predictions ", predictions)
     # print("targets ", targets)
     # print("predictions ", predictions)
-    # plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
-    # plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
+    plt.hist(targets, bins=50, alpha=0.5, label='target', density=True)
+    plt.hist(predictions, bins=50, alpha=0.5, label='predictions', density=True)
     #
     # # plt.hist(targets - predictions, bins=50, alpha=0.5, label='predictions', density=True)
     # plt.legend(loc='upper right')
     # # plt.xlim(-0.5, 1000)
-    # plt.yscale('log')
-    # plt.show()
+    plt.yscale('log')
+    plt.show()
     #
     # plt.hist(l_0_targets, bins=50, alpha=0.5, label='l_0_target', density=True)
     # plt.hist(l_0_predictions, bins=50, alpha=0.5, label='l_0_predictions', density=True)
@@ -1162,9 +1165,9 @@ def process_mlmc(nn_hdf_file, sampling_info_path, ref_mlmc_file, targets, predic
 
     kl_mlmc, kl_nn = -1, -1
     orig_orth_moments, predict_orth_moments, ref_orth_moments = None, None, None
-    kl_mlmc, kl_nn, orig_orth_moments, predict_orth_moments, ref_orth_moments = compare_densities(original_q_estimator, predict_q_estimator, ref_estimator,
-                      label_1="orig N: {}".format(n_estimated_orig),
-                      label_2="gnn N: {}".format(n_estimated_nn))
+    # kl_mlmc, kl_nn, orig_orth_moments, predict_orth_moments, ref_orth_moments = compare_densities(original_q_estimator, predict_q_estimator, ref_estimator,
+    #                   label_1="orig N: {}".format(n_estimated_orig),
+    #                   label_2="gnn N: {}".format(n_estimated_nn))
 
     if stats:
         return n_estimated_orig, n_estimated_nn, n_ops, n_ops_predict, orig_moments_mean, \
