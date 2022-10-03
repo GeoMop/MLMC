@@ -59,7 +59,7 @@ from mlmc.metamodel.graph_models import Net1
 #         """
 #         return self._model.summary()
 
-
+import time
 import os
 import warnings
 import logging
@@ -150,50 +150,78 @@ class CNN:
         current_patience = self._patience
         step = 0
         self._total_n_steps = 0
+        results_te = None
 
         train_targets = True
         train_targets_list = []
 
         epochs = config["epochs"]
         self._batch_size = config["batch_size"]
+
+        print("epochs ", epochs)
+        print("batch size ", self._batch_size)
+
+
         for e in range(epochs):
             #print("e " ,e)
             # Training loop
             results_tr = []
-            loader_tr = loader_tr.shuffle(np.min([config["n_train_samples"], 500]))
+            #loader_tr = loader_tr.shuffle(np.min([config["n_train_samples"], 500]))
             train_loss = 0
+            #batches_t = time.time()
             for batch in loader_tr.batch(self._batch_size):
                 step += 1
                 self._total_n_steps += 1
+
 
                 # Training step
                 inputs, target = batch
                 if train_targets:
                     train_targets_list.extend(target)
 
+                #t_1 = time.time()
                 loss, acc = self.train_on_batch(inputs, target)
+                #print("batch train time ", time.time() - t_1)
 
-                self._train_loss.append(loss)
-                self._train_acc.append(acc)
+                #self._train_loss.append(loss)
+                #self._train_acc.append(acc)
                 results_tr.append((loss, acc, len(target)))
+            #print("batches t ", time.time() - batches_t)
 
+            #print("batch ", batch)
+
+            results_tr = np.array(results_tr)
+            results_tr = np.average(results_tr[:, :-1], 0, weights=results_tr[:, -1])
+            self._train_loss.append(results_tr[0])
+            self._train_acc.append(results_tr[1])
+
+            #val_t = time.time()
             results_va = self.evaluate(loader_va)
+            #print("val time ", time.time() - val_t)
 
             self._val_loss.append(results_va[0])
+
+            #print("iter dir ", config["iter_dir"])
+            # print("results_Va ", results_va)
+            # print("best_val_loss ", best_val_loss)
 
             #if step == loader_tr.steps_per_epoch:  # step_per_epoch = int(np.ceil(len(self.dataset) / self.batch_size))
             train_targets = False
             if results_va[0] < best_val_loss:
 
-                self._model.save(os.path.join(config["output_dir"], "saved_model"))
+                model_sv_t = time.time()
+                self._model.save(os.path.join(config["iter_dir"], "saved_model"))
+                #print("model save t ", time.time()-model_sv_t)
                 #self._model = tf.keras.models.load_model(os.path.join(config["output_dir"], "saved_model"))
 
                 best_val_loss = results_va[0]
                 current_patience = self._patience
                 self._states = {}
                 #self._states[results_va[0]] = copy.deepcopy(self)
-                results_te = self.evaluate(loader_te)
-                self._test_loss.append(results_te[0])
+                #test_t = time.time()
+                #results_te = self.evaluate(loader_te)
+                #self._test_loss.append(results_te[0])
+                #print("test_t ", time.time() - test_t)
             else:
                 current_patience -= 1
                 #results_tr_0 = np.array(results_tr)
@@ -204,20 +232,31 @@ class CNN:
             lr = K.eval(self._optimizer._decayed_lr(tf.float32))
             self._learning_rates.append(lr)
             # Print results
-            results_tr = np.array(results_tr)
-            results_tr = np.average(results_tr[:, :-1], 0, weights=results_tr[:, -1])
+
             if self._verbose:
-                print(
-                    "Train loss: {:.12f}, acc: {:.12f} | "
-                    "Valid loss: {:.12f}, acc: {:.12f} | "
-                    "Test loss: {:.12f}, acc: {:.12f} | LR: {:.12f}".format(
-                        *results_tr, *results_va, *results_te, lr
+                if results_te is not None:
+                    print(
+                        "Train loss: {:.12f}, acc: {:.12f} | "
+                        "Valid loss: {:.12f}, acc: {:.12f} | "
+                        "Test loss: {:.12f}, acc: {:.12f} | LR: {:.12f}".format(
+                            *results_tr, *results_va, *results_te, lr
+                        )
                     )
-                )
+                else:
+                    print(
+                        "Train loss: {:.12f}, acc: {:.12f} | "
+                        "Valid loss: {:.12f}, acc: {:.12f} | "
+                        "LR: {:.12f}".format(
+                            *results_tr, *results_va, lr
+                        )
+                    )
 
             # Reset epoch
             results_tr = []
             step = 0
+
+            # if e > 1:
+            #     exit()
 
         return train_targets_list
 

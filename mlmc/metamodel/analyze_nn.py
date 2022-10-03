@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 # np.set_printoptions(precision=9, suppress=True)
 import tensorflow as tf
-from torch.utils.data import DataLoader
+#from torch.utils.data import DataLoader
 
 from tensorflow import keras
 from scipy.stats import ks_2samp
@@ -164,7 +164,7 @@ def run_CNN(config, stats=True, train=True, log=False, index=0):
             dataset = ImageFlowDataset(data_dir=config['output_dir'], config=config)
 
             data_tr = dataset.get_train_data(index=index, length=config['n_train_samples'])
-            data_te = dataset.get_test_data(index=index, length=config['n_test_samples'])
+            data_te = dataset.get_test_data(index=index, length=config['n_train_samples'])
         else:
 
             # data = FlowDataset(output_dir=config['output_dir'], level=config['level'], log=log, config=config,
@@ -246,9 +246,9 @@ def run_CNN(config, stats=True, train=True, log=False, index=0):
     #
     #
     #
-    # print("len data tr ", len(data_tr))
-    # print("len data va ", len(data_va))
-    # print("len data te ", len(data_te))
+    print("len data tr ", len(data_tr))
+    print("len data va ", len(data_va))
+    print("len data te ", len(data_te))
 
     gnn = config['gnn'](**config['model_config'])
 
@@ -282,15 +282,15 @@ def run_CNN(config, stats=True, train=True, log=False, index=0):
         #compare_models(gnn._model, config["set_model"], config)
 
     #
-    if gnn is None:
-        gnn = GNN(loss=loss, optimizer=optimizer, conv_layer=config['conv_layer'], output_activation=abs_activation,
-                  hidden_activation='relu', patience=150, hidden_reqularizer=hidden_regularization,
-                  model=config['model'], accuracy_func=accuracy_func)  # tanh takes to much time
+    # if gnn is None:
+    #     gnn = GNN(loss=loss, optimizer=optimizer, conv_layer=config['conv_layer'], output_activation=abs_activation,
+    #               hidden_activation='relu', patience=150, hidden_reqularizer=hidden_regularization,
+    #               model=config['model'], accuracy_func=accuracy_func)  # tanh takes to much time
         # ideally patience = 150
         # batch_size 500, ideally 500 epochs, patience 35
 
     if train:
-        print("gnn ", gnn)
+        print("cnn ", gnn)
         # gnn.run_eagerly = True
         train_targets = gnn.fit(loader_tr, loader_va, loader_te, config)
 
@@ -338,11 +338,11 @@ def run_CNN(config, stats=True, train=True, log=False, index=0):
 
     #print("MSE ", np.mean((predictions-targets)**2))
 
-    if log:
-        targets = np.exp(targets)
-        predictions = np.exp(predictions)
-        target_to_est = np.exp(targets_to_est)
-        predictions_to_est = np.exp(predictions_to_est)
+    # if log:
+    #     targets = np.exp(targets)
+    #     predictions = np.exp(predictions)
+    #     target_to_est = np.exp(targets_to_est)
+    #     predictions_to_est = np.exp(predictions_to_est)
 
     if not stats:
         analyze_results(targets, predictions)
@@ -363,14 +363,18 @@ def run_CNN(config, stats=True, train=True, log=False, index=0):
     #predict_l_0_start_time = time.process_time()
     #l_0_targets, l_0_predictions, predict_l_0_time = [], [], []
     l_0_targets, l_0_predictions, predict_l_0_time = predict_level_zero_CNN(gnn, config['l_0_output_dir'],
-                                                                        config['l_0_hdf_path'], config['mesh'],
-                                                                        config['conv_layer'], batch_size, log,
-                                                                        stats=stats,
-                                                                        corr_field_config=config['corr_field_config'],
-                                                                        seed=index,
-                                                                        feature_names=config.get('feature_names', [['conductivity']]),
-                                                                        config=config
-                                                                        )
+                                                                            config['l_0_hdf_path'], config['mesh'],
+                                                                            config['conv_layer'], batch_size, log,
+                                                                            stats=stats,
+                                                                            corr_field_config=config[
+                                                                                'corr_field_config'],
+                                                                            seed=index,
+                                                                            feature_names=config.get('feature_names', [
+                                                                                ['conductivity']]),
+                                                                            config=config,
+                                                                            mean_std_features=dataset.get_mean_std_features(),
+                                                                            mean_std_target=dataset.get_mean_std_target()
+                                                                            )
     #predict_l_0_time = time.process_time() - predict_l_0_start_time
 
     if stats:
@@ -2818,7 +2822,7 @@ def predict_level_zero(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=10
 
 
 def predict_level_zero_CNN(nn, output_dir, hdf_path, mesh, conv_layer, batch_size=1000, log=False, stats=False,
-                       corr_field_config=None, seed=1234, feature_names=[], config=None):
+                       corr_field_config=None, seed=1234, feature_names=[], config=None, mean_std_features=None, mean_std_target=None):
     # image_creator(output_dir, hdf_path, mesh, level=0, feature_names=feature_names)
     # exit()
     # Load data
@@ -2831,7 +2835,9 @@ def predict_level_zero_CNN(nn, output_dir, hdf_path, mesh, conv_layer, batch_siz
     #
     # config["n_train_samples"] = 2000
     # data = FlowDataset(output_dir=output_dir, log=log, config=config)
-    data = ImageFlowDataset(data_dir=output_dir, config=config)  # , mesh=mesh, corr_field_config=corr_field_config)
+
+    data = ImageFlowDataset(data_dir=output_dir, config=config, mean_features=mean_std_features[0], std_features=mean_std_features[1],
+                            mean_target=mean_std_target[0], std_target=mean_std_target[1])  # , mesh=mesh, corr_field_config=corr_field_config)
     # data = data  # [:10000]
     #data.shuffle(seed=seed)
 
