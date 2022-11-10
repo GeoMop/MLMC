@@ -53,7 +53,7 @@ Requirements
 - `ruamel.yaml  <https://pypi.org/project/ruamel.yaml/>`_
 - `gstools  <https://pypi.org/project/gstools/>`_
 - `memoization  <https://pypi.org/project/memoization/>`_
-- `scikit-learn  <https://pypi.org/project/scikit-learn/>`_
+- `sklearn  <https://pypi.org/project/sklearn/>`_
 
 
 Licence
