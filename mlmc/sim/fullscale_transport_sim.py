@@ -58,17 +58,13 @@ class FullScaleTransportSim(Simulation):
         ###################
         ### fine sample ###
         ###################
-        conf_file = os.path.join(config["work_dir"], "test_data/config_homo_tsx.yaml")
-        cfg = common.load_config(conf_file)
-        cfg.flow_env["flow_executable"] = config["flow_executable"]
-        cfg["work_dir"] = config["work_dir"]
 
-        source_params = dict(position=10, length=6)
-        cfg_fine = cfg.transport_fullscale
-        shutil.copy(os.path.join(cfg["work_dir"], cfg_fine.piezo_head_input_file), os.getcwd())
-        shutil.copy(os.path.join(cfg["work_dir"], cfg_fine.conc_flux_file), os.getcwd())
+        #conf_file = os.path.join(config["work_dir"], "test_data/config_homo_tsx.yaml")
+        #cfg = common.load_config(conf_file)
+        #cfg.flow_env["flow_executable"] = config["flow_executable"]
+        #cfg["work_dir"] = config["work_dir"]
 
-        fo = fullscale_transport(cfg, source_params, seed)
+        fo = fullscale_transport(config['main_cfg_file'], config['source_params'], seed)
         fine_res = fo.hydro
 
         #####################
