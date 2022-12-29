@@ -64,21 +64,25 @@ class FullScaleTransportSim(Simulation):
         #cfg.flow_env["flow_executable"] = config["flow_executable"]
         #cfg["work_dir"] = config["work_dir"]
 
-        fo = fullscale_transport(config['main_cfg_file'], config['source_params'], seed)
-        fine_res = fo.hydro
+        val = fullscale_transport(config['main_cfg_file'], config['source_params'], seed)
+        q10 = list(val)
+        add_values = (10 - len(q10)) * [0.0]
+        q10.extend(add_values) #fixed_indicators[:len(ind_time_max)] = np.array(ind_time_max)
+        res_fine = np.asarray(q10)
+        #fine_res = fo.hydro
 
         #####################
         ### coarse sample ###
         #####################
-        coarse_res = 0
+        res_coarse = np.zeros_like(res_fine)
 
-        return fine_res, coarse_res
+        return res_fine, res_coarse
 
     def result_format(self) -> List[QuantitySpec]:
         """
         Result format
         :return:
         """
-        spec1 = QuantitySpec(name="conductivity", unit="m", shape=(1, 1), times=[1], locations=['0'])
+        spec1 = QuantitySpec(name="indicator_conc", unit="g/m3", shape=(10, 1), times=[1], locations=['0'])
         # spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40'])
         return [spec1]
