@@ -125,7 +125,8 @@ class SampleStorageHDF(SampleStorage):
     def _save_succesful(self, successful_samples):
         for level, samples in successful_samples.items():
             if len(samples) > 0:
-                self._level_groups[level].append_successful(np.array(samples))
+                ids, sample_values = zip(*samples)
+                self._level_groups[level].append_successful(np.array(ids, dtype=str), np.array(sample_values, dtype=float))
 
     def _save_failed(self, failed_samples):
         for level, samples in failed_samples.items():

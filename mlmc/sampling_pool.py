@@ -122,6 +122,7 @@ class SamplingPool(ABC):
         except Exception:
             str_list = traceback.format_exception(*sys.exc_info())
             err_msg = "".join(str_list)
+            print(err_msg)
 
         return sample_id, res, err_msg, running_time
 
@@ -241,7 +242,8 @@ class OneProcessPool(SamplingPool):
         self._save_running_time(level_sim._level_id, running_time)
 
         if not err_msg:
-            self._queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
+            level_queue = self._queues.setdefault(level_sim._level_id, queue.Queue())
+            level_queue.put((sample_id, (result[0], result[1])))
             if not self._debug:
                 SamplingPool.move_successful_rm(sample_id, level_sim, output_dir=self._output_dir, dest_dir=self._successful_dir)
         else:

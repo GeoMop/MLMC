@@ -112,12 +112,14 @@ class HDF5:
         # HDF5 path to particular level group
         level_group_hdf_path = '/Levels/' + level_id
 
-        with h5py.File(self.file_name, "a") as hdf_file:
-            # Create group (h5py.Group) if it has not yet been created
-            if level_group_hdf_path not in hdf_file:
-                # Create group for level named by level id (e.g. 0, 1, 2, ...)
-                hdf_file['Levels'].create_group(level_id)
-
+        try:
+            with h5py.File(self.file_name, "a") as hdf_file:
+                # Create group (h5py.Group) if it has not yet been created
+                if level_group_hdf_path not in hdf_file:
+                    # Create group for level named by level id (e.g. 0, 1, 2, ...)
+                    hdf_file['Levels'].create_group(level_id)
+        except BlockingIOError as e:
+            raise BlockingIOError(f"Unable to lock file: {self.file_name}")
         return LevelGroup(self.file_name, level_group_hdf_path, level_id, loaded_from_file=self._load_from_file)
 
     @property
@@ -300,16 +302,17 @@ class LevelGroup:
         if len(scheduled_samples) > 0:
             self._append_dataset(self.scheduled_dset, scheduled_samples)
 
-    def append_successful(self, samples: np.array):
+    def append_successful(self, sample_ids:np.array, samples: np.array):
         """
         Save level samples to datasets (h5py.Dataset), save ids of collected samples and their results
         :param samples: np.ndarray
         :return: None
         """
-        self._append_dataset(self.collected_ids_dset, samples[:, 0])
+        assert samples.shape[0] == len(sample_ids)
+        assert samples.shape[1] == 2
+        self._append_dataset(self.collected_ids_dset, sample_ids)
 
-        values = samples[:, 1]
-        result_type = np.dtype((float, np.array(values[0]).shape))
+        result_type = np.dtype((float, np.array(samples[0]).shape))
 
         # Create dataset for failed samples
         self._make_dataset(name='collected_values', shape=(0,),
@@ -317,7 +320,7 @@ class LevelGroup:
                            chunks=True)
 
         d_name = 'collected_values'
-        self._append_dataset(d_name, [val for val in values])
+        self._append_dataset(d_name, [val for val in samples])
 
     def append_failed(self, failed_samples):
         """
