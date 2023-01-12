@@ -232,7 +232,7 @@ class SamplingPoolPBS(SamplingPool):
             job_file = os.path.join(self._jobs_dir, SamplingPoolPBS.JOB.format(job_id))
             script_content = "\n".join(self.pbs_script)
             self.write_script(script_content, job_file)
-            process = self.pbs_commands.qsub([job_file])
+            process = self.pbs_commands.qsub(['--', job_file])
 
             try:
                 if process.status != 0:
