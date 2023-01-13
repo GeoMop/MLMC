@@ -232,11 +232,14 @@ class SamplingPoolPBS(SamplingPool):
             job_file = os.path.join(self._jobs_dir, SamplingPoolPBS.JOB.format(job_id))
             script_content = "\n".join(self.pbs_script)
             self.write_script(script_content, job_file)
-            process = self.pbs_commands.qsub(['--', job_file])
+            process = self.pbs_commands.qsub([job_file])
 
-            try:
-                if process.status != 0:
-                    raise Exception(process.stderr)
+            if process.status != 0:
+                self._qsub_failed_n += 1
+                print(f"\nWARNING: FAILED QSUB, {self._qsub_failed_n} consecutive\n: {process}")
+                if self._qsub_failed_n > SamplingPoolPBS.QSUB_FAILED_MAX_N:
+                    raise Exception(str(process))
+            else:    
                 # Find all finished jobs
                 self._qsub_failed_n = 0
                 # Write current job count
@@ -251,10 +254,6 @@ class SamplingPoolPBS(SamplingPool):
                 self._current_job_weight = 0
                 self._n_samples_in_job = 0
                 self._scheduled = []
-            except:
-                self._qsub_failed_n += 1
-                if self._qsub_failed_n > SamplingPoolPBS.QSUB_FAILED_MAX_N:
-                    raise Exception(process.stderr)
 
     def _create_script(self):
         """
@@ -266,7 +265,7 @@ class SamplingPoolPBS(SamplingPool):
         self._pbs_config['pbs_output_dir'] = self._jobs_dir
         self._pbs_config['output_dir'] = self._output_dir
         self._pbs_config['work_dir'] = self._work_dir
-
+        
         self.pbs_script = [line.format(**self._pbs_config) for line in self._pbs_header_template]
 
     def write_script(self, content, job_file):
