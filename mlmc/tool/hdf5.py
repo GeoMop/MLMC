@@ -1,6 +1,28 @@
 import numpy as np
 import h5py
 from mlmc.quantity.quantity_spec import ChunkSpec
+import time
+
+class FileSafe(h5py.File):
+    """
+    Context manager for openning HDF5 files with some timeout
+    amd retrying of getting acces.creation and usage of a workspace dir.
+    """
+    def __init__(self, filename:str, mode='r', timeout=5, **kwargs):
+        """
+        :param filename:
+        :param timeout: time to try acquire the lock
+        """
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            try:
+                super().__init__(filename, **kwargs)
+                return
+            except BlockingIOError as e:
+                time.sleep(0.01)
+                continue
+            break
+        raise BlockingIOError(f"Unable to lock access to HDF5 file: {filename}, give up after: {timeout}s.")
 
 
 class HDF5:
@@ -349,14 +371,15 @@ class LevelGroup:
         Read level dataset with scheduled samples
         :return:
         """
-        with h5py.File(self.file_name, 'r') as hdf_file:
+        with FileSafe(self.file_name, 'r') as hdf_file:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             return scheduled_dset[()]
 
     def chunks(self, n_samples=None):
         with h5py.File(self.file_name, 'r') as hdf_file:
             if 'collected_values' not in hdf_file[self.level_group_path]:
-                raise AttributeError("No collected values in level group ".format(self.level_id))
+                raise AttributeError(f"No collected values for level {self.level_id} at {self.file_name}:{self.level_group_path}."
+                                     f"Found keys: {list(hdf_file[self.level_group_path].keys())}")
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
 
             if n_samples is not None:
