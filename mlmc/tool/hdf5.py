@@ -152,39 +152,50 @@ class HDF5:
         """
         return "result_format"
 
-    def save_result_format(self, result_format, res_dtype):
+    def single_format(self, spec:"QuantitySpec"):
+        # point or named region
+        loc_dtype = np.dtype((float, (3,))) if len(spec.locations) == 3 else 'S50'
+        locations_dtype = np.dtype((loc_dtype, (len(spec.locations),)))
+        result_dtype = {'names': ('name','unit', 'shape', 'times', 'locations'),
+                        'formats': ('S50',
+                                    'S50',
+                                    np.dtype((np.int32, (2,))),
+                                    np.dtype((float, (len(spec.times),))),
+                                    locations_dtype
+                                    )
+                        }
+        format_items = (spec.name, spec.unit, spec.shape, spec.times, spec.locations)
+        res_format = np.array([format_items], dtype=result_dtype)
+        return res_format, result_dtype
+
+
+    def save_result_format(self, result_format):
         """
         Save result format to dataset
         :param result_format: List[QuantitySpec]
         :param res_dtype: result numpy dtype
         :return: None
         """
-        result_format_dtype = res_dtype
-
-        # Create data set
         with h5py.File(self.file_name, 'a') as hdf_file:
-            # Check if dataset exists
+            # format item in main group
             if self.result_format_dset_name not in hdf_file:
-                hdf_file.create_dataset(
-                    self.result_format_dset_name,
-                    shape=(len(result_format),),
-                    dtype=result_format_dtype,
-                    maxshape=(None,),
-                    chunks=True)
-
-        # Format data
-        result_array = np.empty((len(result_format),), dtype=result_format_dtype)
-        for res, quantity_spec in zip(result_array, result_format):
-            for attribute in list(quantity_spec.__dict__.keys()):
-                if isinstance(getattr(quantity_spec, attribute), (tuple, list)):
-                    res[attribute][:] = getattr(quantity_spec, attribute)
+                format_group = hdf_file.create_group(self.result_format_dset_name)
+            else:
+                format_group = hdf_file[self.result_format_dset_name]
+            # dataset item qith format spec for every QuantitySpec
+            for ispec, qspec in enumerate(result_format):
+                ispec = f"{ispec:04d}"
+                format, format_dtype = self.single_format(qspec)
+                if ispec not in format_group:
+                    quantity_dset = format_group.create_dataset(
+                        name=ispec,
+                        shape=(1,),
+                        dtype=format_dtype,
+                        maxshape=(None,),
+                        chunks=True)
                 else:
-                    res[attribute] = getattr(quantity_spec, attribute)
-
-        # Write to file
-        with h5py.File(self.file_name, 'a') as hdf_file:
-            dataset = hdf_file[self.result_format_dset_name]
-            dataset[:] = result_array
+                    quantity_dset = format_group[ispec]
+                quantity_dset[0] = format
 
     def load_result_format(self):
         """
@@ -195,8 +206,9 @@ class HDF5:
             if self.result_format_dset_name not in hdf_file:
                 raise AttributeError
 
-            dataset = hdf_file[self.result_format_dset_name]
-            return dataset[()]
+            format_group = hdf_file[self.result_format_dset_name]
+            format = {ispec: np.array(q_dset) for ispec, q_dset in format_group.items()}
+            return format
 
     def load_level_parameters(self):
         with h5py.File(self.file_name, "r") as hdf_file:

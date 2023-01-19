@@ -33,27 +33,6 @@ class SampleStorageHDF(SampleStorage):
                 for i_level in range(len(self._hdf_object.level_parameters)):
                     self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
 
-    def _hdf_result_format(self, locations, times):
-        """
-        QuantitySpec data type, necessary for hdf storage
-        :return:
-        """
-        if len(locations[0]) == 3:
-            tuple_dtype = np.dtype((float, (3,)))
-            loc_dtype = np.dtype((tuple_dtype, (len(locations),)))
-        else:
-            loc_dtype = np.dtype(('S50', (len(locations),)))
-
-        result_dtype = {'names': ('name', 'unit', 'shape', 'times', 'locations'),
-                        'formats': ('S50',
-                                    'S50',
-                                    np.dtype((np.int32, (2,))),
-                                    np.dtype((float, (len(times),))),
-                                    loc_dtype
-                                    )
-                        }
-
-        return result_dtype
 
     def save_global_data(self, level_parameters: List[float], result_format: List[QuantitySpec]):
         """
@@ -62,7 +41,6 @@ class SampleStorageHDF(SampleStorage):
         :param result_format: simulation result format
         :return: None
         """
-        res_dtype = self._hdf_result_format(result_format[0].locations, result_format[0].times)
 
         # Create file structure
         self._hdf_object.create_file_structure(level_parameters)
@@ -73,7 +51,7 @@ class SampleStorageHDF(SampleStorage):
                 self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
 
         # Save result format (QuantitySpec)
-        self.save_result_format(result_format, res_dtype)
+        self.save_result_format(result_format)
 
     def load_scheduled_samples(self):
         """
@@ -85,7 +63,7 @@ class SampleStorageHDF(SampleStorage):
             scheduled[int(level.level_id)] = [sample[0].decode() for sample in level.scheduled()]
         return scheduled
 
-    def save_result_format(self, result_format: List[QuantitySpec], res_dtype):
+    def save_result_format(self, result_format: List[QuantitySpec]):
         """
         Save result format to hdf
         :param result_format: List[QuantitySpec]
@@ -96,20 +74,21 @@ class SampleStorageHDF(SampleStorage):
                 raise ValueError('You are setting a new different result format for an existing sample storage')
         except AttributeError:
             pass
-        self._hdf_object.save_result_format(result_format, res_dtype)
+        self._hdf_object.save_result_format(result_format)
+
+    @staticmethod
+    def make_qspec(name, unit, shape, times, locations):
+        return QuantitySpec(name.decode(), unit.decode(), shape, times, [loc.decode() for loc in locations])
 
     def load_result_format(self) -> List[QuantitySpec]:
         """
         Load result format
         """
         results_format = self._hdf_object.load_result_format()
-        quantities = []
-        for res_format in results_format:
-            spec = QuantitySpec(res_format[0].decode(), res_format[1].decode(), res_format[2], res_format[3],
-                                [loc.decode() for loc in res_format[4]])
-
-            quantities.append(spec)
-
+        quantities = [
+            self.make_qspec(*res_format[0])
+            for ispec, res_format in sorted(results_format.items())
+        ]
         return quantities
 
     def save_samples(self, successful, failed):
