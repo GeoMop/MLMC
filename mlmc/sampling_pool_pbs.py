@@ -232,29 +232,27 @@ class SamplingPoolPBS(SamplingPool):
             job_file = os.path.join(self._jobs_dir, SamplingPoolPBS.JOB.format(job_id))
             script_content = "\n".join(self.pbs_script)
             self.write_script(script_content, job_file)
+
             process = self.pbs_commands.qsub([job_file])
-
-            try:
-                if process.status != 0:
-                    raise Exception(process.stderr)
-                # Find all finished jobs
-                self._qsub_failed_n = 0
-                # Write current job count
-                self._job_count += 1
-
-                # Get pbs_id from qsub output
-                pbs_id = process.stdout.split(".")[0]
-                # Store pbs id for future qstat calls
-                self._pbs_ids.append(pbs_id)
-                pbs_process.write_pbs_id(pbs_id)
-
-                self._current_job_weight = 0
-                self._n_samples_in_job = 0
-                self._scheduled = []
-            except:
+            if process.status != 0:
                 self._qsub_failed_n += 1
+                print(f"FAILED QSUB {self._qsub_failed_n}: {process}")
                 if self._qsub_failed_n > SamplingPoolPBS.QSUB_FAILED_MAX_N:
-                    raise Exception(process.stderr)
+                    raise Exception(process)
+            # Find all finished jobs
+            self._qsub_failed_n = 0
+            # Write current job count
+            self._job_count += 1
+
+            # Get pbs_id from qsub output
+            pbs_id = process.stdout.split(".")[0]
+            # Store pbs id for future qstat calls
+            self._pbs_ids.append(pbs_id)
+            pbs_process.write_pbs_id(pbs_id)
+
+            self._current_job_weight = 0
+            self._n_samples_in_job = 0
+            self._scheduled = []
 
     def _create_script(self):
         """
