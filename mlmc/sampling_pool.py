@@ -136,6 +136,24 @@ class SamplingPool(ABC):
         sample_dir = os.path.join(work_dir, path)
         if not os.path.isdir(sample_dir):
             os.makedirs(sample_dir, mode=0o775, exist_ok=True)
+
+        # We have observed possible problems with directory creation on the 
+        # network filesystem. However it is not sure that was the cause of the problem.
+        # This code would make sure that we have write access to the created directory.
+        
+        # Commented out in order to try to reproduce the problem.
+        #for i in range(30):
+            #try:
+                #with open(os.path.join(sample_dir, "_test_file.txt"), "w") as f:
+                    #f.write("test")
+            #except:
+                #time.sleep(1)
+                #continue
+            #print("Workdir ready after {i} sleep seconds.")
+            #break
+        #else:
+            #print("Workdir still not ready ready after {i} sleep seconds.")
+    
         return sample_dir
 
     @staticmethod
