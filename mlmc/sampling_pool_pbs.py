@@ -212,33 +212,35 @@ class SamplingPoolPBS(SamplingPool):
         Execute pbs script
         :return: None
         """
-        if len(self._scheduled) > 0:
-            job_id = "{:04d}".format(self._job_count)
-            # Create pbs job
-            pbs_process = PbsJob.create_job(self._output_dir, self._jobs_dir, job_id,
-                                            SamplingPoolPBS.LEVEL_SIM_CONFIG, self._debug)
+        if len(self._scheduled) <= 0:
+            return
+        job_id = "{:04d}".format(self._job_count)
+        # Create pbs job
+        pbs_process = PbsJob.create_job(self._output_dir, self._jobs_dir, job_id,
+                                        SamplingPoolPBS.LEVEL_SIM_CONFIG, self._debug)
 
-            pbs_process.save_sample_id_job_id(job_id, self._scheduled)
-            # Write scheduled samples to file
-            pbs_process.save_scheduled(self._scheduled)
+        pbs_process.save_sample_id_job_id(job_id, self._scheduled)
+        # Write scheduled samples to file
+        pbs_process.save_scheduled(self._scheduled)
 
-            # Format pbs script
-            self._create_script()
+        # Format pbs script
+        self._create_script()
 
-            if self.pbs_script is None or self._n_samples_in_job == 0:
-                return
+        if self.pbs_script is None or self._n_samples_in_job == 0:
+            return
 
-            # Write pbs script
-            job_file = os.path.join(self._jobs_dir, SamplingPoolPBS.JOB.format(job_id))
-            script_content = "\n".join(self.pbs_script)
-            self.write_script(script_content, job_file)
+        # Write pbs script
+        job_file = os.path.join(self._jobs_dir, SamplingPoolPBS.JOB.format(job_id))
+        script_content = "\n".join(self.pbs_script)
+        self.write_script(script_content, job_file)
 
-            if process.status != 0:
-                self._qsub_failed_n += 1
-                print(f"\nWARNING: FAILED QSUB, {self._qsub_failed_n} consecutive\n: {process}")
-                if self._qsub_failed_n > SamplingPoolPBS.QSUB_FAILED_MAX_N:
-                    raise Exception(str(process))
-            else:    
+        process = self.pbs_commands.qsub([job_file])
+        if process.status != 0:
+            self._qsub_failed_n += 1
+            print(f"\nWARNING: FAILED QSUB, {self._qsub_failed_n} consecutive\n: {process}")
+            if self._qsub_failed_n > SamplingPoolPBS.QSUB_FAILED_MAX_N:
+                raise Exception(str(process))
+        else:
             # Find all finished jobs
             self._qsub_failed_n = 0
             # Write current job count
