@@ -2,6 +2,7 @@ import numpy as np
 import h5py
 from mlmc.quantity.quantity_spec import ChunkSpec
 import time
+import logging
 
 class FileSafe(h5py.File):
     """
@@ -16,12 +17,13 @@ class FileSafe(h5py.File):
         end_time = time.time() + timeout
         while time.time() < end_time:
             try:
-                super().__init__(filename, **kwargs)
+                super().__init__(filename, mode, **kwargs)
                 return
             except BlockingIOError as e:
                 time.sleep(0.01)
                 continue
             break
+        logging.exception(f"Unable to lock access to HDF5 file: {filename}, give up after: {timeout}s.")
         raise BlockingIOError(f"Unable to lock access to HDF5 file: {filename}, give up after: {timeout}s.")
 
 
@@ -118,7 +120,7 @@ class HDF5:
         :param level_parameters: MLMC level range of steps
         :return: None
         """
-        with h5py.File(self.file_name, "a") as hdf_file:
+        with FileSafe(self.file_name, "a") as hdf_file:
             # Set global attributes to root group (h5py.Group)
             hdf_file.attrs['version'] = '1.0.1'
             hdf_file.attrs['level_parameters'] = level_parameters
@@ -135,7 +137,7 @@ class HDF5:
         level_group_hdf_path = '/Levels/' + level_id
 
         try:
-            with h5py.File(self.file_name, "a") as hdf_file:
+            with FileSafe(self.file_name, "a") as hdf_file:
                 # Create group (h5py.Group) if it has not yet been created
                 if level_group_hdf_path not in hdf_file:
                     # Create group for level named by level id (e.g. 0, 1, 2, ...)
@@ -250,7 +252,7 @@ class LevelGroup:
         # Chunk size and corresponding number of items
 
         # Set group attribute 'level_id'
-        with h5py.File(self.file_name, 'a') as hdf_file:
+        with FileSafe(self.file_name, 'a') as hdf_file:
             if 'level_id' not in hdf_file[self.level_group_path].attrs:
                 hdf_file[self.level_group_path].attrs['level_id'] = self.level_id
 
