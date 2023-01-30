@@ -171,7 +171,7 @@ class Memory(SampleStorage):
             res = np.array(res)
             fine_coarse_res = res[:, 1]
 
-            result_type = np.dtype((np.float, np.array(fine_coarse_res[0]).shape))
+            result_type = np.dtype((float, np.array(fine_coarse_res[0]).shape))
             results = np.empty(shape=(len(res),), dtype=result_type)
             results[:] = [val for val in fine_coarse_res]
 

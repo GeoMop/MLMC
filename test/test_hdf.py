@@ -87,7 +87,7 @@ def load_from_file(hdf_obj, obligatory_attributes):
 
 SCHEDULED_SAMPLES = ['L00_S0000000', 'L00_S0000001', 'L00_S0000002', 'L00_S0000003', 'L00_S0000004']
 
-RESULT_DATA_DTYPE = [("value", np.float), ("time", np.float)]
+RESULT_DATA_DTYPE = [("value", float), ("time", float)]
 
 COLLECTED_SAMPLES = np.array([['L00S0000000', (np.array([10, 20]), np.array([5, 6]))],
                      ['L00S0000001', (np.array([1, 2]), np.array([50, 60]))]])

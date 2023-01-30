@@ -1,6 +1,30 @@
 import numpy as np
 import h5py
 from mlmc.quantity.quantity_spec import ChunkSpec
+import time
+import logging
+
+class FileSafe(h5py.File):
+    """
+    Context manager for openning HDF5 files with some timeout
+    amd retrying of getting acces.creation and usage of a workspace dir.
+    """
+    def __init__(self, filename:str, mode='r', timeout=5, **kwargs):
+        """
+        :param filename:
+        :param timeout: time to try acquire the lock
+        """
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            try:
+                super().__init__(filename, mode, **kwargs)
+                return
+            except BlockingIOError as e:
+                time.sleep(0.01)
+                continue
+            break
+        logging.exception(f"Unable to lock access to HDF5 file: {filename}, give up after: {timeout}s.")
+        raise BlockingIOError(f"Unable to lock access to HDF5 file: {filename}, give up after: {timeout}s.")
 
 
 class HDF5:
@@ -96,7 +120,7 @@ class HDF5:
         :param level_parameters: MLMC level range of steps
         :return: None
         """
-        with h5py.File(self.file_name, "a") as hdf_file:
+        with FileSafe(self.file_name, "a") as hdf_file:
             # Set global attributes to root group (h5py.Group)
             hdf_file.attrs['version'] = '1.0.1'
             hdf_file.attrs['level_parameters'] = level_parameters
@@ -112,12 +136,14 @@ class HDF5:
         # HDF5 path to particular level group
         level_group_hdf_path = '/Levels/' + level_id
 
-        with h5py.File(self.file_name, "a") as hdf_file:
-            # Create group (h5py.Group) if it has not yet been created
-            if level_group_hdf_path not in hdf_file:
-                # Create group for level named by level id (e.g. 0, 1, 2, ...)
-                hdf_file['Levels'].create_group(level_id)
-
+        try:
+            with FileSafe(self.file_name, "a") as hdf_file:
+                # Create group (h5py.Group) if it has not yet been created
+                if level_group_hdf_path not in hdf_file:
+                    # Create group for level named by level id (e.g. 0, 1, 2, ...)
+                    hdf_file['Levels'].create_group(level_id)
+        except BlockingIOError as e:
+            raise BlockingIOError(f"Unable to lock file: {self.file_name}")
         return LevelGroup(self.file_name, level_group_hdf_path, level_id, loaded_from_file=self._load_from_file)
 
     @property
@@ -128,39 +154,50 @@ class HDF5:
         """
         return "result_format"
 
-    def save_result_format(self, result_format, res_dtype):
+    def single_format(self, spec:"QuantitySpec"):
+        # point or named region
+        loc_dtype = np.dtype((float, (3,))) if len(spec.locations) == 3 else 'S50'
+        locations_dtype = np.dtype((loc_dtype, (len(spec.locations),)))
+        result_dtype = {'names': ('name','unit', 'shape', 'times', 'locations'),
+                        'formats': ('S50',
+                                    'S50',
+                                    np.dtype((np.int32, (2,))),
+                                    np.dtype((float, (len(spec.times),))),
+                                    locations_dtype
+                                    )
+                        }
+        format_items = (spec.name, spec.unit, spec.shape, spec.times, spec.locations)
+        res_format = np.array([format_items], dtype=result_dtype)
+        return res_format, result_dtype
+
+
+    def save_result_format(self, result_format):
         """
         Save result format to dataset
         :param result_format: List[QuantitySpec]
         :param res_dtype: result numpy dtype
         :return: None
         """
-        result_format_dtype = res_dtype
-
-        # Create data set
         with h5py.File(self.file_name, 'a') as hdf_file:
-            # Check if dataset exists
+            # format item in main group
             if self.result_format_dset_name not in hdf_file:
-                hdf_file.create_dataset(
-                    self.result_format_dset_name,
-                    shape=(len(result_format),),
-                    dtype=result_format_dtype,
-                    maxshape=(None,),
-                    chunks=True)
-
-        # Format data
-        result_array = np.empty((len(result_format),), dtype=result_format_dtype)
-        for res, quantity_spec in zip(result_array, result_format):
-            for attribute in list(quantity_spec.__dict__.keys()):
-                if isinstance(getattr(quantity_spec, attribute), (tuple, list)):
-                    res[attribute][:] = getattr(quantity_spec, attribute)
+                format_group = hdf_file.create_group(self.result_format_dset_name)
+            else:
+                format_group = hdf_file[self.result_format_dset_name]
+            # dataset item qith format spec for every QuantitySpec
+            for ispec, qspec in enumerate(result_format):
+                ispec = f"{ispec:04d}"
+                format, format_dtype = self.single_format(qspec)
+                if ispec not in format_group:
+                    quantity_dset = format_group.create_dataset(
+                        name=ispec,
+                        shape=(1,),
+                        dtype=format_dtype,
+                        maxshape=(None,),
+                        chunks=True)
                 else:
-                    res[attribute] = getattr(quantity_spec, attribute)
-
-        # Write to file
-        with h5py.File(self.file_name, 'a') as hdf_file:
-            dataset = hdf_file[self.result_format_dset_name]
-            dataset[:] = result_array
+                    quantity_dset = format_group[ispec]
+                quantity_dset[0] = format
 
     def load_result_format(self):
         """
@@ -171,8 +208,9 @@ class HDF5:
             if self.result_format_dset_name not in hdf_file:
                 raise AttributeError
 
-            dataset = hdf_file[self.result_format_dset_name]
-            return dataset[()]
+            format_group = hdf_file[self.result_format_dset_name]
+            format = {ispec: np.array(q_dset) for ispec, q_dset in format_group.items()}
+            return format
 
     def load_level_parameters(self):
         with h5py.File(self.file_name, "r") as hdf_file:
@@ -214,7 +252,7 @@ class LevelGroup:
         # Chunk size and corresponding number of items
 
         # Set group attribute 'level_id'
-        with h5py.File(self.file_name, 'a') as hdf_file:
+        with FileSafe(self.file_name, 'a') as hdf_file:
             if 'level_id' not in hdf_file[self.level_group_path].attrs:
                 hdf_file[self.level_group_path].attrs['level_id'] = self.level_id
 
@@ -300,16 +338,17 @@ class LevelGroup:
         if len(scheduled_samples) > 0:
             self._append_dataset(self.scheduled_dset, scheduled_samples)
 
-    def append_successful(self, samples: np.array):
+    def append_successful(self, sample_ids:np.array, samples: np.array):
         """
         Save level samples to datasets (h5py.Dataset), save ids of collected samples and their results
         :param samples: np.ndarray
         :return: None
         """
-        self._append_dataset(self.collected_ids_dset, samples[:, 0])
+        assert samples.shape[0] == len(sample_ids)
+        assert samples.shape[1] == 2
+        self._append_dataset(self.collected_ids_dset, sample_ids)
 
-        values = samples[:, 1]
-        result_type = np.dtype((np.float, np.array(values[0]).shape))
+        result_type = np.dtype((float, np.array(samples[0]).shape))
 
         # Create dataset for failed samples
         self._make_dataset(name='collected_values', shape=(0,),
@@ -317,7 +356,7 @@ class LevelGroup:
                            chunks=True)
 
         d_name = 'collected_values'
-        self._append_dataset(d_name, [val for val in values])
+        self._append_dataset(d_name, [val for val in samples])
 
     def append_failed(self, failed_samples):
         """
@@ -346,14 +385,15 @@ class LevelGroup:
         Read level dataset with scheduled samples
         :return:
         """
-        with h5py.File(self.file_name, 'r') as hdf_file:
+        with FileSafe(self.file_name, 'r') as hdf_file:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             return scheduled_dset[()]
 
     def chunks(self, n_samples=None):
         with h5py.File(self.file_name, 'r') as hdf_file:
             if 'collected_values' not in hdf_file[self.level_group_path]:
-                raise AttributeError("No collected values in level group ".format(self.level_id))
+                raise AttributeError(f"No collected values for level {self.level_id} at {self.file_name}:{self.level_group_path}."
+                                     f"Found keys: {list(hdf_file[self.level_group_path].keys())}")
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
 
             if n_samples is not None:

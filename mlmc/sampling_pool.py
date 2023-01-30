@@ -122,6 +122,7 @@ class SamplingPool(ABC):
         except Exception:
             str_list = traceback.format_exception(*sys.exc_info())
             err_msg = "".join(str_list)
+            print(err_msg)
 
         return sample_id, res, err_msg, running_time
 
@@ -135,6 +136,24 @@ class SamplingPool(ABC):
         sample_dir = os.path.join(work_dir, path)
         if not os.path.isdir(sample_dir):
             os.makedirs(sample_dir, mode=0o775, exist_ok=True)
+
+        # We have observed possible problems with directory creation on the 
+        # network filesystem. However it is not sure that was the cause of the problem.
+        # This code would make sure that we have write access to the created directory.
+        
+        # Commented out in order to try to reproduce the problem.
+        #for i in range(30):
+            #try:
+                #with open(os.path.join(sample_dir, "_test_file.txt"), "w") as f:
+                    #f.write("test")
+            #except:
+                #time.sleep(1)
+                #continue
+            #print("Workdir ready after {i} sleep seconds.")
+            #break
+        #else:
+            #print("Workdir still not ready ready after {i} sleep seconds.")
+    
         return sample_dir
 
     @staticmethod
@@ -241,7 +260,8 @@ class OneProcessPool(SamplingPool):
         self._save_running_time(level_sim._level_id, running_time)
 
         if not err_msg:
-            self._queues.setdefault(level_sim._level_id, queue.Queue()).put((sample_id, (result[0], result[1])))
+            level_queue = self._queues.setdefault(level_sim._level_id, queue.Queue())
+            level_queue.put((sample_id, (result[0], result[1])))
             if not self._debug:
                 SamplingPool.move_successful_rm(sample_id, level_sim, output_dir=self._output_dir, dest_dir=self._successful_dir)
         else:
