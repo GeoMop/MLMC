@@ -309,7 +309,7 @@ class LevelGroup:
         self._append_dataset(self.collected_ids_dset, samples[:, 0])
 
         values = samples[:, 1]
-        result_type = np.dtype((np.float, np.array(values[0]).shape))
+        result_type = np.dtype((float, np.array(values[0]).shape))
 
         # Create dataset for failed samples
         self._make_dataset(name='collected_values', shape=(0,),

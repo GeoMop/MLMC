@@ -39,7 +39,7 @@ class SampleStorageHDF(SampleStorage):
         :return:
         """
         if len(locations[0]) == 3:
-            tuple_dtype = np.dtype((np.float, (3,)))
+            tuple_dtype = np.dtype((float, (3,)))
             loc_dtype = np.dtype((tuple_dtype, (len(locations),)))
         else:
             loc_dtype = np.dtype(('S50', (len(locations),)))
@@ -48,14 +48,14 @@ class SampleStorageHDF(SampleStorage):
                         'formats': ('S50',
                                     'S50',
                                     np.dtype((np.int32, (2,))),
-                                    np.dtype((np.float, (len(times),))),
+                                    np.dtype((float, (len(times),))),
                                     loc_dtype
                                     )
                         }
 
         return result_dtype
 
-    def save_global_data(self, level_parameters: List[np.float], result_format: List[QuantitySpec]):
+    def save_global_data(self, level_parameters: List[float], result_format: List[QuantitySpec]):
         """
         Save hdf5 file global attributes
         :param level_parameters: list of simulation steps
@@ -125,7 +125,7 @@ class SampleStorageHDF(SampleStorage):
     def _save_succesful(self, successful_samples):
         for level, samples in successful_samples.items():
             if len(samples) > 0:
-                self._level_groups[level].append_successful(np.array(samples))
+                self._level_groups[level].append_successful(np.array(samples, dtype=object))
 
     def _save_failed(self, failed_samples):
         for level, samples in failed_samples.items():
