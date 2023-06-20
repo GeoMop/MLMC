@@ -14,7 +14,6 @@ from mlmc.quantity.quantity_estimate import estimate_mean, moments
 from mlmc import estimator
 
 
-
 class ProcessSimple:
 
     def __init__(self):
@@ -33,8 +32,10 @@ class ProcessSimple:
         # Number of MLMC levels
 
         # step_range = [0.055, 0.0035]
-        step_range = [1, 0.0055]
-        # step_range = [0.1, 0.055]
+        #step_range = [1, 0.0055]
+        step_range = [1, 0.016]
+
+        step_range = [1, 0.8]
         # step   - elements
         # 0.1    - 262
         # 0.08   - 478

@@ -325,7 +325,7 @@ class Estimate:
         #print("min_err: {} max_err: {} ratio: {}".format(min_var, max_var, max_var / min_var))
         moments_data = np.stack((est_moments, est_vars), axis=1)
         distr_obj = mlmc.tool.simple_distribution.SimpleDistribution(moments_obj, moments_data,
-                                                                     domain=moments_obj.domain)
+                                                                     domain=moments_obj.domain, verbose=True)
         result = distr_obj.estimate_density_minimize(tol, reg_param)  # 0.95 two side quantile
 
         return distr_obj, info, result, moments_obj
@@ -363,7 +363,7 @@ def estimate_domain(quantity, sample_storage, quantile=None):
     return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
 
-def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_ops, n_levels):
+def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_ops, n_levels, vars_l2_norm=False):
     """
     Estimate optimal number of samples for individual levels that should provide a target variance of
     resulting moment estimate.
@@ -372,18 +372,25 @@ def estimate_n_samples_for_target_variance(target_variance, prescribe_vars, n_op
     :param prescribe_vars: vars[ L, M] for all levels L and moments_fn M safe the (zeroth) constant moment with zero variance.
     :param n_ops: number of operations at each level
     :param n_levels: number of levels
+    :param vars_l2_norm: if True, then use L2 norm of moments variances for each level variance
     :return: np.array with number of optimal samples for individual levels and moments_fn, array (LxR)
     """
     vars = prescribe_vars
+    if vars_l2_norm:
+        vars = np.linalg.norm(vars, axis=1)
+
     sqrt_var_n = np.sqrt(vars.T * n_ops)  # moments_fn in rows, levels in cols
-    total = np.sum(sqrt_var_n, axis=1)  # sum over levels
+    total = np.sum(sqrt_var_n, axis=-1)  # sum over levels
+
     n_samples_estimate = np.round((sqrt_var_n / n_ops).T * total / target_variance).astype(int)  # moments_fn in cols
+
     # Limit maximal number of samples per level
     n_samples_estimate_safe = np.maximum(
         np.minimum(n_samples_estimate, vars * n_levels / target_variance), 2)
 
+    if vars_l2_norm:
+        return n_samples_estimate_safe.astype(int)
     return np.max(n_samples_estimate_safe, axis=1).astype(int)
-
 
 def calc_level_params(step_range, n_levels):
     assert step_range[0] > step_range[1]

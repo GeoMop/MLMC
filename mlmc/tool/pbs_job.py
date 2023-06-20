@@ -28,6 +28,15 @@ class PbsJob:
     # Sample id with corresponding job id,
     # used to indicate that sample is stored in _successful_results.yaml or _failed_results.yaml
 
+    # Dict[level_id, List[time, finished samples]]
+    RUNNING_TIME = "{}_running_times.yaml"
+    # Dict[level_id, List[time, finished samples]]
+    EXTRACT_MESH = "{}_extract_mesh.yaml"
+    MAKE_FIELD = "{}_make_field.yaml"
+    GENERATE_RND = "{}_generate_rnd.yaml"
+    FINE_FLOW = "{}_fine_flow.yaml"
+    COARSE_FLOW = "{}_coarse_flow.yaml"
+
     def __init__(self, output_dir, jobs_dir, job_id, level_sim_file, debug):
         """
         Class representing both pbs job in SamplingPoolPBS and true pbs process
@@ -137,6 +146,12 @@ class PbsJob:
         self._success_file = os.path.join(self._jobs_dir, PbsJob.SUCCESSFUL_RESULTS.format(self._job_id))
         self._failed_file = os.path.join(self._jobs_dir, PbsJob.FAILED_RESULTS.format(self._job_id))
         self._times_file = os.path.join(self._jobs_dir, PbsJob.TIME.format(self._job_id))
+        self._running_times_file = os.path.join(self._jobs_dir, PbsJob.RUNNING_TIME.format(self._job_id))
+        self._extract_mesh_file = os.path.join(self._jobs_dir, PbsJob.EXTRACT_MESH.format(self._job_id))
+        self._make_field_file = os.path.join(self._jobs_dir, PbsJob.MAKE_FIELD.format(self._job_id))
+        self._generate_rnd_file = os.path.join(self._jobs_dir, PbsJob.GENERATE_RND.format(self._job_id))
+        self._fine_flow_file = os.path.join(self._jobs_dir, PbsJob.FINE_FLOW.format(self._job_id))
+        self._coarse_flow_file = os.path.join(self._jobs_dir, PbsJob.COARSE_FLOW.format(self._job_id))
 
         # List of Tuple[level id, sample id, random seed]
         level_id_sample_id_seed = self._get_level_id_sample_id_seed()
@@ -147,12 +162,17 @@ class PbsJob:
         # Successful samples - Tuple(level_id, sample_id, (fine result, coarse result))
         current_level = 0
         current_samples = []
-        # Currently saved samples
+        # Currently saved samples, permanent sample file is created for them
         start_time = time.time()
         times = []
+        running_times = []
+        extract_mesh = []
+        make_field = []
+        generate_rnd = []
+        fine_flow = []
+        coarse_flow = []
         # Sample calculation time - Tuple(level_id, [n samples, cumul time for n sample])
         n_times = 0
-        successful_dest_dir = os.path.join(self._output_dir, SamplingPool.SEVERAL_SUCCESSFUL_DIR)
         for level_id, sample_id, seed in level_id_sample_id_seed:
             # Deserialize level simulation config
             if level_id not in self._level_simulations:
@@ -169,7 +189,9 @@ class PbsJob:
             level_sim = self._level_simulations[current_level]
             assert level_sim._level_id == current_level
             # Calculate sample
-            _, res, err_msg, _ = SamplingPool.calculate_sample(sample_id, level_sim, work_dir=self._output_dir, seed=seed)
+            _, res, err_msg, running_time, sim_times = SamplingPool.calculate_sample(sample_id, level_sim,
+                                                                                     work_dir=self._output_dir,
+                                                                                     seed=seed)
 
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))
@@ -186,21 +208,33 @@ class PbsJob:
 
             current_samples.append(sample_id)
             n_times += 1
+
+            running_times.append((current_level, running_time, n_times))
+            if sim_times is not None:
+                extract_mesh.append((current_level, sim_times['extract_mesh'], n_times))
+                make_field.append((current_level,  sim_times['make_field'], n_times))
+                generate_rnd.append((current_level, sim_times['generate_rnd'] , n_times))
+                fine_flow.append((current_level,  sim_times['fine_flow'] , n_times))
+                coarse_flow.append((current_level, sim_times['coarse_flow'], n_times))
+
             times.append((current_level, time.time() - start_time, n_times))
-            self._save_to_file(success, failed, times, current_samples)
+            self._save_to_file(success, failed, times, current_samples, running_times, extract_mesh, make_field, generate_rnd, fine_flow, coarse_flow)
 
             success = []
             failed = []
             current_samples = []
             times = []
+            running_times = []
+            extract_mesh = []
+            make_field = []
+            generate_rnd = []
+            fine_flow = []
+            coarse_flow = []
 
-        self._save_to_file(success, failed, times, current_samples)
+        self._save_to_file(success, failed, times, current_samples,  running_times, extract_mesh, make_field, generate_rnd, fine_flow, coarse_flow)
 
-        # self._write_end_mark(self._success_file)
-        # self._write_end_mark(self._failed_file)
-        # self._write_end_mark(self._times_file)
-
-    def _save_to_file(self, success, failed, times, current_samples):
+    def _save_to_file(self, success, failed, times, current_samples, running_times, extract_mesh, make_field,
+                      generate_rnd, fine_flow, coarse_flow):
         """
         Save sample results to files, create file which indicates that sample in stored
         :param success: dict
@@ -216,16 +250,18 @@ class PbsJob:
             self._append_file(failed, self._failed_file)
         if times:
             self._append_file(times, self._times_file)
-
-    # def _write_end_mark(self, path):
-    #     """
-    #     Write end mark to the file
-    #     :param path: str, file path
-    #     :return: None
-    #     """
-    #     if os.path.exists(path):
-    #         with open(path, "a") as f:
-    #             yaml.dump("end", f)
+        if running_times:
+            self._append_file(running_times, self._running_times_file)
+        if extract_mesh:
+            self._append_file(extract_mesh, self._extract_mesh_file)
+        if make_field:
+            self._append_file(make_field, self._make_field_file)
+        if generate_rnd:
+            self._append_file(generate_rnd, self._generate_rnd_file)
+        if fine_flow:
+            self._append_file(fine_flow, self._fine_flow_file)
+        if coarse_flow:
+            self._append_file(coarse_flow, self._coarse_flow_file)
 
     def save_sample_id_job_id(self, job_id, sample_ids):
         """
@@ -295,6 +331,12 @@ class PbsJob:
         successful = {}
         failed = {}
         time = {}
+        running_time = {}
+        extract_mesh = {}
+        make_field = {}
+        generate_rnd = {}
+        fine_flow = {}
+        coarse_flow = {}
 
         # Save successful results
         if os.path.exists(os.path.join(jobs_dir, PbsJob.SUCCESSFUL_RESULTS.format(job_id))):
@@ -314,8 +356,44 @@ class PbsJob:
         if os.path.exists(os.path.join(jobs_dir, PbsJob.TIME.format(job_id))):
             with open(os.path.join(jobs_dir, PbsJob.TIME.format(job_id)), "r") as reader:
                 times = yaml.load(reader)
-                for level_id, n_samples, t in times:
-                    time.setdefault(level_id, []).append((n_samples, t))
+                for level_id, t, n_samples in times:
+                    time.setdefault(level_id, []).append((t, n_samples))
+
+        if os.path.exists(os.path.join(jobs_dir, PbsJob.RUNNING_TIME.format(job_id))):
+            with open(os.path.join(jobs_dir, PbsJob.RUNNING_TIME.format(job_id)), "r") as reader:
+                times = yaml.load(reader)
+                for level_id, t, n_samples in times:
+                    running_time.setdefault(level_id, []).append((t, n_samples))
+
+        if os.path.exists(os.path.join(jobs_dir, PbsJob.EXTRACT_MESH.format(job_id))):
+            with open(os.path.join(jobs_dir, PbsJob.EXTRACT_MESH.format(job_id)), "r") as reader:
+                times = yaml.load(reader)
+                for level_id, t, n_samples in times:
+                    extract_mesh.setdefault(level_id, []).append((t, n_samples))
+
+        if os.path.exists(os.path.join(jobs_dir, PbsJob.MAKE_FIELD.format(job_id))):
+            with open(os.path.join(jobs_dir, PbsJob.MAKE_FIELD.format(job_id)), "r") as reader:
+                times = yaml.load(reader)
+                for level_id, t, n_samples in times:
+                    make_field.setdefault(level_id, []).append((t, n_samples))
+
+        if os.path.exists(os.path.join(jobs_dir, PbsJob.GENERATE_RND.format(job_id))):
+            with open(os.path.join(jobs_dir, PbsJob.GENERATE_RND.format(job_id)), "r") as reader:
+                times = yaml.load(reader)
+                for level_id, t, n_samples in times:
+                    generate_rnd.setdefault(level_id, []).append((t, n_samples))
+
+        if os.path.exists(os.path.join(jobs_dir, PbsJob.FINE_FLOW.format(job_id))):
+            with open(os.path.join(jobs_dir, PbsJob.FINE_FLOW.format(job_id)), "r") as reader:
+                times = yaml.load(reader)
+                for level_id, t, n_samples in times:
+                    fine_flow.setdefault(level_id, []).append((t, n_samples))
+
+        if os.path.exists(os.path.join(jobs_dir, PbsJob.COARSE_FLOW.format(job_id))):
+            with open(os.path.join(jobs_dir, PbsJob.COARSE_FLOW.format(job_id)), "r") as reader:
+                times = yaml.load(reader)
+                for level_id, t, n_samples in times:
+                    coarse_flow.setdefault(level_id, []).append((t, n_samples))
 
         # Deal with not finished (failed) samples in finished job
         level_id_sample_id_seed = PbsJob.get_scheduled_sample_ids(job_id, jobs_dir)
@@ -333,7 +411,7 @@ class PbsJob:
         # if "end" in time:
         #     del time["end"]
 
-        return successful, failed, time
+        return successful, failed, time, running_time, extract_mesh, make_field, generate_rnd, fine_flow, coarse_flow
 
     @staticmethod
     def get_scheduled_sample_ids(job_id, jobs_dir):

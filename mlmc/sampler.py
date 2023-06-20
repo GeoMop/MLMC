@@ -172,16 +172,19 @@ class Sampler:
         n_running = 1
         t0 = time.perf_counter()
         while n_running > 0:
-            successful_samples, failed_samples, n_running, n_ops = self._sampling_pool.get_finished()
+            successful_samples, failed_samples, n_running, n_ops, running_times, extract_mesh_times, make_field_times, \
+            generate_rnd_times, fine_flow_times, coarse_flow_times = self._sampling_pool.get_finished()
             # Store finished samples
-            self._store_samples(successful_samples, failed_samples, n_ops)
+            self._store_samples(successful_samples, failed_samples, n_ops, running_times, extract_mesh_times,
+                                make_field_times, generate_rnd_times, fine_flow_times, coarse_flow_times)
             time.sleep(sleep)
             if 0 < timeout < (time.perf_counter() - t0):
                 break
 
         return n_running
 
-    def _store_samples(self, successful_samples, failed_samples, n_ops):
+    def _store_samples(self, successful_samples, failed_samples, n_ops, running_times, extract_mesh_times,
+                       make_field_times, generate_rnd_times, fine_flow_times, coarse_flow_times):
         """
         Store finished samples
         :param successful_samples: Dict[level_id, List[Tuple[sample_id:str, Tuple[ndarray, ndarray]]]]
@@ -191,6 +194,12 @@ class Sampler:
         """
         self.sample_storage.save_samples(successful_samples, failed_samples)
         self.sample_storage.save_n_ops(n_ops)
+        self.sample_storage.save_running_times(running_times)
+        self.sample_storage.save_extract_mesh_times(extract_mesh_times)
+        self.sample_storage.save_make_field_times(make_field_times)
+        self.sample_storage.save_generate_rnd_times(generate_rnd_times)
+        self.sample_storage.save_fine_flow_times(fine_flow_times)
+        self.sample_storage.save_coarse_flow_times(coarse_flow_times)
 
     def process_adding_samples(self, n_estimated, sleep=0, add_coeff=0.1, timeout=ADDING_SAMPLES_TIMEOUT):
         """
