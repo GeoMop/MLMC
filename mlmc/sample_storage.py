@@ -168,12 +168,15 @@ class Memory(SampleStorage):
         :return: None
         """
         for level_id, res in samples.items():
-            res = np.array(res)
+            res = np.array(res, dtype=object)
             fine_coarse_res = res[:, 1]
 
-            result_type = np.dtype((np.float, np.array(fine_coarse_res[0]).shape))
+            result_type = np.dtype((float, np.array(fine_coarse_res[0], dtype=object).shape))
             results = np.empty(shape=(len(res),), dtype=result_type)
-            results[:] = [val for val in fine_coarse_res]
+
+            for idx, val in enumerate(fine_coarse_res):
+                results[idx, 0] = val[0]
+                results[idx, 1] = val[1]
 
             # Save sample ids
             self._successful_sample_ids.setdefault(level_id, []).extend(res[:, 0])

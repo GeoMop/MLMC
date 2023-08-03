@@ -309,7 +309,7 @@ class LevelGroup:
         self._append_dataset(self.collected_ids_dset, samples[:, 0])
 
         values = samples[:, 1]
-        result_type = np.dtype((np.float, np.array(values[0]).shape))
+        result_type = np.dtype((float, np.array(values[0]).shape))
 
         # Create dataset for failed samples
         self._make_dataset(name='collected_values', shape=(0,),
@@ -357,7 +357,7 @@ class LevelGroup:
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
 
             if n_samples is not None:
-                yield ChunkSpec(chunk_id=0, chunk_slice=slice(0, n_samples, 1), level_id=int(self.level_id))
+                yield ChunkSpec(chunk_id=0, chunk_slice=slice(0, n_samples, ...), level_id=int(self.level_id))
             else:
                 for chunk_id, chunk in enumerate(dataset.iter_chunks()):
                     yield ChunkSpec(chunk_id=chunk_id, chunk_slice=chunk[0], level_id=int(self.level_id))  # slice, level_id

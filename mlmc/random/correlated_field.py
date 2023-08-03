@@ -226,7 +226,11 @@ class Fields:
         for field in self.fields:
             sample = field.sample()
             if field.is_outer:
-                result[field.name] = np.zeros(self.n_elements)
+                if field.name == "cond_tn":
+                    result[field.name] = np.zeros((self.n_elements, 3))
+                else:
+                    result[field.name] = np.zeros(self.n_elements)
+                #result[field.name] = np.zeros(self.n_elements)
                 result[field.name][field.full_sample_ids] = sample
         return result
 
