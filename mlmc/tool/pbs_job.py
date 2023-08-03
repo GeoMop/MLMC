@@ -149,11 +149,13 @@ class PbsJob:
         current_samples = []
         # Currently saved samples
         start_time = time.time()
+        successful_samples_time = 0
         times = []
         # Sample calculation time - Tuple(level_id, [n samples, cumul time for n sample])
         n_times = 0
         successful_dest_dir = os.path.join(self._output_dir, SamplingPool.SEVERAL_SUCCESSFUL_DIR)
         for level_id, sample_id, seed in level_id_sample_id_seed:
+            start_time = time.time()
             # Deserialize level simulation config
             if level_id not in self._level_simulations:
                 self._get_level_sim(level_id)
@@ -161,9 +163,10 @@ class PbsJob:
             # Start measuring time
             if current_level != level_id:
                 # Save previous level times
-                times.append((current_level, time.time() - start_time, n_times))
+                times.append((current_level, successful_samples_time, n_times))
                 n_times = 0
                 start_time = time.time()
+                successful_samples_time = 0
                 current_level = level_id
 
             level_sim = self._level_simulations[current_level]
@@ -178,6 +181,10 @@ class PbsJob:
                     SamplingPool.move_successful_rm(sample_id, level_sim,
                                                     output_dir=self._output_dir,
                                                     dest_dir=SamplingPool.SEVERAL_SUCCESSFUL_DIR)
+                n_times += 1
+                successful_samples_time += (time.time() - start_time)
+                print("sample time ", time.time() - start_time)
+                # times.append((current_level, time.time() - start_time, n_times))
             else:
                 failed.append((current_level, sample_id, err_msg))
                 SamplingPool.move_failed_rm(sample_id, level_sim,
@@ -185,8 +192,8 @@ class PbsJob:
                                             dest_dir=SamplingPool.FAILED_DIR)
 
             current_samples.append(sample_id)
-            n_times += 1
-            times.append((current_level, time.time() - start_time, n_times))
+            #n_times += 1
+            times.append((current_level, successful_samples_time, n_times))
             self._save_to_file(success, failed, times, current_samples)
 
             success = []

@@ -119,7 +119,7 @@ class Sampler:
         """
         return "L{:02d}_S{:07d}".format(level_id, int(self._n_scheduled_samples[level_id]))
 
-    def schedule_samples(self, timeout=None):
+    def schedule_samples(self, timeout=None, level_id=None, n_samples=None):
         """
         Create simulation samples, loop through "levels" and its samples (given the number of target samples):
             1) generate sample tag (same for fine and coarse simulation)
@@ -132,7 +132,9 @@ class Sampler:
         self.ask_sampling_pool_for_samples(timeout=timeout)
         plan_samples = self._n_target_samples - self._n_scheduled_samples
 
-        for level_id, n_samples in enumerate(plan_samples):
+        if level_id is None:
+            level_id = len(plan_samples) - 1
+        if n_samples is not None:
             samples = []
             for _ in range(int(n_samples)):
                 # Unique sample id
@@ -143,11 +145,28 @@ class Sampler:
                 self._sampling_pool.schedule_sample(sample_id, level_sim)
                 # Increment number of created samples at current level
                 self._n_scheduled_samples[level_id] += 1
-
                 samples.append(sample_id)
 
             # Store scheduled samples
             self.sample_storage.save_scheduled_samples(level_id, samples)
+        else:
+            for n_samples in np.flip(plan_samples):
+                samples = []
+                for _ in range(int(n_samples)):
+                    # Unique sample id
+                    sample_id = self._get_sample_tag(level_id)
+                    level_sim = self._level_sim_objects[level_id]
+
+                    # Schedule current sample
+                    self._sampling_pool.schedule_sample(sample_id, level_sim)
+                    # Increment number of created samples at current level
+                    self._n_scheduled_samples[level_id] += 1
+
+                    samples.append(sample_id)
+
+                # Store scheduled samples
+                self.sample_storage.save_scheduled_samples(level_id, samples)
+                level_id -= 1
 
     def _check_failed_samples(self):
         """
