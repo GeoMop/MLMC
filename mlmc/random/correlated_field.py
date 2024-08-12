@@ -198,7 +198,9 @@ class Fields:
         :return:
         """
         self.n_elements = len(points)
-        assert len(points) == len(region_ids)
+        print("n elements: {}, len(points): {}".format(self.n_elements, len(points)))
+
+        #assert len(points) == len(region_ids)
         reg_points = {}
         for i, reg_id in enumerate(region_ids):
             reg_list = reg_points.get(reg_id, [])
@@ -504,14 +506,14 @@ class SpatialCorrelatedField(RandomFieldBase):
 
 class GSToolsSpatialCorrelatedField(RandomFieldBase):
 
-    def __init__(self, model, mode_no=1000, log=False, sigma=1):
+    def __init__(self, model, mode_no=1000, log=False, sigma=1, seed=None):
         """
         :param model: instance of covariance model class, which parent is gstools.covmodel.CovModel
         :param mode_no: number of Fourier modes, default: 1000 as in gstools package
         """
         self.model = model
         self.mode_no = mode_no
-        self.srf = gstools.SRF(model, mode_no=mode_no)
+        self.srf = gstools.SRF(model, mode_no=mode_no, seed=seed)
         self.mu = self.srf.mean
         self.sigma = sigma
         self.dim = model.dim
@@ -753,7 +755,3 @@ class FourierSpatialCorrelatedField(RandomFieldBase):
         :return: Random field evaluated in points given by 'set_points'.
         """
         return self.random_field()
-
-        if not self.log:
-            return field
-        return np.exp(field)
