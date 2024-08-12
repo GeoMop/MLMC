@@ -82,7 +82,9 @@ class Estimate:
             raw_vars, n_samples = self.estimate_diff_vars(moments_fn)
 
         sim_steps = np.squeeze(self._sample_storage.get_level_parameters())
+        # print("sim steps ", sim_steps)
         vars = self._all_moments_variance_regression(raw_vars, sim_steps)
+
         # We need to get n_ops_estimate from storage
         return vars, self._sample_storage.get_n_ops()
 
@@ -95,6 +97,8 @@ class Estimate:
             n_samples -  shape L, num samples for individual levels.
         """
         moments_mean = qe.estimate_mean(qe.moments(self._quantity, moments_fn))
+        # print("moments_mean.l_vars ", moments_mean.l_vars)
+        # print("moments_mean.n_samples ", moments_mean.n_samples)
         return moments_mean.l_vars, moments_mean.n_samples
 
     def _all_moments_variance_regression(self, raw_vars, sim_steps):
@@ -196,7 +200,7 @@ class Estimate:
         bs_l_means = []
         bs_l_vars = []
         for i in range(n_subsamples):
-            quantity_subsample = self.quantity.select(self.quantity.subsample(sample_vec=sample_vector))
+            quantity_subsample = self.quantity.subsample(sample_vec=sample_vector)
             moments_quantity = qe.moments(quantity_subsample, moments_fn=moments_fn, mom_at_bottom=False)
             q_mean = qe.estimate_mean(moments_quantity)
 
@@ -204,6 +208,9 @@ class Estimate:
             bs_var.append(q_mean.var)
             bs_l_means.append(q_mean.l_means)
             bs_l_vars.append(q_mean.l_vars)
+
+        self.bs_mean = bs_mean
+        self.bs_var = bs_var
 
         self.mean_bs_mean = np.mean(bs_mean, axis=0)
         self.mean_bs_var = np.mean(bs_var, axis=0)
@@ -217,14 +224,15 @@ class Estimate:
 
         self._bs_level_mean_variance = self.var_bs_l_means * np.array(self._sample_storage.get_n_collected())[:, None]
 
-    def bs_target_var_n_estimated(self, target_var, sample_vec=None):
+    def bs_target_var_n_estimated(self, target_var, sample_vec=None, n_subsamples=100):
         sample_vec = determine_sample_vec(n_collected_samples=self._sample_storage.get_n_collected(),
                                           n_levels=self._sample_storage.get_n_levels(),
                                           sample_vector=sample_vec)
 
-        self.est_bootstrap(n_subsamples=300, sample_vector=sample_vec)
+        self.est_bootstrap(n_subsamples=n_subsamples, sample_vector=sample_vec)
 
         variances, n_ops = self.estimate_diff_vars_regression(sample_vec, raw_vars=self.mean_bs_l_vars)
+
         n_estimated = estimate_n_samples_for_target_variance(target_var, variances, n_ops,
                                                              n_levels=self._sample_storage.get_n_levels())
 
@@ -304,10 +312,17 @@ class Estimate:
             except AttributeError:
                 print("No collected values for level {}".format(level_id))
                 break
-            chunk_spec = next(sample_storage.chunks(n_samples=sample_storage.get_n_collected()[level_id]))
-            fine_samples = quantity.samples(chunk_spec)[..., 0]  # Fine samples at level 0
 
+            #print("sample_storage.get_n_collected()[level_id] ", type(sample_storage.get_n_collected()[level_id]))
+            print("sample_storage.get_n_collected() ", type(sample_storage.get_n_collected()[0]))
+
+            if isinstance(sample_storage.get_n_collected()[level_id], AttributeError):
+                print("continue")
+                continue
+            chunk_spec = next(sample_storage.chunks(level_id=level_id, n_samples=sample_storage.get_n_collected()[level_id]))
+            fine_samples = quantity.samples(chunk_spec)[..., 0]  # Fine samples at level 0
             fine_samples = np.squeeze(fine_samples)
+            print("fine samples ", fine_samples)
             fine_samples = fine_samples[~np.isnan(fine_samples)]  # remove NaN
             ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
 
@@ -399,26 +414,26 @@ def consistency_check(quantity, sample_storage=None):
     return cons_check_val
 
 
-def estimate_domain(quantity, sample_storage, quantile=None):
-    """
-    Estimate moments domain from MLMC samples.
-    :param quantity: mlmc.quantity.Quantity instance, represents the real quantity
-    :param sample_storage: mlmc.sample_storage.SampleStorage instance, provides all the samples
-    :param quantile: float in interval (0, 1), None means whole sample range
-    :return: lower_bound, upper_bound
-    """
-    ranges = []
-    if quantile is None:
-        quantile = 0.01
-
-    for level_id in range(sample_storage.get_n_levels()):
-        fine_samples = quantity.samples(ChunkSpec(level_id=level_id, n_samples=sample_storage.get_n_collected()[0]))[..., 0]
-
-        fine_samples = np.squeeze(fine_samples)
-        ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
-
-    ranges = np.array(ranges)
-    return np.min(ranges[:, 0]), np.max(ranges[:, 1])
+# def estimate_domain(quantity, sample_storage, quantile=None):
+#     """
+#     Estimate moments domain from MLMC samples.
+#     :param quantity: mlmc.quantity.Quantity instance, represents the real quantity
+#     :param sample_storage: mlmc.sample_storage.SampleStorage instance, provides all the samples
+#     :param quantile: float in interval (0, 1), None means whole sample range
+#     :return: lower_bound, upper_bound
+#     """
+#     ranges = []
+#     if quantile is None:
+#         quantile = 0.01
+#
+#     for level_id in range(sample_storage.get_n_levels()):
+#         fine_samples = quantity.samples(ChunkSpec(level_id=level_id, n_samples=sample_storage.get_n_collected()[0]))[..., 0]
+#
+#         fine_samples = np.squeeze(fine_samples)
+#         ranges.append(np.percentile(fine_samples, [100 * quantile, 100 * (1 - quantile)]))
+#
+#     ranges = np.array(ranges)
+#     return np.min(ranges[:, 0]), np.max(ranges[:, 1])
 
 
 def coping_with_high_kurtosis(vars, costs, kurtosis, kurtosis_threshold=100):
@@ -530,5 +545,4 @@ def determine_n_samples(n_levels, n_samples=None):
         n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), n_levels))).astype(int)
 
     return n_samples
-
 
