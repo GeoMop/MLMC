@@ -104,7 +104,6 @@ class SimpleDistribution:
         power = np.minimum(np.maximum(power, -200), 200)
         return np.exp(power)
 
-
     def cdf(self, values):
         values = np.atleast_1d(values)
         np.sort(values)
@@ -267,10 +266,11 @@ class SimpleDistribution:
         integral = np.dot(q_density, self._quad_weights)
         sum = np.sum(self.moment_means * multipliers / self._moment_errs)
 
-        end_diff = np.dot(self._end_point_diff, multipliers)
-        penalty = np.sum(np.maximum(end_diff, 0)**2)
         fun = sum + integral
-        fun = fun + np.abs(fun) * self._penalty_coef * penalty
+        if self._penalty_coef != 0:
+            end_diff = np.dot(self._end_point_diff, multipliers)
+            penalty = np.sum(np.maximum(end_diff, 0) ** 2)
+            fun = fun + np.abs(fun) * self._penalty_coef * penalty
 
         return fun
 
@@ -284,46 +284,41 @@ class SimpleDistribution:
         q_gradient = self._quad_moments.T * q_density
         integral = np.dot(q_gradient, self._quad_weights) / self._moment_errs
 
-        end_diff = np.dot(self._end_point_diff, multipliers)
-        penalty = 2 * np.dot( np.maximum(end_diff, 0), self._end_point_diff)
-        fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
-        gradient = self.moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
+        if self._penalty_coef != 0:
+            end_diff = np.dot(self._end_point_diff, multipliers)
+            penalty = 2 * np.dot(np.maximum(end_diff, 0), self._end_point_diff)
+            fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
+
+            gradient = self.moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
+        else:
+            gradient = self.moment_means / self._moment_errs - integral  # + np.abs(fun) * self._penalty_coef * penalty
+
         return gradient
+
+    def _calc_jac(self):
+        q_density = self.density(self._quad_points)
+        q_density_w = q_density * self._quad_weights
+
+        jacobian_matrix = (self._quad_moments.T * q_density_w) @ self._quad_moments
+        return jacobian_matrix
 
     def _calculate_jacobian_matrix(self, multipliers):
         """
         :return: jacobian matrix, symmetric, (n_moments, n_moments)
         """
-        self._update_quadrature(multipliers)
-        q_density = self._density_in_quads(multipliers)
-        q_density_w = q_density * self._quad_weights
-        q_mom = self._quad_moments / self._moment_errs
+        # jacobian_matrix_hess = hessian(self._calculate_functional)(multipliers)
+        # print(pd.DataFrame(jacobian_matrix_hess))
+        jacobian_matrix = self._calc_jac()
 
-        jacobian_matrix = (q_mom.T * q_density_w) @ q_mom
+        if self._penalty_coef != 0:
+            end_diff = np.dot(self._end_point_diff, multipliers)
+            fun = np.sum(self.moment_means * multipliers / self._moment_errs) + jacobian_matrix[0, 0] * \
+                  self._moment_errs[0] ** 2
+            for side in [0, 1]:
+                if end_diff[side] > 0:
+                    penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
+                    jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
 
-        # Compute just triangle use lot of memory (possibly faster)
-        # moment_outer = np.einsum('ki,kj->ijk', q_mom, q_mom)
-        # triu_idx = np.triu_indices(self.approx_size)
-        # triu_outer = moment_outer[triu_idx[0], triu_idx[1], :]
-        # integral = np.dot(triu_outer, q_density_w)
-        # jacobian_matrix = np.empty(shape=(self.approx_size, self.approx_size))
-        # jacobian_matrix[triu_idx[0], triu_idx[1]] = integral
-        # jacobian_matrix[triu_idx[1], triu_idx[0]] = integral
-
-        end_diff = np.dot(self._end_point_diff, multipliers)
-        fun = np.sum(self.moment_means * multipliers / self._moment_errs) + jacobian_matrix[0,0] * self._moment_errs[0]**2
-        for side in [0, 1]:
-            if end_diff[side] > 0:
-                penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
-                jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
-
-
-        #e_vals = np.linalg.eigvalsh(jacobian_matrix)
-
-        #print(multipliers)
-        #print("jac spectra: ", e_vals)
-        #print("means:", self.moment_means)
-        #print("\n jac:", np.diag(jacobian_matrix))
         return jacobian_matrix
 
 

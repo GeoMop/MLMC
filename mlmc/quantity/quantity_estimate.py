@@ -19,13 +19,17 @@ def cache_clear():
     mlmc.quantity.quantity.QuantityConst.samples.cache_clear()
 
 
-def estimate_mean(quantity):
+def estimate_mean(quantity, form="diff", operation_func=None, **kwargs):
     """
     MLMC mean estimator.
     The MLMC method is used to compute the mean estimate to the Quantity dependent on the collected samples.
     The squared error of the estimate (the estimator variance) is estimated using the central limit theorem.
     Data is processed by chunks, so that it also supports big data processing
     :param quantity: Quantity
+    :param form: if "diff" estimates based on difference between fine and coarse data = MLMC approach
+                    "fine" estimates based on level's fine data
+                    "coarse" estimates based on level's coarse data
+    :param operation_func: function to process level data, e.g. kurtosis estimation
     :return: QuantityMean which holds both mean and variance
     """
     cache_clear()
@@ -56,10 +60,26 @@ def estimate_mean(quantity):
             sums = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
             sums_of_squares = [np.zeros(chunk.shape[0]) for _ in range(n_levels)]
 
-        if chunk_spec.level_id == 0:
-            chunk_diff = chunk[:, :, 0]
+        # Estimates of level's fine data
+        if form == "fine":
+            if chunk_spec.level_id == 0:
+                chunk_diff = chunk[:, :, 0]
+            else:
+                chunk_diff = chunk[:, :, 0]
+        # Estimate of level's coarse data
+        elif form == "coarse":
+            if chunk_spec.level_id == 0:
+                chunk_diff = np.zeros(chunk[:, :, 0].shape)
+            else:
+                chunk_diff = chunk[:, :, 1]
         else:
-            chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
+            if chunk_spec.level_id == 0:
+                chunk_diff = chunk[:, :, 0]
+            else:
+                chunk_diff = chunk[:, :, 0] - chunk[:, :, 1]
+
+        if operation_func is not None:
+            chunk_diff = operation_func(chunk_diff, chunk_spec, **kwargs)
 
         sums[chunk_spec.level_id] += np.sum(chunk_diff, axis=1)
         sums_of_squares[chunk_spec.level_id] += np.sum(chunk_diff**2, axis=1)
@@ -154,3 +174,28 @@ def covariance(quantity, moments_fn, cov_at_bottom=True):
     else:
         moments_qtype = qt.ArrayType(shape=(moments_fn.size, moments_fn.size, ), qtype=quantity.qtype)
     return mlmc.quantity.quantity.Quantity(quantity_type=moments_qtype, input_quantities=[quantity], operation=eval_cov)
+
+
+def kurtosis_numerator(chunk_diff, chunk_spec, l_means):
+    """
+    Estimate sample kurtosis nominator:
+            E[(Y_l - E[Y_l])^4]
+    :param chunk_diff: np.ndarray, [quantity shape, number of samples]
+    :param chunk_spec: quantity_spec.ChunkSpec
+    :return: np.ndarray, unchanged shape
+    """
+    chunk_diff = (chunk_diff - l_means[chunk_spec.level_id]) ** 4
+    return chunk_diff
+
+
+def level_kurtosis(quantity, means_obj):
+    """
+    Estimate sample kurtosis at each level as:
+            E[(Y_l - E[Y_l])^4] / (Var[Y_l])^2, where Y_l = fine_l - coarse_l
+    :param quantity: Quantity
+    :param means_obj: Quantity.QuantityMean
+    :return: np.ndarray, kurtosis per level
+    """
+    numerator_means_obj = estimate_mean(quantity, operation_func=kurtosis_numerator, l_means=means_obj.l_means)
+    kurtosis = numerator_means_obj.l_means / (means_obj.l_vars)**2
+    return kurtosis

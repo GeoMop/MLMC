@@ -26,9 +26,9 @@ class ProcessSimple:
         # Remove HDF5 file, start from scratch
         self.debug = args.debug
         # 'Debug' mode is on - keep sample directories
-        self.use_pbs = True
+        self.use_pbs = False
         # Use PBS sampling pool
-        self.n_levels = 1
+        self.n_levels = 5
         self.n_moments = 25
         # Number of MLMC levels
 
@@ -76,10 +76,33 @@ class ProcessSimple:
         # @TODO: How to estimate true_domain?
         quantile = 0.001
         true_domain = mlmc.estimator.Estimate.estimate_domain(q_value, sample_storage, quantile=quantile)
+        print("true domain ", true_domain)
         moments_fn = Legendre(self.n_moments, true_domain)
+
+        n_ops = np.array(sample_storage.get_n_ops())
+        print("n ops ", n_ops[:, 0] / n_ops[:, 1])
+
+        print("sample storage n collected ", sample_storage.get_n_collected())
 
         estimator = mlmc.estimator.Estimate(quantity=q_value, sample_storage=sample_storage, moments_fn=moments_fn)
         means, vars = estimator.estimate_moments(moments_fn)
+
+        l_0_samples = estimator.get_level_samples(level_id=0)
+        l_1_samples = estimator.get_level_samples(level_id=1)
+        l_2_samples = estimator.get_level_samples(level_id=2)
+        l_3_samples = estimator.get_level_samples(level_id=3)
+        l_4_samples = estimator.get_level_samples(level_id=4)
+
+        print("l 0 samples shape ", np.squeeze(l_0_samples).shape)
+        print("l 1 samples shape ", np.squeeze(l_1_samples[..., 0]).shape)
+
+        print("l_0_samples.var ", np.var(np.squeeze(l_0_samples)[:10000]))
+        print("fine l_1_samples.var ", np.var(np.squeeze(l_1_samples[..., 0])))
+        print("fine l_2_samples.var ", np.var(np.squeeze(l_2_samples[..., 0])))
+        print("fine l_3_samples.var ", np.var(np.squeeze(l_3_samples[..., 0])))
+        print("fine l_4_samples.var ", np.var(np.squeeze(l_4_samples[..., 0])))
+
+        exit()
 
         moments_quantity = moments(root_quantity, moments_fn=moments_fn, mom_at_bottom=True)
         moments_mean = estimate_mean(moments_quantity)
@@ -95,9 +118,9 @@ class ProcessSimple:
         # central_moments_quantity = moments(root_quantity, moments_fn=central_moments, mom_at_bottom=True)
         # central_moments_mean = estimate_mean(central_moments_quantity)
 
-        #estimator.sub_subselect(sample_vector=[10000])
+        # estimator.sub_subselect(sample_vector=[10000])
 
-        #self.process_target_var(estimator)
+        # self.process_target_var(estimator)
         self.construct_density(estimator, tol=1e-8)
         #self.data_plots(estimator)
 
@@ -108,7 +131,8 @@ class ProcessSimple:
         n0, nL = 100, 3
         n_samples = np.round(np.exp2(np.linspace(np.log2(n0), np.log2(nL), self.n_levels))).astype(int)
 
-        n_estimated = estimator.bs_target_var_n_estimated(target_var=1e-5, sample_vec=n_samples)  # number of estimated sampels for given target variance
+        n_estimated = estimator.bs_target_var_n_estimated(target_var=1e-5,
+                                                          sample_vec=n_samples)  # number of estimated sampels for given target variance
         estimator.plot_variances(sample_vec=n_estimated)
         estimator.plot_bs_var_log(sample_vec=n_estimated)
 
@@ -179,8 +203,8 @@ class ProcessSimple:
         simulation_factory = FlowSim(config=simulation_config, clean=clean)
 
         # Create HDF sample storage
-        sample_storage = SampleStorageHDF(
-            file_path=os.path.join(self.work_dir, "mlmc_{}.hdf5".format(self.n_levels)))
+        sample_storage = SampleStorageHDF(file_path=os.path.join(self.work_dir, "mlmc_{}.hdf5".format(self.n_levels)))
+
 
         # Create sampler, it manages sample scheduling and so on
         sampler = Sampler(sample_storage=sample_storage, sampling_pool=sampling_pool, sim_factory=simulation_factory,
@@ -280,15 +304,17 @@ class ProcessSimple:
                 # New estimation according to already finished samples
                 variances, n_ops = estimate_obj.estimate_diff_vars_regression(sampler._n_scheduled_samples)
                 n_estimated = estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-                                                                                   n_levels=sampler.n_levels)
+                                                                               n_levels=sampler.n_levels)
 
                 # Loop until number of estimated samples is greater than the number of scheduled samples
+
                 while not sampler.process_adding_samples(n_estimated, self.sample_sleep, self.adding_samples_coef,
                                                          timeout=self.sample_timeout):
+
                     # New estimation according to already finished samples
                     variances, n_ops = estimate_obj.estimate_diff_vars_regression(sampler._n_scheduled_samples)
                     n_estimated = estimator.estimate_n_samples_for_target_variance(target_var, variances, n_ops,
-                                                                                       n_levels=sampler.n_levels)
+                                                                                   n_levels=sampler.n_levels)
 
     def set_moments(self, quantity, sample_storage, n_moments=5):
         true_domain = estimator.Estimate.estimate_domain(quantity, sample_storage, quantile=0.01)

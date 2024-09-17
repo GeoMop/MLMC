@@ -279,6 +279,13 @@ class Memory(SampleStorage):
                                       1 if np.prod(chunk.shape) == chunk.shape[0] * chunk.shape[1] else
                                       int(np.prod(chunk.shape) / chunk.shape[0] * chunk.shape[1]))
 
+        # Handle scalar simulation result
+        # @TODO: think it over again
+        if len(results.shape) != 3:
+            results = results.reshape(results.shape[0], results.shape[1],
+                                      1 if np.prod(results.shape) == results.shape[0] * results.shape[1] else
+                                      int(np.prod(results.shape) / results.shape[0] * results.shape[1]))
+
         # Remove auxiliary zeros from level zero sample pairs
         if chunk_spec.level_id == 0:
             chunk = chunk[:, :1, :]
