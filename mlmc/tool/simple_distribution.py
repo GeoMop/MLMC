@@ -2,7 +2,6 @@ import numpy as np
 import scipy as sc
 import scipy.integrate as integrate
 import mlmc.moments
-import mlmc.plot.plots
 
 EXACT_QUAD_LIMIT = 1000
 
@@ -68,6 +67,8 @@ class SimpleDistribution:
                                       options={'tol': tol, 'xtol': tol,
                                                'gtol': tol, 'disp': False,  'maxiter': max_it})
         self.multipliers = result.x
+
+        print("self multipliers ", self.multipliers)
         jac_norm = np.linalg.norm(result.jac)
         if self._verbose:
             print("size: {} nits: {} tol: {:5.3g} res: {:5.3g} msg: {}".format(
@@ -270,7 +271,9 @@ class SimpleDistribution:
         end_diff = np.dot(self._end_point_diff, multipliers)
         penalty = np.sum(np.maximum(end_diff, 0)**2)
         fun = sum + integral
-        fun = fun + np.abs(fun) * self._penalty_coef * penalty
+
+        if self._penalty_coef > 0:
+            fun = fun + (np.abs(fun) * self._penalty_coef * penalty)
 
         return fun
 
@@ -287,7 +290,11 @@ class SimpleDistribution:
         end_diff = np.dot(self._end_point_diff, multipliers)
         penalty = 2 * np.dot( np.maximum(end_diff, 0), self._end_point_diff)
         fun = np.sum(self.moment_means * multipliers / self._moment_errs) + integral[0] * self._moment_errs[0]
-        gradient = self.moment_means / self._moment_errs - integral + np.abs(fun) * self._penalty_coef * penalty
+
+        gradient = self.moment_means / self._moment_errs - integral
+        if self._penalty_coef > 0:
+            gradient = gradient + np.abs(fun) * self._penalty_coef * penalty
+
         return gradient
 
     def _calculate_jacobian_matrix(self, multipliers):
@@ -317,13 +324,6 @@ class SimpleDistribution:
                 penalty = 2 * np.outer(self._end_point_diff[side], self._end_point_diff[side])
                 jacobian_matrix += np.abs(fun) * self._penalty_coef * penalty
 
-
-        #e_vals = np.linalg.eigvalsh(jacobian_matrix)
-
-        #print(multipliers)
-        #print("jac spectra: ", e_vals)
-        #print("means:", self.moment_means)
-        #print("\n jac:", np.diag(jacobian_matrix))
         return jacobian_matrix
 
 
