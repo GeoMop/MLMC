@@ -122,6 +122,7 @@ class SamplingPool(ABC):
         except Exception:
             str_list = traceback.format_exception(*sys.exc_info())
             err_msg = "".join(str_list)
+            print("Error msg: ", err_msg)
 
         return sample_id, res, err_msg, running_time
 
