@@ -1,5 +1,5 @@
 import os
-import ruamel.yaml as yaml
+import ruamel.yaml as ruyaml
 import numpy as np
 from typing import List
 import scipy.stats as stats
@@ -291,6 +291,7 @@ class SynthSimulationWorkspace(SynthSimulation):
     @staticmethod
     def _read_config():
         with open(os.path.join(os.getcwd(), SynthSimulationWorkspace.CONFIG_FILE)) as file:
+            yaml = ruyaml.YAML(typ='rt')
             config = yaml.load(file)
 
         return config

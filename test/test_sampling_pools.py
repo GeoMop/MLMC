@@ -33,7 +33,9 @@ failed_fraction = 0
 simulation_config = dict(distr='norm', complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
 
 with open('synth_sim_config_test.yaml', "w") as file:
-    yaml.dump(simulation_config, file, default_flow_style=False)
+    yaml = yaml.YAML(typ='full')
+    yaml.dump(simulation_config, file)
+
 shutil.copyfile('synth_sim_config_test.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
 sim_config_workspace = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
 
