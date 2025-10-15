@@ -48,39 +48,6 @@ class Distribution:
 
         # Flag for monitoring convergence on stdout.
         self.monitor = monitor
-    # def choose_parameters_from_samples(self, samples):
-    #     """
-    #     Determine model hyperparameters, in particular domain of the density function,
-    #     from given samples.
-    #     :param samples: np array of samples from the distribution or its approximation.
-    #     :return: None
-    #     """
-    #     self.domain = (np.min(samples), np.max(samples))
-    #
-    # @staticmethod
-    # def choose_parameters_from_moments(mean, variance, quantile=0.9999, log=False):
-    #     """
-    #     Determine model hyperparameters, in particular domain of the density function,
-    #     from given samples.
-    #     :param samples: np array of samples from the distribution or its approximation.
-    #     :return: None
-    #     """
-    #     if log:
-    #         # approximate by log normal
-    #         # compute mu, sigma parameters from observed mean and variance
-    #         sigma_sq = np.log(np.exp(np.log(variance) - 2.0 * np.log(mean)) + 1.0)
-    #         mu = np.log(mean) - sigma_sq / 2.0
-    #         sigma = np.sqrt(sigma_sq)
-    #         domain = tuple(sc.stats.lognorm.ppf([1.0 - quantile, quantile], s=sigma, scale=np.exp(mu)))
-    #         assert np.isclose(mean, sc.stats.lognorm.mean(s=sigma, scale=np.exp(mu)))
-    #         assert np.isclose(variance, sc.stats.lognorm.var(s=sigma, scale=np.exp(mu)))
-    #     else:
-    #         domain = tuple(sc.stats.norm.ppf([1.0 - quantile, quantile], loc=mean, scale=np.sqrt(variance)))
-    #     return domain
-    #
-    # def choose_parameters_from_approximation(self):
-    #     pass
-
 
     def estimate_density_minimize(self, tol=1e-5, reg_param =0.01):
         """
@@ -411,13 +378,7 @@ class Distribution:
 
         jacobian_matrix[np.diag_indices_from(jacobian_matrix)] += self._stab_penalty
 
-
-        #e_vals = np.linalg.eigvalsh(jacobian_matrix)
-
-        #print(multipliers)
-        #print("jac spectra: ", e_vals[0], e_vals[-1], e_vals[-1]/e_vals[0])
         return jacobian_matrix
-
 
 
 def compute_exact_moments(moments_fn, density, tol=1e-4):
