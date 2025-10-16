@@ -4,6 +4,8 @@ sphinx-rtd-theme
 sphinx-autodoc-typehints
 sphinxcontrib-napoleon
 myst-parser
+nbsphinx
+sphinx_copybutton
 
 # --- MLMC runtime dependencies ---
 numpy
