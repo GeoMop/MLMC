@@ -1,31 +1,39 @@
 .. _examples quantity:
 
-Quantity tutorial
+Quantity Tutorial
 =================
 
-An overview of basic :any:`mlmc.quantity.quantity.Quantity` operations.
-Quantity related classes and functions allow estimate mean and variance of MLMC samples results,
-derive other quantities from original ones and much more.
+This tutorial provides an overview of basic :any:`mlmc.quantity.quantity.Quantity` operations.
+
+The :mod:`mlmc.quantity` module and its related classes allow you to:
+- Estimate means and variances of MLMC sample results.
+- Derive new quantities from existing ones.
+- Perform arithmetic and NumPy-based operations on quantities.
+
+
+Setup
+-----
+
+Before exploring `Quantity` operations, we first set up a simple synthetic MLMC sampler.
 
 .. testcode::
     :hide:
 
     import mlmc
-    n_levels = 3 # number of MLMC levels
-    step_range = [0.5, 0.005] # simulation steps at the coarsest and finest levels
+    n_levels = 3  # number of MLMC levels
+    step_range = [0.5, 0.005]  # simulation steps at the coarsest and finest levels
     level_parameters = mlmc.estimator.determine_level_parameters(n_levels, step_range)
-    # level_parameters determine each level simulation steps
-    # level_parameters can be manually prescribed as a list of lists
 
     simulation_factory = mlmc.SynthSimulation()
     sampling_pool = mlmc.OneProcessPool()
-    # Memory() storage keeps samples in the computer main memory
     sample_storage = mlmc.Memory()
 
-    sampler = mlmc.Sampler(sample_storage=sample_storage,
-                                   sampling_pool=sampling_pool,
-                                   sim_factory=simulation_factory,
-                                   level_parameters=level_parameters)
+    sampler = mlmc.Sampler(
+        sample_storage=sample_storage,
+        sampling_pool=sampling_pool,
+        sim_factory=simulation_factory,
+        level_parameters=level_parameters
+    )
 
     n_samples = [100, 75, 50]
     sampler.set_initial_n_samples(n_samples)
@@ -36,7 +44,6 @@ derive other quantities from original ones and much more.
         running += sampler.ask_sampling_pool_for_samples()
 
 
-
 .. testcode::
 
     import numpy as np
@@ -44,7 +51,10 @@ derive other quantities from original ones and much more.
     from examples.synthetic_quantity import create_sampler
 
 
-First, the synthetic Quantity with the following :code:`result_format` is created
+Creating a Synthetic Quantity
+-----------------------------
+
+We begin by creating a synthetic :class:`mlmc.quantity.quantity.Quantity` with a predefined ``result_format``:
 
 .. testcode::
 
@@ -52,72 +62,60 @@ First, the synthetic Quantity with the following :code:`result_format` is create
     #     mlmc.QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1, 2, 3], locations=['10', '20']),
     #     mlmc.QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40']),
     # ]
-    # Meaning: sample results contain data on two quantities in three time steps [1, 2, 3] and in two locations,
-    #          each quantity can have different shape
 
     sampler, simulation_factory, moments_fn = create_sampler()
     root_quantity = mlmc.make_root_quantity(sampler.sample_storage, simulation_factory.result_format())
 
-:code:`root_quantity` is :py:class:`mlmc.quantity.quantity.Quantity` instance and represents the whole result data.
-According to :code:`result_format` it contains two sub-quantities named "length" and "width".
+This means the sample results contain data for two quantities (`length` and `width`) at three time steps `[1, 2, 3]` and two locations each.
+
+:code:`root_quantity` is an instance of :class:`mlmc.quantity.quantity.Quantity`, representing the full result data structure.
 
 
-Mean estimates
----------------
-To get estimated mean of a quantity:
+Mean Estimates
+--------------
+
+To compute the estimated mean of a quantity:
 
 .. testcode::
 
     root_quantity_mean = mlmc.quantity.quantity_estimate.estimate_mean(root_quantity)
 
-:code:`root_quantity_mean` is an instance of :py:class:`mlmc.quantity.quantity.QuantityMean`
+The returned object, :code:`root_quantity_mean`, is a :class:`mlmc.quantity.quantity.QuantityMean` instance.
 
-To get the total mean value:
+To retrieve statistical values:
 
 .. testcode::
 
+    # Total mean and variance
     root_quantity_mean.mean
-
-To get the total variance value:
-
-.. testcode::
-
     root_quantity_mean.var
 
-To get means at each level:
-
-.. testcode::
-
+    # Means and variances at each level
     root_quantity_mean.l_means
-
-To get variances at each level:
-
-.. testcode::
-
     root_quantity_mean.l_vars
 
 
-Estimate moments and covariance matrix
---------------------------------------
+Moments and Covariance Estimation
+---------------------------------
 
-Create a quantity representing moments and get their estimates
+To create and estimate statistical moments:
 
 .. testcode::
 
     moments_quantity = mlmc.quantity.quantity_estimate.moments(root_quantity, moments_fn=moments_fn)
     moments_mean = mlmc.quantity.quantity_estimate.estimate_mean(moments_quantity)
 
-To obtain central moments, use:
+To obtain **central moments**, first subtract the mean:
 
 .. testcode::
 
     central_root_quantity = root_quantity - root_quantity_mean.mean
-    central_moments_quantity = mlmc.quantity.quantity_estimate.moments(central_root_quantity,
-                                                                            moments_fn=moments_fn)
+    central_moments_quantity = mlmc.quantity.quantity_estimate.moments(
+        central_root_quantity, moments_fn=moments_fn
+    )
     central_moments_mean = mlmc.quantity.quantity_estimate.estimate_mean(central_moments_quantity)
 
-
-Create a quantity representing a covariance matrix
+To estimate a **covariance matrix**:
 
 .. testcode::
 
@@ -125,36 +123,31 @@ Create a quantity representing a covariance matrix
     cov_mean = mlmc.quantity.quantity_estimate.estimate_mean(covariance_quantity)
 
 
-
-Quantity selection
+Quantity Selection
 ------------------
 
-According to the result_format, it is possible to select items from a quantity
+You can access and manipulate sub-quantities directly using the structure defined by `result_format`:
 
 .. testcode::
 
     length = root_quantity["length"]  # Get quantity with name="length"
-    width = root_quantity["width"]  # Get quantity with name="width"
+    width = root_quantity["width"]    # Get quantity with name="width"
 
-:code:`length` and :code:`width` are still :py:class:`mlmc.quantity.quantity.Quantity` instances
+Both are still :class:`mlmc.quantity.quantity.Quantity` instances.
 
-To get a quantity at particular time:
+Selecting by **time**:
 
 .. testcode::
 
     length_locations = length.time_interpolation(2.5)
 
-:code:`length_locations` represents results for all locations of quantity named "length" at the time 2.5
-
-To get quantity at particular location:
+Selecting by **location**:
 
 .. testcode::
 
     length_result = length_locations['10']
 
-:code:`length_result` represents results shape=(2, 1) of quantity named "length" at the time 2,5 and location '10'
-
-Now it is possible to slice Quantity :code:`length_result` the same way as :code:`np.ndarray`. For example:
+Now, :code:`length_result` behaves like a NumPy array:
 
 .. testcode::
 
@@ -164,39 +157,41 @@ Now it is possible to slice Quantity :code:`length_result` the same way as :code
     length_result[:1, :1]
     length_result[:2, ...]
 
-Keep in mind:
-    - all derived quantities such as :code:`length_locations` and :code:`length_result`, ... are still :py:class:`mlmc.quantity.quantity.Quantity` instances
-    - selecting location before time is not supported!
+.. note::
+
+   - All derived quantities (like :code:`length_locations` or :code:`length_result`) remain `Quantity` instances.
+   - Selecting a **location before time** is not supported.
 
 
-Binary operations
+Binary Operations
 -----------------
-Following operations are supported
 
- - Addition, subtraction, ... of compatible quantities
+`Quantity` supports standard arithmetic operations:
 
-    .. testcode::
+**Between quantities:**
 
-        quantity = root_quantity + root_quantity
-        quantity = root_quantity + root_quantity + root_quantity
+.. testcode::
 
- -  Operations with Quantity and a constant
+    quantity = root_quantity + root_quantity
+    quantity = root_quantity + root_quantity + root_quantity
 
-     .. testcode::
+**With constants:**
 
-        const = 5
-        quantity_const_add = root_quantity + const
-        quantity_const_sub = root_quantity - const
-        quantity_const_mult = root_quantity * const
-        quantity_const_div = root_quantity / const
-        quantity_const_mod = root_quantity % const
-        quantity_add_mult = root_quantity + root_quantity * const
+.. testcode::
+
+    const = 5
+    quantity_const_add = root_quantity + const
+    quantity_const_sub = root_quantity - const
+    quantity_const_mult = root_quantity * const
+    quantity_const_div = root_quantity / const
+    quantity_const_mod = root_quantity % const
+    quantity_add_mult = root_quantity + root_quantity * const
 
 
-NumPy universal functions
+NumPy Universal Functions
 --------------------------
 
-Examples of tested NumPy universal functions:
+`Quantity` objects are compatible with many NumPy universal functions (`ufuncs`):
 
 .. testcode::
 
@@ -209,17 +204,19 @@ Examples of tested NumPy universal functions:
     x = np.ones(24)
     quantity_np_divide_const = np.divide(x, root_quantity)
     quantity_np_add_const = np.add(x, root_quantity)
-    quantity_np_arctan2_cosnt = np.arctan2(x, root_quantity)
+    quantity_np_arctan2_const = np.arctan2(x, root_quantity)
 
 
-Quantity selection by conditions
----------------------------------
+Conditional Selection
+----------------------
 
-Method :code:`select` returns :py:class:`mlmc.quantity.quantity.Quantity` instance
+You can select parts of a quantity using logical conditions via the :code:`select()` method.
 
 .. testcode::
 
     selected_quantity = root_quantity.select(0 < root_quantity)
+
+Or using comparisons between quantities:
 
 .. testcode::
 
@@ -227,23 +224,21 @@ Method :code:`select` returns :py:class:`mlmc.quantity.quantity.Quantity` instan
     quantity_add_select = quantity_add.select(root_quantity < quantity_add)
     root_quantity_selected = root_quantity.select(-1 != root_quantity)
 
-Logical operation among more provided conditions is AND
+Multiple conditions are combined using logical **AND**:
 
 .. testcode::
 
     quantity_add.select(root_quantity < quantity_add, root_quantity < 10)
 
-User can use one of the logical NumPy universal functions
+Use NumPy logical functions for more complex conditions:
 
 .. testcode::
 
     selected_quantity_or = root_quantity.select(np.logical_or(0 < root_quantity, root_quantity < 10))
 
-It is possible to explicitly define the selection condition of one quantity by another quantity
+You can also explicitly define the selection mask:
 
 .. testcode::
 
-    mask = np.logical_and(0 < root_quantity, root_quantity < 10)  # mask is Quantity instance
+    mask = np.logical_and(0 < root_quantity, root_quantity < 10)
     q_bounded = root_quantity.select(mask)
-
-
