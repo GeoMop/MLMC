@@ -74,6 +74,3 @@ def test_sampler_hdf():
     n_estimated = np.array([100, 50, 20])
     sampler.process_adding_samples(n_estimated, 0, 0.1)
     assert np.allclose(sampler._n_target_samples, init_samples + (n_estimated * 0.1), atol=1)
-
-
-test_sampler_hdf()
