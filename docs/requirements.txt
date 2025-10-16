@@ -1,3 +1,10 @@
+# --- Documentation dependencies ---
+sphinx>=7.0
+sphinx-rtd-theme
+sphinx-autodoc-typehints
+sphinxcontrib-napoleon
+
+# --- MLMC runtime dependencies ---
 numpy
 scipy
 scikit-learn
