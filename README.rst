@@ -61,31 +61,6 @@ Topics covered include:
 * Moment and covariance estimation
 * PDF and density reconstruction
 
-Example
--------
-
-A minimal example illustrating the MLMC workflow:
-
-.. code-block:: python
-
-    import mlmc
-    from mlmc import sample_storage, quantity
-
-    # Define your quantity and storage
-    storage = sample_storage.Memory()
-    q = quantity.SomeQuantityDefinition(...)
-
-    # Create an MLMC estimator
-    estimator = mlmc.Estimate(quantity=q, sample_storage=storage)
-
-    # Estimate statistical moments
-    means, variances = estimator.estimate_moments()
-
-    # Construct an approximate probability density
-    distribution, info, result, moments = estimator.construct_density()
-
-    # Visualize variance breakdown
-    estimator.plot_variances()
 
 Development
 -----------
