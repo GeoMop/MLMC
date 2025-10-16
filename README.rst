@@ -10,31 +10,26 @@ MLMC
 .. image:: https://img.shields.io/badge/License-GPLv3-blue.svg
     :target: https://www.gnu.org/licenses/gpl-3.0.html
 
-Overview
---------
 
 **MLMC** is a Python library implementing the **Multilevel Monte Carlo (MLMC)** method.
-It provides tools for sampling, moment estimation, density reconstruction, and
-statistical post-processing, all built around the flexible ``Quantity`` abstraction.
+It provides tools for sampling, moment estimation, statistical post-processing, and more.
 
-Originally developed as part of the `GeoMop <http://geomop.github.io/>`_ project,
-MLMC aims to simplify stochastic analysis, uncertainty quantification,
-and convergence studies in scientific computing workflows.
+Originally developed as part of the `GeoMop <http://geomop.github.io/>`_ project.
 
 Features
 --------
 
 * Sample scheduling
-* Estimation of generalized moment functions
+* Estimation of generalized moments
 * Advanced post-processing with the ``Quantity`` structure
-* Approximation of probability density functions (PDFs)
+* Approximation of probability density functions using the maximum entropy method
 * Bootstrap and regression-based variance estimation
-* Diagnostic tools (consistency check, ...)
+* Diagnostic tools (e.g., consistency checks)
 
 Installation
 ------------
 
-The package is available on PyPI and can be installed via pip:
+The package is available on PyPI and can be installed with pip:
 
 .. code-block:: bash
 
@@ -51,7 +46,7 @@ To install the latest development version:
 Documentation
 -------------
 
-Full documentation including tutorials and examples is available at:
+Full documentation, including tutorials, is available at:
 `https://mlmc.readthedocs.io/ <https://mlmc.readthedocs.io/>`_
 
 Topics covered include:
@@ -59,33 +54,8 @@ Topics covered include:
 * Basic MLMC workflow and examples
 * Definition and composition of ``Quantity`` objects
 * Moment and covariance estimation
-* PDF and density reconstruction
+* Probability density function reconstruction
 
-Example
--------
-
-A minimal example illustrating the MLMC workflow:
-
-.. code-block:: python
-
-    import mlmc
-    from mlmc import sample_storage, quantity
-
-    # Define your quantity and storage
-    storage = sample_storage.Memory()
-    q = quantity.SomeQuantityDefinition(...)
-
-    # Create an MLMC estimator
-    estimator = mlmc.Estimate(quantity=q, sample_storage=storage)
-
-    # Estimate statistical moments
-    means, variances = estimator.estimate_moments()
-
-    # Construct an approximate probability density
-    distribution, info, result, moments = estimator.construct_density()
-
-    # Visualize variance breakdown
-    estimator.plot_variances()
 
 Development
 -----------
