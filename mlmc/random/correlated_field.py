@@ -401,68 +401,100 @@ class SpatialCorrelatedField(RandomFieldBase):
 
 class GSToolsSpatialCorrelatedField(RandomFieldBase):
     """
-    Spatially correlated random field using the GSTools library.
+    Spatially correlated random field generator using GSTools.
 
-    Uses Fourier modes to generate spatial random fields efficiently.
+    This class acts as an adapter between :mod:`gstools` and the MLMC
+    random field interface (:class:`mlmc.random.random_field_base.RandomFieldBase`).
+    It supports 1D, 2D, and 3D random fields with optional logarithmic transformation,
+    and can generate fields on both structured and unstructured grids.
     """
 
-    def __init__(self, model, mode_no=1000, log=False, sigma=1, seed=None):
+    def __init__(self, model, mode_no=1000, log=False, sigma=1, seed=None, mode=None, structured=False):
         """
-        Initialize GSTools-based spatial random field.
+        Initialize a spatially correlated random field generator.
 
-        :param model: gstools covariance model (subclass of gstools.CovModel)
-        :param mode_no: Number of Fourier modes (default 1000)
-        :param log: If True, output field is exponentiated
-        :param sigma: Standard deviation
-        :param seed: Optional random seed for reproducibility
+        :param model: Covariance model instance (subclass of ``gstools.covmodel.CovModel``)
+            defining the spatial correlation structure.
+        :param mode_no: Number of Fourier modes used in the random field generation.
+            Default is 1000.
+        :param log: If True, applies an exponential transformation to obtain
+            a lognormal field. Default is False.
+        :param sigma: Standard deviation scaling factor applied to the generated field.
+            Default is 1.
+        :param seed: Random seed for reproducibility. Default is None.
+        :param mode: Sampling mode for GSTools SRF. Use "fft" for structured grids or
+            None for unstructured. Default is None.
+        :param structured: If True, assumes a structured grid for field evaluation.
+            Default is False.
         """
         self.model = model
         self.mode_no = mode_no
-        self.srf = gstools.SRF(model, mode_no=mode_no, seed=seed)
+        if mode == "fft":
+            self.srf = gstools.SRF(model, mode="fft", seed=seed)
+        else:
+            self.srf = gstools.SRF(model, mode_no=mode_no, seed=seed)
         self.mu = self.srf.mean
         self.sigma = sigma
         self.dim = model.dim
         self.log = log
+        self.structured = structured
 
     def change_srf(self, seed):
         """
-        Generate a new spatial random field with a different seed.
+        Reinitialize the GSTools random field with a new random seed.
 
-        :param seed: Random seed
+        :param seed: Random seed used to reinitialize the underlying
+            :class:`gstools.SRF` instance.
+        :return: None
         """
         self.srf = gstools.SRF(self.model, seed=seed, mode_no=self.mode_no)
 
-    def random_field(self):
+    def random_field(self, seed=None):
         """
-        Evaluate the spatial random field at the current points.
+        Generate a raw random field realization (without scaling or transformation).
 
-        :return: Field values (np.ndarray)
+        :param seed: Optional random seed for reproducibility. Default is None.
+        :return: numpy.ndarray
+            Field values evaluated at the points defined by :meth:`set_points`.
         """
         if self.dim == 1:
             x = self.points
-            x = x.reshape(len(x),)
-            return self.srf((x,))
+            x.reshape(len(x))
+            field = self.srf((x,))
         elif self.dim == 2:
             x, y = self.points.T
             x = x.reshape(len(x), 1)
             y = y.reshape(len(y), 1)
-            return self.srf((x, y))
-        else:  # dim == 3
+            field = self.srf((x, y))
+        else:
             x, y, z = self.points.T
             x = x.reshape(len(x), 1)
             y = y.reshape(len(y), 1)
             z = z.reshape(len(z), 1)
-            return self.srf((x, y, z))
 
-    def sample(self):
-        """
-        Generate a realization of the GSTools spatial random field.
+            if self.structured:
+                field = self.srf([np.squeeze(x), np.squeeze(y), np.squeeze(z)], seed=seed)
+                field = field.flatten()
+            else:
+                if seed is not None:
+                    field = self.srf(self.points.T, seed=seed)
+                else:
+                    field = self.srf(self.points.T)
+        return field
 
-        :return: Field values (np.ndarray)
+    def sample(self, seed=None):
         """
-        field = self.random_field()
-        field = self.sigma * field + self.mu
-        return np.exp(field) if self.log else field
+        Evaluate the scaled random field at the defined points.
+
+        :param seed: Optional random seed for reproducibility. Default is None.
+        :return: numpy.ndarray
+            Field values evaluated at the defined points, scaled by ``sigma``
+            and shifted by ``mu``. If ``log=True``, returns
+            ``exp(sigma * field + mu)`` instead.
+        """
+        if not self.log:
+            return self.sigma * self.random_field(seed) + self.mu
+        return np.exp(self.sigma * self.random_field(seed) + self.mu)
 
 
 class FourierSpatialCorrelatedField(RandomFieldBase):
