@@ -37,11 +37,14 @@ extensions = [
     "sphinx_copybutton",
 ]
 
-# Autodoc settings
-autosummary_generate = True           # Generate autosummary files
-autoclass_content = "class"           # Don't repeat __init__ docstring
-autodoc_member_order = "groupwise"    # Grouped members in docs
-autodoc_typehints = "description"     # Show type hints in docstring
+
+# autosummaries from source-files
+autosummary_generate = True
+# dont show __init__ docstring
+autoclass_content = 'class'
+# sort class members
+autodoc_member_order = "bysource"
+# autodoc_member_order = 'bysource'
 
 # Napoleon settings for Google-style docstrings
 napoleon_google_docstring = True

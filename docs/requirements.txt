@@ -16,3 +16,5 @@ ruamel.yaml==0.17.26
 attrs
 gstools
 memoization
+seaborn
+matplotlib
