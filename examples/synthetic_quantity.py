@@ -19,6 +19,27 @@ import mlmc.estimator
 
 
 def fill_sample_storage(sample_storage, result_format):
+    """
+    Populate a sample storage with synthetic scheduled and finished samples for tests.
+
+    This saves:
+      - global meta-data (result_format, level_parameters)
+      - scheduled samples per level
+      - finished (successful) samples per level
+      - number-of-operations records per level
+
+    Parameters
+    ----------
+    sample_storage : mlmc.sample_storage.* instance
+        Storage object to be filled (Memory or HDF).
+    result_format : list[QuantitySpec]
+        Result format used to determine sizes of flattened sample vectors.
+
+    Returns
+    -------
+    tuple
+        (result_format, sizes) where `sizes` is the last computed per-quantity sizes list.
+    """
     np.random.seed(123)
     n_levels = 3
 
@@ -55,7 +76,37 @@ def fill_sample_storage(sample_storage, result_format):
 
     return result_format, sizes
 
+
 def create_sampler(clean=True, memory=True, n_moments=5):
+    """
+    Create and prepare a Sampler with synthetic simulation factory and initial scheduled samples.
+
+    The function:
+      - creates a temporary working directory (when clean=True),
+      - constructs a SynthSimulationForTests factory,
+      - chooses Memory or HDF sample storage,
+      - creates a OneProcessPool sampling_pool,
+      - constructs a Sampler instance,
+      - prepares a Monomial moments function,
+      - schedules an initial set of samples and triggers immediate sample execution.
+
+    Parameters
+    ----------
+    clean : bool, optional
+        If True, removes and recreates the test working directory before use (default True).
+    memory : bool, optional
+        If True use Memory() storage; otherwise use SampleStorageHDF (default True).
+    n_moments : int, optional
+        Number of monomial moments (unused in this helper besides constructing moments_fn) (default 5).
+
+    Returns
+    -------
+    tuple
+        (sampler, simulation_factory, moments_fn)
+        - sampler: mlmc.sampler.Sampler instance with initial samples scheduled/executed
+        - simulation_factory: SynthSimulationForTests instance used by the sampler
+        - moments_fn: Monomial moments object constructed for the true_domain
+    """
     # Set work dir
     np.random.seed(1234)
     n_levels = 3
@@ -76,10 +127,6 @@ def create_sampler(clean=True, memory=True, n_moments=5):
     simulation_config = dict(distr=distr, complexity=2, nan_fraction=failed_fraction, sim_method='_sample_fn')
     simulation_factory = SynthSimulationForTests(simulation_config)
 
-    # shutil.copyfile('synth_sim_config.yaml', os.path.join(work_dir, 'synth_sim_config.yaml'))
-    # simulation_config = {"config_yaml": os.path.join(work_dir, 'synth_sim_config.yaml')}
-    # simulation_workspace = SynthSimulationWorkspace(simulation_config)
-
     # Create sample storages
     if memory:
         sample_storage = Memory()
@@ -87,7 +134,6 @@ def create_sampler(clean=True, memory=True, n_moments=5):
         sample_storage = SampleStorageHDF(file_path=os.path.join(work_dir, "mlmc_test.hdf5"))
     # Create sampling pools
     sampling_pool = OneProcessPool()
-    # sampling_pool_dir = OneProcessPool(work_dir=work_dir)
 
     if clean:
         if sampling_pool._output_dir is not None:
@@ -111,5 +157,3 @@ def create_sampler(clean=True, memory=True, n_moments=5):
     sampler.ask_sampling_pool_for_samples()
 
     return sampler, simulation_factory, moments_fn
-
-

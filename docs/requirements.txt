@@ -1,9 +1,18 @@
+# --- Documentation dependencies ---
+sphinx>=7.0
+sphinx-rtd-theme
+sphinx-autodoc-typehints
+sphinxcontrib-napoleon
+myst-parser
+nbsphinx
+sphinx_copybutton
+
+# --- MLMC runtime dependencies ---
 numpy
 scipy
-sklearn
+scikit-learn
 h5py>=3.1.0
-ruamel.yaml
+ruamel.yaml==0.17.26
 attrs
 gstools
 memoization
-matplotlib

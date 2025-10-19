@@ -12,7 +12,7 @@ from os.path import splitext
 from setuptools import find_packages
 from setuptools import setup
 
-__version__ = '1.0.2'
+__version__ = '1.0.3'
 
 
 # For long description:
@@ -61,5 +61,5 @@ setup(
     # include automatically all files in the template MANIFEST.in
     include_package_data=True,
     zip_safe=False,
-    install_requires=['numpy', 'scipy', 'sklearn', 'h5py>=3.1.0', 'ruamel.yaml', 'attrs', 'gstools', 'memoization'],
+    install_requires=['numpy', 'scipy', 'scikit-learn', 'h5py>=3.1.0', 'ruamel.yaml', 'attrs', 'gstools', 'memoization'],
 )

@@ -1,134 +1,142 @@
 import itertools
 import numpy as np
-from abc import ABCMeta
-from abc import abstractmethod
-from typing import List, Dict
+from abc import ABCMeta, abstractmethod
+from typing import List, Dict, Any, Generator, Optional, Tuple
 from mlmc.quantity.quantity_spec import QuantitySpec, ChunkSpec
 
 
 class SampleStorage(metaclass=ABCMeta):
     """
-    Provides methods to store and retrieve sample's data
+    Provides methods to store and retrieve sample data.
+    Abstract base class for all storage backends.
     """
 
     @abstractmethod
     def save_samples(self, successful_samples, failed_samples):
         """
-        Write results to storage
+        Write simulation results to storage.
+        :param successful_samples: Dict[level_id, List[Tuple[sample_id, (fine, coarse)]]]
+        :param failed_samples: Dict[level_id, List[Tuple[sample_id, error_message]]]
         """
 
     @abstractmethod
     def save_result_format(self, res_spec: List[QuantitySpec]):
         """
-        Save result format
+        Save result format.
+        :param res_spec: List of quantity specifications describing result structure.
         """
 
     @abstractmethod
     def load_result_format(self) -> List[QuantitySpec]:
         """
-        Load result format
+        Load stored result format.
+        :return: List[QuantitySpec]
         """
 
     @abstractmethod
     def save_global_data(self, result_format: List[QuantitySpec], level_parameters=None):
         """
-        Save global data, at the moment: _result_format, level_parameters
+        Save global metadata such as result format and level parameters.
+        :param result_format: List[QuantitySpec]
+        :param level_parameters: Optional metadata per level
         """
 
     @abstractmethod
     def save_scheduled_samples(self, level_id, samples):
         """
-        Save scheduled samples ids
+        Save scheduled sample identifiers.
+        :param level_id: int
+        :param samples: List[str]
         """
 
     @abstractmethod
-    def load_scheduled_samples(self):
+    def load_scheduled_samples(self) -> Dict[int, List[str]]:
         """
-        Load scheduled samples
-        :return: Dict[_level_id, List[sample_id: str]]
+        Load scheduled sample IDs.
+        :return: Dict[level_id, List[sample_id]]
         """
 
     @abstractmethod
     def sample_pairs(self):
         """
-        Get results from storage
-        :return: List[Array[M, N, 2]]
+        Retrieve all stored fine–coarse result pairs.
+        :return: List[np.ndarray[M, N, 2]]
         """
 
-    def chunks(self, level_id=None, n_samples=None):
+    def chunks(self, level_id: Optional[int] = None, n_samples: Optional[int] = None) -> Generator[ChunkSpec, None, None]:
         """
-        Create chunks generator
-        :param level_id: int, if not None return chunks for a given level
-        :param n_samples: int, number of samples to retrieve
-        :return: generator
+        Create a generator yielding chunk specifications for collected data.
+        :param level_id: int, if provided, return chunks only for the given level.
+        :param n_samples: int, maximum number of samples to retrieve.
+        :return: generator of ChunkSpec objects.
         """
-        assert isinstance(n_samples, (type(None), int)), "n_samples param must be int"
-        level_ids = self.get_level_ids()
-        if level_id is not None:
-            level_ids = [level_id]
-        return itertools.chain(*[self._level_chunks(level_id, n_samples) for level_id in level_ids])  # concatenate generators
+        assert isinstance(n_samples, (type(None), int)), "n_samples must be int or None"
+        level_ids = [level_id] if level_id is not None else self.get_level_ids()
+        return itertools.chain(*[self._level_chunks(lid, n_samples) for lid in level_ids])
 
     @abstractmethod
     def _level_chunks(self, level_id, n_samples=None):
         """
-        Info about chunks of level's collected data
+        Get chunk information for data collected at a given level.
+        :param level_id: int
+        :param n_samples: int
         :return: generator of ChunkSpec objects
         """
 
     @abstractmethod
     def n_finished(self):
         """
-        Number of finished samples
-        :return: List
+        Get number of finished samples on each level.
+        :return: List[int]
         """
 
     @abstractmethod
-    def save_n_ops(self, n_ops: Dict[int, List[float]]):
+    def save_n_ops(self, n_ops: Dict[int, Tuple[float, int]]):
         """
-        Save number of operations (time)
-        :param n_ops: Dict[_level_id, List[overall time, number of valid samples]]
+        Save number of operations (time).
+        :param n_ops: Dict[level_id, Tuple[total_time, n_valid_samples]]
         """
 
     @abstractmethod
     def get_n_ops(self):
         """
-        Number of operations (time) per sample for each level
+        Get number of operations per sample for each level.
         :return: List[float]
         """
 
     @abstractmethod
     def unfinished_ids(self):
         """
-        Get unfinished sample's ids
-        :return: list
+        Get IDs of unfinished samples.
+        :return: List[str]
         """
 
     @abstractmethod
     def get_level_ids(self):
         """
-        Get number of levels
-        :return: int
+        Get list of available level IDs.
+        :return: List[int]
         """
 
     @abstractmethod
     def get_n_levels(self):
         """
-        Get number of levels
+        Get total number of levels.
         :return: int
         """
 
     @abstractmethod
     def get_level_parameters(self):
         """
-        Get level parameters
-        :return: list
+        Get stored level parameters.
+        :return: List[Any]
         """
 
     @abstractmethod
     def get_n_collected(self):
         """
-        Get number of collected results at each evel
-        :return: list
+        Get number of collected results at each level.
+        :return: List[int]
         """
 
 
@@ -168,12 +176,15 @@ class Memory(SampleStorage):
         :return: None
         """
         for level_id, res in samples.items():
-            res = np.array(res)
+            res = np.array(res, dtype=object)
             fine_coarse_res = res[:, 1]
 
-            result_type = np.dtype((np.float, np.array(fine_coarse_res[0]).shape))
+            result_type = np.dtype((float, np.array(fine_coarse_res[0], dtype=object).shape))
             results = np.empty(shape=(len(res),), dtype=result_type)
-            results[:] = [val for val in fine_coarse_res]
+
+            for idx, val in enumerate(fine_coarse_res):
+                results[idx, 0] = val[0]
+                results[idx, 1] = val[1]
 
             # Save sample ids
             self._successful_sample_ids.setdefault(level_id, []).extend(res[:, 0])

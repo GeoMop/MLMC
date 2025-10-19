@@ -6,14 +6,6 @@ mlmc.tool
 Submodules
 ----------
 
-mlmc.tool.context\_statprof module
-----------------------------------
-
-.. automodule:: mlmc.tool.context_statprof
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 mlmc.tool.distribution module
 -----------------------------
 

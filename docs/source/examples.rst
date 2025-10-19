@@ -4,7 +4,10 @@ Tutorials
 
 .. automodule:: examples
 
-The following tutorials illustrates how to use mlmc package.
+This section provides step-by-step tutorials demonstrating how to use the **mlmc** package.
+
+Each tutorial builds upon the previous one — starting from sampler creation, through sample scheduling and quantity handling, to full postprocessing and probability density estimation.
+
 
 .. toctree::
    :includehidden:
@@ -16,4 +19,12 @@ The following tutorials illustrates how to use mlmc package.
    examples_postprocessing
 
 
-You can find more complex examples in :any:`examples.shooting`
+Additional Examples
+-------------------
+
+You can find more advanced and domain-specific examples (e.g., stochastic simulations or PDE-based problems) in:
+
+:mod:`examples.shooting`
+
+These examples demonstrate how to integrate MLMC with real-world simulation workflows.
+

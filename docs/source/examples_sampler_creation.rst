@@ -1,56 +1,102 @@
-Sampler creation
+Sampler Creation
 =================
-Sampler controls the execution of MLMC samples.
+
+The **Sampler** controls the execution and management of MLMC (Multilevel Monte Carlo) samples.
+This example demonstrates how to configure all essential components for an MLMC simulation.
 
 
-First, import mlmc package and define basic MLMC parameters.
+
+Basic Setup
+------------
+
+First, import the :mod:`mlmc` package and define basic MLMC parameters.
 
 .. testcode::
 
     import mlmc
-    n_levels = 3 # number of MLMC levels
-    step_range = [0.5, 0.005] # simulation steps at the coarsest and finest levels
+
+    # Define number of MLMC levels
+    n_levels = 3
+
+    # Simulation step sizes at the coarsest and finest levels
+    step_range = [0.5, 0.005]
+
+    # Compute level parameters (simulation steps per level)
     level_parameters = mlmc.estimator.determine_level_parameters(n_levels, step_range)
-    # level_parameters determine each level simulation steps
-    # level_parameters can be manually prescribed as a list of lists
+
+    # Alternatively, you can specify level_parameters manually as a list of lists.
 
 
-Prepare a simulation, it must be instance of class that inherits from :any:`mlmc.sim.simulation.Simulation`.
+
+Simulation Definition
+----------------------
+
+Prepare a simulation instance.
+The simulation class must inherit from :class:`mlmc.sim.simulation.Simulation`.
 
 .. testcode::
 
     simulation_factory = mlmc.SynthSimulation()
 
-Create a sampling pool.
+This factory will be used by the sampler to create individual simulation runs.
+
+
+
+Sampling Pool
+--------------
+
+Next, create a sampling pool that controls how samples are executed.
 
 .. testcode::
 
     sampling_pool = mlmc.OneProcessPool()
 
+The :class:`mlmc.sampling_pool.OneProcessPool` executes samples sequentially within a single process.
 
-You can also use :any:`mlmc.sampling_pool.ProcessPool` which supports parallel execution of MLMC samples.
-In order to use PBS (portable batch system), employ :any:`mlmc.sampling_pool_pbs.SamplingPoolPBS`.
+You can also use:
+
+- :class:`mlmc.sampling_pool.ProcessPool` — executes samples in parallel across multiple processes.
+- :class:`mlmc.sampling_pool_pbs.SamplingPoolPBS` — submits jobs to a PBS (Portable Batch System) cluster for distributed computation.
 
 
-Create a sample storage. It contains sample's related data e.g. simulation result.
+
+Sample Storage
+---------------
+
+The **sample storage** keeps all data related to simulation results.
 
 .. testcode::
 
-    # Memory() storage keeps samples in the computer main memory
+    # Memory storage keeps samples in main memory
     sample_storage = mlmc.Memory()
 
-We support also HDF5 file storage :any:`mlmc.sample_storage_hdf.SampleStorageHDF`.
+Alternatively, use persistent file-based storage:
+
+- :class:`mlmc.sample_storage_hdf.SampleStorageHDF` — stores results in an HDF5 file for long-term reuse and analysis.
 
 
-Finally, create a sampler that manages scheduling MLMC samples and also saves the results.
+
+Sampler Initialization
+-----------------------
+
+Finally, create the **Sampler** instance.
+It coordinates sample scheduling, simulation execution, and result collection.
 
 .. testcode::
 
-    sampler = mlmc.Sampler(sample_storage=sample_storage,
-                                   sampling_pool=sampling_pool,
-                                   sim_factory=simulation_factory,
-                                   level_parameters=level_parameters)
+    sampler = mlmc.Sampler(
+        sample_storage=sample_storage,
+        sampling_pool=sampling_pool,
+        sim_factory=simulation_factory,
+        level_parameters=level_parameters
+    )
+
+The sampler is now ready to generate and manage MLMC samples.
 
 
 
+Next Steps
+-----------
+
+Proceed to the next example:
 :ref:`examples samples scheduling`
