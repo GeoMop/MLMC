@@ -49,7 +49,7 @@ def test_sampler_hdf():
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
     if os.path.exists(work_dir):
         shutil.rmtree(work_dir, ignore_errors=True)
-    os.makedirs(work_dir)
+    os.makedirs(work_dir, exist_ok=True)
     file_path = os.path.join(work_dir, "mlmc_test.hdf5")
     storage = mlmc.SampleStorageHDF(file_path=file_path)
     sampling_pool = OneProcessPool()
