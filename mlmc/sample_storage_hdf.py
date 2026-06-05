@@ -37,33 +37,6 @@ class SampleStorageHDF(SampleStorage):
                 for i_level in range(len(self._hdf_object.level_parameters)):
                     self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
 
-    # TODO: compare this old impl to the new function hdf5.single_format
-    def _hdf_result_format(self, locations, times):
-        """
-        Construct an appropriate dtype for QuantitySpec data representation in HDF5.
-
-        :param locations: List of spatial locations (as coordinates or identifiers).
-        :param times: List of time steps.
-        :return: Numpy dtype describing the QuantitySpec data structure.
-        """
-        if len(locations[0]) == 3:
-            tuple_dtype = np.dtype((float, (3,)))
-            loc_dtype = np.dtype((tuple_dtype, (len(locations),)))
-        else:
-            loc_dtype = np.dtype(('S50', (len(locations),)))
-
-        result_dtype = {
-            'names': ('name', 'unit', 'shape', 'times', 'locations'),
-            'formats': (
-                'S50',
-                'S50',
-                np.dtype((np.int32, (2,))),
-                np.dtype((float, (len(times),))),
-                loc_dtype
-            )
-        }
-
-        return result_dtype
 
     def save_global_data(self, level_parameters: List[float], result_format: List[QuantitySpec]):
         """
