@@ -5,6 +5,8 @@ import re
 import pickle
 import json
 import glob
+import time
+import numpy as np
 from mlmc.level_simulation import LevelSimulation
 from mlmc.sampling_pool import SamplingPool
 from mlmc.tool.pbs_job import PbsJob
@@ -145,9 +147,17 @@ class SamplingPoolPBS(SamplingPool):
         :return: None
         """
         # Script header
-        select_flags_list = kwargs.get('select_flags', [])
-        if select_flags_list:
-            kwargs['select_flags'] = ":" + ":".join(select_flags_list)
+        select_flags_dict = kwargs.get('select_flags', {})
+
+        # Set scratch dir
+        if any(re.compile('scratch.*').match(flag) for flag in list(select_flags_dict.keys())):
+            if kwargs['scratch_dir'] is None:
+                kwargs['scratch_dir'] = "$SCRATCHDIR"
+        else:
+            kwargs['scratch_dir'] = ''
+
+        if select_flags_dict:
+            kwargs['select_flags'] = ":" + ':'.join('{}={}'.format(*item) for item in select_flags_dict.items())
         else:
             kwargs['select_flags'] = ""
 
@@ -174,7 +184,7 @@ class SamplingPoolPBS(SamplingPool):
             kwargs['optional_pbs_requests'])  # e.g. ['#PBS -m ae'] means mail is sent when the job aborts or terminates
         self._pbs_header_template.extend(('MLMC_WORKDIR=\"{}\"'.format(self._work_dir),))
         self._pbs_header_template.extend(kwargs['env_setting'])
-        self._pbs_header_template.extend(('{python} -m mlmc.tool.pbs_job {output_dir} {job_name} >'
+        self._pbs_header_template.extend(('{python} -m mlmc.tool.pbs_job {output_dir} {job_name} {scratch_dir} >'
                                           '{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
         self._pbs_config = kwargs
 
@@ -234,7 +244,11 @@ class SamplingPoolPBS(SamplingPool):
         script_content = "\n".join(self.pbs_script)
         self.write_script(script_content, job_file)
 
+        # TODO: review master branch here, it has while loop for _qsub_failed_n and a try block 
+        # while self._qsub_failed_n <= SamplingPoolPBS.QSUB_FAILED_MAX_N:
         process = self.pbs_commands.qsub([job_file])
+        # master and base :
+        # try:
         if process.status != 0:
             self._qsub_failed_n += 1
             print(f"\nWARNING: FAILED QSUB, {self._qsub_failed_n} consecutive\n: {process}")
@@ -248,6 +262,8 @@ class SamplingPoolPBS(SamplingPool):
 
             # Get pbs_id from qsub output
             pbs_id = process.stdout.split(".")[0]
+            # master:
+            # pbs_id = process.stdout.decode("ascii").split(".")[0]
             # Store pbs id for future qstat calls
             self._pbs_ids.append(pbs_id)
             pbs_process.write_pbs_id(pbs_id)
@@ -255,6 +271,13 @@ class SamplingPoolPBS(SamplingPool):
             self._current_job_weight = 0
             self._n_samples_in_job = 0
             self._scheduled = []
+            # master:
+            #        break
+            #    except:
+            #        self._qsub_failed_n += 1
+            #        time.sleep(30)
+            #        if self._qsub_failed_n > SamplingPoolPBS.QSUB_FAILED_MAX_N:
+            #            raise Exception(process.stderr.decode("ascii"))
 
     def _create_script(self):
         """
@@ -288,6 +311,65 @@ class SamplingPoolPBS(SamplingPool):
         self.execute()
         finished_pbs_jobs, unfinished_pbs_jobs = self._qstat_pbs_job()
         return self._get_result_files(finished_pbs_jobs, unfinished_pbs_jobs)
+    
+    # TODO: review purpose, doc
+    def collect_data(self):
+        successful_results = {}
+        failed_results = {}
+        times = {}
+        sim_data_results = {}
+        # running_times = {}
+        # extract_mesh_times = {}
+        # make_field_times = {}
+        # generate_rnd_times = {}
+        # fine_flow_times = {}
+        # coarse_flow_times = {}
+        n_running = 0
+
+        os.chdir(self._jobs_dir)
+        for file in glob.glob("*_STDOUT"):
+            job_id = re.findall(r'(\d+)_STDOUT', file)[0]
+
+            successful, failed, time = PbsJob.read_results(job_id, self._jobs_dir)
+
+            # Split results to levels
+            for level_id, results in successful.items():
+                successful_results.setdefault(level_id, []).extend(results)
+            for level_id, results in failed.items():
+                failed_results.setdefault(level_id, []).extend(results)
+            for level_id, results in time.items():
+                if level_id in times:
+                    times[level_id][0] += results[-1][0]
+                    times[level_id][1] += results[-1][1]
+                else:
+                    times[level_id] = list(results[-1])
+
+            # # Optional simulation data
+            # for level_id, results in sim_data.items():
+            #     sim_data_results.setdefault(level_id, []).extend(results)
+
+            # for level_id, results in running_time.items():
+            #     running_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+            #
+            # for level_id, results in extract_mesh.items():
+            #     extract_mesh_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+            #
+            # for level_id, results in make_field.items():
+            #     make_field_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+            #
+            # for level_id, results in generate_rnd.items():
+            #     generate_rnd_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+            #
+            # for level_id, results in fine_flow.items():
+            #     fine_flow_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+            #
+            # for level_id, results in coarse_flow.items():
+            #     coarse_flow_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+
+        return successful_results, failed_results, n_running #, sim_data_results #list(times.items()), list(running_times.items()), \
+               # list(extract_mesh_times.items()), list(make_field_times.items()), list(generate_rnd_times.items()), \
+               # list(fine_flow_times.items()), \
+               # list(coarse_flow_times.items())
 
     def _qstat_pbs_job(self):
         """
@@ -301,19 +383,36 @@ class SamplingPoolPBS(SamplingPool):
             qstat_args = ["-x"]
             qstat_args.extend(self._pbs_ids)
 
+            # TODO: review master:
+            # while self._qstat_failed_n <= SamplingPoolPBS.QSTAT_FAILED_MAX_N:
+            
             # qstat call
             process = self.pbs_commands.qstat(qstat_args)
-            try:
+                try:
+                # TODO: rename ComandOutput.status to returncode. Do we need that class instead of the stdlib?
                 if process.status != 0:
-                    raise Exception(process.stderr)
+                    # TODO: move this into PBD wraper as it is PBS implementation specific
+                    # Ignore "Unknown Job Id" error 
+                    # Presumably, Job Ids are 'unknown' for PBS after some time of their inactivity
+                    err_output = process.stderr.decode("ascii")
+                    unknown_job_ids = re.findall(r"Unknown Job Id (\d+)\.", err_output)
+
+                    if len(unknown_job_ids) == 0:
+                            raise Exception(process.stderr.decode("ascii"))
                 output = process.stdout
+
                 # Find all finished jobs
                 finished_pbs_jobs = re.findall(r"(\d+)\..*\d+ F", output)
+                finished_moved_pbs_jobs = re.findall(r"(\d+)\..*\d+ M.*\n.*Job finished", output)
+                finished_pbs_jobs.extend(finished_moved_pbs_jobs)
+                finished_pbs_jobs.extend(unknown_job_ids)
                 self._qstat_failed_n = 0
+                break
             except:
                 self._qstat_failed_n += 1
+                time.sleep(30)
                 if self._qstat_failed_n > SamplingPoolPBS.QSTAT_FAILED_MAX_N:
-                    raise Exception(process.stderr)
+                    raise Exception(process.stderr.decode("ascii"))
                 finished_pbs_jobs = []
 
         # Get unfinished as diff between planned and finished
@@ -339,7 +438,7 @@ class SamplingPoolPBS(SamplingPool):
         :return: successful_results: Dict[level_id, List[Tuple[sample_id: str, Tuple[fine_result: np.ndarray, coarse_result: n.ndarray]]]]
                  failed_results: Dict[level_id, List[Tuple[sample_id: str, err_msg: str]]]
                  n_running: int, number of running samples
-                 times:
+             times:
         """
         os.chdir(self._jobs_dir)
 
@@ -355,6 +454,14 @@ class SamplingPoolPBS(SamplingPool):
         successful_results = {}
         failed_results = {}
         times = {}
+        #sim_data_results = {}
+        # running_times = {}
+        # extract_mesh_times = {}
+        # make_field_times = {}
+        # generate_rnd_times = {}
+        # fine_flow_times = {}
+        # coarse_flow_times = {}
+
         for pbs_id in finished_pbs_jobs:
             reg = "*_{}".format(pbs_id)  # JobID_PbsId file
             file = glob.glob(reg)
@@ -371,6 +478,8 @@ class SamplingPoolPBS(SamplingPool):
                     successful_results.setdefault(level_id, []).extend(results)
                 for level_id, results in failed.items():
                     failed_results.setdefault(level_id, []).extend(results)
+                # for level_id, results in sim_data.items():
+                #     sim_data_results.setdefault(level_id, []).extend(results)
                 for level_id, results in time.items():
                     if level_id in times:
                         times[level_id][0] += results[-1][0]
@@ -378,14 +487,38 @@ class SamplingPoolPBS(SamplingPool):
                     else:
                         times[level_id] = list(results[-1])
 
+                # for level_id, results in running_time.items():
+                #     running_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+                #
+                # for level_id, results in extract_mesh.items():
+                #     extract_mesh_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+                #
+                # for level_id, results in make_field.items():
+                #     make_field_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+                #
+                # for level_id, results in generate_rnd.items():
+                #     generate_rnd_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+                #
+                # for level_id, results in fine_flow.items():
+                #     fine_flow_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+                #
+                # for level_id, results in coarse_flow.items():
+                #     coarse_flow_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
                 # Delete pbsID file - it means job is finished
                 SamplingPoolPBS.delete_pbs_id_file(file)
 
         if self._unfinished_sample_ids:
             successful_results, failed_results, times = self._collect_unfinished(successful_results,
-                                                                                 failed_results, times)
+                                                                                              failed_results, times,
+                                                                                              )
+                                                                                              # running_times
+                                                                                              # extract_mesh_times,
+                                                                                              # make_field_times,
+                                                                                              # generate_rnd_times,
+                                                                                              # fine_flow_times,
+                                                                                              # coarse_flow_times)
 
-        return successful_results, failed_results, n_running, list(times.items())
+        return successful_results, failed_results, n_running, list(times.items())#, sim_data_results
 
     def _collect_unfinished(self, successful_results, failed_results, times):
         """
@@ -396,42 +529,64 @@ class SamplingPoolPBS(SamplingPool):
         :return: all input dictionaries
         """
         already_collected = set()
+
         for sample_id in self._unfinished_sample_ids:
             if sample_id in already_collected:
                 continue
 
-            job_id = PbsJob.job_id_from_sample_id(sample_id, self._jobs_dir)
+            try:
+                job_id = PbsJob.job_id_from_sample_id(sample_id, self._jobs_dir)
+            except (FileNotFoundError, KeyError) as e:
+                level_id = int(re.findall(r'L0?(\d*)', sample_id)[0])
+                failed_results.setdefault(level_id, []).append((sample_id, "".format(e)))
+                continue
+
             successful, failed, time = PbsJob.read_results(job_id, self._jobs_dir)
 
             # Split results to levels
             for level_id, results in successful.items():
-                for res in results:
-                    if res[0] in self._unfinished_sample_ids:
-                        already_collected.add(res[0])
-                        successful_results.setdefault(level_id, []).append(res)
+                successful_results.setdefault(level_id, []).extend(results)
+            for level_id, results in failed.items():
+                failed_results.setdefault(level_id, []).extend(results)
+            for level_id, results in time.items():
+                times[level_id] = results[-1]
 
-            for level_id, results in failed_results.items():
-                for res in results:
-                    if res[0] in self._unfinished_sample_ids:
-                        already_collected.add(res[0])
-                        failed_results.setdefault(level_id, []).append(res)
+            # for level_id, results in sim_data.items():
+            #     sim_data_results.setdefault(level_id, []).extend(results)
 
-            for level_id, results in times.items():
-                for res in results:
-                    if res[0] in self._unfinished_sample_ids:
-                        times.setdefault(level_id, []).append(res)
-                times[level_id] = results
+            # for level_id, results in running_time.items():
+            #     running_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+            #
+            # for level_id, results in extract_mesh.items():
+            #     extract_mesh_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+            #
+            # for level_id, results in make_field.items():
+            #     make_field_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+            #
+            # for level_id, results in generate_rnd.items():
+            #     generate_rnd_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+            #
+            # for level_id, results in fine_flow.items():
+            #     fine_flow_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+            #
+            # for level_id, results in coarse_flow.items():
+            #     coarse_flow_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
+
+            level_id_sample_id_seed = PbsJob.get_scheduled_sample_ids(job_id, self._jobs_dir)
+
+            for level_id, sample_id, _ in level_id_sample_id_seed:
+                already_collected.add(sample_id)
 
             # Delete pbsID file - it means job is finished
             # SamplingPoolPBS.delete_pbs_id_file(file)
 
         self._unfinished_sample_ids = set()
 
-        return successful_results, failed_results, times
+        return successful_results, failed_results, times#, sim_data_results
 
     def have_permanent_samples(self, sample_ids):
         """
-        List of unfinished sample ids, the corresponding samples are collecting in next get_finished() call .
+        List of unfinished sample ids, the corresponding samples are collecting in next get_finished() call
         """
         self._unfinished_sample_ids = set(sample_ids)
 

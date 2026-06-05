@@ -15,14 +15,21 @@ from mlmc.random import correlated_field as cf
 
 def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1, mode_no=1000):
     """
-    Create random fields
-    :return:
+    Create correlated random-field provider (cf.Fields) according to selected backend.
+
+    :param model: One of 'fourier', 'svd', 'exp', 'TPLgauss', 'TPLexp', 'TPLStable', or others (defaults to 'gauss').
+    :param corr_length: Correlation length (used by GSTools or SVD implementations).
+    :param dim: Spatial dimension of the field (1, 2 or 3).
+    :param log: If True, generate log-normal field (exponentiate underlying Gaussian field).
+    :param sigma: Standard deviation for the generated field.
+    :param mode_no: Number of Fourier modes
+    :return: cf.Fields instance that can generate random field samples.
     """
     if model == 'fourier':
         return cf.Fields([
             cf.Field('conductivity', cf.FourierSpatialCorrelatedField('gauss', dim=dim,
-                                                                      corr_length=corr_length,
-                                                                      log=log, sigma=sigma)),
+                                                                       corr_length=corr_length,
+                                                                       log=log, sigma=sigma)),
         ])
 
     elif model == 'svd':
@@ -52,13 +59,14 @@ def create_corr_field(model='gauss', corr_length=0.125, dim=2, log=True, sigma=1
     ])
 
 
-
 def substitute_placeholders(file_in, file_out, params):
     """
-    Substitute for placeholders of format '<name>' from the dict 'params'.
-    :param file_in: Template file.
-    :param file_out: Values substituted.
-    :param params: { 'name': value, ...}
+    Replace placeholders of form '<name>' in a template file with corresponding values.
+
+    :param file_in: Path to the template file containing placeholders.
+    :param file_out: Path where the substituted output will be written.
+    :param params: Dictionary mapping placeholder names to replacement values, e.g. {'mesh_file': 'mesh.msh'}.
+    :return: List of parameter names that were actually used (replaced) in the template.
     """
     used_params = []
     with open(file_in, 'r') as src:
@@ -76,10 +84,10 @@ def substitute_placeholders(file_in, file_out, params):
 
 def force_mkdir(path, force=False):
     """
-    Make directory 'path' with all parents,
-    remove the leaf dir recursively if it already exists.
-    :param path: path to directory
-    :param force: if dir already exists then remove it and create new one
+    Create directory tree; optionally remove existing leaf directory first.
+
+    :param path: Directory path to create (parents created as needed).
+    :param force: If True and the directory already exists, remove it (recursively) before creating.
     :return: None
     """
     if force:
@@ -92,55 +100,36 @@ class FlowSim(Simulation):
     # placeholders in YAML
     total_sim_id = 0
     MESH_FILE_VAR = 'mesh_file'
-    # Timestep placeholder given as O(h), h = mesh step
-    TIMESTEP_H1_VAR = 'timestep_h1'
-    # Timestep placeholder given as O(h^2), h = mesh step
-    TIMESTEP_H2_VAR = 'timestep_h2'
+    TIMESTEP_H1_VAR = 'timestep_h1'  # O(h)
+    TIMESTEP_H2_VAR = 'timestep_h2'  # O(h^2)
 
-    # files
+    # filenames used in workspace and job directories
     GEO_FILE = 'mesh.geo'
     MESH_FILE = 'mesh.msh'
     YAML_TEMPLATE = 'flow_input.yaml.tmpl'
     YAML_FILE = 'flow_input.yaml'
     FIELDS_FILE = 'fields_sample.msh'
 
-    """
-    Gather data for single flow call (coarse/fine)
-
-    Usage:
-    mlmc.sampler.Sampler uses instance of FlowSim, it calls once level_instance() for each level step (The level_instance() method
-     is called as many times as the number of levels), it takes place in main process
-
-    mlmc.tool.pbs_job.PbsJob uses static methods in FlowSim, it calls calculate(). That's where the calculation actually runs,
-    it takes place in PBS process
-       It also extracts results and passes them back to PbsJob, which handles the rest 
-
-    """
-
     def __init__(self, config=None, clean=None):
         """
-        Simple simulation using flow123d
-        :param config: configuration of the simulation, processed keys:
-            env - Environment object.
-            fields - FieldSet object
-            yaml_file: Template for main input file. Placeholders:
-                <mesh_file> - replaced by generated mesh
-                <FIELD> - for FIELD be name of any of `fields`, replaced by the FieldElementwise field with generated
-                 field input file and the field name for the component.
-            geo_file: Path to the geometry file.
-        :param clean: bool, if True remove existing simulation files - mesh files, ...
+        Initialize FlowSim instance that runs flow123d simulations using generated random fields.
+
+        :param config: Dict with keys:
+            - env: dict of environment executables (flow123d, gmsh, gmsh_version, etc.)
+            - fields_params: parameters forwarded to create_corr_field
+            - yaml_file: base YAML template path
+            - geo_file: geometry (.geo) file path
+            - work_dir: base working directory for generated level common files
+            - field_template: optional template string for field definition in YAML
+            - time_factor: optional multiplier for timestep selection (default 1.0)
+        :param clean: If True, regenerate common files (mesh, yaml) for the given level.
         """
-        self.need_workspace = True
-        # This simulation requires workspace
+        self.need_workspace = True  # this simulation needs per-sample work directories
         self.env = config['env']
-        # Environment variables, flow123d, gmsh, ...
         self._fields_params = config['fields_params']
         self._fields = create_corr_field(**config['fields_params'])
         self._fields_used_params = None
-        # Random fields instance
         self.time_factor = config.get('time_factor', 1.0)
-        # It is used for minimal element from mesh determination (see level_instance method)
-
         self.base_yaml_file = config['yaml_file']
         self.base_geo_file = config['geo_file']
         self.field_template = config.get('field_template',
@@ -148,54 +137,55 @@ class FlowSim(Simulation):
         self.work_dir = config['work_dir']
         self.clean = clean
 
-        super(Simulation, self).__init__()
+        super(Simulation, self).__init__()  # keep compatibility with parent initialization
+
 
     def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]) -> LevelSimulation:
         """
-        Called from mlmc.Sampler, it creates single instance of LevelSimulation (mlmc.)
-        :param fine_level_params: in this version, it is just fine simulation step
-        :param coarse_level_params: in this version, it is just coarse simulation step
-        :return: mlmc.LevelSimulation object, this object is serialized in SamplingPoolPbs and deserialized in PbsJob,
-         so it allows pass simulation data from main process to PBS process
+        Create a LevelSimulation object for given fine/coarse steps.
+
+        This method is called in the main process (Sampler) and must prepare
+        common files (mesh, YAML) for that level. The returned LevelSimulation
+        is serialized and sent to PBS jobs (PbsJob) for actual execution.
+
+        :param fine_level_params: list with single element [fine_step] (mesh step)
+        :param coarse_level_params: list with single element [coarse_step] (mesh step) or [0] for one-level MC
+        :return: LevelSimulation configured with task size and calculate method
         """
         fine_step = fine_level_params[0]
         coarse_step = coarse_level_params[0]
 
-        # TODO: determine minimal element from mesh
+        # Set time steps used in YAML substitution (O(h) and O(h^2) placeholders)
         self.time_step_h1 = self.time_factor * fine_step
         self.time_step_h2 = self.time_factor * fine_step * fine_step
 
-        # Set fine simulation common files directory
-        # Files in the directory are used by each simulation at that level
+        # Directory to store files common to all samples at this fine level
         common_files_dir = os.path.join(self.work_dir, "l_step_{}_common_files".format(fine_step))
         force_mkdir(common_files_dir, force=self.clean)
 
         self.mesh_file = os.path.join(common_files_dir, self.MESH_FILE)
 
         if self.clean:
-            # Prepare mesh
+            # Create computational mesh from geometry template
             geo_file = os.path.join(common_files_dir, self.GEO_FILE)
             shutil.copyfile(self.base_geo_file, geo_file)
-            self._make_mesh(geo_file, self.mesh_file, fine_step)  # Common computational mesh for all samples.
+            self._make_mesh(geo_file, self.mesh_file, fine_step)
 
-            # Prepare main input YAML
+            # Prepare main YAML by substituting placeholders
             yaml_template = os.path.join(common_files_dir, self.YAML_TEMPLATE)
             shutil.copyfile(self.base_yaml_file, yaml_template)
             yaml_file = os.path.join(common_files_dir, self.YAML_FILE)
             self._substitute_yaml(yaml_template, yaml_file)
 
-        # Mesh is extracted because we need number of mesh points to determine task_size parameter (see return value)
+        # Extract mesh metadata to determine task_size (number of points affects job weight)
         fine_mesh_data = self.extract_mesh(self.mesh_file)
 
-        # Set coarse simulation common files directory
-        # Files in the directory are used by each simulation at that level
+        # Set coarse sim common files dir if coarse level exists
         coarse_sim_common_files_dir = None
         if coarse_step != 0:
             coarse_sim_common_files_dir = os.path.join(self.work_dir, "l_step_{}_common_files".format(coarse_step))
 
-        # Simulation config
-        # Configuration is used in mlmc.tool.pbs_job.PbsJob instance which is run from PBS process
-        # It is part of LevelSimulation which is serialized and then deserialized in mlmc.tool.pbs_job.PbsJob
+        # Prepare configuration dict that will be serialized in LevelSimulation
         config = dict()
         config["fine"] = {}
         config["coarse"] = {}
@@ -204,71 +194,66 @@ class FlowSim(Simulation):
         config["fine"]["common_files_dir"] = common_files_dir
         config["coarse"]["common_files_dir"] = coarse_sim_common_files_dir
 
-        config[
-            "fields_used_params"] = self._fields_used_params  # Params for Fields instance, which is createed in PbsJob
+        config["fields_used_params"] = self._fields_used_params
         config["gmsh"] = self.env['gmsh']
         config["flow123d"] = self.env['flow123d']
         config['fields_params'] = self._fields_params
 
-        # Auxiliary parameter which I use to determine task_size (should be from 0 to 1, if task_size is above 1 then pbs job is scheduled)
-        job_weight = 17000000  # 4000000 - 20 min, 2000000 - cca 10 min
+        # job_weight is used to convert mesh size into a normalized task_size
+        job_weight = 17000000
 
         return LevelSimulation(config_dict=config,
                                task_size=len(fine_mesh_data['points']) / job_weight,
                                calculate=FlowSim.calculate,
-                               # method which carries out the calculation, will be called from PBS processs
-                               need_sample_workspace=True  # If True, a sample directory is created
+                               need_sample_workspace=True
                                )
 
     @staticmethod
     def calculate(config, seed):
         """
-        Method that actually run the calculation, it's called from mlmc.tool.pbs_job.PbsJob.calculate_samples()
-        Calculate fine and coarse sample and also extract their results
-        :param config: dictionary containing simulation configuration, LevelSimulation.config_dict (set in level_instance)
-        :param seed: random seed, int
-        :return: List[fine result, coarse result], both flatten arrays (see mlmc.sim.synth_simulation.calculate())
+        Execute one MLMC sample calculation (fine and optional coarse) inside PBS job.
+
+        :param config: Configuration dict from LevelSimulation.config_dict (contains common_files dirs, steps, fields params)
+        :param seed: Random seed for the sample generation (derived from sample id)
+        :return: Tuple (fine_result_array, coarse_result_array), both numpy arrays (coarse may be zeros for one-level MC)
         """
-        # Init correlation field objects
-        fields = create_corr_field(**config['fields_params'])  # correlated_field.Fields instance
+        # Initialize fields object in the worker process
+        fields = create_corr_field(**config['fields_params'])
         fields.set_outer_fields(config["fields_used_params"])
 
-        coarse_step = config["coarse"]["step"]  # Coarse simulation step, zero if one level MC
-        flow123d = config["flow123d"]  # Flow123d command
+        coarse_step = config["coarse"]["step"]
+        flow123d = config["flow123d"]
 
-        # Extract fine mesh
-        fine_common_files_dir = config["fine"]["common_files_dir"]  # Directory with fine simulation common files
+        # Extract fine mesh structure and optionally coarse mesh structure
+        fine_common_files_dir = config["fine"]["common_files_dir"]
         fine_mesh_data = FlowSim.extract_mesh(os.path.join(fine_common_files_dir, FlowSim.MESH_FILE))
 
-        # Extract coarse mesh
         coarse_mesh_data = None
         coarse_common_files_dir = None
         if coarse_step != 0:
-            coarse_common_files_dir = config["coarse"][
-                "common_files_dir"]  # Directory with coarse simulation common files
+            coarse_common_files_dir = config["coarse"]["common_files_dir"]
             coarse_mesh_data = FlowSim.extract_mesh(os.path.join(coarse_common_files_dir, FlowSim.MESH_FILE))
 
-        # Create fields both fine and coarse
+        # Prepare combined fields object that has points for both fine and coarse meshes
         fields = FlowSim.make_fields(fields, fine_mesh_data, coarse_mesh_data)
 
-        # Set random seed, seed is calculated from sample id, so it is not user defined
+        # Sample random field realizations reproducibly
         np.random.seed(seed)
-        # Generate random samples
-        fine_input_sample, coarse_input_sample = FlowSim.generate_random_sample(fields, coarse_step=coarse_step,
-                                                                                n_fine_elements=len(
-                                                                                    fine_mesh_data['points']))
+        fine_input_sample, coarse_input_sample = FlowSim.generate_random_sample(
+            fields, coarse_step=coarse_step, n_fine_elements=len(fine_mesh_data['points'])
+        )
 
-        # Run fine sample
+        # Run fine-level simulation
         fields_file = os.path.join(os.getcwd(), FlowSim.FIELDS_FILE)
         fine_res = FlowSim._run_sample(fields_file, fine_mesh_data['ele_ids'], fine_input_sample, flow123d,
                                        fine_common_files_dir)
 
-        # Rename fields_sample.msh to fine_fields_sample.msh, we might remove it
+        # Move generated files to have 'fine_' prefix so they don't collide
         for filename in os.listdir(os.getcwd()):
             if not filename.startswith("fine"):
                 shutil.move(os.path.join(os.getcwd(), filename), os.path.join(os.getcwd(), "fine_" + filename))
 
-        # Run coarse sample
+        # Run coarse-level simulation if coarse sample exists
         coarse_res = np.zeros(len(fine_res))
         if coarse_input_sample:
             coarse_res = FlowSim._run_sample(fields_file, coarse_mesh_data['ele_ids'], coarse_input_sample, flow123d,
@@ -279,17 +264,19 @@ class FlowSim(Simulation):
     @staticmethod
     def make_fields(fields, fine_mesh_data, coarse_mesh_data):
         """
-        Create random fields that are used by both coarse and fine simulation
-        :param fields: correlated_field.Fields instance
-        :param fine_mesh_data: Dict contains data extracted from fine mesh file (points, point_region_ids, region_map)
-        :param coarse_mesh_data: Dict contains data extracted from coarse mesh file (points, point_region_ids, region_map)
-        :return: correlated_field.Fields
+        Assign evaluation points to fields and return the Fields object prepared for sampling.
+
+        :param fields: correlated_field.Fields instance (with local field definitions)
+        :param fine_mesh_data: Dict returned by extract_mesh() for the fine mesh
+        :param coarse_mesh_data: Dict returned by extract_mesh() for the coarse mesh (or None for one-level)
+        :return: the same cf.Fields object with points set for sampling
         """
-        # One level MC has no coarse_mesh_data
+        # If no coarse mesh, just register fine mesh points
         if coarse_mesh_data is None:
             fields.set_points(fine_mesh_data['points'], fine_mesh_data['point_region_ids'],
                               fine_mesh_data['region_map'])
         else:
+            # Concatenate fine and coarse points to compute joint fields (ensures consistent sampling)
             coarse_centers = coarse_mesh_data['points']
             both_centers = np.concatenate((fine_mesh_data['points'], coarse_centers), axis=0)
             both_regions_ids = np.concatenate(
@@ -302,13 +289,14 @@ class FlowSim(Simulation):
     @staticmethod
     def _run_sample(fields_file, ele_ids, fine_input_sample, flow123d, common_files_dir):
         """
-        Create random fields file, call Flow123d and extract results
-        :param fields_file: Path to file with random fields
-        :param ele_ids: Element IDs in computational mesh
-        :param fine_input_sample: fields: {'field_name' : values_array, ..}
-        :param flow123d: Flow123d command
-        :param common_files_dir: Directory with simulations common files (flow_input.yaml, )
-        :return: simulation result, ndarray
+        Write random fields to Gmsh file, call flow123d, and extract sample results.
+
+        :param fields_file: Path where fields will be written (in current working directory)
+        :param ele_ids: Array of element ids for which field values are provided
+        :param fine_input_sample: Dict mapping field names to arrays of shape (n_elements, 1)
+        :param flow123d: Path/command to flow123d executable
+        :param common_files_dir: Directory containing common YAML and other input files for the level
+        :return: numpy.ndarray with extracted simulation result (e.g., water balance)
         """
         gmsh_io.GmshIO().write_fields(fields_file, ele_ids, fine_input_sample)
 
@@ -321,11 +309,16 @@ class FlowSim(Simulation):
     @staticmethod
     def generate_random_sample(fields, coarse_step, n_fine_elements):
         """
-        Generate random field, both fine and coarse part.
-        Store them separeted.
-        :return: Dict, Dict
+        Generate random field samples for the fine and (optionally) coarse meshes.
+
+        :param fields: cf.Fields object (already configured with points)
+        :param coarse_step: coarse-level step (0 for no coarse sample)
+        :param n_fine_elements: Number of elements that belong to fine mesh (used to split combined sample)
+        :return: Tuple (fine_input_sample: dict, coarse_input_sample: dict)
+                 Each dict maps field name -> array shaped (n_elements, 1).
         """
         fields_sample = fields.sample()
+        # Fine inputs are first n_fine_elements rows; coarse are the remainder (if any)
         fine_input_sample = {name: values[:n_fine_elements, None] for name, values in fields_sample.items()}
         coarse_input_sample = {}
         if coarse_step != 0:
@@ -336,10 +329,12 @@ class FlowSim(Simulation):
 
     def _make_mesh(self, geo_file, mesh_file, fine_step):
         """
-        Make the mesh, mesh_file: <geo_base>_step.msh.
-        Make substituted yaml: <yaml_base>_step.yaml,
-        using common fields_step.msh file for generated fields.
-        :return:
+        Invoke Gmsh to produce a mesh with the requested geometric scale (clscale).
+
+        :param geo_file: Path to the .geo file used to generate the mesh
+        :param mesh_file: Path where the .msh output will be written
+        :param fine_step: Mesh step (controls element size via -clscale)
+        :return: None
         """
         if self.env['gmsh_version'] == 2:
             subprocess.call(
@@ -350,9 +345,14 @@ class FlowSim(Simulation):
     @staticmethod
     def extract_mesh(mesh_file):
         """
-        Extract mesh from file
-        :param mesh_file: Mesh file path
-        :return: Dict
+        Parse a Gmsh mesh file and extract points (element centers), element ids and region mapping.
+
+        :param mesh_file: Path to .msh file to parse (Gmsh 2/4 depending on GmshIO implementation)
+        :return: Dict with keys:
+                 - 'points': np.ndarray of shape (n_elements, dim) with element center coordinates
+                 - 'point_region_ids': np.ndarray of region id per element
+                 - 'ele_ids': np.ndarray of original element ids
+                 - 'region_map': dict mapping region name -> region id
         """
         mesh = gmsh_io.GmshIO(mesh_file)
         is_bc_region = {}
@@ -386,7 +386,7 @@ class FlowSim(Simulation):
         diff = max_pt - min_pt
         min_axis = np.argmin(diff)
         non_zero_axes = [0, 1, 2]
-        # TODO: be able to use this mesh_dimension in fields
+        # If mesh is effectively 2D (one axis collapsed), remove that axis from point coordinates
         if diff[min_axis] < 1e-10:
             non_zero_axes.pop(min_axis)
         points = centers[:, non_zero_axes]
@@ -395,8 +395,11 @@ class FlowSim(Simulation):
 
     def _substitute_yaml(self, yaml_tmpl, yaml_out):
         """
-        Create substituted YAML file from the tamplate.
-        :return:
+        Build YAML input file for flow123d by substituting placeholders for mesh and fields.
+
+        :param yaml_tmpl: Path to YAML template with placeholders like '<mesh_file>' and '<FIELDNAME>'.
+        :param yaml_out: Path to output YAML file that will be used by flow123d.
+        :return: None (also populates self._fields_used_params with names of substituted fields)
         """
         param_dict = {}
         field_tmpl = self.field_template
@@ -412,11 +415,12 @@ class FlowSim(Simulation):
     @staticmethod
     def _extract_result(sample_dir):
         """
-        Extract the observed value from the Flow123d output.
-        :param sample_dir: str, path to sample directory
-        :return: None, inf or water balance result (float) and overall sample time
+        Extract the observed quantity (e.g., water balance flux) from a flow123d run directory.
+
+        :param sample_dir: Directory where flow123d output (water_balance.yaml) is located.
+        :return: numpy.ndarray with a single value [-total_flux] representing outflow (negative sign).
+                 Raises Exception if expected data is not found or inflow at outlet is positive.
         """
-        # extract the flux
         balance_file = os.path.join(sample_dir, "water_balance.yaml")
 
         with open(balance_file, "r") as f:
@@ -434,44 +438,19 @@ class FlowSim(Simulation):
                 flux_in = float(flux_item['data'][1])
                 if flux_in > 1e-10:
                     raise Exception("Possitive inflow at outlet region.")
-                total_flux += flux  # flux field
+                total_flux += flux
                 found = True
 
-        # Get flow123d computing time
-        # run_time = FlowSim.get_run_time(sample_dir)
-
         if not found:
-            raise Exception
+            raise Exception("No outlet flux found in water_balance.yaml")
         return np.array([-total_flux])
 
     @staticmethod
     def result_format() -> List[QuantitySpec]:
         """
-        Define simulation result format
-        :return: List[QuantitySpec, ...]
+        Describe the simulation output format as a list of QuantitySpec objects.
+
+        :return: List[QuantitySpec] describing each output quantity (name, unit, shape, times, locations)
         """
         spec1 = QuantitySpec(name="conductivity", unit="m", shape=(1, 1), times=[1], locations=['0'])
-        # spec2 = QuantitySpec(name="width", unit="mm", shape=(2, 1), times=[1, 2, 3], locations=['30', '40'])
         return [spec1]
-
-    # @staticmethod
-    # def get_run_time(sample_dir):
-    #     """
-    #     Get flow123d sample running time from profiler
-    #     :param sample_dir: Sample directory
-    #     :return: float
-    #     """
-    #     profiler_file = os.path.join(sample_dir, "profiler_info_*.json")
-    #     profiler = glob.glob(profiler_file)[0]
-    #
-    #     try:
-    #         with open(profiler, "r") as f:
-    #             prof_content = json.load(f)
-    #
-    #         run_time = float(prof_content['children'][0]['cumul-time-sum'])
-    #     except:
-    #         print("Extract run time failed")
-    #
-    #     return run_time
-
-

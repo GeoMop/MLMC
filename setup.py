@@ -12,7 +12,7 @@ from os.path import splitext
 from setuptools import find_packages
 from setuptools import setup
 
-__version__ = '1.0.2'
+__version__ = '1.0.3'
 
 
 # For long description:

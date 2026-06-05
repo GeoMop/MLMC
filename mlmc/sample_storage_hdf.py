@@ -4,48 +4,76 @@ from typing import List
 from mlmc.sample_storage import SampleStorage
 from mlmc.quantity.quantity_spec import QuantitySpec, ChunkSpec
 import mlmc.tool.hdf5 as hdf
-import warnings
 warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
 
 
 class SampleStorageHDF(SampleStorage):
     """
-    Sample's data are stored in a HDF5 file
+    Store and manage sample data in an HDF5 file.
+
+    This implementation of the SampleStorage interface provides efficient
+    persistent storage for MLMC simulation results using HDF5.
     """
 
     def __init__(self, file_path):
         """
-        HDF5 storage, provide method to interact with storage
-        :param file_path: absolute path to hdf file (which not exists at the moment)
+        Initialize the HDF5 storage and create or load the file structure.
+
+        :param file_path: Absolute path to the HDF5 file.
+                          If the file exists, it will be loaded instead of created.
         """
         super().__init__()
-        # If file exists load not create new file
-        load_from_file = True if os.path.exists(file_path) else False
+        load_from_file = os.path.exists(file_path)
 
         # HDF5 interface
         self._hdf_object = hdf.HDF5(file_path=file_path, load_from_file=load_from_file)
         self._level_groups = []
 
-        # 'Load' level groups
+        # Load existing level groups if file already contains data
         if load_from_file:
-            # Create level group for each level
             if len(self._level_groups) != len(self._hdf_object.level_parameters):
                 for i_level in range(len(self._hdf_object.level_parameters)):
                     self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
 
+    # TODO: compare this old impl to the new function hdf5.single_format
+    def _hdf_result_format(self, locations, times):
+        """
+        Construct an appropriate dtype for QuantitySpec data representation in HDF5.
+
+        :param locations: List of spatial locations (as coordinates or identifiers).
+        :param times: List of time steps.
+        :return: Numpy dtype describing the QuantitySpec data structure.
+        """
+        if len(locations[0]) == 3:
+            tuple_dtype = np.dtype((float, (3,)))
+            loc_dtype = np.dtype((tuple_dtype, (len(locations),)))
+        else:
+            loc_dtype = np.dtype(('S50', (len(locations),)))
+
+        result_dtype = {
+            'names': ('name', 'unit', 'shape', 'times', 'locations'),
+            'formats': (
+                'S50',
+                'S50',
+                np.dtype((np.int32, (2,))),
+                np.dtype((float, (len(times),))),
+                loc_dtype
+            )
+        }
+
+        return result_dtype
 
     def save_global_data(self, level_parameters: List[float], result_format: List[QuantitySpec]):
         """
-        Save hdf5 file global attributes
-        :param level_parameters: list of simulation steps
-        :param result_format: simulation result format
+        Save HDF5 global attributes including simulation parameters and result format.
+
+        :param level_parameters: List of simulation level parameters (e.g., mesh sizes).
+        :param result_format: List of QuantitySpec objects describing result quantities.
         :return: None
         """
-
-        # Create file structure
         self._hdf_object.create_file_structure(level_parameters)
 
-        # Create group for each level
+        # Create HDF5 groups for each simulation level
         if len(self._level_groups) != len(level_parameters):
             for i_level in range(len(level_parameters)):
                 self._level_groups.append(self._hdf_object.add_level_group(str(i_level)))
@@ -55,8 +83,9 @@ class SampleStorageHDF(SampleStorage):
 
     def load_scheduled_samples(self):
         """
-        Get scheduled samples for each level
-        :return:  Dict[level_id, List[sample_id: str]]
+        Load scheduled samples from storage.
+
+        :return: Dict[level_id, List[sample_id: str]]
         """
         scheduled = {}
         for level in self._level_groups:
@@ -65,13 +94,17 @@ class SampleStorageHDF(SampleStorage):
 
     def save_result_format(self, result_format: List[QuantitySpec]):
         """
-        Save result format to hdf
-        :param result_format: List[QuantitySpec]
+        Save result format metadata to HDF5.
+
+        :param result_format: List of QuantitySpec objects defining stored quantities.
+        :param res_dtype: Numpy dtype for structured storage.
         :return: None
         """
         try:
             if self.load_result_format() != result_format:
-                raise ValueError('You are setting a new different result format for an existing sample storage')
+                raise ValueError(
+                    "Attempting to overwrite an existing result format with a new incompatible one."
+                )
         except AttributeError:
             pass
         self._hdf_object.save_result_format(result_format)
@@ -82,7 +115,9 @@ class SampleStorageHDF(SampleStorage):
 
     def load_result_format(self) -> List[QuantitySpec]:
         """
-        Load result format
+        Load and reconstruct the result format from HDF5.
+
+        :return: List of QuantitySpec objects.
         """
         results_format = self._hdf_object.load_result_format()
         quantities = [
@@ -93,53 +128,81 @@ class SampleStorageHDF(SampleStorage):
 
     def save_samples(self, successful, failed):
         """
-        Save successful and failed samples
-        :param successful: List[Tuple[sample_id: str, Tuple[ndarray, ndarray]]]
-        :param failed: List[Tuple[sample_id: str, error_message: str]]
+        Save successful and failed samples to the HDF5 storage.
+
+        :param successful: Dict[level_id, List[Tuple[sample_id: str, (fine, coarse)]]]
+        :param failed: Dict[level_id, List[Tuple[sample_id: str, error_message: str]]]
         :return: None
         """
-        self._save_succesful(successful)
+        self._save_successful(successful)
         self._save_failed(failed)
 
-    def _save_succesful(self, successful_samples):
+    def _save_successful(self, successful_samples):
+        """
+        Append successful sample results to the appropriate level group.
+
+        :param successful_samples: Dict[level_id, List[Tuple[sample_id, (fine, coarse)]]]
+        :return: None
+        """
         for level, samples in successful_samples.items():
             if len(samples) > 0:
+            	# TODO: verify consistent change in the _level_groups sturcture
                 ids, sample_values = zip(*samples)
                 self._level_groups[level].append_successful(np.array(ids, dtype=str), np.array(sample_values, dtype=float))
 
     def _save_failed(self, failed_samples):
+        """
+        Append failed sample identifiers and messages.
+
+        :param failed_samples: Dict[level_id, List[Tuple[sample_id, error_message]]]
+        :return: None
+        """
         for level, samples in failed_samples.items():
             if len(samples) > 0:
                 self._level_groups[level].append_failed(samples)
 
     def save_scheduled_samples(self, level_id, samples: List[str]):
         """
-        Append scheduled samples
-        :param level_id: int
-        :param samples: list of sample identifiers
+        Append scheduled sample identifiers for a specific level.
+
+        :param level_id: Integer level identifier.
+        :param samples: List of sample identifiers.
         :return: None
         """
         self._level_groups[level_id].append_scheduled(samples)
 
     def _level_chunks(self, level_id, n_samples=None):
+        """
+        Generate chunk specifications for a given level.
+
+        :param level_id: Level identifier.
+        :param n_samples: Optional number of samples to include per chunk.
+        :return: Generator of ChunkSpec objects.
+        """
         return self._level_groups[level_id].chunks(n_samples)
 
     def sample_pairs(self):
         """
-        Load results from hdf file
-        :return: List[Array[M, N, 2]]
+        Retrieve all sample pairs from storage.
+
+        :return: List[np.ndarray[M, N, 2]] where M = number of results, N = number of samples.
         """
         if len(self._level_groups) == 0:
-            raise Exception("self._level_groups shouldn't be empty, save_global_data() method should have set it, "
-                            "that method is always called from mlmc.sampler.Sampler constructor."
-                            " In other cases, call save_global_data() directly")
+            raise Exception(
+                "Level groups are not initialized. "
+                "Ensure save_global_data() is called before using SampleStorageHDF."
+            )
 
         levels_results = list(np.empty(len(self._level_groups)))
 
         for level in self._level_groups:
-            chunk_spec = next(self.chunks(level_id=int(level.level_id),
-                                          n_samples=self.get_n_collected()[int(level.level_id)]))
-            results = self.sample_pairs_level(chunk_spec)  # return all samples no chunks
+            chunk_spec = next(
+                self.chunks(
+                    level_id=int(level.level_id),
+                    n_samples=self.get_n_collected()[int(level.level_id)]
+                )
+            )
+            results = self.sample_pairs_level(chunk_spec)
             if results is None or len(results) == 0:
                 levels_results[int(level.level_id)] = []
                 continue
@@ -148,13 +211,12 @@ class SampleStorageHDF(SampleStorage):
 
     def sample_pairs_level(self, chunk_spec):
         """
-        Get result for particular level and chunk
-        :param chunk_spec: object containing chunk identifier level identifier and chunk_slice - slice() object
-        :return: np.ndarray
+        Retrieve samples for a specific level and chunk.
+
+        :param chunk_spec: ChunkSpec containing level ID and slice information.
+        :return: np.ndarray of shape [M, chunk size, 2].
         """
-        level_id = chunk_spec.level_id
-        if chunk_spec.level_id is None:
-            level_id = 0
+        level_id = chunk_spec.level_id or 0
         chunk = self._level_groups[int(level_id)].collected(chunk_spec.chunk_slice)
 
         # Remove auxiliary zeros from level zero sample pairs
@@ -165,31 +227,31 @@ class SampleStorageHDF(SampleStorage):
 
     def n_finished(self):
         """
-        Number of finished samples on each level
-        :return: List[int]
+        Count the number of finished samples for each level.
+
+        :return: np.ndarray[int] containing finished sample counts per level.
         """
         n_finished = np.zeros(len(self._level_groups))
         for level in self._level_groups:
             n_finished[int(level.level_id)] += len(level.get_finished_ids())
-
         return n_finished
 
     def unfinished_ids(self):
         """
-        List of unfinished ids
-        :return: list
+        Return identifiers of all unfinished samples.
+
+        :return: List[str]
         """
         unfinished = []
-
         for level in self._level_groups:
             unfinished.extend(level.get_unfinished_ids())
-
         return unfinished
 
     def failed_samples(self):
         """
-        Dictionary of failed samples
-        :return: dict
+        Return dictionary of failed samples for each level.
+
+        :return: Dict[str, List[str]]
         """
         failed_samples = {}
         for level in self._level_groups:
@@ -197,13 +259,17 @@ class SampleStorageHDF(SampleStorage):
         return failed_samples
 
     def clear_failed(self):
+        """
+        Clear all failed sample records from storage.
+        """
         for level in self._level_groups:
             level.clear_failed_dataset()
 
     def save_n_ops(self, n_ops):
         """
-        Save number of operations (time) of samples
-        :param n_ops: Dict[level_id, List[overall time, number of successful samples]]
+        Save the estimated number of operations (e.g., runtime) for each level.
+
+        :param n_ops: Dict[level_id, List[total_time, num_successful_samples]]
         :return: None
         """
         for level_id, (time, n_samples) in n_ops:
@@ -218,8 +284,9 @@ class SampleStorageHDF(SampleStorage):
 
     def get_n_ops(self):
         """
-        Get number of estimated operations on each level
-        :return: List
+        Get the average number of operations per sample for each level.
+
+        :return: List[float]
         """
         n_ops = list(np.zeros(len(self._level_groups)))
         for level in self._level_groups:
@@ -230,15 +297,26 @@ class SampleStorageHDF(SampleStorage):
         return n_ops
 
     def get_level_ids(self):
+        """
+        Get identifiers of all levels stored in HDF5.
+
+        :return: List[int]
+        """
         return [int(level.level_id) for level in self._level_groups]
 
     def get_level_parameters(self):
+        """
+        Load stored level parameters (e.g., step sizes or resolutions).
+
+        :return: List[float]
+        """
         return self._hdf_object.load_level_parameters()
 
     def get_n_collected(self):
         """
-        Get number of collected samples at each level
-        :return: List
+        Get the number of collected (stored) samples for each level.
+
+        :return: List[int]
         """
         n_collected = list(np.zeros(len(self._level_groups)))
         for level in self._level_groups:
@@ -247,7 +325,8 @@ class SampleStorageHDF(SampleStorage):
 
     def get_n_levels(self):
         """
-        Get number of levels
+        Get total number of levels present in storage.
+
         :return: int
         """
         return len(self._level_groups)

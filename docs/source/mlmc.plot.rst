@@ -1,4 +1,4 @@
-mlmc.plot
+mlmc.plot package
 =================
 
 .. automodule:: mlmc.plot
@@ -6,29 +6,31 @@ mlmc.plot
    :undoc-members:
    :show-inheritance:
 
+---
+
 Submodules
 ----------
 
-mlmc.plot.plots module
-----------------------
+.. toctree::
+   :maxdepth: 1
+
+   mlmc.plot.plots
+   mlmc.plot.violinplot
+
+---
+
+mlmc.plot.plots
+---------------
 
 .. automodule:: mlmc.plot.plots
    :members:
    :undoc-members:
    :show-inheritance:
 
-mlmc.plot.violinplot module
----------------------------
+mlmc.plot.violinplot
+--------------------
 
 .. automodule:: mlmc.plot.violinplot
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: mlmc.plot
    :members:
    :undoc-members:
    :show-inheritance:
