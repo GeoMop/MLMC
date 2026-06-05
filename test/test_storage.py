@@ -124,4 +124,6 @@ def test_hdf_append():
     n_finished = storage.n_finished()
     assert len(n_finished) == n_levels
 
-test_hdf_append()
+
+
+#test_hdf_append()

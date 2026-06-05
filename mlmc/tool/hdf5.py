@@ -148,7 +148,10 @@ class HDF5:
         try:
             with FileSafe(self.file_name, "a") as hdf_file:
                 # Create group (h5py.Group) if it has not yet been created
-                hdf_file.create_group('Levels')
+
+                if "Levels" not in hdf_file:
+                    hdf_file.create_group('Levels')
+
                 if level_group_hdf_path not in hdf_file:
                     # Create group for level named by level id (e.g. 0, 1, 2, ...)
                     hdf_file['Levels'].create_group(level_id)
@@ -367,14 +370,14 @@ class LevelGroup:
         if len(scheduled_samples) > 0:
             self._append_dataset(self.scheduled_dset, scheduled_samples)
 
-    # TODO: review change of interface and update doc.
-    def append_successful(self, sample_ids:np.array, samples: np.array):
+    def append_successful(self, sample_ids: np.array, samples: np.array):
         """
         Append successful (collected) samples.
 
-        The `samples` array is expected to have rows of the form [sample_id, result_value].
-        The method appends sample ids to 'collected_ids' and result values to 'collected_values'.
+        The method appends sample ids to 'collected_ids' and result values to
+        'collected_values'.
 
+        :param sample_ids: numpy.ndarray with collected sample ids.
         :param samples: numpy.ndarray where each row is [sample_id, value], value may be array-like itself.
         :return: None
         """
@@ -492,7 +495,7 @@ class LevelGroup:
 
     def get_unfinished_ids(self):
         """
-        Compute unfinished sample ids = scheduled_ids \ finished_ids.
+        Compute unfinished sample ids = scheduled_ids  -  finished_ids.
 
         :return: list of unfinished sample id strings
         """

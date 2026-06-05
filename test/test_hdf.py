@@ -196,7 +196,8 @@ def collected(hdf_level_group):
     :param hdf_level_group: mlmc.tool.hdf.LevelGroup instance
     :return: None
     """
-    hdf_level_group.append_successful(COLLECTED_SAMPLES)
+    sample_ids, sample_values = zip(*COLLECTED_SAMPLES)
+    hdf_level_group.append_successful(np.array(sample_ids, dtype=str), np.array(sample_values, dtype=float))
 
     results = hdf_level_group.collected(slice(None, None, None)) # all samples
     for col, res in zip(COLLECTED_SAMPLES, results):

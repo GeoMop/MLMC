@@ -1,7 +1,6 @@
 import subprocess
 import attr
 from abc import ABC, abstractmethod
-from mlmc.sampling_pool import SamplingPool
 
 
 class PbsCommandsAbstract(ABC):
@@ -24,14 +23,14 @@ class PbsCommands(PbsCommandsAbstract):
     def qsub(self, args):
         process = self._run_command("qsub", args)
 
-        return CommandOutput(status=process.returncode,
+        return CommandOutput(returncode=process.returncode,
                              stdout=process.stdout.decode("ascii"),
                              stderr=process.stderr.decode("ascii"))
 
     def qstat(self, args):
         process = self._run_command("qstat", args)
 
-        return CommandOutput(status=process.returncode,
+        return CommandOutput(returncode=process.returncode,
                              stdout=process.stdout.decode("ascii"),
                              stderr=process.stderr.decode("ascii"))
 
@@ -43,8 +42,10 @@ class PbsCommands(PbsCommandsAbstract):
 
 @attr.s(auto_attribs=True)
 class CommandOutput:
-    status: int
+    """
+    Decoded subprocess result used by PBS polling code.
+    """
+    returncode: int
     stdout: str = None
     stderr: str = None
-
 

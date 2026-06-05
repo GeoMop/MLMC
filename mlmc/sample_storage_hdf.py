@@ -1,4 +1,6 @@
 import os
+import warnings
+
 import numpy as np
 from typing import List
 from mlmc.sample_storage import SampleStorage
@@ -146,7 +148,7 @@ class SampleStorageHDF(SampleStorage):
         """
         for level, samples in successful_samples.items():
             if len(samples) > 0:
-            	# TODO: verify consistent change in the _level_groups sturcture
+                # TODO: verify consistent change in the _level_groups sturcture
                 ids, sample_values = zip(*samples)
                 self._level_groups[level].append_successful(np.array(ids, dtype=str), np.array(sample_values, dtype=float))
 
