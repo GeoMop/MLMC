@@ -157,6 +157,24 @@ class SamplingPool(ABC):
         """
         sample_dir = os.path.join(work_dir, path)
         os.makedirs(sample_dir, mode=0o775, exist_ok=True)
+
+        # We have observed possible problems with directory creation on the 
+        # network filesystem. However it is not sure that was the cause of the problem.
+        # This code would make sure that we have write access to the created directory.
+        
+        # Commented out in order to try to reproduce the problem.
+        #for i in range(30):
+            #try:
+                #with open(os.path.join(sample_dir, "_test_file.txt"), "w") as f:
+                    #f.write("test")
+            #except:
+                #time.sleep(1)
+                #continue
+            #print("Workdir ready after {i} sleep seconds.")
+            #break
+        #else:
+            #print("Workdir still not ready ready after {i} sleep seconds.")
+    
         return sample_dir
 
     @staticmethod
@@ -307,9 +325,8 @@ class OneProcessPool(SamplingPool):
 
         # If no error occurred, store successful result
         if not err_msg:
-            self._queues.setdefault(level_sim._level_id, queue.Queue()).put(
-                (sample_id, (result[0], result[1]))
-            )
+            level_queue = self._queues.setdefault(level_sim._level_id, queue.Queue())
+            level_queue.put((sample_id, (result[0], result[1])))
             # Move successful sample to its permanent directory unless debugging
             if not self._debug:
                 SamplingPool.move_successful_rm(

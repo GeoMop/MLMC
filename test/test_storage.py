@@ -1,5 +1,6 @@
 import os
 import shutil
+import h5py
 import numpy as np
 import random
 import pytest
@@ -124,4 +125,29 @@ def test_hdf_append():
     n_finished = storage.n_finished()
     assert len(n_finished) == n_levels
 
-test_hdf_append()
+
+def test_hdf_heterogeneous_result_format():
+    work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
+    if os.path.exists(work_dir):
+        shutil.rmtree(work_dir)
+    os.makedirs(work_dir)
+    file_path = os.path.join(work_dir, "mlmc.hdf5")
+
+    format_quant = [
+        QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1], locations=['10']),
+        QuantitySpec(name="width", unit="mm", shape=(2, 2), times=[1, 2, 3], locations=['30', '40']),
+    ]
+
+    storage = SampleStorageHDF(file_path=file_path)
+    storage.save_global_data(level_parameters=np.ones(1), result_format=format_quant)
+
+    with h5py.File(file_path, "r") as hdf_file:
+        format_group = hdf_file["result_format"]
+        assert sorted(format_group.keys()) == ["0000", "0001"]
+        assert format_group["0000"].dtype != format_group["0001"].dtype
+
+    loaded_format = storage.load_result_format()
+    assert loaded_format == format_quant
+
+
+#test_hdf_append()

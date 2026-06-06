@@ -5,11 +5,13 @@ import re
 import pickle
 import json
 import glob
-import time
+import warnings
+
 import numpy as np
 from mlmc.level_simulation import LevelSimulation
 from mlmc.sampling_pool import SamplingPool
 from mlmc.tool.pbs_job import PbsJob
+from mlmc.tool.pbs_commands import PbsCommands
 
 """
 SamplingPoolPBS description
@@ -92,6 +94,17 @@ class SamplingPoolPBS(SamplingPool):
         self._qsub_failed_n = 0
         self._qstat_failed_n = 0
         # Number of failed execution of commands qsub, qstat
+        self._pbs_commands = None
+
+    @property
+    def pbs_commands(self):
+        if self._pbs_commands is None:
+            self._pbs_commands = PbsCommands()
+        return self._pbs_commands
+
+    @pbs_commands.setter
+    def pbs_commands(self, pbs_commands_obj):
+        self._pbs_commands = pbs_commands_obj
 
     def _get_job_count(self):
         """
@@ -210,52 +223,57 @@ class SamplingPoolPBS(SamplingPool):
         Execute pbs script
         :return: None
         """
-        if len(self._scheduled) > 0:
-            job_id = "{:04d}".format(self._job_count)
-            # Create pbs job
-            pbs_process = PbsJob.create_job(self._output_dir, self._jobs_dir, job_id,
-                                            SamplingPoolPBS.LEVEL_SIM_CONFIG, self._debug)
+        if len(self._scheduled) <= 0:
+            return
+        job_id = "{:04d}".format(self._job_count)
+        # Create pbs job
+        pbs_process = PbsJob.create_job(self._output_dir, self._jobs_dir, job_id,
+                                        SamplingPoolPBS.LEVEL_SIM_CONFIG, self._debug)
 
-            pbs_process.save_sample_id_job_id(job_id, self._scheduled)
-            # Write scheduled samples to file
-            pbs_process.save_scheduled(self._scheduled)
+        pbs_process.save_sample_id_job_id(job_id, self._scheduled)
+        # Write scheduled samples to file
+        pbs_process.save_scheduled(self._scheduled)
 
-            # Format pbs script
-            self._create_script()
+        # Format pbs script
+        self._create_script()
 
-            if self.pbs_script is None or self._n_samples_in_job == 0:
-                return
+        if self.pbs_script is None or self._n_samples_in_job == 0:
+            return
 
-            # Write pbs script
-            job_file = os.path.join(self._jobs_dir, SamplingPoolPBS.JOB.format(job_id))
-            script_content = "\n".join(self.pbs_script)
-            self.write_script(script_content, job_file)
+        # Write pbs script
+        job_file = os.path.join(self._jobs_dir, SamplingPoolPBS.JOB.format(job_id))
+        script_content = "\n".join(self.pbs_script)
+        self.write_script(script_content, job_file)
 
-            while self._qsub_failed_n <= SamplingPoolPBS.QSUB_FAILED_MAX_N:
-                process = subprocess.run(['qsub', job_file], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-                try:
-                    if process.returncode != 0:
-                        raise Exception(process.stderr.decode('ascii'))
-                    # Find all finished jobs
-                    self._qsub_failed_n = 0
-                    # Write current job count
-                    self._job_count += 1
+        # The blocking while loop with qsub retries is replaced by a non-blocking
+        # mechanism using self._qsub_failed_n and the outer polling loop in
+        # mlmc.sampler.Sampler.ask_sampling_pool_for_samples.
+        process = self.pbs_commands.qsub([job_file])
+        if process.returncode != 0:
+            self._qsub_failed_n += 1
+            warnings.warn(
+                f"\nWARNING: FAILED QSUB, {self._qsub_failed_n} consecutive\n: {process}",
+                RuntimeWarning,
+                stacklevel=2
+            )
+            if self._qsub_failed_n > SamplingPoolPBS.QSUB_FAILED_MAX_N:
+                raise Exception(str(process))
+        else:
+            # Find all finished jobs
+            self._qsub_failed_n = 0
+            # Write current job count
+            self._job_count += 1
 
-                    # Get pbs_id from qsub output
-                    pbs_id = process.stdout.decode("ascii").split(".")[0]
-                    # Store pbs id for future qstat calls
-                    self._pbs_ids.append(pbs_id)
-                    pbs_process.write_pbs_id(pbs_id)
+            # Get pbs_id from qsub output
+            pbs_id = process.stdout.split(".")[0]
 
-                    self._current_job_weight = 0
-                    self._n_samples_in_job = 0
-                    self._scheduled = []
-                    break
-                except:
-                    self._qsub_failed_n += 1
-                    time.sleep(30)
-                    if self._qsub_failed_n > SamplingPoolPBS.QSUB_FAILED_MAX_N:
-                        raise Exception(process.stderr.decode("ascii"))
+            # Store pbs id for future qstat calls
+            self._pbs_ids.append(pbs_id)
+            pbs_process.write_pbs_id(pbs_id)
+
+            self._current_job_weight = 0
+            self._n_samples_in_job = 0
+            self._scheduled = []
 
     def _create_script(self):
         """
@@ -267,7 +285,7 @@ class SamplingPoolPBS(SamplingPool):
         self._pbs_config['pbs_output_dir'] = self._jobs_dir
         self._pbs_config['output_dir'] = self._output_dir
         self._pbs_config['work_dir'] = self._work_dir
-
+        
         self.pbs_script = [line.format(**self._pbs_config) for line in self._pbs_header_template]
 
     def write_script(self, content, job_file):
@@ -289,7 +307,8 @@ class SamplingPoolPBS(SamplingPool):
         self.execute()
         finished_pbs_jobs, unfinished_pbs_jobs = self._qstat_pbs_job()
         return self._get_result_files(finished_pbs_jobs, unfinished_pbs_jobs)
-
+    
+    # TODO: review purpose, doc
     def collect_data(self):
         successful_results = {}
         failed_results = {}
@@ -357,36 +376,38 @@ class SamplingPoolPBS(SamplingPool):
         if len(self._pbs_ids) > 0:
             # Get PBS id's status,
             # '-x' - displays status information for finished and moved jobs in addition to queued and running jobs.
-            qstat_call = ["qstat", "-xs"]
-            qstat_call.extend(self._pbs_ids)
+            qstat_args = ["-x"]
+            qstat_args.extend(self._pbs_ids)
 
-            while self._qstat_failed_n <= SamplingPoolPBS.QSTAT_FAILED_MAX_N:
-                # qstat call
+            # The blocking while loop with qstat retries is replaced by a
+            # non-blocking mechanism using self._qstat_failed_n and the outer
+            # polling loop in mlmc.sampler.Sampler.ask_sampling_pool_for_samples.
+            # qstat call
+            process = self.pbs_commands.qstat(qstat_args)
+            try:
                 unknown_job_ids = []
-                process = subprocess.run(qstat_call, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-                try:
-                    if process.returncode != 0:
-                        err_output = process.stderr.decode("ascii")
-                        # Presumably, Job Ids are 'unknown' for PBS after some time of their inactivity
-                        unknown_job_ids = re.findall(r"Unknown Job Id (\d+)\.", err_output)
+                if process.returncode != 0:
+                    # TODO: move this into PBS wrapper as it is PBS implementation specific
+                    # Ignore "Unknown Job Id" error 
+                    # Presumably, Job Ids are 'unknown' for PBS after some time of their inactivity
+                    err_output = process.stderr
+                    unknown_job_ids = re.findall(r"Unknown Job Id (\d+)\.", err_output)
 
-                        if len(unknown_job_ids) == 0:
-                            raise Exception(process.stderr.decode("ascii"))
+                    if len(unknown_job_ids) == 0:
+                        raise Exception(process.stderr)
+                output = process.stdout
 
-                    output = process.stdout.decode("ascii")
-                    # Find all finished jobs
-                    finished_pbs_jobs = re.findall(r"(\d+)\..*\d+ F", output)
-                    finished_moved_pbs_jobs = re.findall(r"(\d+)\..*\d+ M.*\n.*Job finished", output)
-                    finished_pbs_jobs.extend(finished_moved_pbs_jobs)
-                    finished_pbs_jobs.extend(unknown_job_ids)
-                    self._qstat_failed_n = 0
-                    break
-                except:
-                    self._qstat_failed_n += 1
-                    time.sleep(30)
-                    if self._qstat_failed_n > SamplingPoolPBS.QSTAT_FAILED_MAX_N:
-                        raise Exception(process.stderr.decode("ascii"))
-                    finished_pbs_jobs = []
+                # Find all finished jobs
+                finished_pbs_jobs = re.findall(r"(\d+)\..*\d+ F", output)
+                finished_moved_pbs_jobs = re.findall(r"(\d+)\..*\d+ M.*\n.*Job finished", output)
+                finished_pbs_jobs.extend(finished_moved_pbs_jobs)
+                finished_pbs_jobs.extend(unknown_job_ids)
+                self._qstat_failed_n = 0
+            except Exception:
+                self._qstat_failed_n += 1
+                if self._qstat_failed_n > SamplingPoolPBS.QSTAT_FAILED_MAX_N:
+                    raise Exception(process.stderr)
+                finished_pbs_jobs = []
 
         # Get unfinished as diff between planned and finished
         unfinished_pbs_jobs = []

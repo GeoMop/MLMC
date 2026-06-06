@@ -144,7 +144,10 @@ class SimpleDistribution:
         moms = self.eval_moments(value)
         power = -np.sum(moms * self.multipliers / self._moment_errs, axis=1)
         power = np.minimum(np.maximum(power, -200), 200)
-        return np.exp(power)
+        res =  np.exp(power)
+        if np.isscalar(value):
+            return res.item()
+        return res
 
     def cdf(self, values):
         """
@@ -226,12 +229,13 @@ class SimpleDistribution:
         :notes:
         - The integrand is exp(power) * moment_m. power is clipped to avoid overflow.
         - Uses self._quad_tolerance as epsabs for quad.
+        TODO: could use quad_vec function (available from Scipy 1.8.0)
         """
         def integrand(x):
             moms = self.eval_moments(x)
             power = -np.sum(moms * multipliers / self._moment_errs, axis=1)
             power = np.minimum(np.maximum(power, -200), 200)
-            return np.exp(power) * moms[:, m]
+            return (np.exp(power) * moms[:, m]).item()
 
         result = sc.integrate.quad(integrand, self.domain[0], self.domain[1],
                                    epsabs=self._quad_tolerance, full_output=full_output)

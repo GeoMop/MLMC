@@ -1,6 +1,30 @@
 import numpy as np
 import h5py
 from mlmc.quantity.quantity_spec import ChunkSpec
+import time
+import logging
+
+class FileSafe(h5py.File):
+    """
+    Context manager for openning HDF5 files with some timeout
+    amd retrying of getting acces.creation and usage of a workspace dir.
+    """
+    def __init__(self, filename:str, mode='r', timeout=5, **kwargs):
+        """
+        :param filename:
+        :param timeout: time to try acquire the lock
+        """
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            try:
+                super().__init__(filename, mode, **kwargs)
+                return
+            except BlockingIOError as e:
+                time.sleep(0.01)
+                continue
+            break
+        logging.exception(f"Unable to lock access to HDF5 file: {filename}, give up after: {timeout}s.")
+        raise BlockingIOError(f"Unable to lock access to HDF5 file: {filename}, give up after: {timeout}s.")
 
 
 class HDF5:
@@ -104,7 +128,7 @@ class HDF5:
         :param level_parameters: Iterable of level parameters to store in root attributes.
         :return: None
         """
-        with h5py.File(self.file_name, "a") as hdf_file:
+        with FileSafe(self.file_name, "a") as hdf_file:
             # Set global attributes on root group
             hdf_file.attrs['version'] = '1.0.1'
             hdf_file.attrs['level_parameters'] = level_parameters
@@ -121,13 +145,18 @@ class HDF5:
         """
         level_group_hdf_path = '/Levels/' + level_id
 
-        with h5py.File(self.file_name, "a") as hdf_file:
-            # Create group for level if missing
-            if 'Levels' not in hdf_file:
-                hdf_file.create_group('Levels')
-            if level_group_hdf_path not in hdf_file:
-                hdf_file['Levels'].create_group(level_id)
+        try:
+            with FileSafe(self.file_name, "a") as hdf_file:
+                # Create group (h5py.Group) if it has not yet been created
 
+                if "Levels" not in hdf_file:
+                    hdf_file.create_group('Levels')
+
+                if level_group_hdf_path not in hdf_file:
+                    # Create group for level named by level id (e.g. 0, 1, 2, ...)
+                    hdf_file['Levels'].create_group(level_id)
+        except BlockingIOError as e:
+            raise BlockingIOError(f"Unable to lock file: {self.file_name}")
         return LevelGroup(self.file_name, level_group_hdf_path, level_id, loaded_from_file=self._load_from_file)
 
     @property
@@ -139,57 +168,75 @@ class HDF5:
         """
         return "result_format"
 
-    def save_result_format(self, result_format, res_dtype):
+    def single_format(self, spec: "QuantitySpec"):
         """
-        Save simulation result format into a structured dataset.
+        Create a one-row structured array and dtype for a QuantitySpec.
+        """
+        # point or named region
+        first_loc = spec.locations[0]
+        has_str_locations = isinstance(first_loc, (str, bytes))
+        if has_str_locations:
+            loc_dtype = 'S30'
+        else:
+            assert len(first_loc) == 3
+            np.dtype((float, (3,)))
+        locations_dtype = np.dtype((loc_dtype, (len(spec.locations),)))
+        result_dtype = {'names': ('name','unit', 'shape', 'times', 'locations'),
+                        'formats': ('S50',
+                                    'S50',
+                                    np.dtype((np.int32, (2,))),
+                                    np.dtype((float, (len(spec.times),))),
+                                    locations_dtype
+                                    )
+                        }
+        format_items = (spec.name, spec.unit, spec.shape, spec.times, spec.locations)
+        res_format = np.array([format_items], dtype=result_dtype)
+        return res_format, result_dtype
 
-        The `result_format` is a list of QuantitySpec objects; `res_dtype` is a NumPy structured dtype
-        describing how to store the QuantitySpec attributes in the dataset.
+    def save_result_format(self, result_format):
+        """
+        Save simulation result format into a group of structured datasets.
+
+        Each QuantitySpec can have different time/location sizes, so every
+        spec is stored in a separate one-row dataset with its own dtype.
 
         :param result_format: List[QuantitySpec] (objects describing output fields)
-        :param res_dtype: numpy.dtype used for the dataset storage of a single QuantitySpec
         :return: None
         """
-        result_format_dtype = res_dtype
+        format_items = [
+            (f"{ispec:04d}", *self.single_format(quantity_spec))
+            for ispec, quantity_spec in enumerate(result_format)
+        ]
 
-        # Ensure dataset exists (resizable)
         with h5py.File(self.file_name, 'a') as hdf_file:
             if self.result_format_dset_name not in hdf_file:
-                hdf_file.create_dataset(
-                    self.result_format_dset_name,
-                    shape=(len(result_format),),
-                    dtype=result_format_dtype,
-                    maxshape=(None,),
-                    chunks=True)
+                format_group = hdf_file.create_group(self.result_format_dset_name)
+            else:
+                format_group = hdf_file[self.result_format_dset_name]
 
-        # Prepare numpy structured array to write
-        result_array = np.empty((len(result_format),), dtype=result_format_dtype)
-        for res, quantity_spec in zip(result_array, result_format):
-            for attribute in list(quantity_spec.__dict__.keys()):
-                val = getattr(quantity_spec, attribute)
-                if isinstance(val, (tuple, list)):
-                    # For array-like fields copy into subarray
-                    res[attribute][:] = val
-                else:
-                    res[attribute] = val
-
-        # Write structured array into dataset
-        with h5py.File(self.file_name, 'a') as hdf_file:
-            dataset = hdf_file[self.result_format_dset_name]
-            dataset[:] = result_array
+            for ispec, q_format, format_dtype in format_items:
+                if ispec not in format_group:
+                    format_group.create_dataset(
+                        name=ispec,
+                        shape=(1,),
+                        dtype=format_dtype,
+                        maxshape=(None,),
+                        chunks=True)
+                dataset = format_group[ispec]
+                dataset[0] = q_format[0]
 
     def load_result_format(self):
         """
-        Load the saved result_format dataset and return it as a NumPy array.
+        Load the saved result_format group.
 
-        :return: numpy.ndarray containing the stored result_format structured records
-        :raises AttributeError: if the dataset is not present
+        :return: Dict[str, numpy.ndarray] containing one structured record per QuantitySpec
+        :raises AttributeError: if the group is not present
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             if self.result_format_dset_name not in hdf_file:
                 raise AttributeError("Result format dataset not present in HDF file")
-            dataset = hdf_file[self.result_format_dset_name]
-            return dataset[()]
+            format_group = hdf_file[self.result_format_dset_name]
+            return {ispec: np.array(dataset) for ispec, dataset in format_group.items()}
 
     def load_level_parameters(self):
         """
@@ -240,7 +287,7 @@ class LevelGroup:
         self._chunk_size_items = {}
 
         # Ensure HDF group has attribute 'level_id'
-        with h5py.File(self.file_name, 'a') as hdf_file:
+        with FileSafe(self.file_name, 'a') as hdf_file:
             if 'level_id' not in hdf_file[self.level_group_path].attrs:
                 hdf_file[self.level_group_path].attrs['level_id'] = self.level_id
 
@@ -330,22 +377,25 @@ class LevelGroup:
         if len(scheduled_samples) > 0:
             self._append_dataset(self.scheduled_dset, scheduled_samples)
 
-    def append_successful(self, samples: np.array):
+    def append_successful(self, sample_ids: np.array, samples: np.array):
         """
         Append successful (collected) samples.
 
-        The `samples` array is expected to have rows of the form [sample_id, result_value].
-        The method appends sample ids to 'collected_ids' and result values to 'collected_values'.
+        The method appends sample ids to 'collected_ids' and result values to
+        'collected_values'.
 
+        :param sample_ids: numpy.ndarray with collected sample ids.
         :param samples: numpy.ndarray where each row is [sample_id, value], value may be array-like itself.
         :return: None
         """
+        assert samples.shape[0] == len(sample_ids)
+        assert samples.shape[1] == 2
         # Append collected ids (first column)
-        self._append_dataset(self.collected_ids_dset, samples[:, 0])
+        self._append_dataset(self.collected_ids_dset, sample_ids)
 
-        values = samples[:, 1]
         # Determine dtype for stored result values (store as numeric array shape)
-        result_type = np.dtype((float, np.array(values[0]).shape))
+        result_type = np.dtype((float, np.array(samples[0]).shape))
+
 
         # Ensure collected_values dataset exists (resizable)
         self._make_dataset(name='collected_values', shape=(0,),
@@ -354,7 +404,7 @@ class LevelGroup:
 
         # Append values (converted to simple list for h5py)
         d_name = 'collected_values'
-        self._append_dataset(d_name, [val for val in values])
+        self._append_dataset(d_name, [val for val in samples])
 
     def append_failed(self, failed_samples):
         """
@@ -385,7 +435,7 @@ class LevelGroup:
 
         :return: numpy.ndarray of scheduled entries (structured dtype)
         """
-        with h5py.File(self.file_name, 'r') as hdf_file:
+        with FileSafe(self.file_name, 'r') as hdf_file:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
             return scheduled_dset[()]
 
@@ -398,7 +448,8 @@ class LevelGroup:
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             if 'collected_values' not in hdf_file[self.level_group_path]:
-                raise AttributeError("No collected values in level group {}".format(self.level_id))
+                raise AttributeError(f"No collected values for level {self.level_id} at {self.file_name}:{self.level_group_path}."
+                                     f"Found keys: {list(hdf_file[self.level_group_path].keys())}")
             dataset = hdf_file["/".join([self.level_group_path, "collected_values"])]
 
             if n_samples is not None:
@@ -451,7 +502,7 @@ class LevelGroup:
 
     def get_unfinished_ids(self):
         """
-        Compute unfinished sample ids = scheduled_ids \ finished_ids.
+        Compute unfinished sample ids = scheduled_ids  -  finished_ids.
 
         :return: list of unfinished sample id strings
         """

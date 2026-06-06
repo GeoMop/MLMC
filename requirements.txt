@@ -1,8 +1,2 @@
-numpy
-scipy
-scikit-learn
-h5py>=3.1.0
-ruamel.yaml==0.17.26
-attrs
-gstools
-memoization
+pytest
+matplotlib
