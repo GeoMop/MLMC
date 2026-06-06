@@ -166,9 +166,10 @@ class Sampler:
         if n_samples is not None:
             scheduled_plan = [(level_id, int(n_samples))]
         else:
-            scheduled_plan = [(level_idx, int(plan_samples[level_idx])
+            scheduled_plan = [
+                (level_idx, int(plan_samples[level_idx]))
                 for level_idx in reversed(range(len(plan_samples)))
-            )]
+            ]
 
         for level_id, n_level_samples in scheduled_plan:
             samples = []

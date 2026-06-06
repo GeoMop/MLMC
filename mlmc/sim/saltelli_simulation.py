@@ -1,5 +1,4 @@
-import copy
-from typing import Callable, List, Optional
+from typing import Callable, List
 
 import attr
 import numpy as np
@@ -73,57 +72,6 @@ class SaltelliSchema:
         assert a_row.shape == b_row.shape == (self.n_parameters,)
         return np.where(self.a_mask, a_row[None, :], b_row[None, :])
 
-# AGENT: I already requested to replace this class by simple function
-class SaltelliRowProvider:
-    """
-    Master-side adapter around an external Saltelli matrix block generator.
-
-    Parameters
-    ----------
-    block_generator : callable
-        Signature:
-        ``block_generator(n_rows: int, n_parameters: int) -> matrix``.
-        The returned matrix must be array-like with shape
-        ``(n_rows, n_parameters)`` and values from the interval ``[0, 1]``.
-        The callable owns any external sequence state, for example OpenTurns
-        or QMC state.
-    """
-
-    def __init__(self, block_generator: Callable[[int, int], np.ndarray]):
-        self._block_generator = block_generator
-        self.requested_sizes = []
-
-    def reserve(self, n_rows, n_parameters):
-        """
-        Reserve a block of A/B rows on the master process.
-
-        Parameters
-        ----------
-        n_rows : int
-            Number of Saltelli rows requested by one scheduled level batch.
-        n_parameters : int
-            Number of uncertain input parameters, i.e. matrix columns.
-
-        Returns
-        -------
-        tuple[np.ndarray, np.ndarray]
-            Matrices ``A`` and ``B`` with shape ``(n_rows, n_parameters)``.
-        """
-        return (
-            self._generate_matrix(n_rows, n_parameters),
-            self._generate_matrix(n_rows, n_parameters),
-        )
-
-    def _generate_matrix(self, n_rows, n_parameters):
-        n_rows = int(n_rows)
-        n_parameters = int(n_parameters)
-        self.requested_sizes.append((n_rows, n_parameters))
-        matrix = np.asarray(self._block_generator(n_rows, n_parameters), dtype=float)
-        assert matrix.shape == (n_rows, n_parameters)
-        assert np.all((0.0 <= matrix) & (matrix <= 1.0))
-        return matrix
-
-
 class SaltelliSchemaSimulation(Simulation):
     """
     Simulation wrapper evaluating one full Saltelli row per MLMC sample.
@@ -133,16 +81,12 @@ class SaltelliSchemaSimulation(Simulation):
     forward_simulation : Simulation
         Wrapped forward simulation.  Its ``level_instance`` and ``calculate``
         methods are used for each Saltelli term.
-    row_provider : SaltelliRowProvider
-        Master-side provider of A/B parameter rows.
-    parameter_applier : callable
-        Optional compatibility adapter with signature:
-        ``parameter_applier(config_dict: dict, input_vector: np.ndarray) -> dict``.
-        It receives a deep copy of the wrapped level configuration and one
-        parameter vector.  It must return the config passed to
-        ``forward_simulation.calculate`` for that forward evaluation.
-        If omitted, the wrapped forward simulation is called as
-        ``calculate(config_dict, input_vector)``.
+    matrix_generator : callable
+        Signature:
+        ``matrix_generator(n_rows: int, n_parameters: int) -> matrix``.
+        The returned matrix must have shape ``(n_rows, n_parameters)`` and
+        values from interval ``[0, 1]``. It is called twice for each scheduled
+        row block, once for matrix A and once for matrix B.
     n_parameters : int
         Number of uncertain input parameters.
 
@@ -154,13 +98,10 @@ class SaltelliSchemaSimulation(Simulation):
     second argument of the ordinary ``_calculate(config, sample_input)`` call.
     """
 
-    def __init__(self, forward_simulation: Simulation, row_provider: SaltelliRowProvider,
-                 n_parameters: int, parameter_applier: Optional[Callable] = None):
-        # Possibly the forward simulation could also be just callable not Simulation child
-        # (that doesn't exclude a class method)
+    def __init__(self, forward_simulation: Simulation, matrix_generator: Callable[[int, int], np.ndarray],
+                 n_parameters: int):
         self.forward_simulation = forward_simulation
-        self.row_provider = row_provider  # pass a callable with defined signature here.
-        self.parameter_applier = parameter_applier # this should be part of the SaltelliSimulation not injected
+        self.matrix_generator = matrix_generator
         self.schema = SaltelliSchema(n_parameters=n_parameters)
         self.need_workspace = getattr(forward_simulation, "need_workspace", False)
 
@@ -226,17 +167,18 @@ class SaltelliSchemaSimulation(Simulation):
         fine_results = []
         coarse_results = []
         for input_vector in sample_input:
-            if self.parameter_applier is None:
-                fine_result, coarse_result = self.forward_simulation.calculate(
-                    config_dict["forward_config"], input_vector
-                )
-            else:
-                forward_config = self.parameter_applier(copy.deepcopy(config_dict["forward_config"]), input_vector)
-                fine_result, coarse_result = self.forward_simulation.calculate(forward_config, input_vector)
+            fine_result, coarse_result = self.forward_simulation.calculate(config_dict["forward_config"], input_vector)
             fine_results.append(np.asarray(fine_result).flatten())
             coarse_results.append(np.asarray(coarse_result).flatten())
 
         return np.asarray(fine_results).flatten(), np.asarray(coarse_results).flatten()
+
+    def _generate_matrix(self, n_rows):
+        n_rows = int(n_rows)
+        matrix = np.asarray(self.matrix_generator(n_rows, self.schema.n_parameters), dtype=float)
+        assert matrix.shape == (n_rows, self.schema.n_parameters)
+        assert np.all((0.0 <= matrix) & (matrix <= 1.0))
+        return matrix
 
     def _make_prepare_samples(self):
         def prepare(sample_ids):
@@ -245,8 +187,10 @@ class SaltelliSchemaSimulation(Simulation):
 
             Reserve A/B rows for the scheduled batch and return full Saltelli
             term vectors together with their sample ids.
+
             """
-            a_matrix, b_matrix = self.row_provider.reserve(len(sample_ids), self.schema.n_parameters)
+            a_matrix = self._generate_matrix(len(sample_ids))
+            b_matrix = self._generate_matrix(len(sample_ids))
             return [
                 (sample_id, self.schema.terms(a_row, b_row))
                 for sample_id, a_row, b_row in zip(sample_ids, a_matrix, b_matrix)

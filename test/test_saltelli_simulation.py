@@ -5,7 +5,7 @@ from mlmc.quantity.quantity_spec import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sampler import Sampler
 from mlmc.sampling_pool import OneProcessPool, SamplingPool
-from mlmc.sim.saltelli_simulation import SaltelliRowProvider, SaltelliSchema, SaltelliSchemaSimulation
+from mlmc.sim.saltelli_simulation import SaltelliSchema, SaltelliSchemaSimulation
 from mlmc.sim.simulation import Simulation
 
 
@@ -65,10 +65,15 @@ def test_saltelli_simulation_forms_forward_evaluation_scenarios():
         np.array([[0.1, 0.2]]),
         np.array([[0.3, 0.4]]),
     ]
-    provider = SaltelliRowProvider(lambda n, n_params: blocks.pop(0))
+    requested_sizes = []
+
+    def matrix_generator(n_rows, n_parameters):
+        requested_sizes.append((n_rows, n_parameters))
+        return blocks.pop(0)
+
     simulation = SaltelliSchemaSimulation(
         forward_simulation=ForwardModelSimulation(),
-        row_provider=provider,
+        matrix_generator=matrix_generator,
         n_parameters=2,
     )
     level_sim = simulation.level_instance([0.1], [0.01])
@@ -84,7 +89,7 @@ def test_saltelli_simulation_forms_forward_evaluation_scenarios():
     expected_values = np.array([1.2, 3.2, 1.4, 1.4, 3.2, 3.4])
     assert np.allclose(result[0], expected_values + 0.1)
     assert np.allclose(result[1], expected_values + 0.01)
-    assert provider.requested_sizes == [(1, 2), (1, 2)]
+    assert requested_sizes == [(1, 2), (1, 2)]
 
 
 def test_saltelli_simulation_propagates_inputs_through_local_sampler():
@@ -92,10 +97,15 @@ def test_saltelli_simulation_propagates_inputs_through_local_sampler():
         np.array([[0.1, 0.2], [0.5, 0.6]]),
         np.array([[0.3, 0.4], [0.7, 0.8]]),
     ]
-    provider = SaltelliRowProvider(lambda n, n_params: blocks.pop(0)[:n, :n_params])
+    requested_sizes = []
+
+    def matrix_generator(n_rows, n_parameters):
+        requested_sizes.append((n_rows, n_parameters))
+        return blocks.pop(0)[:n_rows, :n_parameters]
+
     simulation = SaltelliSchemaSimulation(
         forward_simulation=ForwardModelSimulation(),
-        row_provider=provider,
+        matrix_generator=matrix_generator,
         n_parameters=2,
     )
     storage = Memory()
@@ -110,7 +120,7 @@ def test_saltelli_simulation_propagates_inputs_through_local_sampler():
     sampler.schedule_samples()
     sampler.ask_sampling_pool_for_samples()
 
-    assert provider.requested_sizes == [(2, 2), (2, 2)]
+    assert requested_sizes == [(2, 2), (2, 2)]
     assert len(storage._results[0]) == 2
     first_fine = storage._results[0][0, 0, :]
     second_fine = storage._results[0][1, 0, :]
