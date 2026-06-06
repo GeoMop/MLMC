@@ -1,4 +1,6 @@
 import attr
+import hashlib
+import numpy as np
 from typing import List, Dict, Any, Optional, Callable
 from mlmc.quantity.quantity_spec import QuantitySpec
 
@@ -29,9 +31,32 @@ class LevelSimulation:
     ### Internal attributes — users should not modify these ###
     _calculate: Optional[Callable] = None
     # Calculation method used internally by the sampler.
+    # Signature: calculate(config_dict: dict, sample_input: Any) -> tuple[fine, coarse].
+    # For ordinary simulations sample_input is the deterministic seed.
 
     _level_id: Optional[int] = None
     # Level identifier, set automatically by mlmc.sampler.Sampler.
 
     _result_format: Optional[List[QuantitySpec]] = None
     # Format specification for simulation results (defined by QuantitySpec instances).
+
+    def prepare_samples(self, sample_ids):
+        """
+        Prepare scheduled work items on the master before pool submission.
+
+        Signature: ``prepare_samples(sample_ids: list[str]) -> list``.
+        The default keeps backward-compatible seed-based sampling by returning
+        ``(sample_id, seed)`` tuples. Simulations with externally planned inputs
+        can return ``(sample_id, input_vector)`` tuples; storage still receives
+        the plain sample ids supplied to this method.
+        """
+        return [(sample_id, self.compute_seed(sample_id)) for sample_id in sample_ids]
+
+    @staticmethod
+    def compute_seed(sample_id: str) -> int:
+        """
+        Compute the deterministic default sample input for a sample id.
+        """
+        hash_val = hashlib.md5(sample_id.encode('ascii'))
+        seed = np.frombuffer(hash_val.digest(), dtype='uint32')[0]
+        return int(seed)

@@ -25,6 +25,22 @@ class Simulation(ABC):
         :return: LevelSimulation instance configured for the given level parameters.
         """
 
+    def make_level_simulation(self, fine_level_params: List[float],
+                              coarse_level_params: List[float],
+                              level_id: int) -> LevelSimulation:
+        """
+        Create and finalize a ``LevelSimulation`` for sampler use.
+
+        Subclasses customize only ``level_instance()``, ``result_format()``, and
+        ``calculate()``. This method attaches the internal callable and metadata
+        used by samplers and pools.
+        """
+        level_sim = self.level_instance(fine_level_params, coarse_level_params)
+        level_sim._calculate = self.calculate
+        level_sim._result_format = self.result_format
+        level_sim._level_id = level_id
+        return level_sim
+
     @abstractmethod
     def result_format(self) -> List[QuantitySpec]:
         """

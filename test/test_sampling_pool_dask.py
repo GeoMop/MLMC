@@ -11,9 +11,10 @@ from mlmc.quantity.quantity_spec import QuantitySpec
 from mlmc.sample_storage import Memory
 from mlmc.sampler import Sampler
 from mlmc.sampling_pool_dask import SamplingPoolDask
+from mlmc.sim.simulation import Simulation
 
 
-class DaskSimulation:
+class DaskSimulation(Simulation):
     need_workspace = False
 
     def __init__(self, sleep=0.0, fail=False, need_workspace=False):
@@ -88,8 +89,8 @@ def test_dask_pool_get_finished_is_non_blocking(dask_client):
     pool = SamplingPoolDask(client=dask_client)
     level_sim = make_level_simulation(DaskSimulation(sleep=0.5))
 
-    pool.schedule_sample("L00_S0000000", level_sim)
-    pool.schedule_sample("L00_S0000001", level_sim)
+    for sample in level_sim.prepare_samples(["L00_S0000000", "L00_S0000001"]):
+        pool.schedule_sample(sample, level_sim)
 
     start = time.monotonic()
     successful, failed, n_running, n_ops = pool.get_finished()
@@ -102,12 +103,14 @@ def test_dask_pool_get_finished_is_non_blocking(dask_client):
     assert n_ops == []
 
     deadline = time.monotonic() + 5
+    collected = []
     while n_running > 0 and time.monotonic() < deadline:
         successful, failed, n_running, n_ops = pool.get_finished()
+        collected.extend(successful.get(0, []))
         time.sleep(0.01)
 
     assert n_running == 0
-    assert len(successful[0]) == 2
+    assert len(collected) == 2
     assert failed == {}
 
 

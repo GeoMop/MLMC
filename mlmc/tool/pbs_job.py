@@ -196,7 +196,7 @@ class PbsJob:
             assert level_sim._level_id == current_level
 
             # Calculate sample (may create sample working dir, call external tools)
-            _, res, err_msg, _ = SamplingPool.calculate_sample(sample_id, level_sim, work_dir=self._output_dir, seed=seed)
+            _, res, err_msg, _ = SamplingPool.calculate_sample((sample_id, seed), level_sim, work_dir=self._output_dir)
 
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))

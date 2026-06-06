@@ -3,7 +3,6 @@ import sys
 import shutil
 import queue
 import time
-import hashlib
 import numpy as np
 from typing import List, Tuple, Dict, Optional, Any
 import traceback
@@ -92,26 +91,25 @@ class SamplingPool(ABC):
 
         :param sample_id: Unique sample identifier.
         :return: Integer seed value.
+        DEPRECATED,use LevelSimulation.compute_seed instead
         """
-        hash_val = hashlib.md5(sample_id.encode('ascii'))
-        seed = np.frombuffer(hash_val.digest(), dtype='uint32')[0]
-        return int(seed)
+        return LevelSimulation.compute_seed(sample_id)
 
     @staticmethod
-    def calculate_sample(sample_id: str, level_sim: LevelSimulation,
-                         work_dir: Optional[str] = None,
-                         seed: Optional[int] = None) -> Tuple[str, Any, str, float]:
+    def calculate_sample(sample_input, level_sim: LevelSimulation,
+                         work_dir: Optional[str] = None) -> Tuple[str, Any, str, float]:
         """
         Execute a single simulation sample.
 
-        :param sample_id: Sample identifier.
+        :param sample_input: Tuple ``(sample_id, input_value)``. The default
+            ``LevelSimulation.prepare_samples()`` uses the deterministic seed
+            as ``input_value``; specialized simulations may provide richer
+            input values.
         :param level_sim: LevelSimulation instance.
         :param work_dir: Working directory for the sample.
-        :param seed: Optional random seed (generated if not provided).
         :return: Tuple(sample_id, result, error_message, running_time)
         """
-        if seed is None:
-            seed = SamplingPool.compute_seed(sample_id)
+        sample_id, input_value = sample_input
 
         res = (None, None)
         err_msg = ""
@@ -122,7 +120,7 @@ class SamplingPool(ABC):
 
         try:
             start = time.time()
-            res = level_sim._calculate(level_sim.config_dict, seed)
+            res = level_sim._calculate(level_sim.config_dict, input_value)
             running_time = time.time() - start
 
             # Validate result format.

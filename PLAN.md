@@ -168,9 +168,261 @@ Verification plan:
   config. If the required external `endorse`, `chodby_trans`, or Flow123d
   environment is unavailable, record that as skipped verification.
 
+### Goal 3: Saltelli Schema Simulation And Sobol Quantities
+
+Intent: implement an MLMC-compatible sensitivity-analysis layer where one MLMC
+sample is one full Saltelli row. For `N` uncertain input parameters, the row
+contains `2 * (N + 1)` forward model evaluations:
+
+- `A`
+- `AB_i` for each parameter `i`
+- `BA_i` for each parameter `i`
+- `B`
+
+Each row element is itself a paired MLMC forward-model evaluation:
+`(fine_result, coarse_result)`. The wrapper simulation should therefore call the
+wrapped forward simulation once for each Saltelli term on the fine level and,
+for levels above zero, once for each corresponding coarse-level term using the
+same parameter vector.
+
+Important interface observation:
+
+- Current `Simulation.calculate(config_dict, seed)` receives only a deterministic
+  seed, not the MLMC `sample_id`.
+- External QMC/OpenTurns Saltelli row generation cannot be represented safely as
+  "derive parameters from seed" if we need the provider to allocate consecutive
+  row blocks by requested sample count.
+- Goal 3 should therefore add a small optional scheduling hook before samples
+  are submitted, so a simulation can reserve input rows for a batch of MLMC
+  sample ids and persist the mapping used by workers.
+
+Proposed modules:
+
+- `mlmc/sim/saltelli_simulation.py`
+  - `SaltelliRowProvider`
+  - `SaltelliRow`
+  - `SaltelliSchema`
+  - `SaltelliSchemaSimulation`
+- `mlmc/quantity/sobol.py`
+  - functions/classes constructing derived quantities for Sobol numerators,
+    denominators, indices, and level variance diagnostics.
+- `test/test_saltelli_simulation.py`
+  - local `OneProcessPool` tests only.
+  AGENT: plan also unit test oth the sobol, the mean should be abstracted so that the estimators could be
+  verified with simple MC mean.
+  
+Data model:
+
+- Use `attrs` for structured containers:
+  - `SaltelliSchema`
+    - `parameter_names: list[str]`
+      AGENT: no need to know param names (beside error messages possibly)
+      So comment here how doyou want to use them.
+    - `term_names: list[str]`, ordered as `["A", "AB_0", ..., "AB_N-1",
+      "BA_0", ..., "BA_N-1", "B"]`
+      AGENT: no point in generating thes names (beside __repr__).Document here how do you want to use them.
+      We only need to represent the indexing, that is best done by a 2D matrix: 
+      A_mask[i_saltelli, i_param] = 1 if "the term i_saltelli uses for param i_param the matrix A" else 0
+      This mask should be constructed and then we only need human readable indices: e.g. A0, AB[i], BA[i], B0
+    - `n_parameters`
+    - `n_terms = 2 * (n_parameters + 1)`
+    - output coordinates: `x`, `y`, `z`, `times`
+      AGENT: not important the output array should be flattened before calculations, so work with single generic dimension of the forward model ouput
+  - `SaltelliRow`
+    - `row_id`
+    - `A: np.ndarray`
+    - `B: np.ndarray`
+    - method or property producing all Saltelli term parameter vectors in the
+      schema order.
+  - `SaltelliRowProvider`
+    - wraps an external row generator function.
+    - public method `reserve(n_rows) -> list[SaltelliRow]`.
+    - the external function gets only the requested number of rows each time,
+      so QMC/OpenTurns can manage its own sequence state.
+    AGENT: are QMC generators usefull in this case? What is better: single QMC sequence randomly split between levels r one sequence per level?
+    In both cases that is hard to manage localy in each simulation so we may need to generalize the Simulation API and have some Simulation
+    global (master) planning, that could prepare sample inputs richer than seed only. For now make a parameter matrices A and B 
+    once per level simulation instance, let level simulations crate the sample input vectors that will be passed to the workers (easy for Dask, some small rafactoring for PBS pool).
+    
+    
+Scheduling-row allocation:
+- Worker calculation uses the whole input vector scheduled on master.
+
+`SaltelliSchemaSimulation` behavior:
+
+- Constructor accepts:
+  - wrapped simulation/factory implementing the existing `Simulation` API;
+  - row block external function + a method taking the block rows one by one; creating ne block once necessary
+  
+  - The the SaltelliSchemaSimulation.calculate simply calls the forward impl for all AB Saltelli combinations.
+    Store the result into na array, flatten -> return through Dask or PBS  (but you can assume Dask only for this branch)
+  - coordinate metadata for the output grid/time axes; These are fixed by the Simulation LEvel so we can reconstruct the xArray on the master is needed.
+
+- `calculate(...)` for one MLMC sample:
+  - loads row `A` and `B`;
+  - builds term parameter vectors in schema order:
+    `A`, all `AB_i`, all `BA_i`, `B`;
+  - for each term, evaluates wrapped fine model and wrapped coarse model using
+    the corresponding fine/coarse level configs;
+  - stacks fine term outputs into an array shaped like:
+    `(i_saltelli, x, y, z, time)` or the agreed flattened equivalent;
+  - stacks coarse term outputs with the same shape;
+  - returns `(fine_flat, coarse_flat)` compatible with `SampleStorage`.
+- For level zero, coarse output remains the existing MLMC zero baseline,
+  but still has the full Saltelli term shape.
+- Result size and shape checks should remain strict because one row may be
+  large.
+
+Quantity specification:
+
+- The wrapper should provide a specific result format representing an xarray-like
+  field with dimensions:
+  - `i_saltelli`
+  - `x`
+  - `y`
+  - `z`
+  - `time`
+- Current `QuantitySpec` supports `shape`, `times`, and `locations`, not named
+  arbitrary dimensions. Goal 3 should avoid a broad storage rewrite by using a
+  conservative mapping first:
+  - `shape = (n_saltelli,)` This is orthogonal to the times and locations
+  - `times = output_times`
+  - `locations`  structured grid  for x,y,z
+    quantity machinery requires locations.
+- Add helper metadata on `SaltelliSchema` to reconstruct an `xarray.DataArray`
+  from flattened quantity samples after loading from storage.
+  Once we map to QuantitySpec it goes into HDF5 store and we should process it trhough Quanity, so current approach is not compatible with xarray
+  and ther is no point in converting to xarray, only as part of postprocessing.
+  
+- If named-dimensional result metadata is needed by production SA output, record
+  it as a future storage/QuantitySpec extension rather than overloading
+  `QuantitySpec` silently.
+
+Sobol derived quantities:
+
+- Add functions in `mlmc/quantity/sobol.py` that operate on the root Saltelli
+  quantity and return lazy `Quantity` objects whose means can be estimated with
+  existing `qe.estimate_mean()` / `Estimate` machinery.
+- Use Saltelli/Jansen-compatible estimators consistently. Choose one formula set
+  and document it in code/tests. Candidate formulas using row-wise output arrays:
+  - denominator variance from `A` and `B`, preferably centered across both.
+  - first-order numerator per parameter from `B * (AB_i - A)` or equivalent
+    Saltelli 2010 form.
+  - total-order numerator per parameter from `0.5 * (A - AB_i) ** 2` or Jansen
+    equivalent.
+  - second-order numerator from `BA_i * AB_j - A * B` or the selected Saltelli
+    second-order formula, with diagonal omitted or set to zero.
+- Provide derived quantities for:
+  - first-order numerator field `S1_num[i_param, x, y, z, time]`;
+  - total-order numerator field `ST_num[i_param, x, y, z, time]`;
+  - second-order numerator field `S2_num[i_param, j_param, x, y, z, time]`;
+  - variance denominator field `V[x, y, z, time]`.
+  - AGENT: all variance estimators should first estimate mean to form the (Y_i - mean_Y)^2
+- Final index calculation divides MLMC mean-estimated numerators by the
+  MLMC mean-estimated denominator:
+  - `S1 = E_mlmc[S1_num] / E_mlmc[V]`
+  - `ST = E_mlmc[ST_num] / E_mlmc[V]`
+  - `S2 = E_mlmc[S2_num] / E_mlmc[V]`
+- Keep ratio computation outside the per-sample quantity operation unless the
+  chosen estimator requires otherwise; this avoids estimating the mean of a
+  ratio instead of a ratio of means.
+
+  
+Variance decrease diagnostics:
+
+- For every derived quantity expose level variances
+  from `QuantityMean.l_vars` / `Estimate.estimate_diff_vars()`.
+- Tests should plot the variance diagnostic plots.
+  the synthetic problem for each quantity
+  - base Saltelli row quantity differences;
+  - first-order numerator;
+  - total-order numerator;
+  - second-order numerator;
+  - denominator.
+- Add helper assertions or diagnostic function, e.g.
+  `assert_level_variance_decreases(quantity, sample_storage, tolerance=...)`,
+  local to tests first. Promote to library only if it becomes generally useful.
+
+Testing plan:
+- Build a deterministic local analytic forward model with known Sobol indices.
+  Use only `OneProcessPool` and in-memory or HDF storage.
+- Suggested model:
+  - independent parameters `X_i ~ U(0, 1)` supplied by a deterministic local
+    row provider;
+  - scalar/grid output with known additive and interaction components, e.g.
+    `Y = a1 * X1 + a2 * X2 + a12 * X1 * X2 + c`;
+  - optional spatial/time scaling factor so output is a small `(x, y, z, time)`
+    field while expected indices remain analytically known or easy to compute
+    by high-accuracy reference Monte Carlo.
+- Wrapped fine/coarse model:
+  - fine output = exact model plus level-dependent deterministic bias/noise;
+  - coarse output = same model with coarser bias;
+  - level differences should have decreasing variance as level parameter
+    decreases.
+- Tests:
+  1. Row provider receives requested batch sizes and returns deterministic
+     consecutive Saltelli rows.
+  2. `SaltelliSchema` term ordering and shape are exactly
+     `2 * (N + 1)`.
+  3. `SaltelliSchemaSimulation.result_format()` reports the expected flattened
+     xarray-compatible shape.
+  4. One scheduled MLMC sample produces fine/coarse arrays containing all
+     Saltelli terms in the expected order.
+  5. A small local MLMC run estimates first, total, and second-order Sobol
+     indices within tolerances against analytic/reference values.
+  6. Derived numerator/denominator level variances decrease across levels.
+  7. Restart/workspace row mapping is tested if the row mapping is file-backed.
+
+Implementation order:
+
+1. Add `SaltelliSchema` and row-provider abstractions with isolated unit tests.
+2. Add the optional sample-preparation hook in `Sampler.schedule_samples()` and
+   a regression test proving ordinary simulations are unchanged.
+3. Add optional sample-id-aware calculation path in `SamplingPool.calculate_sample()`
+   and tests for both old and new simulation calculate APIs.
+4. Implement `SaltelliSchemaSimulation` around a small test forward simulation.
+5. Implement result-format/xarray reconstruction helpers.
+6. Implement Sobol derived quantity functions and ratio-of-means estimation
+   helper.
+7. Add the full local sampler integration test.
+8. Only after local tests pass, connect `sensitivity_sampling.py` to the new
+   wrapper if the project-specific transport dependencies are available.
+
+Verification plan:
+
+- Targeted compile:
+  `python3 -m py_compile mlmc/sim/saltelli_simulation.py mlmc/quantity/sobol.py
+  mlmc/sampler.py mlmc/sampling_pool.py`.
+- Focused tests:
+  `python3 -m pytest -c test/pytest.ini test/test_saltelli_simulation.py -vv`.
+- Existing regressions touched by hooks:
+  `python3 -m pytest -c test/pytest.ini test/test_sampler.py
+  test/test_sampling_pools.py test/test_sampling_pool_dask.py -vv`.
+- Broader non-PBS run if the hook touches shared scheduling behavior:
+  `python3 -m pytest -c test/pytest.ini test -m "not pbs"`.
+- Full `tox` before PR-ready state if Goal 3 implementation is completed.
+
+Open design questions:
+
+- Confirm exact second-order Saltelli estimator formula to implement and test.
+- Decide whether the row mapping persistence format should be JSON/NPZ/Pickle.
+  NPZ is attractive for numeric A/B rows; Pickle is simplest for arbitrary
+  provider metadata but less transparent.
+- Decide whether xarray should become a formal package dependency or whether
+  xarray reconstruction should remain an optional helper used by
+  `sensitivity_sampling.py`.
+- Decide how much named-dimension metadata belongs in `QuantitySpec` now versus
+  the planned 2.x storage/interface redesign.
+
 
 ## AGENT Log
 
+- `2026-06-06`: Planned Goal 3 Saltelli/Sobol implementation. The plan covers
+  a `SaltelliSchemaSimulation` wrapping an existing forward simulation, external
+  batch row generation for A/B Saltelli matrices, a small scheduler hook to
+  reserve row mappings for sample ids, xarray-compatible result shape metadata,
+  lazy Sobol numerator/denominator quantities estimated through the MLMC mean
+  estimator, variance-decrease diagnostics across levels, and local-only tests.
 - `2026-06-06`: Implemented Goal 2 Dask sampler backend. Added
   `mlmc/sampling_pool_dask.py` with a `SamplingPoolDask` accepting an existing
   Dask `Client`, submitting one deterministic-key future per MLMC sample,
@@ -232,6 +484,10 @@ Verification plan:
   dependencies outside MLMC. To make it use the MLMC adaptive sampler, the
   transport calculation must be wrapped as an MLMC `Simulation` with a
   documented `result_format()`.
+- `2026-06-06`: Goal 3 needs a sample-id-aware preparation/calculation path.
+  The existing simulation API only passes `config_dict` and `seed` into
+  `calculate()`, which is not sufficient for an external QMC/OpenTurns row
+  provider that allocates consecutive Saltelli rows by requested batch size.
 - `2026-06-05`: Legacy/external fixture status is only partially classified.
   Treat `test/01_cond_field`, `test/02_conc`, and `test/fractures` as
   repository examples and legacy/integration fixtures, but do not assume they

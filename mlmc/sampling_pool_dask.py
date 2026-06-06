@@ -50,7 +50,7 @@ class SamplingPoolDask(OneProcessPool):
         self._future_to_task = {}
         self._sample_to_future = {}
 
-    def schedule_sample(self, sample_id, level_sim):
+    def schedule_sample(self, sample_input, level_sim):
         """
         Submit one sample to Dask.
 
@@ -59,6 +59,7 @@ class SamplingPoolDask(OneProcessPool):
         is not possible, submitting the same sample id recomputes the same result
         because seeding is deterministic.
         """
+        sample_id = sample_input[0]
         if sample_id in self._sample_to_future:
             return
 
@@ -66,13 +67,11 @@ class SamplingPoolDask(OneProcessPool):
             self._output_dir = os.getcwd()
 
         self._save_level_sim(level_sim)
-        seed = SamplingPool.compute_seed(sample_id)
         future = self._client.submit(
             SamplingPool.calculate_sample,
-            sample_id,
+            sample_input,
             level_sim,
             self._output_dir,
-            seed,
             key=self._future_key(sample_id),
             pure=True,
             **self._submit_kwargs
@@ -190,4 +189,4 @@ def _calculate_permanent_sample(sample_id, output_dir, seed):
     with open(level_sim_file, "rb") as level_sim_config:
         level_sim = pickle.load(level_sim_config)
 
-    return SamplingPool.calculate_sample(sample_id, level_sim, output_dir, seed)
+    return SamplingPool.calculate_sample((sample_id, seed), level_sim, output_dir)

@@ -84,14 +84,12 @@ class Sampler:
         n_levels = len(level_parameters)
         for level_id in range(n_levels):
             if level_id == 0:
-                level_sim = sim_factory.level_instance(level_parameters[level_id], [0])
+                level_sim = sim_factory.make_level_simulation(level_parameters[level_id], [0], level_id)
             else:
-                level_sim = sim_factory.level_instance(level_parameters[level_id], level_parameters[level_id - 1])
+                level_sim = sim_factory.make_level_simulation(
+                    level_parameters[level_id], level_parameters[level_id - 1], level_id
+                )
 
-            # Attach factory methods and metadata to the LevelSimulation
-            level_sim._calculate = sim_factory.calculate
-            level_sim._result_format = sim_factory.result_format
-            level_sim._level_id = level_id
             self._level_sim_objects.append(level_sim)
 
     def sample_range(self, n0, nL):
@@ -165,32 +163,26 @@ class Sampler:
         if level_id is None:
             level_id = len(plan_samples) - 1
 
-        # If a specific number of samples for one level is requested
         if n_samples is not None:
-            samples = []
-            for _ in range(int(n_samples)):
-                sample_id = self._get_sample_tag(level_id)
-                level_sim = self._level_sim_objects[level_id]
+            scheduled_plan = [(level_id, int(n_samples))]
+        else:
+            scheduled_plan = [(level_idx, int(plan_samples[level_idx])
+                for level_idx in reversed(range(len(plan_samples)))
+            )]
 
-                self._sampling_pool.schedule_sample(sample_id, level_sim)
+        for level_id, n_level_samples in scheduled_plan:
+            samples = []
+            level_sim = self._level_sim_objects[level_id]
+            for _ in range(n_level_samples):
+                sample_id = self._get_sample_tag(level_id)
                 self._n_scheduled_samples[level_id] += 1
                 samples.append(sample_id)
 
+            scheduled_samples = level_sim.prepare_samples(samples)
+            for sample in scheduled_samples:
+                self._sampling_pool.schedule_sample(sample, level_sim)
+
             self.sample_storage.save_scheduled_samples(level_id, samples)
-        else:
-            # Iterate levels from coarsest to finest and schedule required samples
-            for n_samples in np.flip(plan_samples):
-                samples = []
-                for _ in range(int(n_samples)):
-                    sample_id = self._get_sample_tag(level_id)
-                    level_sim = self._level_sim_objects[level_id]
-
-                    self._sampling_pool.schedule_sample(sample_id, level_sim)
-                    self._n_scheduled_samples[level_id] += 1
-                    samples.append(sample_id)
-
-                self.sample_storage.save_scheduled_samples(level_id, samples)
-                level_id -= 1
 
     def _check_failed_samples(self):
         """
@@ -329,12 +321,11 @@ class Sampler:
         failed_samples = self.sample_storage.failed_samples()
 
         for level_id, sample_ids in failed_samples.items():
-            samples = []
             level_id = int(level_id)
-            for sample_id in sample_ids:
-                level_sim = self._level_sim_objects[level_id]
-                self._sampling_pool.schedule_sample(sample_id, level_sim)
-                samples.append(sample_id)
+            level_sim = self._level_sim_objects[level_id]
+            scheduled_samples = level_sim.prepare_samples(sample_ids)
+            for sample in scheduled_samples:
+                self._sampling_pool.schedule_sample(sample, level_sim)
 
         # Clear failed sample records after rescheduling
         self.sample_storage.clear_failed()
