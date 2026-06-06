@@ -62,4 +62,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=['numpy', 'scipy', 'scikit-learn', 'h5py>=3.1.0', 'ruamel.yaml', 'attrs', 'gstools', 'memoization'],
+    extras_require={
+        'dask': ['dask', 'distributed'],
+    },
 )
