@@ -249,16 +249,8 @@ class SamplingPoolPBS(SamplingPool):
         # mechanism using self._qsub_failed_n and the outer polling loop in
         # mlmc.sampler.Sampler.ask_sampling_pool_for_samples.
         process = self.pbs_commands.qsub([job_file])
-        # AGENT: following try block is present in master and base but
-        # was removed in this branch, is it sufficiently replaced in pbs_commands.qsub ?
-        # Resolved: PbsCommands returns a decoded CommandOutput for completed
-        # commands; qsub failures are handled by returncode below, while command
-        # execution errors still propagate as environment errors.
-        # try:
         if process.returncode != 0:
             self._qsub_failed_n += 1
-            # AGENT: review following command replacing the print
-            # Resolved: use a warning instead of library stdout diagnostics.
             warnings.warn(
                 f"\nWARNING: FAILED QSUB, {self._qsub_failed_n} consecutive\n: {process}",
                 RuntimeWarning,
@@ -282,12 +274,6 @@ class SamplingPoolPBS(SamplingPool):
             self._current_job_weight = 0
             self._n_samples_in_job = 0
             self._scheduled = []
-            # master and base:
-            #    except:
-            #        self._qsub_failed_n += 1
-            #        time.sleep(30)
-            #        if self._qsub_failed_n > SamplingPoolPBS.QSUB_FAILED_MAX_N:
-            #            raise Exception(process.stderr.decode("ascii"))
 
     def _create_script(self):
         """
