@@ -82,6 +82,14 @@ Resolved: `sampling_pool_pbs.py` now uses decoded `CommandOutput.stderr` directl
   compatibility, planned 2.x storage/interface changes, targeted pytest for
   routine debugging, and tox as the final PR-level check. Documentation only;
   no tests required.
+- `2026-06-06`: Kept HDF5 `result_format` storage heterogeneous by using a
+  `result_format` group with one one-row structured dataset per `QuantitySpec`.
+  The writer now prepares each `single_format()` result before opening HDF5,
+  creates the HDF group/dataset structure first, then writes the records.
+  Verified with `.tox/py312/bin/python -m py_compile mlmc/tool/hdf5.py
+  mlmc/sample_storage_hdf.py test/test_storage.py` and
+  `.tox/py312/bin/python -m pytest -c test/pytest.ini test/test_hdf.py
+  test/test_storage.py -vv`.
 - `2026-06-05`: Drafted initial MLMC `AGENTS.md` and `PLAN.md` from
   `README.rst`, `docs/source/index.rst`, `tox.ini`, `test/pytest.ini`,
   package layout, and copied reference project instruction files. Documentation

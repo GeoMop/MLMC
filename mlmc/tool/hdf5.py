@@ -168,9 +168,18 @@ class HDF5:
         """
         return "result_format"
 
-    def single_format(self, spec:"QuantitySpec"):
+    def single_format(self, spec: "QuantitySpec"):
+        """
+        Create a one-row structured array and dtype for a QuantitySpec.
+        """
         # point or named region
-        loc_dtype = np.dtype((float, (3,))) if len(spec.locations) == 3 else 'S50'
+        first_loc = spec.locations[0]
+        has_str_locations = isinstance(first_loc, (str, bytes))
+        if has_str_locations:
+            loc_dtype = 'S30'
+        else:
+            assert len(first_loc) == 3
+            np.dtype((float, (3,)))
         locations_dtype = np.dtype((loc_dtype, (len(spec.locations),)))
         result_dtype = {'names': ('name','unit', 'shape', 'times', 'locations'),
                         'formats': ('S50',
@@ -184,52 +193,50 @@ class HDF5:
         res_format = np.array([format_items], dtype=result_dtype)
         return res_format, result_dtype
 
-
     def save_result_format(self, result_format):
         """
-        Save simulation result format into a structured dataset.
+        Save simulation result format into a group of structured datasets.
 
-        The `result_format` is a list of QuantitySpec objects; `res_dtype` is a NumPy structured dtype
-        describing how to store the QuantitySpec attributes in the dataset.
+        Each QuantitySpec can have different time/location sizes, so every
+        spec is stored in a separate one-row dataset with its own dtype.
 
         :param result_format: List[QuantitySpec] (objects describing output fields)
-        :param res_dtype: numpy.dtype used for the dataset storage of a single QuantitySpec
         :return: None
         """
+        format_items = [
+            (f"{ispec:04d}", *self.single_format(quantity_spec))
+            for ispec, quantity_spec in enumerate(result_format)
+        ]
+
         with h5py.File(self.file_name, 'a') as hdf_file:
-            # format item in main group
             if self.result_format_dset_name not in hdf_file:
                 format_group = hdf_file.create_group(self.result_format_dset_name)
             else:
                 format_group = hdf_file[self.result_format_dset_name]
-            # dataset item qith format spec for every QuantitySpec
-            for ispec, qspec in enumerate(result_format):
-                ispec = f"{ispec:04d}"
-                format, format_dtype = self.single_format(qspec)
+
+            for ispec, q_format, format_dtype in format_items:
                 if ispec not in format_group:
-                    quantity_dset = format_group.create_dataset(
+                    format_group.create_dataset(
                         name=ispec,
                         shape=(1,),
                         dtype=format_dtype,
                         maxshape=(None,),
                         chunks=True)
-                else:
-                    quantity_dset = format_group[ispec]
-                quantity_dset[0] = format
+                dataset = format_group[ispec]
+                dataset[0] = q_format[0]
 
     def load_result_format(self):
         """
-        Load the saved result_format dataset and return it as a NumPy array.
+        Load the saved result_format group.
 
-        :return: numpy.ndarray containing the stored result_format structured records
-        :raises AttributeError: if the dataset is not present
+        :return: Dict[str, numpy.ndarray] containing one structured record per QuantitySpec
+        :raises AttributeError: if the group is not present
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             if self.result_format_dset_name not in hdf_file:
                 raise AttributeError("Result format dataset not present in HDF file")
             format_group = hdf_file[self.result_format_dset_name]
-            format = {ispec: np.array(q_dset) for ispec, q_dset in format_group.items()}
-            return format
+            return {ispec: np.array(dataset) for ispec, dataset in format_group.items()}
 
     def load_level_parameters(self):
         """
