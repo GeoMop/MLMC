@@ -55,12 +55,12 @@ Design direction:
 - Add a new Dask pool implementation, most likely in
   `mlmc/sampling_pool_dask.py`, implementing the existing `SamplingPool`
   interface:
-  - `schedule_sample(sample_id, level_sim)` submits one future with
+  - `schedule_sample(sample_input, level_sim)` submits one future with
     `client.submit(...)` and records future metadata locally.
   - `get_finished()` collects only completed futures and returns the same tuple
     shape as other pools:
     `(successful_samples, failed_samples, n_running, n_ops)`.
-  - `have_permanent_samples(sample_ids)` initially returns `False`, matching
+  - `have_permanent_samples(sample_inputs)` initially returns `False`, matching
     local pools, unless restart/recovery is explicitly added later.
     AGENT: Support ofr restart of the sampling is must for large sample sizes. 
     So desing a way how to implement that with Dask.
@@ -215,6 +215,29 @@ Code Compatibility:
     using the common base helper to obtain `_output_dir` and passing it to
     `SamplingPool.calculate_sample(...)`.
 
+Samples passing:
+- sample_storage.py should have failed_samples and clear_samples to define API, contribution
+  the implementation should not be common. Memory storage in principle can not store
+  samples after resumeing the master process. You can implement null variant implementation in the base class, using
+  it in Memory as well while HDFwill use its specific functioning implementation.
+  Resolved: `SampleStorage.failed_samples()` and `SampleStorage.clear_failed()`
+  now provide base no-op implementations. HDF overrides them with persistent
+  scheduled-input aware behavior; Memory uses the base no-op restart behavior.
+- Define SampleInput type hint as Tuple[str, np.ndarray] and use that type hint along the 
+  samples passing path. Do not consider any other sample types. For backward compatibility
+  for possibly existing storages do just simple coercion immediately after load. 
+  returning (sample_id, hash), and use there local sample_id hashing to compute the seed. 
+  That would only disallow sample resumming which is 
+  not necessary, but should allow new processing of stored samples.
+  Resolved: `LevelSimulation.SampleInput` is defined as
+  `Tuple[str, np.ndarray | float | int]` to keep backward compatibility with
+  existing seed-based `calculate(...)` implementations while allowing vector
+  planned inputs. Storage load paths coerce legacy id-only samples to
+  `(sample_id, default_seed)` and keep scalar inputs scalar.
+  
+    
+    
+    
 ### Goal 3: Saltelli Schema Simulation And Sobol Quantities
 
 Intent: one MLMC sample represents one full Saltelli row. For `N` parameters
@@ -394,6 +417,41 @@ Open questions:
 
 ## AGENT Log
 
+- `2026-06-07`: Fixed scheduled sample persistence for planned sample inputs.
+  `Sampler.schedule_samples()` now stores the full prepared
+  `(sample_id, sample_input)` work items instead of only sample ids. HDF storage
+  keeps scheduled ids in `scheduled` and stores numeric scalar/array inputs in
+  a parallel `scheduled_inputs` dataset with shape and dtype fixed by the first
+  input per level. `failed_samples()` and HDF unfinished sample queries now
+  return stored scheduled work items rather than ids, so
+  `Sampler.renew_failed_samples()` no longer regenerates inputs through
+  `prepare_samples()`. Scalar inputs are kept scalar on load for compatibility
+  with existing seed-based `calculate(...)` implementations; array inputs are
+  preserved without broad storage-side type coercion. Verification passed:
+  `python3 -m py_compile mlmc/level_simulation.py mlmc/sample_storage.py
+  mlmc/sample_storage_hdf.py mlmc/sampler.py
+  mlmc/sampling_pool.py mlmc/sampling_pool_dask.py mlmc/sampling_pool_pbs.py
+  mlmc/tool/hdf5.py test/test_storage.py test/test_saltelli_simulation.py
+  test/test_sampling_pool_dask.py`; `.tox/py312/bin/python -m pytest -c
+  test/pytest.ini test/test_storage.py -vv`; `.tox/py312/bin/python -m pytest
+  -c test/pytest.ini test/test_saltelli_simulation.py -vv`;
+  `.tox/py312/bin/python -m pytest -c test/pytest.ini test/test_hdf.py
+  test/test_sampler.py test/test_sampling_pools.py -vv`; and `timeout 60
+  .tox/py312/bin/python -m pytest -c test/pytest.ini
+  test/test_sampling_pool_dask.py -vv`.
+- `2026-06-07`: Simplified HDF scheduled-sample lookup. Removed the separate
+  `LevelGroup` id-only helper methods and the internal `scheduled()` raw-row
+  reader. `get_scheduled_ids()` now reads ids, `scheduled_samples()` reads
+  storage-facing scheduled work items, and unfinished/failed scheduled sample
+  filtering uses one reused private selector. Kept unfinished-sample flattening
+  inline because it has only one caller, and kept grouped `SampleStorageHDF`
+  scheduled-sample loading in one shared helper. The `python_coding.md`
+  single-use helper rule was tightened to prefer local helpers for one-method
+  use and private helpers only when reused or clearly simplifying code.
+  Verification passed: `python3 -m py_compile mlmc/tool/hdf5.py
+  mlmc/sample_storage_hdf.py mlmc/sample_storage.py`;
+  `.tox/py312/bin/python -m pytest -c test/pytest.ini test/test_storage.py
+  test/test_saltelli_simulation.py test/test_hdf.py test/test_sampler.py -vv`.
 - `2026-06-07`: Goal 2 is complete, with final project-level tests left for
   user review. Implemented `SamplingPoolDask` as an optional-dependency
   backend that accepts a caller-owned Dask client, submits one deterministic-key

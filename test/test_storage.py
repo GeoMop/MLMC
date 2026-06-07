@@ -92,6 +92,46 @@ def test_storage(storage, n_levels):
     assert np.allclose(n_finished, n_successful + n_failed)
 
 
+@pytest.mark.parametrize("storage_kind", ['memory', 'hdf'])
+def test_storage_keeps_scheduled_sample_inputs(storage_kind, tmp_path):
+    if storage_kind == 'memory':
+        storage = Memory()
+    elif storage_kind == 'hdf':
+        storage = SampleStorageHDF(file_path=os.path.join(tmp_path, "mlmc.hdf5"))
+        storage.save_global_data(
+            level_parameters=np.ones(2),
+            result_format=[QuantitySpec(name="value", unit="1", shape=(1,), times=[0], locations=["0"])],
+        )
+
+    scalar_scheduled_samples = [
+        ("L00_S0000000", 123),
+    ]
+    array_scheduled_samples = [
+        ("L01_S0000000", np.array([[1.0, 2.0], [3.0, 4.0]])),
+    ]
+    storage.save_scheduled_samples(0, scalar_scheduled_samples)
+    storage.save_scheduled_samples(1, array_scheduled_samples)
+    storage.save_samples({}, {0: [("L00_S0000000", "failed")]})
+
+    loaded_scheduled_samples = storage.load_scheduled_samples()
+    loaded_scalar_id, loaded_scalar_input = loaded_scheduled_samples[0][0]
+    loaded_array_id, loaded_array_input = loaded_scheduled_samples[1][0]
+
+    assert loaded_scalar_id == "L00_S0000000"
+    assert np.isscalar(loaded_scalar_input)
+    assert loaded_scalar_input == 123
+    assert loaded_array_id == "L01_S0000000"
+    assert np.allclose(loaded_array_input, np.array([[1.0, 2.0], [3.0, 4.0]]))
+
+    if storage_kind == 'hdf':
+        failed_sample_id, failed_sample_input = storage.failed_samples()["0"][0]
+        assert failed_sample_id == "L00_S0000000"
+        assert np.isscalar(failed_sample_input)
+        assert failed_sample_input == 123
+    else:
+        assert storage.failed_samples() == {}
+
+
 def test_hdf_append():
     work_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '_test_tmp')
     if os.path.exists(work_dir):

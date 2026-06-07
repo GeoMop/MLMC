@@ -8,7 +8,7 @@ import glob
 import warnings
 
 import numpy as np
-from mlmc.level_simulation import LevelSimulation
+from mlmc.level_simulation import LevelSimulation, SampleInput
 from mlmc.sampling_pool import SamplingPool
 from mlmc.tool.pbs_job import PbsJob
 from mlmc.tool.pbs_commands import PbsCommands
@@ -17,7 +17,7 @@ from mlmc.tool.pbs_commands import PbsCommands
 SamplingPoolPBS description
     - this class inherits from SampleStorage, both abstract methods and other crucial ones are described
 
-    schedule_sample(sample_id, level_sim)
+    schedule_sample(sample_input, level_sim)
         - serialize level_sim (mlmc/level_simulation.py), pickle is used
         - add (level_sim._level_id, sample_id, input_value) to job's scheduled samples
         - add job weight, increment number of samples in job and execute if job_weight is exceeded
@@ -188,7 +188,7 @@ class SamplingPoolPBS(SamplingPool):
                                           '{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
         self._pbs_config = kwargs
 
-    def schedule_sample(self, sample_input, level_sim):
+    def schedule_sample(self, sample_input: SampleInput, level_sim):
         """
         Add sample to current PBS package
         :param sample_input: tuple (sample_id, input_value) prepared by LevelSimulation
@@ -577,11 +577,25 @@ class SamplingPoolPBS(SamplingPool):
 
         return successful_results, failed_results, times#, sim_data_results
 
-    def have_permanent_samples(self, sample_ids):
+    def have_permanent_samples(self, sample_inputs):
         """
-        List of unfinished sample ids, the corresponding samples are collecting in next get_finished() call
+        List of unfinished scheduled sample inputs. PBS only needs sample ids
+        here to find the existing job-result files.
         """
-        self._unfinished_sample_ids = set(sample_ids)
+        self._unfinished_sample_ids = {
+            self._sample_id_from_input(sample_input)
+            for sample_input in sample_inputs
+        }
+
+    @staticmethod
+    def _sample_id_from_input(sample_input):
+        """
+        Return sample id from a stored scheduled sample.
+        """
+        if isinstance(sample_input, str):
+            return sample_input
+        sample_id, _input_value = sample_input
+        return sample_id
 
     @staticmethod
     def delete_pbs_id_file(file_path):

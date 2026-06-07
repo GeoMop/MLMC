@@ -186,8 +186,8 @@ def scheduled(hdf_level_group):
     with h5py.File(hdf_level_group.file_name, "r") as hdf_file:
         assert len(SCHEDULED_SAMPLES) == len(hdf_file[hdf_level_group.level_group_path]['scheduled'][()])
 
-    saved_scheduled = [sample[0].decode() for sample in hdf_level_group.scheduled()]
-    assert all(orig_scheduled_id == saved_schedule_id for orig_scheduled_id, saved_schedule_id in zip(SCHEDULED_SAMPLES, saved_scheduled))
+    assert hdf_level_group.get_scheduled_ids() == SCHEDULED_SAMPLES
+    assert hdf_level_group.scheduled_samples() == SCHEDULED_SAMPLES
 
 
 def collected(hdf_level_group):

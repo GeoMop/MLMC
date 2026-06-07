@@ -1,8 +1,11 @@
 import attr
 import hashlib
 import numpy as np
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, Tuple
 from mlmc.quantity.quantity_spec import QuantitySpec
+
+SampleInput = Tuple[str, np.ndarray | float | int]
+
 
 
 @attr.s(auto_attribs=True)
@@ -47,10 +50,13 @@ class LevelSimulation:
         Signature: ``prepare_samples(sample_ids: list[str]) -> list``.
         The default keeps backward-compatible seed-based sampling by returning
         ``(sample_id, seed)`` tuples. Simulations with externally planned inputs
-        can return ``(sample_id, input_vector)`` tuples; storage still receives
-        the plain sample ids supplied to this method.
+        can return ``(sample_id, input_vector)`` tuples; storage receives the
+        complete scheduled work items so restarts can reuse planned inputs.
         """
-        return [(sample_id, self.compute_seed(sample_id)) for sample_id in sample_ids]
+        return [
+            (sample_id, self.compute_seed(sample_id))
+            for sample_id in sample_ids
+        ]
 
     @staticmethod
     def compute_seed(sample_id: str) -> int:

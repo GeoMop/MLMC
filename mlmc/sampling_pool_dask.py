@@ -2,10 +2,7 @@ import traceback
 from typing import Any, Dict, Iterable, Optional, Tuple
 
 from mlmc.sampling_pool import OneProcessPool, SamplingPool
-from mlmc.level_simulation import LevelSimulation
-
-
-SampleInput = Tuple[str, Any]
+from mlmc.level_simulation import LevelSimulation, SampleInput
 
 
 def import_distributed() -> Any:
@@ -94,13 +91,13 @@ class SamplingPoolDask(OneProcessPool):
         self._sample_to_future[sample_id] = (future, level_sim)
         self._n_running += 1
 
-    def have_permanent_samples(self, sample_ids: Iterable[Any]) -> bool:
+    def have_permanent_samples(self, sample_inputs: Iterable[Any]) -> bool:
         """
         Return whether the Dask pool has permanent samples to reconnect.
 
         Dask tasks are not PBS-like durable jobs in this implementation. If the
         Dask scheduler/workers are stopped with the master, unfinished sample
-        ids remain in storage and must be scheduled again by a new sampler run.
+        inputs remain in storage and must be scheduled again by a new sampler run.
         """
         return False
 

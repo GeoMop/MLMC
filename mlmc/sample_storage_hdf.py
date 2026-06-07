@@ -60,12 +60,9 @@ class SampleStorageHDF(SampleStorage):
         """
         Load scheduled samples from storage.
 
-        :return: Dict[level_id, List[sample_id: str]]
+        :return: Dict[level_id, List[SampleInput]]
         """
-        scheduled = {}
-        for level in self._level_groups:
-            scheduled[int(level.level_id)] = [sample[0].decode() for sample in level.scheduled()]
-        return scheduled
+        return self._level_samples_by_id(lambda level: level.scheduled_samples(), int)
 
     def save_result_format(self, result_format: List[QuantitySpec]):
         """
@@ -136,12 +133,13 @@ class SampleStorageHDF(SampleStorage):
             if len(samples) > 0:
                 self._level_groups[level].append_failed(samples)
 
-    def save_scheduled_samples(self, level_id, samples: List[str]):
+    def save_scheduled_samples(self, level_id, samples: List):
         """
-        Append scheduled sample identifiers for a specific level.
+        Append scheduled samples for a specific level.
 
         :param level_id: Integer level identifier.
-        :param samples: List of sample identifiers.
+        :param samples: List of sample identifiers or
+            (sample_id, sample_input) tuples.
         :return: None
         """
         self._level_groups[level_id].append_scheduled(samples)
@@ -213,25 +211,37 @@ class SampleStorageHDF(SampleStorage):
 
     def unfinished_ids(self):
         """
-        Return identifiers of all unfinished samples.
+        Return stored scheduled samples that are not finished.
 
-        :return: List[str]
+        :return: List[SampleInput]
         """
-        unfinished = []
+        samples = []
         for level in self._level_groups:
-            unfinished.extend(level.get_unfinished_ids())
-        return unfinished
+            samples.extend(
+                self.coerce_sample_input(sample)
+                for sample in level.get_unfinished_samples()
+            )
+        return samples
 
     def failed_samples(self):
         """
-        Return dictionary of failed samples for each level.
+        Return dictionary of failed scheduled samples for each level.
 
-        :return: Dict[str, List[str]]
+        :return: Dict[str, List[SampleInput]]
         """
-        failed_samples = {}
-        for level in self._level_groups:
-            failed_samples[str(level.level_id)] = list(level.get_failed_ids())
-        return failed_samples
+        return self._level_samples_by_id(lambda level: level.get_failed_samples(), str)
+
+    def _level_samples_by_id(self, get_samples, key_type):
+        """
+        Return coerced scheduled samples grouped by level id.
+        """
+        return {
+            key_type(level.level_id): [
+                self.coerce_sample_input(sample)
+                for sample in get_samples(level)
+            ]
+            for level in self._level_groups
+        }
 
     def clear_failed(self):
         """

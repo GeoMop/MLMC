@@ -1,3 +1,11 @@
+"""
+Implementation detail of sample_storage_hdf.py.
+Refactor storage structure or replace hdf by zarr completely in particular simplify
+storage of samlples to unify code of LevelGroup methods:
+- append_*
+- scheduled_samples, get_finished_ids, get_unfinished_samples, get_failed_samples
+- and other
+"""
 import numpy as np
 import h5py
 from mlmc.quantity.quantity_spec import ChunkSpec
@@ -259,7 +267,7 @@ class LevelGroup:
     failed entries and to iterate over collected data in chunks.
     """
 
-    # Structured dtype for scheduled rows (single sample_id string)
+    # Structured dtype for sample id rows.
     SCHEDULED_DTYPE = {'names': ['sample_id'],
                        'formats': ['S100']}
 
@@ -299,6 +307,7 @@ class LevelGroup:
         """
         Create default datasets under the level group:
           - scheduled (resizable structured array of sample ids)
+          - scheduled_inputs (optional resizable array of sample inputs)
           - collected_ids (resizable structured array of collected ids)
           - failed (resizable structured array of failed entries)
           - collected_values is created later when first result is appended
@@ -359,6 +368,15 @@ class LevelGroup:
         return "scheduled"
 
     @property
+    def scheduled_inputs_dset(self):
+        """
+        Name of dataset storing scheduled sample inputs.
+
+        :return: str
+        """
+        return "scheduled_inputs"
+
+    @property
     def failed_dset(self):
         """
         Name of dataset storing failed sample rows.
@@ -369,13 +387,18 @@ class LevelGroup:
 
     def append_scheduled(self, scheduled_samples):
         """
-        Append scheduled sample ids to the scheduled dataset.
+        Append scheduled samples to the scheduled dataset.
 
-        :param scheduled_samples: iterable of sample-id strings (or bytes-like)
+        :param scheduled_samples: iterable of sample-id strings or
+            (sample_id, sample_input) tuples.
         :return: None
         """
         if len(scheduled_samples) > 0:
-            self._append_dataset(self.scheduled_dset, scheduled_samples)
+            scheduled_ids, sample_inputs = self._split_scheduled_samples(scheduled_samples)
+            scheduled_rows = [(sample_id,) for sample_id in scheduled_ids]
+            self._append_dataset(self.scheduled_dset, scheduled_rows)
+            if sample_inputs is not None:
+                self._append_scheduled_inputs(sample_inputs)
 
     def append_successful(self, sample_ids: np.array, samples: np.array):
         """
@@ -429,15 +452,75 @@ class LevelGroup:
             dataset.resize(dataset.shape[0] + len(values), axis=0)
             dataset[-len(values):] = values
 
-    def scheduled(self):
+    def get_scheduled_ids(self):
         """
-        Read and return the scheduled dataset contents.
-
-        :return: numpy.ndarray of scheduled entries (structured dtype)
+        Read scheduled sample ids.
         """
         with FileSafe(self.file_name, 'r') as hdf_file:
             scheduled_dset = hdf_file[self.level_group_path][self.scheduled_dset]
-            return scheduled_dset[()]
+            return [
+                sample["sample_id"].decode()
+                for sample in scheduled_dset[()]
+            ]
+
+    @staticmethod
+    def _split_scheduled_samples(scheduled_samples):
+        """
+        Split scheduled samples into sample ids and optional input values.
+
+        """
+        if isinstance(scheduled_samples[0], str):
+            assert all(isinstance(sample, str) for sample in scheduled_samples), \
+                "Scheduled samples must either all include inputs or all be ids."
+            return list(scheduled_samples), None
+
+        sample_ids, sample_inputs = zip(*scheduled_samples)
+
+        input_arrays = [np.asarray(sample_input) for sample_input in sample_inputs]
+        input_shape = input_arrays[0].shape
+        for input_array in input_arrays:
+            assert input_array.shape == input_shape, \
+                "Scheduled sample input shape must be constant within a level."
+
+        return sample_ids, np.stack(input_arrays)
+
+    def _append_scheduled_inputs(self, sample_inputs):
+        """
+        Append sample inputs to the parallel scheduled_inputs dataset.
+        """
+        with h5py.File(self.file_name, 'a') as hdf_file:
+            level_group = hdf_file[self.level_group_path]
+            if self.scheduled_inputs_dset not in level_group:
+                level_group.create_dataset(
+                    self.scheduled_inputs_dset,
+                    shape=(0,) + sample_inputs.shape[1:],
+                    maxshape=(None,) + sample_inputs.shape[1:],
+                    dtype=sample_inputs.dtype,
+                    chunks=True,
+                )
+
+            dataset = level_group[self.scheduled_inputs_dset]
+            assert dataset.shape[1:] == sample_inputs.shape[1:], \
+                "Scheduled sample input shape must be constant within a level."
+            assert dataset.dtype == sample_inputs.dtype, \
+                "Scheduled sample input dtype must be constant within a level."
+            dataset.resize(dataset.shape[0] + len(sample_inputs), axis=0)
+            dataset[-len(sample_inputs):] = sample_inputs
+
+    def scheduled_samples(self):
+        """
+        Read scheduled samples with stored inputs when available.
+        """
+        scheduled_ids = self.get_scheduled_ids()
+        with FileSafe(self.file_name, 'r') as hdf_file:
+            level_group = hdf_file[self.level_group_path]
+            if self.scheduled_inputs_dset not in level_group:
+                return scheduled_ids
+
+            scheduled_inputs = level_group[self.scheduled_inputs_dset][()]
+            assert len(scheduled_ids) == len(scheduled_inputs), \
+                "Scheduled sample ids and inputs have inconsistent lengths."
+            return list(zip(scheduled_ids, scheduled_inputs))
 
     def chunks(self, n_samples=None):
         """
@@ -493,33 +576,51 @@ class LevelGroup:
         with h5py.File(self.file_name, 'r') as hdf_file:
             # Extract failed and successful rows and decode bytes to strings
             failed_rows = hdf_file[self.level_group_path][self.failed_dset][()]
-            failed_ids = [sample[0].decode() for sample in failed_rows] if len(failed_rows) > 0 else []
+            failed_ids = [sample["sample_id"].decode() for sample in failed_rows] if len(failed_rows) > 0 else []
 
             success_rows = hdf_file[self.level_group_path][self.collected_ids_dset][()]
-            successful_ids = [sample[0].decode() for sample in success_rows] if len(success_rows) > 0 else []
+            successful_ids = [sample["sample_id"].decode() for sample in success_rows] if len(success_rows) > 0 else []
 
             return np.concatenate((np.array(successful_ids), np.array(failed_ids)), axis=0)
 
-    def get_unfinished_ids(self):
+    def get_unfinished_samples(self):
         """
-        Compute unfinished sample ids = scheduled_ids  -  finished_ids.
+        Compute unfinished scheduled samples = scheduled samples - finished ids.
 
-        :return: list of unfinished sample id strings
+        :return: list of scheduled sample ids or (sample_id, sample_input) tuples
         """
-        scheduled_ids = [sample[0].decode() for sample in self.scheduled()]
-        finished_ids = list(self.get_finished_ids())
-        return list(set(scheduled_ids) - set(finished_ids))
+        return self._scheduled_samples_by_id(set(self.get_finished_ids()), include=False)
 
-    def get_failed_ids(self):
+    def get_failed_samples(self):
         """
-        Get list of failed sample ids for this level.
+        Get stored scheduled samples that have failed.
 
-        :return: list of failed sample id strings
+        :return: list of scheduled sample ids or (sample_id, sample_input) tuples
         """
         with h5py.File(self.file_name, 'r') as hdf_file:
             failed_rows = hdf_file[self.level_group_path][self.failed_dset][()]
-            failed_ids = [sample[0].decode() for sample in failed_rows] if len(failed_rows) > 0 else []
-        return failed_ids
+            failed_ids = {sample["sample_id"].decode() for sample in failed_rows}
+
+        failed_samples = self._scheduled_samples_by_id(failed_ids, include=True)
+        assert len(failed_samples) == len(failed_ids), \
+            "Some failed samples have no stored scheduled input."
+        return failed_samples
+
+    def _scheduled_samples_by_id(self, sample_ids, include):
+        """
+        Filter scheduled samples by sample id membership.
+        """
+        scheduled_samples = self.scheduled_samples()
+        if not scheduled_samples or isinstance(scheduled_samples[0], str):
+            scheduled_ids = scheduled_samples
+        else:
+            scheduled_ids = self.get_scheduled_ids()
+
+        return [
+            scheduled_sample
+            for scheduled_id, scheduled_sample in zip(scheduled_ids, scheduled_samples)
+            if (scheduled_id in sample_ids) == include
+        ]
 
     def clear_failed_dataset(self):
         """

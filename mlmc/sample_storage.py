@@ -2,6 +2,7 @@ import itertools
 import numpy as np
 from abc import ABCMeta, abstractmethod
 from typing import List, Dict, Any, Generator, Optional, Tuple
+from mlmc.level_simulation import LevelSimulation, SampleInput
 from mlmc.quantity.quantity_spec import QuantitySpec, ChunkSpec
 
 
@@ -44,16 +45,22 @@ class SampleStorage(metaclass=ABCMeta):
     @abstractmethod
     def save_scheduled_samples(self, level_id, samples):
         """
-        Save scheduled sample identifiers.
+        Save scheduled samples.
+
+        Scheduled samples may be plain sample-id strings from legacy callers or
+        ``(sample_id, sample_input)`` tuples prepared by
+        ``LevelSimulation.prepare_samples()``.
+
         :param level_id: int
-        :param samples: List[str]
+        :param samples: List[str | SampleInput]
         """
 
     @abstractmethod
-    def load_scheduled_samples(self) -> Dict[int, List[str]]:
+    def load_scheduled_samples(self) -> Dict[int, List[SampleInput]]:
         """
-        Load scheduled sample IDs.
-        :return: Dict[level_id, List[sample_id]]
+        Load scheduled samples.
+
+        :return: Dict[level_id, List[SampleInput]]
         """
 
     @abstractmethod
@@ -107,9 +114,43 @@ class SampleStorage(metaclass=ABCMeta):
     @abstractmethod
     def unfinished_ids(self):
         """
-        Get IDs of unfinished samples.
-        :return: List[str]
+        Get unfinished scheduled samples.
+
+        :return: List[SampleInput]
         """
+
+    def failed_samples(self):
+        """
+        Get failed scheduled samples by level.
+
+        :return: Dict[level_id, List[SampleInput]]
+        """
+        return {}
+
+    def clear_failed(self):
+        """
+        Clear failed sample records.
+        """
+        return None
+
+    @staticmethod
+    def make_default_sample_input(sample_id: str) -> SampleInput:
+        """
+        Return the default seed-based sample input for a legacy sample id.
+        """
+        return sample_id, LevelSimulation.compute_seed(sample_id)
+
+    @staticmethod
+    def coerce_sample_input(scheduled_sample) -> SampleInput:
+        """
+        Convert legacy id-only samples to SampleInput and preserve stored input values.
+        """
+        if isinstance(scheduled_sample, str):
+            return SampleStorage.make_default_sample_input(scheduled_sample)
+        sample_id, sample_input = scheduled_sample
+        if isinstance(sample_input, np.generic):
+            sample_input = sample_input.item()
+        return sample_id, sample_input
 
     @abstractmethod
     def get_level_ids(self):
@@ -240,9 +281,10 @@ class Memory(SampleStorage):
 
     def save_scheduled_samples(self, level_id, samples):
         """
-        Save scheduled sample ids
+        Save scheduled samples.
+
         :param level_id: int
-        :param samples: List[str]
+        :param samples: List[str | SampleInput]
         :return: None
         """
         self._scheduled.setdefault(level_id, []).extend(samples)

@@ -9,7 +9,7 @@ import traceback
 from abc import ABC, abstractmethod
 from multiprocessing import Pool as ProcPool
 from multiprocessing import pool
-from mlmc.level_simulation import LevelSimulation
+from mlmc.level_simulation import LevelSimulation, SampleInput
 
 
 class SamplingPool(ABC):
@@ -59,17 +59,18 @@ class SamplingPool(ABC):
     # --- Abstract methods to be implemented by subclasses ---
 
     @abstractmethod
-    def schedule_sample(self, sample_id: str, level_sim: LevelSimulation):
+    def schedule_sample(self, sample_input: SampleInput, level_sim: LevelSimulation):
         """
         Schedule a simulation sample for execution.
 
-        :param sample_id: Unique sample identifier.
+        :param sample_input: Tuple ``(sample_id, input_value)`` prepared by
+            ``LevelSimulation.prepare_samples()``.
         :param level_sim: LevelSimulation instance.
         :return: Tuple[str, List]
         """
 
     @abstractmethod
-    def have_permanent_samples(self, sample_ids: List[str]) -> bool:
+    def have_permanent_samples(self, sample_inputs: List[Any]) -> bool:
         """
         Inform the pool about samples that have been scheduled but not yet finished.
         """
@@ -96,7 +97,7 @@ class SamplingPool(ABC):
         return LevelSimulation.compute_seed(sample_id)
 
     @staticmethod
-    def calculate_sample(sample_input, level_sim: LevelSimulation,
+    def calculate_sample(sample_input: SampleInput, level_sim: LevelSimulation,
                          work_dir: Optional[str] = None) -> Tuple[str, Any, str, float]:
         """
         Execute a single simulation sample.
@@ -276,14 +277,14 @@ class OneProcessPool(SamplingPool):
         self._n_running = 0  # Tracks number of currently running samples
         self.times = {}  # Stores total runtime and count per level
 
-    def schedule_sample(self, sample_id, level_sim):
+    def schedule_sample(self, sample_input: SampleInput, level_sim):
         """
         Execute a single sample synchronously (in the current process).
 
         Parameters
         ----------
-        sample_id : int
-            Identifier of the sample.
+        sample_input
+            Tuple ``(sample_id, input_value)`` prepared by LevelSimulation.
         level_sim : LevelSimulation
             Simulation instance containing configuration for the sample.
         """
@@ -291,7 +292,7 @@ class OneProcessPool(SamplingPool):
 
         # Run the sample and collect result, error message, and runtime
         sample_id, result, err_msg, running_time = SamplingPool.calculate_sample(
-            sample_id, level_sim, work_dir=self._output_dir
+            sample_input, level_sim, work_dir=self._output_dir
         )
 
         # Process result (successful or failed)
@@ -355,14 +356,14 @@ class OneProcessPool(SamplingPool):
             self.times[level_id][0] += running_time  # Accumulate total runtime
             self.times[level_id][1] += 1  # Increment sample count
 
-    def have_permanent_samples(self, sample_ids):
+    def have_permanent_samples(self, sample_inputs):
         """
         Return False, indicating that no samples are stored permanently.
 
         Parameters
         ----------
-        sample_ids : list
-            List of sample identifiers (ignored).
+        sample_inputs : list
+            List of scheduled sample inputs (ignored).
 
         Returns
         -------
@@ -457,14 +458,14 @@ class ProcessPool(OneProcessPool):
         """
         self._process_result(*result, level_sim)
 
-    def schedule_sample(self, sample_id, level_sim):
+    def schedule_sample(self, sample_input: SampleInput, level_sim):
         """
         Schedule a sample for parallel execution in a separate process.
 
         Parameters
         ----------
-        sample_id : int
-            Sample identifier.
+        sample_input
+            Tuple ``(sample_id, input_value)`` prepared by LevelSimulation.
         level_sim : LevelSimulation
             Simulation configuration instance.
         """
@@ -473,7 +474,7 @@ class ProcessPool(OneProcessPool):
         # Submit task asynchronously to process pool
         self._pool.apply_async(
             SamplingPool.calculate_sample,
-            args=(sample_id, level_sim, self._output_dir),
+            args=(sample_input, level_sim, self._output_dir),
             callback=lambda res: self.res_callback(res, level_sim),
             error_callback=lambda res: self.res_callback(res, level_sim)
         )

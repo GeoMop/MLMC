@@ -30,6 +30,10 @@ There are three sections:
   - prefere high level code: numpy, pandas, xarray instead loops and native python sturctures (lists, dicts)
     For the sake of both speed and less code
   - Avoid branching and nested branching in particular. Use polymophism and duck typing o
+  - Avoid introducing simple module or class functions that are used only once.
+    If a small helper is needed only inside one expression or method, prefer a
+    local `def` or `lambda`. Use a private `_*` helper only when it is reused or
+    when keeping it separate clearly simplifies the surrounding code.
   
 ### Antipaterns
   - Do not index tuple. To access tuple items, assign it to named local variables. That documents tuple components.

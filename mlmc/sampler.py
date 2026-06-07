@@ -1,6 +1,7 @@
 import time
 import numpy as np
 from typing import List
+from mlmc.level_simulation import SampleInput
 from mlmc.sample_storage import SampleStorage
 from mlmc.sampling_pool import SamplingPool
 from mlmc.sim.simulation import Simulation
@@ -179,11 +180,11 @@ class Sampler:
                 self._n_scheduled_samples[level_id] += 1
                 samples.append(sample_id)
 
-            scheduled_samples = level_sim.prepare_samples(samples)
+            scheduled_samples: List[SampleInput] = level_sim.prepare_samples(samples)
             for sample in scheduled_samples:
                 self._sampling_pool.schedule_sample(sample, level_sim)
 
-            self.sample_storage.save_scheduled_samples(level_id, samples)
+            self.sample_storage.save_scheduled_samples(level_id, scheduled_samples)
 
     def _check_failed_samples(self):
         """
@@ -321,11 +322,10 @@ class Sampler:
         """
         failed_samples = self.sample_storage.failed_samples()
 
-        for level_id, sample_ids in failed_samples.items():
+        for level_id, samples_to_reschedule in failed_samples.items():
             level_id = int(level_id)
             level_sim = self._level_sim_objects[level_id]
-            scheduled_samples = level_sim.prepare_samples(sample_ids)
-            for sample in scheduled_samples:
+            for sample in samples_to_reschedule:
                 self._sampling_pool.schedule_sample(sample, level_sim)
 
         # Clear failed sample records after rescheduling
