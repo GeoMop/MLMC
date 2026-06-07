@@ -28,13 +28,15 @@ class SamplingPool(ABC):
         """
         Initialize the sampling pool environment.
 
-        :param work_dir: Path to the working directory where outputs are stored.
+        :param work_dir: Path to an existing working directory where outputs are
+            stored. If omitted, the current working directory is used.
         :param debug: If True, keep sample directories for debugging.
         """
-        self._output_dir = None
-        if work_dir is not None:
-            work_dir = os.path.abspath(work_dir)
-            self._output_dir = os.path.join(work_dir, "output")
+        work_dir = os.getcwd() if work_dir is None else os.path.abspath(work_dir)
+        if not os.path.isdir(work_dir):
+            raise FileNotFoundError("SamplingPool work_dir does not exist: {}".format(work_dir))
+
+        self._output_dir = os.path.join(work_dir, "output")
         self._debug = debug
 
         # Prepare main output, failed, and successful directories.
@@ -48,13 +50,11 @@ class SamplingPool(ABC):
 
         In debug mode, existing directories are preserved.
         """
-        if self._output_dir is not None:
-            directory = os.path.join(self._output_dir, directory)
-            if os.path.exists(directory) and not self._debug:
-                shutil.rmtree(directory)
-            os.makedirs(directory, mode=0o775, exist_ok=True)
-            return directory
-        return None
+        directory = os.path.join(self._output_dir, directory)
+        if os.path.exists(directory) and not self._debug:
+            shutil.rmtree(directory)
+        os.makedirs(directory, mode=0o775, exist_ok=True)
+        return directory
 
     # --- Abstract methods to be implemented by subclasses ---
 
@@ -289,10 +289,6 @@ class OneProcessPool(SamplingPool):
         """
         self._n_running += 1  # Increment running sample counter
 
-        # Set output directory if required by simulation
-        if self._output_dir is None and level_sim.need_sample_workspace:
-            self._output_dir = os.getcwd()
-
         # Run the sample and collect result, error message, and runtime
         sample_id, result, err_msg, running_time = SamplingPool.calculate_sample(
             sample_id, level_sim, work_dir=self._output_dir
@@ -445,8 +441,8 @@ class ProcessPool(OneProcessPool):
         debug : bool, default=False
             If True, disables moving/removing sample outputs.
         """
-        self._pool = ProcPool(n_processes)  # Multiprocessing pool
         super().__init__(work_dir=work_dir, debug=debug)
+        self._pool = ProcPool(n_processes)  # Multiprocessing pool
 
     def res_callback(self, result, level_sim):
         """
@@ -473,10 +469,6 @@ class ProcessPool(OneProcessPool):
             Simulation configuration instance.
         """
         self._n_running += 1
-
-        # Set working directory for output files
-        if self._output_dir is None and level_sim.need_sample_workspace:
-            self._output_dir = os.getcwd()
 
         # Submit task asynchronously to process pool
         self._pool.apply_async(

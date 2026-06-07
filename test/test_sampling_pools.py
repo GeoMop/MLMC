@@ -91,3 +91,10 @@ def test_sampling_pools(sampling_pool, simulation_factory):
 
     if sampling_pool._debug:
         assert 'output' in next(os.walk(work_dir))[1]
+
+
+def test_sampling_pool_rejects_missing_work_dir(tmp_path):
+    missing_work_dir = tmp_path / "missing"
+
+    with pytest.raises(FileNotFoundError, match="SamplingPool work_dir does not exist"):
+        OneProcessPool(work_dir=str(missing_work_dir))

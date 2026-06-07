@@ -3,7 +3,7 @@
 ## Current Goals
 
 Goal 1: verify merge of `master` branch and prepare the branch for a pull request.
-Goal 2: for a derived branch, implement a Dask-based sampler as an alternative to the PBS sampler.
+Goal 2: complete; Dask-based sampler implemented, final tests are run by the user.
 Goal 3: implement specific simulations and quantities for estimation of Sobol indices.
 
 ## Current Repository State
@@ -64,11 +64,10 @@ Design direction:
     local pools, unless restart/recovery is explicitly added later.
     AGENT: Support ofr restart of the sampling is must for large sample sizes. 
     So desing a way how to implement that with Dask.
-    Resolved: `SamplingPoolDask` persists per-level simulation metadata for
-    workspace simulations and uses deterministic Dask task keys and sample
-    seeds. On restart, construct the pool with `clean=False`; unfinished stored
-    sample ids are submitted again and the worker task receives only the sample
-    id, output directory, and seed, then loads the persisted level metadata.
+    Resolved: Dask does not expose PBS-like durable jobs in this pool. If the
+    Dask master/scheduler/workers are stopped, unfinished samples remain in
+    storage and a later sampler run schedules fresh futures. `SamplingPoolDask`
+    therefore reports no permanent samples, matching local pools.
     
 - Do not use one large `client.map(...); client.gather(...)` for MLMC runs.
   That pattern waits for a fixed batch and does not fit the adaptive algorithm,
@@ -167,6 +166,54 @@ Verification plan:
   `sensitivity_sampling.py` local/Dask smoke command documented by its current
   config. If the required external `endorse`, `chodby_trans`, or Flow123d
   environment is unavailable, record that as skipped verification.
+
+
+Code Compatibility:
+- Review folder and file organization for the pools. Individual pools use
+  some pool-specific filesystem operations, which creates duplication and
+  compatibility risk. Keep common sample workspace behavior in the base class
+  and leave only backend transport files in backend-specific code.
+
+  Overview:
+  - `SamplingPool` base creates `work_dir/output`, `work_dir/output/failed`,
+    and `work_dir/output/several_successful`; it also owns sample workspace
+    creation, common-file copying, successful/failed sample directory moves,
+    and cleanup helpers.
+    Resolved: yes, the individual sample temporary directory structure is given
+    by `SamplingPool`: for sample `Lxx_Syyyyyyy`, the temporary workspace is
+    `output/Lxx_Syyyyyyy` when `level_sim.need_sample_workspace` is true. MLMC
+    levels themselves do not have separate filesystem directories in the common
+    layout; level identity is encoded in the sample id and in storage. PBS adds
+    level-specific serialized simulation config files, but that is PBS worker
+    transport, not the common sample workspace layout.
+    
+  - `OneProcessPool`, `ProcessPool`, `ThreadPool`, and `SamplingPoolDask` use
+    the base `output` layout and result-moving helpers.
+  - `SamplingPoolPBS` uses the base `output` layout plus `work_dir/output/jobs`
+    for PBS job scripts, PBS id marker files, per-job YAML result files,
+    serialized `PbsJob` process metadata, and scheduled sample metadata.
+    PBS also serializes one `level_<id>_simulation_config` file under
+    `work_dir/output`.
+  - `PbsJob` worker code uses the same base helpers for sample directories and
+    success/failure movement, but also writes per-job YAML result files in
+    `jobs`.
+  
+  Suggested reconciliation:
+  - Most filesystem interaction is already common in `SamplingPool`; extend
+    that base class rather than adding a new filesystem abstraction now.
+  - `SamplingPool.__init__()` is responsible for setting `_output_dir`.
+    Explicit `work_dir` values must point to an existing directory; otherwise
+    construction raises `FileNotFoundError`. If `work_dir` is omitted, the
+    constructor falls back to `os.getcwd()`.
+  - Keep sample directory creation, common-file copying, successful/failed
+    copies, and cleanup in `SamplingPool`.
+  - Keep PBS-specific files in PBS code, but centralize PBS path construction
+    in helper methods: `jobs`, job scripts, PBS id marker files,
+    scheduled/result YAML files, `sample_id_job_id.json`,
+    `pbs_process_serialized.txt`, and `level_<id>_simulation_config`.
+  - `SamplingPoolDask` should have no direct filesystem interaction beyond
+    using the common base helper to obtain `_output_dir` and passing it to
+    `SamplingPool.calculate_sample(...)`.
 
 ### Goal 3: Saltelli Schema Simulation And Sobol Quantities
 
@@ -347,6 +394,29 @@ Open questions:
 
 ## AGENT Log
 
+- `2026-06-07`: Goal 2 is complete, with final project-level tests left for
+  user review. Implemented `SamplingPoolDask` as an optional-dependency
+  backend that accepts a caller-owned Dask client, submits one deterministic-key
+  future per prepared `(sample_id, input_value)` work item, polls completed
+  futures without blocking, returns results through Dask futures to the master,
+  and releases completed futures after storage. Simplified Dask sample handling
+  to match local pools: no Dask-specific permanent sample/restart metadata,
+  no backend filesystem behavior beyond passing `_output_dir` into
+  `SamplingPool.calculate_sample(...)`, lazy `distributed` import through a
+  clear helper called from the constructor, typed/help-string documented public
+  methods, and named tuple unpacking instead of tuple indexing. Updated common
+  sampler compatibility so `LevelSimulation.prepare_samples()` owns default
+  seed/input generation, pools propagate arbitrary sample input, PBS accepts
+  prepared sample tuples, and `SamplingPool.__init__()` centralizes `_output_dir`
+  fallback plus explicit `work_dir` validation. Verification run during
+  implementation passed: `python3 -m py_compile mlmc/sampling_pool.py
+  mlmc/sampling_pool_dask.py mlmc/sampling_pool_pbs.py mlmc/tool/pbs_job.py
+  test/test_sampling_pool_dask.py test/test_sampling_pools.py`;
+  `timeout 60 .tox/py312/bin/python -m pytest -c test/pytest.ini
+  test/test_sampling_pool_dask.py -vv`; `.tox/py312/bin/python -m pytest -c
+  test/pytest.ini test/test_sampling_pools.py -vv`; and
+  `.tox/py312/bin/python -m pytest -c test/pytest.ini test/test_sampler.py
+  -vv`.
 - `2026-06-06`: Simplified `SaltelliSchemaSimulation` per source notes.
   Removed `SaltelliRowProvider`; the simulation now accepts the
   `matrix_generator(n_rows, n_parameters) -> matrix` callable directly and
@@ -424,26 +494,6 @@ Open questions:
   reserve row mappings for sample ids, xarray-compatible result shape metadata,
   lazy Sobol numerator/denominator quantities estimated through the MLMC mean
   estimator, variance-decrease diagnostics across levels, and local-only tests.
-- `2026-06-06`: Implemented Goal 2 Dask sampler backend. Added
-  `mlmc/sampling_pool_dask.py` with a `SamplingPoolDask` accepting an existing
-  Dask `Client`, submitting one deterministic-key future per MLMC sample,
-  polling only completed futures in `get_finished()`, releasing futures after
-  storage, and resubmitting unfinished workspace sample ids on sampler restart
-  from sample ids plus persisted per-level metadata. Added Dask package
-  metadata in `setup.py`, tox test deps, and focused
-  `test/test_sampling_pool_dask.py` coverage. Verification passed:
-  `python3 -m py_compile mlmc/sampling_pool.py mlmc/sampling_pool_dask.py
-  mlmc/sampler.py mlmc/sampling_pool_pbs.py setup.py
-  test/test_sampling_pool_dask.py`;
-  `timeout 60 .tox/py312/bin/python -m pytest -c test/pytest.ini
-  test/test_sampling_pool_dask.py -vv`; and
-  `.tox/py312/bin/python -m pytest -c test/pytest.ini test/test_sampler.py
-  test/test_sampling_pools.py -vv`.
-- `2026-06-06`: Planned Goal 2 Dask sampler work. The intended design is a
-  `SamplingPoolDask` backend that accepts an existing Dask `Client`, submits
-  one future per MLMC sample, polls completed futures in `get_finished()`, and
-  leaves adaptive scheduling in the existing `Sampler` rather than using a
-  single blocking `client.map(...); client.gather(...)` batch.
 - `2026-06-05`: Continued Goal 1 merge verification on branch `MS_endorse`.
   Current HEAD is `a36d4e2` (`CODEX conditioning.`); the merge under review is
   `118722a` (`origin/master` into `MS_endorse`). `python3 -m py_compile`

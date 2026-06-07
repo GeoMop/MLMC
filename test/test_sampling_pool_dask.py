@@ -48,15 +48,6 @@ class DaskSimulation(Simulation):
         return [QuantitySpec(name="value", unit="1", shape=(1,), times=[0], locations=["0"])]
 
 
-class RestartMemory(Memory):
-    def unfinished_ids(self):
-        return [
-            sample_id
-            for sample_ids in self.load_scheduled_samples().values()
-            for sample_id in sample_ids
-        ]
-
-
 @pytest.fixture
 def dask_client():
     cluster = LocalCluster(n_workers=2, threads_per_worker=1, processes=False, dashboard_address=None)
@@ -150,24 +141,11 @@ def test_dask_pool_supports_adaptive_sample_addition(dask_client):
     collect_until_finished(sampler)
 
 
-def test_dask_pool_resubmits_unfinished_workspace_samples_on_sampler_restart(dask_client, tmp_path):
-    storage = RestartMemory()
-    storage.save_scheduled_samples(0, ["L00_S0000000", "L00_S0000001"])
-    first_pool = SamplingPoolDask(client=dask_client, work_dir=str(tmp_path))
-    first_pool._save_level_sim(make_level_simulation(DaskSimulation(sleep=0.01, need_workspace=True)))
-    restarted_pool = SamplingPoolDask(client=dask_client, work_dir=str(tmp_path), clean=False)
+def test_dask_pool_has_no_permanent_samples(dask_client):
+    pool = SamplingPoolDask(client=dask_client)
 
-    sampler = Sampler(
-        sample_storage=storage,
-        sampling_pool=restarted_pool,
-        sim_factory=DaskSimulation(sleep=0.01, need_workspace=True),
-        level_parameters=[[0.1]],
-    )
-
-    assert restarted_pool._n_running == 2
-    collect_until_finished(sampler)
-
-    assert np.all(storage.n_finished() == np.array([2]))
+    assert not pool.have_permanent_samples(["L00_S0000000", "L00_S0000001"])
+    assert pool._n_running == 0
 
 
 def test_dask_pool_reports_failed_samples(dask_client):

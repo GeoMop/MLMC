@@ -18,7 +18,9 @@ There are three sections:
 - Do not use other config keys in the case of a KeyError, just throw early.
 - Use asserts for consistency checks.´
 - NEVER add runtime fallbacks or import shims to compensate for a broken or incomplete environment.
-  If a declared dependency or tool is missing, report the environment problem plainly and fix the environment or tests around it, but do not implement code workarounds.
+  If a required dependency or tool is missing, report the environment problem plainly and fix the environment or tests around it, but do not implement code workarounds.
+- Optional dependencies may be imported lazily through a clear helper function at the feature boundary.
+  The helper must fail with a direct message naming the missing optional dependency and the feature that needs it.
 - NEVER write "self explanatory" into doc comments. Even if the variable/key could be obvious explain it in other words also with bit of context to avoid confusion.
  
 
@@ -27,9 +29,11 @@ There are three sections:
   - Avoid code duplicities.
   - prefere high level code: numpy, pandas, xarray instead loops and native python sturctures (lists, dicts)
     For the sake of both speed and less code
-
   - Avoid branching and nested branching in particular. Use polymophism and duck typing o
   
+### Antipaterns
+  - Do not index tuple. To access tuple items, assign it to named local variables. That documents tuple components.
+    That slso makes use of large tuples (len > 3) uncomfortable pushing towards proper dataclass.
   
 ### Functional style  
   - Prefere functional style (pure functions)

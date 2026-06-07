@@ -13,7 +13,7 @@ warnings.simplefilter("ignore", ReusedAnchorWarning)
 
 class PbsJob:
     SCHEDULED = "{}_scheduled.yaml"
-    # Store scheduled samples as List[(level_sim._level_id, sample_id, seed)]
+    # Store scheduled samples as List[(level_sim._level_id, sample_id, input_value)]
     SUCCESSFUL_RESULTS = "{}_successful_results.yaml"
     # Simulation results as Dict[level_id, List[Tuple[sample_id, (fine result, coarse result)]]]
     FAILED_RESULTS = "{}_failed_results.yaml"
@@ -134,19 +134,19 @@ class PbsJob:
             l_sim = pickle.load(reader)
             self._level_simulations[l_sim._level_id] = l_sim
 
-    def _get_level_id_sample_id_seed(self):
+    def _get_level_id_sample_id_input(self):
         """
         Read scheduled samples list for this job.
 
-        The scheduled YAML file contains a list of tuples (level_id, sample_id, seed).
+        The scheduled YAML file contains a list of tuples (level_id, sample_id, input_value).
 
-        :return: Sorted list of tuples [(level_id, sample_id, seed), ...] sorted by level_id ascending
+        :return: Sorted list of tuples [(level_id, sample_id, input_value), ...] sorted by level_id ascending
         """
         with open(os.path.join(self._jobs_dir, PbsJob.SCHEDULED.format(self._job_id))) as file:
-            level_id_sample_id_seed = yaml.load(file, yaml.Loader)
+            level_id_sample_id_input = yaml.load(file, yaml.Loader)
 
-        level_id_sample_id_seed.sort(key=lambda tup: tup[0])
-        return level_id_sample_id_seed
+        level_id_sample_id_input.sort(key=lambda tup: tup[0])
+        return level_id_sample_id_input
 
     def calculate_samples(self):
         """
@@ -165,8 +165,8 @@ class PbsJob:
         self._failed_file = os.path.join(self._jobs_dir, PbsJob.FAILED_RESULTS.format(self._job_id))
         self._times_file = os.path.join(self._jobs_dir, PbsJob.TIME.format(self._job_id))
 
-        # List of Tuple[level id, sample id, random seed]
-        level_id_sample_id_seed = self._get_level_id_sample_id_seed()
+        # List of Tuple[level id, sample id, sample input]
+        level_id_sample_id_input = self._get_level_id_sample_id_input()
 
         failed = []
         success = []
@@ -178,7 +178,7 @@ class PbsJob:
         n_times = 0
         successful_dest_dir = os.path.join(self._output_dir, SamplingPool.SEVERAL_SUCCESSFUL_DIR)
 
-        for level_id, sample_id, seed in level_id_sample_id_seed:
+        for level_id, sample_id, input_value in level_id_sample_id_input:
             start_time = time.time()
             # Deserialize level simulation config if not loaded
             if level_id not in self._level_simulations:
@@ -196,7 +196,9 @@ class PbsJob:
             assert level_sim._level_id == current_level
 
             # Calculate sample (may create sample working dir, call external tools)
-            _, res, err_msg, _ = SamplingPool.calculate_sample((sample_id, seed), level_sim, work_dir=self._output_dir)
+            _, res, err_msg, _ = SamplingPool.calculate_sample(
+                (sample_id, input_value), level_sim, work_dir=self._output_dir
+            )
 
             if not err_msg:
                 success.append((current_level, sample_id, (res[0], res[1])))
@@ -348,8 +350,8 @@ class PbsJob:
                     time.setdefault(level_id, []).append((n_samples, t))
 
         # Mark any scheduled-but-not-recorded samples as failed ("job failed")
-        level_id_sample_id_seed = PbsJob.get_scheduled_sample_ids(job_id, jobs_dir)
-        for level_id, sample_id, _ in level_id_sample_id_seed:
+        level_id_sample_id_input = PbsJob.get_scheduled_sample_ids(job_id, jobs_dir)
+        for level_id, sample_id, _ in level_id_sample_id_input:
             successfull_ids = [s[0] for s in successful.get(level_id, [])]
             failed_ids = [f[0] for f in failed.get(level_id, [])]
             if sample_id not in failed_ids and sample_id not in successfull_ids:
@@ -360,16 +362,16 @@ class PbsJob:
     @staticmethod
     def get_scheduled_sample_ids(job_id, jobs_dir):
         """
-        Read the scheduled YAML file and return the list of scheduled (level_id, sample_id, seed) tuples.
+        Read the scheduled YAML file and return scheduled (level_id, sample_id, input_value) tuples.
 
         :param job_id: str
         :param jobs_dir: str
-        :return: list of tuples (level_id, sample_id, seed)
+        :return: list of tuples (level_id, sample_id, input_value)
         """
         with open(os.path.join(jobs_dir, PbsJob.SCHEDULED.format(job_id))) as file:
-            level_id_sample_id_seed = yaml.load(file, yaml.Loader)
+            level_id_sample_id_input = yaml.load(file, yaml.Loader)
 
-        return level_id_sample_id_seed
+        return level_id_sample_id_input
 
     def write_pbs_id(self, pbs_job_id):
         """
@@ -387,7 +389,7 @@ class PbsJob:
         """
         Store scheduled samples list into the jobs folder.
 
-        :param scheduled: list of tuples (level_id, sample_id, seed) or similar structure
+        :param scheduled: list of tuples (level_id, sample_id, input_value) or similar structure
         :return: None
         """
         try:

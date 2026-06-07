@@ -1,16 +1,25 @@
-import os
-import pickle
 import traceback
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 from mlmc.sampling_pool import OneProcessPool, SamplingPool
+from mlmc.level_simulation import LevelSimulation
 
-try:
-    from distributed import fire_and_forget
-except ImportError as exc:
-    raise ImportError(
-        "SamplingPoolDask requires the optional Dask dependency. "
-        "Install MLMC with the 'dask' extra or install 'dask' and 'distributed'."
-    ) from exc
+
+SampleInput = Tuple[str, Any]
+
+
+def import_distributed() -> Any:
+    """
+    Import and return the optional ``distributed`` module.
+    """
+    try:
+        import distributed
+    except ImportError as exc:
+        raise ImportError(
+            "SamplingPoolDask requires the optional Dask dependency. "
+            "Install MLMC with the 'dask' extra or install 'dask' and 'distributed'."
+        ) from exc
+    return distributed
 
 
 class SamplingPoolDask(OneProcessPool):
@@ -19,13 +28,15 @@ class SamplingPoolDask(OneProcessPool):
 
     The caller owns the Dask client and passes it to the constructor. Samples are
     submitted one by one so the existing MLMC Sampler can adapt target sample
-    counts while older futures are still running.
+    counts while older futures are still running. Scheduled samples are
+    propagated as ``(sample_id, sample_input)`` tuples produced by
+    ``LevelSimulation.prepare_samples()``.
     """
 
     FUTURE_KEY_PREFIX = "mlmc-sample"
-    LEVEL_SIM_CONFIG = "level_{}_simulation_config"
 
-    def __init__(self, client, work_dir=None, debug=False, clean=True, submit_kwargs=None):
+    def __init__(self, client: Any, work_dir: Optional[str] = None, debug: bool = False,
+                 clean: bool = True, submit_kwargs: Optional[Dict[str, Any]] = None):
         """
         Initialize the pool with an existing Dask client.
 
@@ -38,35 +49,38 @@ class SamplingPoolDask(OneProcessPool):
         debug : bool, default=False
             If True, keeps sample directories.
         clean : bool, default=True
-            If False, preserves an existing output directory on construction.
-            Use this when restarting unfinished workspace samples.
+            If False, preserves an existing output directory on construction;
+            kept for constructor compatibility with previous Dask pool versions.
         submit_kwargs : dict, optional
             Extra keyword arguments passed to client.submit().
         """
         super().__init__(work_dir=work_dir, debug=debug or not clean)
-        self._debug = debug
+        self._distributed = import_distributed()
         self._client = client
         self._submit_kwargs = {} if submit_kwargs is None else dict(submit_kwargs)
-        self._future_to_task = {}
-        self._sample_to_future = {}
+        self._sample_to_future: Dict[str, Tuple[Any, LevelSimulation]] = {}
 
-    def schedule_sample(self, sample_input, level_sim):
+    def schedule_sample(self, sample_input: SampleInput, level_sim: LevelSimulation) -> None:
         """
         Submit one sample to Dask.
 
-        Dask task keys are deterministic in the MLMC sample id. This gives a
-        restarted master a chance to reconnect to scheduler-known tasks; if that
-        is not possible, submitting the same sample id recomputes the same result
-        because seeding is deterministic.
+        Parameters
+        ----------
+        sample_input
+            Tuple ``(sample_id, input_value)`` prepared on the master.
+        level_sim
+            Level simulation containing config, result format, and calculate
+            callable.
+
+        Notes
+        -----
+        Dask task keys are deterministic in ``sample_id``. The submitted worker
+        task receives ``sample_input`` unchanged.
         """
-        sample_id = sample_input[0]
+        sample_id, _input_value = sample_input
         if sample_id in self._sample_to_future:
             return
 
-        if self._output_dir is None and level_sim.need_sample_workspace:
-            self._output_dir = os.getcwd()
-
-        self._save_level_sim(level_sim)
         future = self._client.submit(
             SamplingPool.calculate_sample,
             sample_input,
@@ -76,40 +90,34 @@ class SamplingPoolDask(OneProcessPool):
             pure=True,
             **self._submit_kwargs
         )
-        fire_and_forget(future)
-        self._future_to_task[future] = (sample_id, level_sim)
-        self._sample_to_future[sample_id] = future
+        self._distributed.fire_and_forget(future)
+        self._sample_to_future[sample_id] = (future, level_sim)
         self._n_running += 1
 
-    def have_permanent_samples(self, sample_ids):
+    def have_permanent_samples(self, sample_ids: Iterable[Any]) -> bool:
         """
-        Reconnect or resubmit samples scheduled before a master restart.
+        Return whether the Dask pool has permanent samples to reconnect.
 
-        Dask does not provide PBS-like durable result files. Recovery is therefore
-        based on workspace simulations, persisted per-level simulation metadata,
-        and deterministic sample seeds. The restarted worker task receives a
-        sample id and first re-enters the existing sample workspace.
+        Dask tasks are not PBS-like durable jobs in this implementation. If the
+        Dask scheduler/workers are stopped with the master, unfinished sample
+        ids remain in storage and must be scheduled again by a new sampler run.
         """
-        if not sample_ids:
-            return False
-        if self._output_dir is None:
-            return False
+        return False
 
-        for sample_id in sample_ids:
-            self._submit_permanent_sample(sample_id)
-        return True
+    def get_finished(self) -> Tuple[Dict[int, list], Dict[int, list], int, list]:
+        """
+        Collect completed Dask futures without blocking.
 
-    def get_finished(self):
+        Returns the same tuple shape as ``OneProcessPool.get_finished()``:
+        successful samples, failed samples, running count, and runtime stats.
         """
-        Collect only futures that have already completed.
-        """
-        completed_futures = [
-            future for future in list(self._future_to_task)
+        completed_items = [
+            (sample_id, future, level_sim)
+            for sample_id, (future, level_sim) in list(self._sample_to_future.items())
             if self._future_done(future)
         ]
 
-        for future in completed_futures:
-            sample_id, level_sim = self._future_to_task.pop(future)
+        for sample_id, future, level_sim in completed_items:
             self._sample_to_future.pop(sample_id, None)
             result = self._future_result(future, sample_id)
             self._process_result(*result, level_sim)
@@ -118,75 +126,28 @@ class SamplingPoolDask(OneProcessPool):
         return super().get_finished()
 
     @classmethod
-    def _future_key(cls, sample_id):
+    def _future_key(cls, sample_id: str) -> str:
+        """
+        Return a deterministic Dask task key for one MLMC sample id.
+        """
         return "{}-{}".format(cls.FUTURE_KEY_PREFIX, sample_id)
 
     @staticmethod
-    def _future_done(future):
+    def _future_done(future: Any) -> bool:
+        """
+        Return whether a Dask future is finished or failed.
+        """
         if hasattr(future, "done"):
             return future.done()
         return getattr(future, "status", None) in {"finished", "error"}
 
     @staticmethod
-    def _future_result(future, sample_id):
+    def _future_result(future: Any, sample_id: str) -> Tuple[str, Any, str, float]:
+        """
+        Return a worker result tuple, converting escaped Dask errors to failures.
+        """
         try:
             return future.result()
         except Exception:
             err_msg = traceback.format_exc()
             return sample_id, (None, None), err_msg, 0.0
-
-    @staticmethod
-    def _level_id_from_sample_id(sample_id):
-        try:
-            return int(str(sample_id).split("_", 1)[0][1:])
-        except (IndexError, TypeError, ValueError) as exc:
-            raise ValueError("Cannot determine level id from sample id {!r}".format(sample_id)) from exc
-
-    def _save_level_sim(self, level_sim):
-        if self._output_dir is None or not level_sim.need_sample_workspace:
-            return
-
-        file_path = self._level_sim_file(level_sim._level_id)
-        if os.path.exists(file_path):
-            return
-
-        with open(file_path, "wb") as level_sim_file:
-            pickle.dump(level_sim, level_sim_file)
-
-    def _submit_permanent_sample(self, sample_id):
-        if sample_id in self._sample_to_future:
-            return
-
-        seed = SamplingPool.compute_seed(sample_id)
-        level_sim = self._load_level_sim(sample_id)
-        future = self._client.submit(
-            _calculate_permanent_sample,
-            sample_id,
-            self._output_dir,
-            seed,
-            key=self._future_key(sample_id),
-            pure=True,
-            **self._submit_kwargs
-        )
-        fire_and_forget(future)
-        self._future_to_task[future] = (sample_id, level_sim)
-        self._sample_to_future[sample_id] = future
-        self._n_running += 1
-
-    def _load_level_sim(self, sample_id):
-        level_id = self._level_id_from_sample_id(sample_id)
-        file_path = self._level_sim_file(level_id)
-        with open(file_path, "rb") as level_sim_file:
-            return pickle.load(level_sim_file)
-
-    def _level_sim_file(self, level_id):
-        return os.path.join(self._output_dir, self.LEVEL_SIM_CONFIG.format(level_id))
-
-
-def _calculate_permanent_sample(sample_id, output_dir, seed):
-    level_id = SamplingPoolDask._level_id_from_sample_id(sample_id)
-    level_sim_file = os.path.join(output_dir, SamplingPoolDask.LEVEL_SIM_CONFIG.format(level_id))
-    with open(level_sim_file, "rb") as level_sim_config:
-        level_sim = pickle.load(level_sim_config)
-
-    return SamplingPool.calculate_sample((sample_id, seed), level_sim, output_dir)

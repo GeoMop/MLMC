@@ -19,8 +19,7 @@ SamplingPoolPBS description
 
     schedule_sample(sample_id, level_sim)
         - serialize level_sim (mlmc/level_simulation.py), pickle is used
-        - compute random seed from sample_id
-        - add (level_sim._level_id, sample_id, seed) to job's scheduled samples 
+        - add (level_sim._level_id, sample_id, input_value) to job's scheduled samples
         - add job weight, increment number of samples in job and execute if job_weight is exceeded
 
     execute()
@@ -189,17 +188,17 @@ class SamplingPoolPBS(SamplingPool):
                                           '{pbs_output_dir}/{job_name}_STDOUT 2>&1',))
         self._pbs_config = kwargs
 
-    def schedule_sample(self, sample_id, level_sim):
+    def schedule_sample(self, sample_input, level_sim):
         """
         Add sample to current PBS package
-        :param sample_id: unique sample id from Sampler
+        :param sample_input: tuple (sample_id, input_value) prepared by LevelSimulation
         :param level_sim: LevelSimulation instance
         :return: None
         """
         self.serialize_level_sim(level_sim)
 
-        seed = self.compute_seed(sample_id)
-        self._scheduled.append((level_sim._level_id, sample_id, seed))
+        sample_id, input_value = sample_input
+        self._scheduled.append((level_sim._level_id, sample_id, input_value))
 
         self._n_samples_in_job += 1
         self._current_job_weight += level_sim.task_size
@@ -566,9 +565,9 @@ class SamplingPoolPBS(SamplingPool):
             # for level_id, results in coarse_flow.items():
             #     coarse_flow_times[level_id] = [np.sum(results, axis=0)[0], results[-1][1]]
 
-            level_id_sample_id_seed = PbsJob.get_scheduled_sample_ids(job_id, self._jobs_dir)
+            level_id_sample_id_input = PbsJob.get_scheduled_sample_ids(job_id, self._jobs_dir)
 
-            for level_id, sample_id, _ in level_id_sample_id_seed:
+            for level_id, sample_id, _ in level_id_sample_id_input:
                 already_collected.add(sample_id)
 
             # Delete pbsID file - it means job is finished
