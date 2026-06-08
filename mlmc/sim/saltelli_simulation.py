@@ -1,76 +1,12 @@
 from typing import Callable, List
 
-import attr
 import numpy as np
 
 from mlmc.level_simulation import LevelSimulation
+from mlmc.quantity.sobol import SaltelliSchema
 from mlmc.quantity.quantity_spec import QuantitySpec
 from mlmc.sim.simulation import Simulation
 
-
-@attr.s(auto_attribs=True)
-class SaltelliSchema:
-    """
-    Indexing schema for Saltelli A, AB_i, BA_i, B terms.
-
-    Parameters
-    ----------
-    n_parameters : int
-        Number of uncertain input parameters.
-
-    Notes
-    -----
-    The primary representation is ``a_mask``.  For a term ``i_term`` and
-    parameter ``i_param``, ``a_mask[i_term, i_param] == True`` means the
-    Saltelli term uses the value from matrix A; ``False`` means it uses matrix B.
-    The term order is:
-    ``A0, AB[0], ..., AB[N-1], BA[0], ..., BA[N-1], B0``.
-    """
-
-    n_parameters: int
-
-    @property
-    def n_terms(self):
-        return 2 * (self.n_parameters + 1)
-
-    @property
-    def a_mask(self):
-        mask = np.zeros((self.n_terms, self.n_parameters), dtype=bool)
-        mask[0, :] = True
-        for i_param in range(self.n_parameters):
-            mask[1 + i_param, :] = True
-            mask[1 + i_param, i_param] = False
-            mask[1 + self.n_parameters + i_param, i_param] = True
-        return mask
-
-    @property
-    def labels(self):
-        return (
-            ["A0"]
-            + ["AB[{}]".format(i) for i in range(self.n_parameters)]
-            + ["BA[{}]".format(i) for i in range(self.n_parameters)]
-            + ["B0"]
-        )
-
-    def terms(self, a_row, b_row):
-        """
-        Build all Saltelli term input vectors for one A/B row pair.
-
-        Parameters
-        ----------
-        a_row, b_row : array-like, shape (n_parameters,)
-            Parameter vectors from matrices A and B.
-
-        Returns
-        -------
-        np.ndarray
-            Array of shape ``(2 * (n_parameters + 1), n_parameters)`` in the
-            schema term order.
-        """
-        a_row = np.asarray(a_row)
-        b_row = np.asarray(b_row)
-        assert a_row.shape == b_row.shape == (self.n_parameters,)
-        return np.where(self.a_mask, a_row[None, :], b_row[None, :])
 
 class SaltelliSchemaSimulation(Simulation):
     """
@@ -102,7 +38,7 @@ class SaltelliSchemaSimulation(Simulation):
                  n_parameters: int):
         self.forward_simulation = forward_simulation
         self.matrix_generator = matrix_generator
-        self.schema = SaltelliSchema(n_parameters=n_parameters)
+        self.schema = SaltelliSchema.make(n_parameters=n_parameters)
         self.need_workspace = getattr(forward_simulation, "need_workspace", False)
 
     def level_instance(self, fine_level_params: List[float], coarse_level_params: List[float]) -> LevelSimulation:

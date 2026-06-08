@@ -41,6 +41,8 @@ class SampleStorage(metaclass=ABCMeta):
         :param result_format: List[QuantitySpec]
         :param level_parameters: Optional metadata per level
         """
+        # TODO 2.x: pass QuantitySpec/result format at storage construction time,
+        # since stored sample format is immutable after the first persisted sample.
 
     @abstractmethod
     def save_scheduled_samples(self, level_id, samples):

@@ -22,7 +22,6 @@ There are three sections:
 - Optional dependencies may be imported lazily through a clear helper function at the feature boundary.
   The helper must fail with a direct message naming the missing optional dependency and the feature that needs it.
 - NEVER write "self explanatory" into doc comments. Even if the variable/key could be obvious explain it in other words also with bit of context to avoid confusion.
- 
 
 ### Best code, is no code!** 
   - Suggest refactoring (even breaking backward compatibility) that would reduce the size or complexity of the code base. 
@@ -34,6 +33,8 @@ There are three sections:
     If a small helper is needed only inside one expression or method, prefer a
     local `def` or `lambda`. Use a private `_*` helper only when it is reused or
     when keeping it separate clearly simplifies the surrounding code.
+  - Do not constrain the implementation by the tests at early stages of implementation. 
+    Rather be open to radical rafactoring and rewrite of the tests. 
   
 ### Antipaterns
   - Do not index tuple. To access tuple items, assign it to named local variables. That documents tuple components.
@@ -43,6 +44,9 @@ There are three sections:
   - Prefere functional style (pure functions)
   - idealy do not change objects after construction, methods only do calculations, reading the data in the class (and other passed arguments)
 
+### Documentation
+  - Create doc strings for created public classes, functions, methods. 
+  - Document goals of each pytest testfunction
   
 ### Prefered libraries
 - use logging

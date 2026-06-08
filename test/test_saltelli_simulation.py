@@ -6,7 +6,8 @@ from mlmc.sample_storage import Memory
 from mlmc.sample_storage_hdf import SampleStorageHDF
 from mlmc.sampler import Sampler
 from mlmc.sampling_pool import OneProcessPool, SamplingPool
-from mlmc.sim.saltelli_simulation import SaltelliSchema, SaltelliSchemaSimulation
+from mlmc.quantity.sobol import SaltelliSchema
+from mlmc.sim.saltelli_simulation import SaltelliSchemaSimulation
 from mlmc.sim.simulation import Simulation
 
 
@@ -50,7 +51,7 @@ class RecordingPool(SamplingPool):
 
 
 def test_saltelli_schema_a_mask_and_terms():
-    schema = SaltelliSchema(n_parameters=2)
+    schema = SaltelliSchema.make(n_parameters=2)
 
     expected_mask = np.array([
         [True, True],
@@ -61,7 +62,13 @@ def test_saltelli_schema_a_mask_and_terms():
         [False, False],
     ])
     assert np.array_equal(schema.a_mask, expected_mask)
-    assert schema.labels == ["A0", "AB[0]", "AB[1]", "BA[0]", "BA[1]", "B0"]
+    labels = (
+        ["A0"]
+        + ["AB[{}]".format(i) for i in range(schema.n_parameters)]
+        + ["BA[{}]".format(i) for i in range(schema.n_parameters)]
+        + ["B0"]
+    )
+    assert labels == ["A0", "AB[0]", "AB[1]", "BA[0]", "BA[1]", "B0"]
 
     terms = schema.terms(np.array([1.0, 2.0]), np.array([3.0, 4.0]))
     expected_terms = np.array([
