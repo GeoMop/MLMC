@@ -61,7 +61,7 @@ setup(
     # include automatically all files in the template MANIFEST.in
     include_package_data=True,
     zip_safe=False,
-    install_requires=['numpy', 'scipy', 'scikit-learn', 'h5py>=3.1.0', 'ruamel.yaml', 'attrs', 'gstools', 'memoization'],
+    install_requires=['numpy', 'scipy', 'scikit-learn', 'h5py>=3.1.0', 'ruamel.yaml>=0.18', 'attrs', 'gstools', 'memoization'],
     extras_require={
         'dask': ['dask', 'distributed'],
     },

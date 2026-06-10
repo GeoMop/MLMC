@@ -17,7 +17,8 @@ import mlmc.quantity.quantity
 
 
 @pytest.mark.pbs
-def test_sampler_pbs(work_dir, clean=False, debug=False):
+def test_sampler_pbs(smart_tmp_path, clean=False, debug=False):
+    work_dir = smart_tmp_path
     np.random.seed(3)
     n_moments = 5
     distr = stats.norm(loc=1, scale=2)

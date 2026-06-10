@@ -140,6 +140,13 @@ Open questions:
 
 ## AGENT Log
 
+- `2026-06-08`: Added `SA_USAGE.md` as auxiliary integration context for
+  Sobol sensitivity analysis. It documents the Saltelli row layout,
+  `SaltelliSchemaSimulation` forward-simulation contract, matrix generator
+  contract, storage/root-quantity selection, `estimate_sobol_indices(...)`
+  usage, result diagnostics, formula conventions, and targeted regression
+  tests. Documentation-only change; verification was limited to readback and
+  stale API-name search.
 - `2026-06-08`: Followed Sobol refactoring notes. `SobolIndexEstimate` now
   stores only the already-sliced Saltelli quantities `a`, `b`, `ab`, and `ba`;
   it no longer stores `root` or `schema`. Quantity construction now lives

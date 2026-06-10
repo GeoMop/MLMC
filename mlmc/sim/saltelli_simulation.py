@@ -56,7 +56,7 @@ class SaltelliSchemaSimulation(Simulation):
             need_sample_workspace=forward_level_sim.need_sample_workspace,
             task_size=forward_level_sim.task_size
         )
-        level_sim.prepare_samples = self._make_prepare_samples()
+        level_sim.prepare_samples = lambda sample_ids: self.prepare_samples(sample_ids)
         return level_sim
 
     def result_format(self) -> List[QuantitySpec]:
@@ -116,19 +116,21 @@ class SaltelliSchemaSimulation(Simulation):
         assert np.all((0.0 <= matrix) & (matrix <= 1.0))
         return matrix
 
-    def _make_prepare_samples(self):
-        def prepare(sample_ids):
-            """
-            Signature: prepare(sample_ids: list[str]) -> list[tuple[str, np.ndarray]].
 
-            Reserve A/B rows for the scheduled batch and return full Saltelli
-            term vectors together with their sample ids.
 
-            """
-            a_matrix = self._generate_matrix(len(sample_ids))
-            b_matrix = self._generate_matrix(len(sample_ids))
-            return [
-                (sample_id, self.schema.terms(a_row, b_row))
-                for sample_id, a_row, b_row in zip(sample_ids, a_matrix, b_matrix)
-            ]
-        return prepare
+
+    def prepare_samples(self, sample_ids):
+        """
+        Signature: prepare(sample_ids: list[str]) -> list[tuple[str, np.ndarray]].
+
+        Reserve A/B rows for the scheduled batch and return full Saltelli
+        term vectors together with their sample ids.
+
+        """
+        a_matrix = self._generate_matrix(len(sample_ids))
+        b_matrix = self._generate_matrix(len(sample_ids))
+        return [
+            (sample_id, self.schema.terms(a_row, b_row))
+            for sample_id, a_row, b_row in zip(sample_ids, a_matrix, b_matrix)
+        ]
+

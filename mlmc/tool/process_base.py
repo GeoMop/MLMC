@@ -3,7 +3,7 @@ import sys
 import shutil
 import numpy as np
 from mlmc.moments import Legendre
-
+from mlmc.sampler import Sampler
 
 class ProcessBase:
     """
@@ -201,7 +201,7 @@ class ProcessBase:
         self.moments_fn = Legendre(n_moments, self.domain, safe_eval=True, log=log)
         return self.moments_fn
 
-    def n_sample_estimate(self, mlmc, target_variance=0.001):
+    def n_sample_estimate(self, mlmc:Sampler, target_variance=0.001):
         """
         Heuristic routine to estimate a good number of initial samples for MLMC using target variance.
 
