@@ -81,16 +81,6 @@ class SampleStorageHDF(SampleStorage):
             pass
         self._hdf_object.save_result_format(result_format)
 
-    @staticmethod
-    def make_qspec(name, unit, shape, times, locations):
-        return QuantitySpec(
-            name.decode(),
-            unit.decode(),
-            tuple(int(dim) for dim in shape),
-            [float(t) for t in times],
-            [loc.decode() for loc in locations],
-        )
-
     def load_result_format(self) -> List[QuantitySpec]:
         """
         Load and reconstruct the result format from HDF5.
@@ -99,7 +89,7 @@ class SampleStorageHDF(SampleStorage):
         """
         results_format = self._hdf_object.load_result_format()
         quantities = [
-            self.make_qspec(*res_format[0])
+            QuantitySpec(*res_format[0])
             for ispec, res_format in sorted(results_format.items())
         ]
         return quantities

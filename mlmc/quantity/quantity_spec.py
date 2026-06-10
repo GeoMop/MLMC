@@ -3,6 +3,34 @@ import numpy as np
 from typing import List, Tuple, Union
 
 
+def _to_str(value):
+    if isinstance(value, bytes):
+        return value.decode()
+    return value
+
+
+def _to_shape(value):
+    return tuple(int(dim) for dim in value)
+
+
+def _to_times(value):
+    return [float(time) for time in value]
+
+
+def _to_locations(value):
+    converted = []
+    for location in value:
+        if isinstance(location, bytes):
+            converted.append(location.decode())
+        elif isinstance(location, np.ndarray):
+            converted.append(tuple(float(coord) for coord in location))
+        elif isinstance(location, (tuple, list)):
+            converted.append(tuple(float(coord) for coord in location))
+        else:
+            converted.append(location)
+    return converted
+
+
 @attr.s(auto_attribs=True, eq=False)
 class QuantitySpec:
     """
@@ -16,11 +44,11 @@ class QuantitySpec:
                       (x, y, z) where the quantity is defined.
     """
 
-    name: str
-    unit: str
-    shape: Tuple[int, ...]
-    times: List[float]
-    locations: Union[List[str], List[Tuple[float, float, float]]]
+    name: str = attr.field(converter=_to_str)
+    unit: str = attr.field(converter=_to_str)
+    shape: Tuple[int, ...] = attr.field(converter=_to_shape)
+    times: List[float] = attr.field(converter=_to_times)
+    locations: Union[List[str], List[Tuple[float, float, float]]] = attr.field(converter=_to_locations)
 
     def __eq__(self, other):
         """

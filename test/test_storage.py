@@ -192,4 +192,20 @@ def test_hdf_heterogeneous_result_format():
     assert loaded_format == format_quant
 
 
+def test_quantity_spec_converters_normalize_hdf_values():
+    spec = QuantitySpec(
+        name=b"length",
+        unit=b"m",
+        shape=np.array([14], dtype=np.int32),
+        times=np.array([0.0], dtype=np.float64),
+        locations=np.array([b"0"]),
+    )
+
+    assert spec.name == "length"
+    assert spec.unit == "m"
+    assert spec.shape == (14,)
+    assert spec.times == [0.0]
+    assert spec.locations == ["0"]
+
+
 #test_hdf_append()
