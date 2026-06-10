@@ -110,7 +110,7 @@ class SamplingPool(ABC):
         :param work_dir: Working directory for the sample.
         :return: Tuple(sample_id, result, error_message, running_time)
         """
-        sample_id, input_value = sample_input
+        sample_id, *input_value = sample_input
 
         res = (None, None)
         err_msg = ""

@@ -197,7 +197,7 @@ class PbsJob:
 
             # Calculate sample (may create sample working dir, call external tools)
             _, res, err_msg, _ = SamplingPool.calculate_sample(
-                (sample_id, input_value), level_sim, work_dir=self._output_dir
+                (sample_id, *input_value), level_sim, work_dir=self._output_dir
             )
 
             if not err_msg:

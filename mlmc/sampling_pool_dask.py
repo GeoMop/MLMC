@@ -74,7 +74,7 @@ class SamplingPoolDask(OneProcessPool):
         Dask task keys are deterministic in ``sample_id``. The submitted worker
         task receives ``sample_input`` unchanged.
         """
-        sample_id, _input_value = sample_input
+        sample_id, *_input_value = sample_input
         if sample_id in self._sample_to_future:
             return
 

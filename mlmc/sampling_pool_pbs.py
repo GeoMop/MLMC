@@ -197,7 +197,7 @@ class SamplingPoolPBS(SamplingPool):
         """
         self.serialize_level_sim(level_sim)
 
-        sample_id, input_value = sample_input
+        sample_id, *input_value = sample_input
         self._scheduled.append((level_sim._level_id, sample_id, input_value))
 
         self._n_samples_in_job += 1
