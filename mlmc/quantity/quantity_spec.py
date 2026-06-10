@@ -18,7 +18,7 @@ class QuantitySpec:
 
     name: str
     unit: str
-    shape: Tuple[int, int]
+    shape: Tuple[int, ...]
     times: List[float]
     locations: Union[List[str], List[Tuple[float, float, float]]]
 

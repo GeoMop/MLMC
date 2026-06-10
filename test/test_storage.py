@@ -174,7 +174,7 @@ def test_hdf_heterogeneous_result_format():
     file_path = os.path.join(work_dir, "mlmc.hdf5")
 
     format_quant = [
-        QuantitySpec(name="length", unit="m", shape=(2, 1), times=[1], locations=['10']),
+        QuantitySpec(name="length", unit="m", shape=(14,), times=[1], locations=['10']),
         QuantitySpec(name="width", unit="mm", shape=(2, 2), times=[1, 2, 3], locations=['30', '40']),
     ]
 
@@ -185,6 +185,8 @@ def test_hdf_heterogeneous_result_format():
         format_group = hdf_file["result_format"]
         assert sorted(format_group.keys()) == ["0000", "0001"]
         assert format_group["0000"].dtype != format_group["0001"].dtype
+        assert format_group["0000"][0]["shape"].tolist() == [14]
+        assert format_group["0001"][0]["shape"].tolist() == [2, 2]
 
     loaded_format = storage.load_result_format()
     assert loaded_format == format_quant

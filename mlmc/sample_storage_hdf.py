@@ -83,7 +83,13 @@ class SampleStorageHDF(SampleStorage):
 
     @staticmethod
     def make_qspec(name, unit, shape, times, locations):
-        return QuantitySpec(name.decode(), unit.decode(), shape, times, [loc.decode() for loc in locations])
+        return QuantitySpec(
+            name.decode(),
+            unit.decode(),
+            tuple(int(dim) for dim in shape),
+            [float(t) for t in times],
+            [loc.decode() for loc in locations],
+        )
 
     def load_result_format(self) -> List[QuantitySpec]:
         """

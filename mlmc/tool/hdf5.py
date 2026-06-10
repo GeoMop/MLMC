@@ -187,12 +187,13 @@ class HDF5:
             loc_dtype = 'S30'
         else:
             assert len(first_loc) == 3
-            np.dtype((float, (3,)))
+            loc_dtype = np.dtype((float, (3,)))
+        shape_dtype = np.dtype((np.int32, (len(spec.shape),)))
         locations_dtype = np.dtype((loc_dtype, (len(spec.locations),)))
         result_dtype = {'names': ('name','unit', 'shape', 'times', 'locations'),
                         'formats': ('S50',
                                     'S50',
-                                    np.dtype((np.int32, (2,))),
+                                    shape_dtype,
                                     np.dtype((float, (len(spec.times),))),
                                     locations_dtype
                                     )

@@ -140,6 +140,7 @@ Open questions:
 
 ## AGENT Log
 
+- `2026-06-10`: Fixed HDF result-format roundtripping for 1D shapes. `HDF5.single_format()` now sizes the stored `shape` subarray from `len(spec.shape)` instead of hard-coding two entries, and `SampleStorageHDF.make_qspec()` now normalizes loaded shapes and times back to Python scalars. Extended `test/test_storage.py::test_hdf_heterogeneous_result_format` to cover a `QuantitySpec(shape=(14,))` roundtrip and to assert the raw HDF field stores `[14]` rather than `[14, 14]`. Verification passed: `PYTHONPATH=venv/lib/python3.12/site-packages:/home/jb/workspace/MLMC MPLCONFIGDIR=/tmp/mplconfig python3.12 -m pytest -c test/pytest.ini test/test_storage.py -vv`.
 - `2026-06-08`: Added `SA_USAGE.md` as auxiliary integration context for
   Sobol sensitivity analysis. It documents the Saltelli row layout,
   `SaltelliSchemaSimulation` forward-simulation contract, matrix generator
