@@ -36,6 +36,31 @@ class ForwardModelSimulation(Simulation):
         return fine, coarse
 
 
+class ForwardModelWithExtraParamsSimulation(Simulation):
+    need_workspace = False
+
+    def __init__(self):
+        self.forward_inputs = []
+
+    def level_instance(self, fine_level_params, coarse_level_params):
+        config = {
+            "fine": {"step": fine_level_params[0]},
+            "coarse": {"step": coarse_level_params[0]},
+        }
+        return LevelSimulation(config_dict=config, task_size=0.0)
+
+    def result_format(self):
+        return [QuantitySpec(name="value", unit="1", shape=(1,), times=[0], locations=["0"])]
+
+    def calculate(self, config_dict, input_vector):
+        self.forward_inputs.append(tuple(float(v) for v in input_vector))
+        x0, x1, extra0, extra1 = input_vector
+        value = 10 * x0 + x1 + 100 * extra0 + 1000 * extra1
+        fine = np.array([value + config_dict["fine"]["step"]])
+        coarse = np.array([0.0 if config_dict["coarse"]["step"] == 0 else value + config_dict["coarse"]["step"]])
+        return fine, coarse
+
+
 class RecordingPool(SamplingPool):
     def __init__(self):
         self.scheduled = []
@@ -71,14 +96,7 @@ def test_saltelli_schema_a_mask_and_terms():
     assert labels == ["A0", "AB[0]", "AB[1]", "BA[0]", "BA[1]", "B0"]
 
     terms = schema.terms(np.array([1.0, 2.0]), np.array([3.0, 4.0]))
-    expected_terms = np.array([
-        [1.0, 2.0],
-        [3.0, 2.0],
-        [1.0, 4.0],
-        [1.0, 4.0],
-        [3.0, 2.0],
-        [3.0, 4.0],
-    ])
+    expected_terms = np.array([1.0, 2.0, 3.0, 2.0, 1.0, 4.0, 1.0, 4.0, 3.0, 2.0, 3.0, 4.0])
     assert np.array_equal(terms, expected_terms)
 
 
@@ -144,8 +162,12 @@ def test_saltelli_simulation_propagates_inputs_through_local_sampler():
 
     assert requested_sizes == [(2, 2), (2, 2)]
     scheduled_samples = storage.load_scheduled_samples()[0]
-    first_sample_id, first_sample_input = scheduled_samples[0]
-    second_sample_id, second_sample_input = scheduled_samples[1]
+    first_sample = scheduled_samples[0]
+    second_sample = scheduled_samples[1]
+    first_sample_id = first_sample[0]
+    second_sample_id = second_sample[0]
+    first_sample_input = np.asarray(first_sample[1:]).reshape(6, 2)
+    second_sample_input = np.asarray(second_sample[1:]).reshape(6, 2)
     assert first_sample_id == "L00_S0000000"
     assert second_sample_id == "L00_S0000001"
     assert np.allclose(first_sample_input, np.array([
@@ -171,6 +193,44 @@ def test_saltelli_simulation_propagates_inputs_through_local_sampler():
     assert np.allclose(second_fine, np.array([5.7, 7.7, 5.9, 5.9, 7.7, 7.9]))
 
 
+def test_saltelli_simulation_forwards_remaining_parameters_to_forward_model():
+    blocks = [
+        np.array([[0.1, 0.2]]),
+        np.array([[0.3, 0.4]]),
+    ]
+
+    def matrix_generator(n_rows, n_parameters):
+        return blocks.pop(0)[:n_rows, :n_parameters]
+
+    forward_simulation = ForwardModelWithExtraParamsSimulation()
+    simulation = SaltelliSchemaSimulation(
+        forward_simulation=forward_simulation,
+        matrix_generator=matrix_generator,
+        n_parameters=2,
+    )
+    level_sim = simulation.level_instance([0.1], [0.01])
+    level_sim._calculate = simulation.calculate
+    level_sim._result_format = simulation.result_format
+    level_sim._level_id = 0
+    scheduled_sample = (
+        "L00_S0000000",
+        *simulation.schema.terms(np.array([0.1, 0.2]), np.array([0.3, 0.4])),
+        7.0,
+        8.0,
+    )
+
+    sample_id, result, err_msg, _ = SamplingPool.calculate_sample(scheduled_sample, level_sim)
+
+    assert sample_id == "L00_S0000000"
+    assert err_msg == ""
+    assert len(forward_simulation.forward_inputs) == simulation.schema.n_terms
+    assert forward_simulation.forward_inputs[0] == (0.1, 0.2, 7.0, 8.0)
+    assert forward_simulation.forward_inputs[-1] == (0.3, 0.4, 7.0, 8.0)
+    expected_values = np.array([8701.2, 8703.2, 8701.4, 8701.4, 8703.2, 8703.4])
+    assert np.allclose(result[0], expected_values + 0.1)
+    assert np.allclose(result[1], expected_values + 0.01)
+
+
 def test_renew_failed_samples_uses_stored_sample_input(tmp_path):
     sample_input = np.array([[0.1, 0.2], [0.3, 0.4]])
     storage = SampleStorageHDF(file_path=str(tmp_path / "mlmc.hdf5"))
@@ -187,14 +247,15 @@ def test_renew_failed_samples_uses_stored_sample_input(tmp_path):
         raise AssertionError("renew_failed_samples must not regenerate sample inputs")
 
     level_sim.prepare_samples = prepare_samples
-    storage.save_scheduled_samples(0, [("L00_S0000000", sample_input)])
+    storage.save_scheduled_samples(0, [("L00_S0000000", *sample_input.flatten())])
     storage.save_samples({}, {0: [("L00_S0000000", "failed")]})
 
     sampler.renew_failed_samples()
 
     assert len(pool.scheduled) == 1
     renewed_sample, renewed_level_sim = pool.scheduled[0]
-    renewed_sample_id, renewed_input = renewed_sample
+    renewed_sample_id = renewed_sample[0]
+    renewed_input = np.asarray(renewed_sample[1:]).reshape(sample_input.shape)
     assert renewed_sample_id == "L00_S0000000"
     assert np.allclose(renewed_input, sample_input)
     assert renewed_level_sim is level_sim

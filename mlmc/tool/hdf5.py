@@ -475,13 +475,16 @@ class LevelGroup:
                 "Scheduled samples must either all include inputs or all be ids."
             return list(scheduled_samples), None
 
-        sample_ids, *sample_inputs = zip(*scheduled_samples)
-
-        input_arrays = [np.asarray(sample_input) for sample_input in sample_inputs]
+        sample_ids = [sample[0] for sample in scheduled_samples]
+        input_arrays = [
+            np.asarray(sample[1:], dtype=float)
+            for sample in scheduled_samples
+        ]
+        assert all(input_array.ndim == 1 for input_array in input_arrays), \
+            "Scheduled sample input tail must be convertible to a 1D float array."
         input_shape = input_arrays[0].shape
-        for input_array in input_arrays:
-            assert input_array.shape == input_shape, \
-                "Scheduled sample input shape must be constant within a level."
+        assert all(input_array.shape == input_shape for input_array in input_arrays), \
+            "Scheduled sample input shape must be constant within a level."
 
         input_vecs = np.stack(input_arrays)
         assert len(input_vecs.shape) == 2, input_vecs.shape[0] == len(sample_ids)
@@ -523,6 +526,18 @@ class LevelGroup:
             scheduled_inputs = level_group[self.scheduled_inputs_dset][()]
             assert len(scheduled_ids) == len(scheduled_inputs), \
                 "Scheduled sample ids and inputs have inconsistent lengths."
+            if scheduled_inputs.ndim == 1:
+                return [
+                    (sample_id, sample_input.item() if isinstance(sample_input, np.generic) else sample_input)
+                    for sample_id, sample_input in zip(scheduled_ids, scheduled_inputs)
+                ]
+
+            if scheduled_inputs.ndim == 2:
+                return [
+                    (sample_id, *sample_input.tolist())
+                    for sample_id, sample_input in zip(scheduled_ids, scheduled_inputs)
+                ]
+
             return list(zip(scheduled_ids, scheduled_inputs))
 
     def chunks(self, n_samples=None):

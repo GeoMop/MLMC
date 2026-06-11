@@ -99,12 +99,14 @@ class SaltelliSchemaSimulation(Simulation):
         """
         if sample_input is None:
             raise ValueError("Missing planned Saltelli sample input")
-
+        sample_input = np.asarray(sample_input, dtype=float)
+        own_size = self.schema.n_terms * self.schema.n_parameters
+        sample_matrix = sample_input[:own_size].reshape(self.schema.n_terms, self.schema.n_parameters)
+        forward_params = sample_input[own_size:]
         fine_results = []
         coarse_results = []
-        sample_matrix = sample_input.reshape(self.schema.n_terms, self.schema.n_parameters)
         for input_vector in sample_matrix:
-            fine_result, coarse_result = self.forward_simulation.calculate(config_dict["forward_config"], input_vector)
+            fine_result, coarse_result = self.forward_simulation.calculate(config_dict["forward_config"], (*input_vector, *forward_params))
             fine_results.append(np.asarray(fine_result).flatten())
             coarse_results.append(np.asarray(coarse_result).flatten())
 
@@ -122,10 +124,10 @@ class SaltelliSchemaSimulation(Simulation):
 
     def prepare_samples(self, sample_ids):
         """
-        Signature: prepare(sample_ids: list[str]) -> list[tuple[str, np.ndarray]].
+        Signature: prepare(sample_ids: list[str]) -> list[tuple[str, float, ...]].
 
         Reserve A/B rows for the scheduled batch and return full Saltelli
-        term vectors together with their sample ids.
+        term vectors flattened into the sample tail together with their sample ids.
 
         """
         a_matrix = self._generate_matrix(len(sample_ids))
@@ -134,4 +136,3 @@ class SaltelliSchemaSimulation(Simulation):
             (sample_id, *list(self.schema.terms(a_row, b_row)))
             for sample_id, a_row, b_row in zip(sample_ids, a_matrix, b_matrix)
         ]
-

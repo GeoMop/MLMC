@@ -149,10 +149,14 @@ class SampleStorage(metaclass=ABCMeta):
         """
         if isinstance(scheduled_sample, str):
             return SampleStorage.make_default_sample_input(scheduled_sample)
-        sample_id, sample_input = scheduled_sample
-        if isinstance(sample_input, np.generic):
-            sample_input = sample_input.item()
-        return sample_id, sample_input
+        sample_id, *sample_input = scheduled_sample
+        # Stored scheduled samples must be ``(sample_id, *float_tail)``.
+        # Validate the tail at the storage boundary instead of accepting nested
+        # arrays or object values that HDF cannot represent faithfully.
+        input_array = np.asarray(sample_input, dtype=float)
+        assert input_array.ndim == 1, \
+            "Scheduled sample input tail must be convertible to a 1D float array."
+        return sample_id, *sample_input
 
     @abstractmethod
     def get_level_ids(self):

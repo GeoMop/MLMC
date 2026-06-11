@@ -103,33 +103,44 @@ def test_storage_keeps_scheduled_sample_inputs(storage_kind, tmp_path):
             result_format=[QuantitySpec(name="value", unit="1", shape=(1,), times=[0], locations=["0"])],
         )
 
-    scalar_scheduled_samples = [
-        ("L00_S0000000", 123),
+    single_value_scheduled_samples = [
+        ("L00_S0000000", 123.0),
     ]
     array_scheduled_samples = [
-        ("L01_S0000000", np.array([[1.0, 2.0], [3.0, 4.0]])),
+        ("L01_S0000000", 1.0, 2.0, 3.0, 4.0),
     ]
-    storage.save_scheduled_samples(0, scalar_scheduled_samples)
+    storage.save_scheduled_samples(0, single_value_scheduled_samples)
     storage.save_scheduled_samples(1, array_scheduled_samples)
     storage.save_samples({}, {0: [("L00_S0000000", "failed")]})
 
     loaded_scheduled_samples = storage.load_scheduled_samples()
-    loaded_scalar_id, loaded_scalar_input = loaded_scheduled_samples[0][0]
-    loaded_array_id, loaded_array_input = loaded_scheduled_samples[1][0]
+    loaded_single_value_id, loaded_single_value_input = loaded_scheduled_samples[0][0]
+    loaded_array_sample = loaded_scheduled_samples[1][0]
+    loaded_array_id = loaded_array_sample[0]
+    loaded_array_input = loaded_array_sample[1:]
 
-    assert loaded_scalar_id == "L00_S0000000"
-    assert np.isscalar(loaded_scalar_input)
-    assert loaded_scalar_input == 123
+    assert loaded_single_value_id == "L00_S0000000"
+    assert loaded_single_value_input == 123.0
     assert loaded_array_id == "L01_S0000000"
-    assert np.allclose(loaded_array_input, np.array([[1.0, 2.0], [3.0, 4.0]]))
+    assert np.allclose(loaded_array_input, np.array([1.0, 2.0, 3.0, 4.0]))
 
     if storage_kind == 'hdf':
         failed_sample_id, failed_sample_input = storage.failed_samples()["0"][0]
         assert failed_sample_id == "L00_S0000000"
-        assert np.isscalar(failed_sample_input)
-        assert failed_sample_input == 123
+        assert failed_sample_input == 123.0
     else:
         assert storage.failed_samples() == {}
+
+
+def test_hdf_rejects_non_1d_sample_inputs(tmp_path):
+    storage = SampleStorageHDF(file_path=os.path.join(tmp_path, "mlmc.hdf5"))
+    storage.save_global_data(
+        level_parameters=np.ones(1),
+        result_format=[QuantitySpec(name="value", unit="1", shape=(1,), times=[0], locations=["0"])],
+    )
+
+    with pytest.raises(AssertionError, match="1D float array"):
+        storage.save_scheduled_samples(0, [("L00_S0000000", np.array([[1.0, 2.0], [3.0, 4.0]]))])
 
 
 def test_hdf_append():
