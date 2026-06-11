@@ -57,7 +57,8 @@ class SaltelliSchema:
         a_row = np.asarray(a_row)
         b_row = np.asarray(b_row)
         assert a_row.shape == b_row.shape == (self.n_parameters,)
-        return np.where(self.a_mask, a_row[None, :], b_row[None, :])
+        sample_matrix = np.where(self.a_mask, a_row[None, :], b_row[None, :])
+        return sample_matrix.flatten()
 
 
 def _require_saltelli_array(quantity: Quantity, schema: SaltelliSchema):

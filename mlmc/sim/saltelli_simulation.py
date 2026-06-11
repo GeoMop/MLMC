@@ -102,7 +102,8 @@ class SaltelliSchemaSimulation(Simulation):
 
         fine_results = []
         coarse_results = []
-        for input_vector in sample_input:
+        sample_matrix = sample_input.reshape(self.schema.n_terms, self.schema.n_parameters)
+        for input_vector in sample_matrix:
             fine_result, coarse_result = self.forward_simulation.calculate(config_dict["forward_config"], input_vector)
             fine_results.append(np.asarray(fine_result).flatten())
             coarse_results.append(np.asarray(coarse_result).flatten())
@@ -130,7 +131,7 @@ class SaltelliSchemaSimulation(Simulation):
         a_matrix = self._generate_matrix(len(sample_ids))
         b_matrix = self._generate_matrix(len(sample_ids))
         return [
-            (sample_id, self.schema.terms(a_row, b_row))
+            (sample_id, *list(self.schema.terms(a_row, b_row)))
             for sample_id, a_row, b_row in zip(sample_ids, a_matrix, b_matrix)
         ]
 
