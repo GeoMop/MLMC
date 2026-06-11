@@ -475,7 +475,7 @@ class LevelGroup:
                 "Scheduled samples must either all include inputs or all be ids."
             return list(scheduled_samples), None
 
-        sample_ids, sample_inputs = zip(*scheduled_samples)
+        sample_ids, *sample_inputs = zip(*scheduled_samples)
 
         input_arrays = [np.asarray(sample_input) for sample_input in sample_inputs]
         input_shape = input_arrays[0].shape
@@ -483,7 +483,9 @@ class LevelGroup:
             assert input_array.shape == input_shape, \
                 "Scheduled sample input shape must be constant within a level."
 
-        return sample_ids, np.stack(input_arrays)
+        input_vecs = np.stack(input_arrays)
+        assert len(input_vecs.shape) == 2, input_vecs.shape[0] == len(sample_ids)
+        return sample_ids, input_vecs
 
     def _append_scheduled_inputs(self, sample_inputs):
         """
